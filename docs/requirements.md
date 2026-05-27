@@ -70,7 +70,7 @@
 
 | 要素 | 内容 |
 |---|---|
-| ローカルLLM | Qwen2.5-VL-72B-AWQ を vLLM で推論。学内DGX Sparkサーバー上で稼働させる。学外のクラウドAIサービスは利用しない |
+| ローカルLLM | Qwen3.6-27B-FP8 を vLLM で推論。学内DGX Sparkサーバー上で稼働させる。学外のクラウドAIサービスは利用しない |
 | シラバスバックエンドAPI | 既存のシラバスバックエンドシステム([https://github.com/RyukokuDX/syllabus_backend](https://github.com/RyukokuDX/syllabus_backend))が提供するAPIを利用する(科目情報の参照) |
 
 その他の技術選定(フロントエンド・バックエンドの実装方式、AIエージェント基盤など)は設計判断であり、本書の対象外とする。
