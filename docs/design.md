@@ -1,0 +1,587 @@
+# 履修登録支援AIチャットボット 設計書(v0.1)
+
+## 0. この文書について
+
+### 0.1 本書の位置づけ
+
+本書は、龍谷大学プロジェクトリサーチの活動として開発する「履修登録支援AIチャットボット」の設計書である。要件定義書(`requirements.md`)で示された「こういう機能がほしい」という要求を、「どの技術で、システムをどの部品に分け、どんなデータの形で、どんな順序で処理するか」という具体的な実装方針に落とし込むことを目的とする。
+
+### 0.2 要件定義書との関係
+
+本書は要件定義書を上位文書とし、要件定義書に反する記述は持たない。要件定義書の項番(§)を必要に応じて引用する。
+
+---
+
+## 1. システム全体構成
+
+### 1.1 構成要素
+
+サービスは以下の5つのコンテナで構成する。frontend / backend / vllm の3つを本プロジェクトで新規開発し、api-clean / postgres-clean は既存のシラバスバックエンドをそのまま利用する。
+
+| 要素 | 役割 | 実装 | 新規/既存 |
+|---|---|---|---|
+| frontend | 学生が触れる Web UI | Next.js(React + TypeScript) | 新規 |
+| backend | フロントと LLM/シラバスAPI を仲介し、履修提案ロジックを担う | FastAPI(Python)+ PydanticAI | 新規 |
+| vllm | ローカル LLM 推論サーバ | vLLM、Qwen3.6-27B-FP8 | 新規 |
+| api-clean | シラバス情報提供 API | FastAPI(既存) | 既存・無変更 |
+| postgres-clean | シラバス DB | PostgreSQL(既存) | 既存・無変更 |
+
+### 1.2 アーキテクチャ図
+
+```mermaid
+flowchart TB
+    Browser["学生のブラウザ<br/>(PDF解析 + 状態保持)"]
+
+    subgraph ComposeB["Compose B: 本プロジェクト(新規)"]
+      Frontend["frontend<br/>Next.js"]
+      Backend["backend<br/>FastAPI + PydanticAI"]
+      VLLM["vllm<br/>Qwen3.6-27B-FP8"]
+    end
+
+    subgraph ComposeA["Compose A: 既存シラバスバックエンド(無変更)"]
+      APIClean["api-clean<br/>FastAPI :5050"]
+      PG["postgres-clean<br/>PostgreSQL"]
+    end
+
+    Browser -->|HTTPS| Frontend
+    Frontend -->|HTTP/SSE| Backend
+    Backend -->|HTTP| VLLM
+    Backend -->|HTTP| APIClean
+    APIClean --> PG
+```
+
+### 1.3 データの流れ
+
+要件§5.4のデータフロー図を各コンポーネントの責務に基づいて具体化する。
+
+1. 学生がブラウザで成績表PDFを選択 → frontend 内の PDF.js でテキスト抽出 → ブラウザのメモリ(Zustand store)に学生プロファイルとして保持
+2. 履修提案要求 → backend が学生プロファイル + 履修要項データを組み立て、vllm に推論依頼 → PydanticAI が構造化出力(時間割形式)を強制
+3. 提案表示後のチャット → backend が会話履歴 + 必要に応じて api-clean を tool calling で参照しつつ、vllm から応答を生成 → SSE で frontend へストリーミング
+4. シラバスチャット → 同様に tool calling で api-clean を呼びながら、vllm から応答を生成
+
+データ永続化は一切行わず、ブラウザを閉じれば消える(要件§5.2)。
+
+---
+
+## 2. 技術スタック
+
+| レイヤ | 技術 | 補足 |
+|---|---|---|
+| 言語(フロント) | TypeScript | |
+| 言語(バックエンド) | Python 3.12+ | |
+| Webフレームワーク(フロント) | Next.js(App Router) | |
+| Webフレームワーク(バックエンド) | FastAPI | |
+| ASGI サーバ | Uvicorn | |
+| UIライブラリ | Tailwind CSS + shadcn/ui | |
+| クライアント状態管理 | Zustand | 永続化機能はオフ(要件§5.2) |
+| サーバ通信 | TanStack Query | |
+| PDF解析 | pdfjs-dist(PDF.js) | クライアント側で実行 |
+| LLMオーケストレーション | PydanticAI | 構造化出力・ツール呼び出し |
+| LLM推論サーバ | vLLM | OpenAI 互換 API を提供 |
+| ストリーミング | SSE(Server-Sent Events) | vLLM のストリーミングをそのまま中継 |
+| 履修要項データ管理 | YAML + Git 管理 | アプリ起動時にメモリへロード |
+| コンテナ | Docker、docker compose | |
+
+### 2.1 LLMモデル
+
+- 暫定: Qwen3.6-27B-FP8(vLLM 経由)
+- API形式: OpenAI 互換 ChatCompletion(`/v1/chat/completions`、stream 対応、tool calling 対応)
+- モデルは確定次第、本節と§4.3を更新する
+
+---
+
+## 3. デプロイ構成
+
+### 3.1 配置先
+
+すべてのコンテナは単一ホスト内で完結する(要件§3.1)。
+
+### 3.2 docker compose 構成
+
+本プロジェクトのリポジトリに新規 `docker-compose.yml` を置き、frontend / backend / vllm の3サービスを定義する。既存のシラバスバックエンド(`docker-compose.clean.yml`)には一切手を加えない。
+
+サービス間通信は以下の2つのネットワークで成立する:
+
+- **app-net** — 本プロジェクト内部のサービス間通信用(frontend ↔ backend ↔ vllm)。`docker-compose.yml` が自動作成
+- **syllabus-clean-net**(既存) — backend が api-clean を呼ぶための共有ネットワーク。`external: true` で参照
+
+backend のみ両方のネットワークに参加し、橋渡しを担う。
+
+`docker-compose.yml`(抜粋):
+
+```yaml
+services:
+  frontend:
+    build: ./frontend
+    networks: [app-net]
+
+  backend:
+    build: ./backend
+    networks:
+      - app-net
+      - syllabus-clean-net
+    depends_on: [vllm]
+
+  vllm:
+    image: vllm/vllm-openai:latest
+    networks: [app-net]
+    command:
+      - --model
+      - Qwen/Qwen3.6-27B-FP8
+      - --enable-auto-tool-choice
+
+networks:
+  app-net:
+  syllabus-clean-net:
+    external: true
+    name: syllabus_backend_syllabus-clean-net
+```
+
+### 3.3 起動順序
+
+1. シラバスバックエンド側で `bin/init_clean.sh`(初回のみデータ投入込み)、以降は `docker compose -f docker-compose.clean.yml up -d`
+2. 本プロジェクトで `docker compose up -d`
+
+### 3.4 ポート割り当て(暫定)
+
+| サービス | コンテナ内 | ホスト公開 |
+|---|---|---|
+| frontend | 3000 | 3000 |
+| backend | 8000 | 8000 |
+| vllm | 8000 | 8001 |
+| api-clean(既存) | 5000 | 5050 |
+| postgres-clean(既存) | 5432 | 5433 |
+
+コンテナ内ポートは各サービスの標準値に従っている(Next.js は 3000、FastAPI/Uvicorn と vLLM は 8000、PostgreSQL は 5432、api-clean は既存設定の 5000)。ホスト公開ポートは、backend と vllm がコンテナ内で同じ 8000 を使うためホスト側で vllm を 8001 にずらしている。postgres-clean の 5433 は、ホスト上で別の PostgreSQL が動いている場合を想定した 5432 との衝突回避である(既存設定そのまま)。
+
+コンテナ間通信はホスト公開ポートではなく Docker network 経由(サービス名:コンテナ内ポート、例: `http://vllm:8000`)で行う。ホスト公開ポートは「ホストOSから直接アクセスする必要があるサービス」のみに必要で、学生のブラウザからアクセスする frontend 以外は開発時のデバッグ用と位置付ける。本番運用時の公開範囲は§3.5のアクセス制御方式と併せて決定する。
+
+学外公開は行わない(要件§3.1)。学内ネットワーク内のみ。
+
+### 3.5 アクセス制御
+
+未確定。RINS担当教員・アドバイザー教員との協議で方式を決定する。確定次第本節に追記する。現時点では「学内ネットワーク内のみアクセス可能」とのみ規定する。
+
+---
+
+## 4. コンポーネント設計
+
+### 4.1 frontend(Next.js)
+
+#### 4.1.1 ディレクトリ構成
+
+```
+frontend/
+├── app/                       # Next.js App Router
+│   ├── page.tsx               # / 学生情報入力
+│   ├── proposal/page.tsx      # /proposal 履修提案
+│   ├── syllabus/
+│   │   ├── page.tsx           # /syllabus 一覧・検索
+│   │   └── [code]/page.tsx    # /syllabus/[code] 講義詳細
+│   ├── privacy/page.tsx       # /privacy プライバシーポリシー
+│   └── layout.tsx
+├── components/
+│   ├── ui/                    # shadcn/ui で生成された部品
+│   └── ...
+├── lib/
+│   ├── pdf/                   # PDF解析
+│   │   └── parseGradeReport.ts
+│   ├── api/                   # backend との通信
+│   └── streaming/             # SSE処理
+├── stores/                    # Zustand
+│   ├── student.ts             # 学生プロファイル
+│   └── chat.ts                # 対話履歴
+└── package.json
+```
+
+#### 4.1.2 状態管理
+
+- Zustand store 2本: 学生プロファイル(`student.ts`)、対話履歴(`chat.ts`)
+- どちらも **永続化機能を意図的にオフ** にする(要件§5.2)。ページリロード・タブクローズで完全消失
+- リセット機能(要件§4.8)は両 store の `reset()` を呼ぶだけで実現
+- サーバから取得するデータ(シラバス検索結果、履修要項データ等)は TanStack Query でキャッシュ管理
+
+#### 4.1.3 PDF解析(クライアント側)
+
+- `pdfjs-dist` でテキストレイヤーを抽出
+- 龍谷大学成績表レイアウト前提のルールベースパーサーを実装
+- 評価記号(`T`/`N`/`G`/`D`/`J`/`M`)と数値スコアを認識し、合否を判定(要件§4.2)
+- 学籍番号は意図的に抽出しない(要件§4.2)
+- 解析失敗時は「読み取れませんでした、手入力に切り替えてください」とフォールバック
+
+#### 4.1.4 ストリーミング表示
+
+- backend からの SSE を `fetch` + `ReadableStream` で受信
+- 受信した chunk を逐次 React state に反映、画面に追記表示
+
+### 4.2 backend(FastAPI)
+
+#### 4.2.1 ディレクトリ構成
+
+```
+backend/
+├── app/
+│   ├── main.py                # FastAPI app entry
+│   ├── api/                   # ルーティング
+│   │   ├── proposal.py        # 履修提案
+│   │   ├── chat_proposal.py   # 提案チャット
+│   │   └── chat_syllabus.py   # シラバスチャット
+│   ├── agents/                # PydanticAI エージェント定義
+│   │   ├── proposal_agent.py
+│   │   ├── chat_agent.py
+│   │   └── tools.py           # シラバスAPI呼び出し等
+│   ├── schemas/               # Pydantic スキーマ
+│   │   ├── student.py
+│   │   ├── curriculum.py
+│   │   └── proposal.py
+│   ├── curricula/             # 履修要項データロード
+│   │   └── loader.py
+│   └── settings.py
+├── pyproject.toml
+└── Dockerfile
+```
+
+#### 4.2.2 役割
+
+- フロントからのリクエストを受け、必要に応じて履修要項データを参照し、PydanticAI で定義したエージェントに処理を委ねる
+- エージェントは vllm を OpenAI 互換クライアント経由で呼び、必要に応じて api-clean を tool calling で叩く
+- 応答は SSE でフロントへストリーミング
+
+#### 4.2.3 学生データの取り扱い
+
+- backend は学生プロファイル(学年・課程・既修得科目)をリクエスト本文で受け取り、推論用プロンプトの組み立てに使うが、**永続化しない**
+- リクエスト処理完了後にメモリから破棄される
+- ログにも記録しない(要件§5.5)
+
+### 4.3 vllm(LLM 推論サーバ)
+
+- vLLM を Docker(`vllm/vllm-openai:latest` 等)で起動
+- `--model Qwen/Qwen3.6-27B-FP8`(暫定モデル)
+- `--enable-auto-tool-choice` を有効化して tool calling に対応
+- OpenAI 互換 API を `/v1/chat/completions` で公開
+- backend からのみアクセス可能(`app-net` 内)、frontend からは直接呼ばない
+
+### 4.4 履修要項データ層
+
+#### 4.4.1 データ生成方針
+
+- 龍谷大学公式サイトから閲覧できる履修要項を、**手動で YAML 形式に転記**する
+- 第1フェーズの対象範囲(知能情報メディア課程・該当入学年度)分のみを作成
+- 転記担当者がドラフトを作成 → Pull Request → アドバイザー教員のレビュー・承認(要件§8末尾)
+- 第2フェーズ以降で他課程・他学年・他学部に対象を広げる際は、同じ手順で対象範囲のファイルを追加する
+
+#### 4.4.2 ファイル配置と命名
+
+- リポジトリの `curricula/` ディレクトリ配下に配置
+- ファイル名は `<課程の英字略称>_<入学年度>.yaml`(例: `chinou_media_2024.yaml`)
+- 課程・入学年度ごとに1ファイル(要件§2.1の段階的拡張に対応)
+
+#### 4.4.3 ロード方式
+
+- backend 起動時に `curricula/*.yaml` を全件読み込み、Pydantic スキーマで型付けしてメモリ上に保持
+- 起動時にスキーマバリデーションを実行し、不正があれば起動失敗(転記ミスを早期に検出)
+- 個々のリクエストでは、該当課程・該当入学年度のオブジェクトのみを参照する
+- クライアントへ全量を返すことはせず、必要な部分のみを JSON で返却する
+
+#### 4.4.4 更新運用
+
+- YAMLファイルの追加・変更は Pull Request 経由でアドバイザー教員のレビュー・承認を必須とする
+- GitHub の CODEOWNERS で `curricula/` 配下の承認者をアドバイザー教員に限定することを想定
+
+---
+
+## 5. データ設計
+
+### 5.1 履修要項 YAML スキーマ(暫定)
+
+```yaml
+program: "知能情報メディア課程"
+admission_year: 2024
+graduation_requirements:
+  total_credits: 124          # 卒業所要総単位数
+  categories:
+    - name: "仏教必修"
+      required_credits: 4
+    - name: "言語必修"
+      required_credits: 6
+    # ... 以下、教養・専門の各区分
+  notes: |
+    補足事項や例外規定があればここに記述
+courses:
+  - code: "B12345"            # api-clean の syllabus_code と対応
+    title: "情報基礎"
+    credits: 2
+    category: "基礎必修"
+    required: true
+    grade_min: 1
+    grade_max: 1
+    term: "前期"
+  # ... 以下、課程の対象科目を列挙
+```
+
+スキーマの最終確定はアドバイザー教員監修のもと、要件§8に従って行う。
+
+### 5.2 クライアント側状態スキーマ
+
+#### 5.2.1 学生プロファイル(Zustand `student.ts`)
+
+```typescript
+type Course = {
+  code?: string          // 任意(成績表に明記されていれば)
+  title: string          // 科目名
+  year: number           // 履修年度
+  term: "前期" | "後期" | "通年" | "1Q" | "2Q" | "3Q" | "4Q" | "サ集"
+  credits: number
+  status: "passed" | "failed" | "withdrawn"
+  rawScore?: string      // 元の表記(数値または記号)
+}
+
+type StudentProfile = {
+  grade: 1 | 2 | 3 | 4 | null
+  program: string | null
+  completedCourses: Course[]
+}
+```
+
+#### 5.2.2 対話履歴(Zustand `chat.ts`)
+
+```typescript
+type Message = {
+  id: string
+  role: "user" | "assistant"
+  content: string
+  timestamp: number
+}
+
+type ChatState = {
+  proposalMessages: Message[]
+  syllabusMessages: Message[]
+  syllabusPerCourse: Record<string, Message[]>  // 講義ページ単位
+}
+```
+
+---
+
+## 6. API設計
+
+### 6.1 内部 API(frontend ↔ backend)
+
+| メソッド | パス | 用途 | 応答形式 |
+|---|---|---|---|
+| POST | /api/proposal | 履修提案を生成 | SSE |
+| POST | /api/chat/proposal | 履修提案に関するチャット | SSE |
+| POST | /api/chat/syllabus | シラバス全体チャット | SSE |
+| POST | /api/chat/syllabus/{code} | 講義単位チャット | SSE |
+| GET | /api/curricula/{program}/{year} | 履修要項データ参照(タグ表示用) | JSON |
+| GET | /healthz | ヘルスチェック | JSON |
+
+リクエストには学生プロファイルと対話履歴を毎回含める(サーバ側で永続化しないため)。
+
+### 6.2 既存シラバスバックエンド API の利用
+
+backend から `http://api-clean:5000` 経由で以下を主に利用する:
+
+- `GET /syllabi` — 検索(独自シラバス§4.5、シラバスチャット§4.6で使用)
+- `GET /syllabi/{code}` — 詳細(講義ページ表示・講義単位チャットで使用)
+- `GET /masters` — 値マスタ(検索 UI のドロップダウン候補に利用)
+
+`POST /sql` はエージェントに任意 SQL を書かせるリスクを避けるため使用しない方針とする。
+
+### 6.3 vLLM との連携
+
+- backend は OpenAI 互換クライアント経由で `http://vllm:8000/v1/chat/completions` を呼ぶ
+- PydanticAI の `OpenAIModel(model='qwen3.6-27b-fp8', base_url='http://vllm:8000/v1')` 形式で設定
+- ツール呼び出しは PydanticAI の `@agent.tool` で定義し、内部で api-clean を HTTP で叩く
+
+---
+
+## 7. 主要シーケンス
+
+### 7.1 成績表PDF取り込み
+
+```mermaid
+sequenceDiagram
+  participant User as 学生
+  participant Browser as ブラウザ(frontend)
+  User->>Browser: PDFファイル選択
+  Browser->>Browser: プライバシー確認モーダル表示
+  User->>Browser: 「同意して取り込む」
+  Browser->>Browser: PDF.js でテキスト抽出
+  Browser->>Browser: ルールベースパーサで履修科目を構造化
+  Browser->>Browser: Zustand 学生ストアに保存
+  Browser->>User: 学生プロファイル画面を表示
+```
+
+ネットワーク通信は一切発生しない(要件§5.2、§5.3を担保)。
+
+### 7.2 履修提案生成
+
+```mermaid
+sequenceDiagram
+  participant FE as frontend
+  participant BE as backend
+  participant LLM as vllm
+  FE->>BE: POST /api/proposal(プロファイル+希望条件)
+  BE->>BE: 履修要項データから卒業要件・必要単位を算出
+  BE->>LLM: ChatCompletion(構造化出力スキーマ指定、stream=true)
+  LLM-->>BE: 時間割JSONを chunk ストリーム
+  BE-->>FE: SSE で時間割を配信
+  FE->>FE: 時間割表を逐次描画
+```
+
+### 7.3 提案チャット
+
+```mermaid
+sequenceDiagram
+  participant FE as frontend
+  participant BE as backend
+  participant LLM as vllm
+  participant API as api-clean
+  FE->>BE: POST /api/chat/proposal(履歴+提案+質問)
+  BE->>LLM: ChatCompletion(tool callingあり)
+  LLM-->>BE: ツール呼び出し要求(例: GET /syllabi/{code})
+  BE->>API: GET /syllabi/{code}
+  API-->>BE: 講義詳細
+  BE->>LLM: ツール結果を渡して継続
+  LLM-->>BE: 応答ストリーム
+  BE-->>FE: SSE
+```
+
+### 7.4 シラバスチャット(全体)
+
+要件§4.6「シラバス全体に対する質問」。
+
+```mermaid
+sequenceDiagram
+  participant FE as frontend
+  participant BE as backend
+  participant LLM as vllm
+  participant API as api-clean
+  FE->>BE: POST /api/chat/syllabus(履歴+質問)
+  BE->>LLM: ChatCompletion(tool callingあり)
+  LLM-->>BE: 検索ツール呼び出し
+  BE->>API: GET /syllabi?q=...
+  API-->>BE: 検索結果
+  BE->>LLM: 結果を渡す
+  LLM-->>BE: 応答ストリーム
+  BE-->>FE: SSE
+```
+
+### 7.5 シラバスチャット(講義ページ単位)
+
+要件§4.6「講義ページ単位の質問」。frontend は現在表示中の `syllabus_code` を含めて送信。backend は最初にその講義詳細を取得し、システムプロンプトの一部としてコンテキストに含めたうえで LLM に渡す。
+
+---
+
+## 8. 画面構成とルーティング
+
+| パス | 画面 | 主な機能 |
+|---|---|---|
+| / | 学生情報入力 | 手入力フォーム、PDF取り込み、プライバシー確認ダイアログ(要件§5.6) |
+| /proposal | 履修提案 | 時間割表示、提案チャット(要件§4.3、§4.4) |
+| /syllabus | 独自シラバス一覧 | 検索、タグ表示「必修」「選択」「既修得済み」(要件§4.5) |
+| /syllabus/[code] | 講義詳細 | シラバス情報、講義単位チャット(要件§4.6) |
+| /privacy | プライバシーポリシー | データの流れの図解、要件§5の規定説明 |
+
+ヘッダーに常にリセットボタン(要件§4.8)を設置する。
+
+---
+
+## 9. プライバシー設計
+
+要件§5の実装方針を以下にまとめる。
+
+| 要件 | 実装 |
+|---|---|
+| §5.2 ブラウザ上のメモリにのみ保持 | Zustand store(永続化機能オフ) |
+| §5.2 リロード/タブクローズで消去 | Zustand 初期状態(モジュール再ロード時に初期化) |
+| §5.2 サーバへの永続保存禁止 | backend に DB 接続なし(履修要項 YAML はリードオンリー) |
+| §5.2 認証なし | 認証機構を実装しない |
+| §5.3 学外通信なし | 学内 vllm を利用、学外 API 呼び出しなし |
+| §5.3 HTTPS | リバースプロキシで TLS 終端(具体構成はアクセス制御方式と併せて決定) |
+| §5.5 成績情報のログ非記録 | backend のロガー設定で、リクエストボディの中身をログ出力しない |
+| §5.6 確認ウィンドウ | PDF取り込みボタン押下時にモーダル表示 |
+| §5.6 プライバシーポリシー | `/privacy` で要件§5.4のデータフロー図を含む解説を表示 |
+
+---
+
+## 10. 非機能設計
+
+### 10.1 ストリーミング表示(要件§6)
+
+- vLLM の `stream=true` を有効化
+- backend は受信した chunk をそのまま SSE で配信
+- frontend は受信した chunk を React state に逐次反映
+
+### 10.2 同時利用(要件§6)
+
+- 龍谷祭での展示を想定し、数〜十数人程度の同時利用を目標
+- vLLM の並列処理性能に依存(`--max-num-seqs` 等の起動オプションで調整)
+- 負荷試験は開発後半に実施
+
+### 10.3 対応環境(要件§6)
+
+- 主要ブラウザ(Chrome / Firefox / Safari / Edge)の最新版
+- Tailwind CSS の breakpoint を活用し、スマートフォン・タブレット幅でも崩れないレイアウトを実装
+- shadcn/ui の部品は基本的にレスポンシブ対応済み
+
+---
+
+## 11. 龍谷祭展示時の構成
+
+要件§7に対応する実装方針。
+
+| 要件 | 実装 |
+|---|---|
+| 自端末からのアクセス | 学内 Wi-Fi 接続済みの端末から指定 URL でアクセス可能とする(具体 URL はアクセス制御方式と併せて決定) |
+| 展示用端末でのデモ | 展示会場に別端末を設置し、サービスを開いた状態で来場者に操作してもらう |
+| ダミーデータ | `frontend/lib/dummy/` に複数パターンのダミー学生プロファイル(成績上位 / 平均的 / 再履修あり等)を用意し、「デモモード」ボタンから読み込めるようにする |
+| 実成績表の取り扱い | 展示用端末では「PDF取り込み」を無効化し、ダミーデータ専用とする。実成績表は来場者自身の端末でのみ利用 |
+
+---
+
+## 12. 開発・テスト方針
+
+### 12.1 リポジトリ構成
+
+本プロジェクトは単一の GitHub リポジトリで管理する。履修要項データ(`curricula/*.yaml`)も同一リポジトリ内に置く。
+
+将来、履修要項データを別サービスから参照する必要が生じた場合のみ、別リポジトリへの分離を再検討する。
+
+### 12.2 CI
+
+- frontend: 型チェック(`tsc --noEmit`)、Lint(ESLint)、ビルド
+- backend: 型チェック(`mypy` または `pyright`)、Lint(`ruff`)、ユニットテスト(`pytest`)
+- curricula: YAML スキーマバリデーション(Pydantic でロード可能かを検査)
+
+### 12.3 テスト
+
+- frontend: コンポーネントテスト(Vitest + Testing Library)、PDF解析の単体テスト(複数パターンの成績表サンプルを用意)
+- backend: API のユニットテスト、PydanticAI エージェントの応答スキーマ検証
+
+### 12.4 開発環境
+
+本プロジェクトの開発は AWS 上に構築する開発環境上で行い、Claude Code を API 経由で活用する。詳細は別ドキュメントで管理する。
+
+---
+
+## 13. 未確定事項一覧
+
+確定次第、本書を更新する。
+
+| 項目 | 確定者 | 備考 |
+|---|---|---|
+| アクセス制御方式 | RINS担当教員 / アドバイザー教員 | 学内ネットワーク内のみ、という規定は確定済み |
+| 履修要項 YAML の最終スキーマ | アドバイザー教員 + 履修要項データ担当者 | 暫定スキーマは§5.1の通り |
+| ローカル LLM モデルの最終確定 | 開発チーム | 暫定 `Qwen3.6-27B-FP8` |
+| 展示用 URL の構造 | アクセス制御方式と併せて決定 | |
+| HTTPS 終端(リバースプロキシ構成) | アクセス制御方式と併せて決定 | |
+| 5人の役割分担 | 開発チーム | 別ドキュメントで管理 |
+
+---
+
+## 改訂履歴
+
+| 版 | 日付 | 内容 |
+|---|---|---|
+| v0.1 | 2026-05-27 | 初版作成 |
