@@ -1,6 +1,12 @@
 # 知能情報メディア課程 2024年度入学 履修要項データ
+# 出典:
+#   https://rishu.ryukoku.ac.jp/curriculum/2024/faculty-rikou/s04/ (教養教育科目)
+#   https://rishu.ryukoku.ac.jp/curriculum/2024/faculty-rikou/s05/ (専攻科目・学修プログラム)
+#   http://rishu.ryukoku.ac.jp/knowledge/no5-01/ (履修登録制限単位数)
 # 構成:
 #   graduation_requirements - 卒業要件単位数・進級条件
+#   registration_limits     - 履修登録制限単位数(CAP制)
+#   study_programs          - 学修プログラム(科目の programs 欄が参照する凡例)
 #   courses                 - 各科目の詳細情報
 program: "知能情報メディア課程"
 admission_year: 2024
@@ -19,12 +25,14 @@ graduation_requirements:
       required_credits: 2
     - name: "教養選択必修（人文）"
       required_credits: 2
+      notes: "人文科学系の選択必修（基幹科目）から1科目2単位以上を修得する"
     - name: "教養選択必修（社会）"
       required_credits: 2
+      notes: "社会科学系の選択必修（基幹科目）から1科目2単位以上を修得する"
     - name: "教養選択"
       required_credits: 12
       notes: "教養教育科目の選択必修（基幹科目）の余剰修得単位はここに計上される"
-    - name: "専門基礎科目"  
+    - name: "専門基礎科目"
       required_credits: 38
       notes: "専門基礎必修・専門基礎選択の合計"
     - name: "専門基礎必修"
@@ -40,7 +48,7 @@ graduation_requirements:
       required_credits: 22
     - name: "専門関連選択"
       required_credits: 0
-      notes: "修得単位は学部フリーゾーンまたはオールフリーゾーンに算入する"
+      notes: "専門関連科目とは、所属する課程以外の他課程が主体となって開講する専攻科目(学修プログラムに含まれる科目など)。修得単位は専門基礎選択・専門応用選択には算入されず、学部フリーゾーンまたはオールフリーゾーンに算入する"
     - name: "学部フリーゾーン"
       required_credits: 10
       notes: "専門基礎・専門応用・専門関連から区分を問わず修得可。随意科目は除く"
@@ -61,5 +69,246 @@ graduation_requirements:
       conditions: null
     - to_grade: 4
       conditions: "「知能情報メディアセミナー」を単位修得していること"
+# 履修登録制限単位数(CAP制)の定義
+registration_limits:
+  by_semester:
+    - semesters: [1, 2, 3, 4]   # 1・2年次
+      max_credits_per_semester: 22
+    - semesters: [5, 6]         # 3年次
+      max_credits_per_semester: 24
+    - semesters: [7, 8]         # 4年次
+      max_credits_per_semester: 48
+      notes: "原典の表では7・8セメスターに対して48と表記されており、年間48単位（学期ごとの上限なし）の意味である可能性が高い。要確認"
+  notes: |
+    通年科目の単位数は第1学期（前期）と第2学期（後期）で2分割して計算する。
+    クォーター型科目の単位数は1Q・2Qを前期に、3Q・4Qを後期に算入する。
+    随意科目（教職課程・博物館学芸員課程など）、サマーセッション科目、「海外英語研修」、
+    大学コンソーシアム京都の単位互換科目、放送大学科目は制限単位数に含まれない。
+  gpa_exception: "前学期までの累積GPA3.5以上の学生は、申請により各学期2単位まで制限を拡大できる（毎学期初めの履修登録期間に先端理工学部教務課へ申請）"
+# 学修プログラムの定義(courses の programs 欄の番号に対応。知能情報メディア課程の科目が関わるもののみ)
+study_programs:
+  - number: 4
+    name: "データサイエンス"
+    min_credits: 14
+    notes: "科目群A・B・Cのいずれかで14単位。責任課程は数理・情報科学課程"
+  - number: 5
+    name: "リアル＆バーチャルメディア"
+    min_credits: 12
+    notes: "責任課程は知能情報メディア課程"
+  - number: 6
+    name: "応用ソフトウェア"
+    min_credits: 12
+    notes: "責任課程は知能情報メディア課程"
+  - number: 7
+    name: "人工知能"
+    min_credits: 12
+    notes: "責任課程は知能情報メディア課程"
+  - number: 14
+    name: "先端ロボティクス"
+    min_credits: 14
+    notes: "責任課程は機械工学・ロボティクス課程"
+  - number: 15
+    name: "バイオニックデザイン"
+    min_credits: 14
+    notes: "責任課程は機械工学・ロボティクス課程"
 # 各授業の定義
-courses: []
+# - type: 必修 / 選択必修 / 選択 / 随意
+# - grade・term・quarters: 配当年次・学期・クォーター。クォーター完結科目は ["1Q"] のように1要素、
+#   セメスター科目は ["1Q", "2Q"](前期) / ["3Q", "4Q"](後期) のように2クォーターにまたがる
+# - programs: 当該科目が含まれる学修プログラムの番号(study_programs 参照)
+# - code(シラバスコード)は api-clean のシラバスDBとの突合後に追加予定
+courses:
+  # ---- 教養教育科目: 「仏教の思想」科目 ----
+  - {title: "仏教の思想A", category: "教養教育科目", subcategory: "「仏教の思想」科目", type: "必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "仏教の思想B", category: "教養教育科目", subcategory: "「仏教の思想」科目", type: "必修", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "歎異抄の思想Ⅰ", category: "教養教育科目", subcategory: "「仏教の思想」科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "歎異抄の思想Ⅱ", category: "教養教育科目", subcategory: "「仏教の思想」科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"]}
+  # ---- 教養教育科目: 言語科目 ----
+  - {title: "英語総合1（A）", category: "教養教育科目", subcategory: "言語科目", type: "必修", credits: 1, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "英語総合1（B）", category: "教養教育科目", subcategory: "言語科目", type: "必修", credits: 1, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "英語総合2（A）", category: "教養教育科目", subcategory: "言語科目", type: "必修", credits: 1, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "英語総合2（B）", category: "教養教育科目", subcategory: "言語科目", type: "必修", credits: 1, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "英語総合3", category: "教養教育科目", subcategory: "言語科目", type: "必修", credits: 1, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "英語総合4", category: "教養教育科目", subcategory: "言語科目", type: "必修", credits: 1, grade: 2, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "英語セミナーA1", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "英語セミナーA2", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "英語セミナーB1", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "英語セミナーB2", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "英語セミナーC1", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "英語セミナーC2", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "英語セミナーD1", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "英語セミナーD2", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "英語セミナーE1", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "英語セミナーE2", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "英語セミナーF1", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "英語セミナーF2", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "英語セミナーG1", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "英語セミナーG2", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "海外英語研修", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], notes: "1・2年次のみ履修可能。履修登録制限単位数(CAP)の対象外"}
+  - {title: "ドイツ語ⅠA", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "ドイツ語ⅠB", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "ドイツ語ⅡA", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "ドイツ語ⅡB", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "フランス語ⅠA", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "フランス語ⅠB", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "フランス語ⅡA", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "フランス語ⅡB", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "中国語ⅠA", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "中国語ⅠB", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "中国語ⅡA", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "中国語ⅡB", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "コリア語ⅠA", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "コリア語ⅠB", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "コリア語ⅡA", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "コリア語ⅡB", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "ドイツ語セミナーⅠA", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "ドイツ語セミナーⅠB", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "フランス語セミナーⅠA", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "フランス語セミナーⅠB", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "中国語セミナーⅠA", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "中国語セミナーⅠB", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "コリア語セミナーⅠA", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "コリア語セミナーⅠB", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "日本語", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "前期", quarters: ["1Q", "2Q"], notes: "留学生対象科目"}
+  # ---- 教養教育科目: 教養科目(人文科学系) ----
+  - {title: "哲学入門", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "倫理学入門", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "倫理学A", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "クリティカル・シンキング", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "宗教学のすすめ", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "宗教の世界", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "日本の文学M", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "日本の文学N", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "アジアの文学A", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "アジアの文学B", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "西洋の文学A", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "西洋の文学B", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "言語学入門", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "歴史入門", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "日本の歴史M", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "日本の歴史N", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "日本の文化", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "西洋の歴史M", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "西洋の歴史N", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "心理学入門", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "教育原論A", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "教育原論B", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "倫理学B", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "アジアの歴史M", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "アジアの歴史N", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "アジアの文化", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "心理学A", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "心理学B", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "学習・発達論A", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "学習・発達論B", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"]}
+  # ---- 教養教育科目: 教養科目(社会科学系) ----
+  - {title: "日本国憲法", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "法学のすすめ", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "政治学のすすめ", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "社会学のすすめ", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "地理学のすすめ", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "経済学のすすめ", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "経営学のすすめ", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "国際学のすすめ", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "文化人類学のすすめ", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "社会調査のすすめ", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "社会統計学のすすめ", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "人権論A", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "人権論B", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "現代社会とメディア", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "現代社会と福祉", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "現代社会と法", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "現代社会と労働", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "現代社会の諸問題", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "環境と社会", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "平和学A", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "ジェンダー論", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "国際社会論", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "地域論", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "企業と会計", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "社会思想史", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "情報倫理", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "情報社会とメディア", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "データサイエンス・AI入門", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  # ---- 教養教育科目: 教養科目(自然科学系) ----
+  - {title: "生活の中の数学", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], notes: "「生活の中の数学・化学・物理・生物学」の4科目のうち、卒業要件単位として認められるのは1科目2単位まで"}
+  - {title: "生活の中の統計技術", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "生活の中の化学", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], notes: "「生活の中の数学・化学・物理・生物学」の4科目のうち、卒業要件単位として認められるのは1科目2単位まで"}
+  - {title: "生活の中の物理", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], notes: "「生活の中の数学・化学・物理・生物学」の4科目のうち、卒業要件単位として認められるのは1科目2単位まで"}
+  - {title: "生活の中の生物学", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], notes: "「生活の中の数学・化学・物理・生物学」の4科目のうち、卒業要件単位として認められるのは1科目2単位まで"}
+  - {title: "生活の中の地学", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "生命と科学", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "現代の技術", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "自然観察法", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "里山学", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "植物の自然誌", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "環境の科学", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "人類の科学", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "情報と人間", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "現代社会と栄養", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  # ---- 教養教育科目: 教養科目(スポーツ科学系) ----
+  - {title: "スポーツ技術学A", category: "教養教育科目", subcategory: "スポーツ科学系科目", type: "必修", credits: 1, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "スポーツ技術学B", category: "教養教育科目", subcategory: "スポーツ科学系科目", type: "必修", credits: 1, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "健康とスポーツ", category: "教養教育科目", subcategory: "スポーツ科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "現代社会とスポーツ", category: "教養教育科目", subcategory: "スポーツ科学系科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "スポーツ文化論", category: "教養教育科目", subcategory: "スポーツ科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  # ---- 教養教育科目: 教養特別講義科目 ----
+  - {title: "教養教育科目特別講義", category: "教養教育科目", subcategory: "教養特別講義科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  # ---- 専門基礎科目 ----
+  - {title: "情報基礎", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q"]}
+  - {title: "フレッシャーズセミナー", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "理工学のすすめ", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "デザインシンキング", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "キャリア実習・実習指導", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "ASEANグローバルプログラム", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "グローバル人材育成プログラム", category: "専門基礎科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "プロジェクトリサーチⅠ", category: "専門基礎科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "プロジェクトリサーチⅡ", category: "専門基礎科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "先端理工キャリア実習Ⅰ", category: "専門基礎科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "先端理工インターンシップⅠ", category: "専門基礎科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "先端理工キャリア実習Ⅱ", category: "専門基礎科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "先端理工インターンシップⅡ", category: "専門基礎科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "微分積分・演習", category: "専門基礎科目", type: "必修", credits: 4, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "線形代数・演習", category: "専門基礎科目", type: "必修", credits: 4, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "確率・統計", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "情報数学基礎", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "メディア処理基礎", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "前期", quarters: ["2Q"]}
+  - {title: "ネットワーク基礎", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "プログラミング基礎演習Ⅰ", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "後期", quarters: ["3Q"]}
+  - {title: "プログラミング基礎演習Ⅱ", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "後期", quarters: ["4Q"]}
+  - {title: "ソフトウェア基礎", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "ハードウェア基礎", category: "専門基礎科目", type: "必修", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "データ構造とアルゴリズム・演習", category: "専門基礎科目", type: "必修", credits: 4, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "情報システム基礎", category: "専門基礎科目", type: "必修", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "ディジタル信号処理", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], programs: [5]}
+  - {title: "仮想メディアシステム", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], programs: [5]}
+  - {title: "情報とセキュリティ", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], programs: [4, 6]}
+  - {title: "システムソフトウェア", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], programs: [6]}
+  - {title: "データベース", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], programs: [4, 6]}
+  - {title: "知的財産概論", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "情報学概論", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "人間工学概論", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "情報と職業", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "クラウドコンピューティング演習", category: "専門基礎科目", type: "随意", credits: 2, grade: 2, term: "後期", quarters: ["4Q"], notes: "随意科目のため卒業要件単位に算入されない。履修登録制限単位数(CAP)の対象外"}
+  # ---- 専門応用科目 ----
+  - {title: "ヒューマンコンピュータインタラクション", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], programs: [5, 15]}
+  - {title: "多様なプログラミング言語", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], programs: [6]}
+  - {title: "コンピュータビジョン", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], programs: [5, 7]}
+  - {title: "知能情報メディア演習", category: "専門応用科目", type: "必修", credits: 4, grade: 2, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "音声・音響メディア処理論", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], programs: [5, 14]}
+  - {title: "環境としての情報技術", category: "専門応用科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q", "2Q"], programs: [4, 5]}
+  - {title: "ニューロとAI", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], programs: [6, 7, 15]}
+  - {title: "言語メディア処理論", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], programs: [4, 5, 7]}
+  - {title: "CGとVR", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], programs: [5]}
+  - {title: "データインテリジェンス", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], programs: [4, 6, 7]}
+  - {title: "ネットワーク構成論", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], programs: [6]}
+  - {title: "実践プログラミング・演習", category: "専門応用科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q"]}
+  - {title: "科学技術計算・演習", category: "専門応用科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q"]}
+  - {title: "画像メディア処理論", category: "専門応用科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q"], programs: [5]}
+  - {title: "ソフトウェア開発法", category: "専門応用科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q", "2Q"], programs: [6]}
+  - {title: "応用アルゴリズム", category: "専門応用科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q", "2Q"], programs: [4, 6, 7]}
+  - {title: "ネットワークシステム・演習", category: "専門応用科目", type: "必修", credits: 4, grade: 3, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "コラボレーション演習", category: "専門応用科目", type: "選択", credits: 4, grade: 3, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "知能情報メディアセミナー", category: "専門応用科目", type: "必修", credits: 2, grade: 3, term: "後期", quarters: ["3Q", "4Q"], notes: "履修には3年前期終了時点で卒業要件総修得単位数80単位以上、かつ専門基礎科目（必修）の修得単位数20単位以上が必要。4年次への進級要件"}
+  - {title: "科学技術英語", category: "専門応用科目", type: "必修", credits: 2, grade: 4, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "特別研究", category: "専門応用科目", type: "必修", credits: 6, grade: 4, term: "前期", quarters: ["1Q", "2Q"]}
