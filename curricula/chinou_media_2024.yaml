@@ -77,8 +77,8 @@ registration_limits:
     - semesters: [5, 6]         # 3年次
       max_credits_per_semester: 24
     - semesters: [7, 8]         # 4年次
-      max_credits_per_semester: 48
-      notes: "原典の表では7・8セメスターに対して48と表記されており、年間48単位（学期ごとの上限なし）の意味である可能性が高い。要確認"
+      max_credits_per_year: 48
+      notes: "4年次は学期ごとの上限ではなく、通年（7・8セメスター合計）で48単位が上限"
   notes: |
     通年科目の単位数は第1学期（前期）と第2学期（後期）で2分割して計算する。
     クォーター型科目の単位数は1Q・2Qを前期に、3Q・4Qを後期に算入する。
