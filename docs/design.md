@@ -142,17 +142,47 @@ services:
     networks:
       - app-net
       - syllabus-clean-net
-    depends_on: [vllm]
+    depends_on:
+      vllm:
+        condition: service_healthy   # モデルロード完了(数分)を待ってから起動
 
   vllm:
-    image: vllm/vllm-openai:latest
+    image: vllm/vllm-openai:latest   # vLLM >= 0.19.0 が必須(Qwen3.6対応)。DGX 上の現行は 0.20.0
     networks: [app-net]
+    ports:
+      - "127.0.0.1:8001:8000"        # デバッグ用のみ。全公開を避け 127.0.0.1 バインド
+    ipc: host                        # vLLM のマルチプロセス共有メモリ用(または shm_size 指定)
+    volumes:
+      - /srv/qwen3.6/models/Qwen3.6-27B-FP8:/models:ro   # 事前DL済みモデルを読み取り専用で渡す
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 30
+      start_period: 900s             # モデルロードに数分かかるため長めに
     command:
       - --model
-      - Qwen/Qwen3.6-27B-FP8
+      - /models                       # 事前DLしたローカルパス。起動時に HF からは取得しない
+      - --served-model-name          # §6.3 の OpenAIModel(model=...) と一致させ 404 を防ぐ
+      - qwen3.6-27b-fp8
+      - --language-model-only         # テキスト専用。ビジョンを省きメモリを KV cache に回す
+      - --reasoning-parser            # 思考モデルのため必須。無いと思考が本文に漏れ構造化出力が壊れる
+      - qwen3
       - --enable-auto-tool-choice
-      - --tool-call-parser
-      - hermes
+      - --tool-call-parser            # hermes ではなく qwen3_coder(公式指定の出力書式)
+      - qwen3_coder
+      - --max-model-len               # 既定262144はメモリ過大。最低128K推奨に沿い131072。OOM時さらに削減
+      - "131072"
+      - --gpu-memory-utilization      # 同一GPUを共有する他ワークロードがある前提で 121GiB に収めるため 0.4(≒48GB)
+      - "0.4"
+      # 単GPU構成のため tensor-parallel は指定しない(=1)
 
 networks:
   app-net:
@@ -161,8 +191,11 @@ networks:
     name: syllabus_backend_syllabus-clean-net
 ```
 
+vllm のモデルはイメージ内に持たず、ホストの `/srv/qwen3.6/models/Qwen3.6-27B-FP8` に**事前DL**したものを読み取り専用で bind mount する。コンテナ起動時に HuggingFace から取得しないため、Docker 名前付きボリュームは使わない。
+
 ### 3.3 起動順序
 
+0. (初回のみ) vllm 用モデルを事前DL: `/srv/qwen3.6/models/Qwen3.6-27B-FP8` を作成し、`hf download Qwen/Qwen3.6-27B-FP8 --revision <commit SHA> --local-dir /srv/qwen3.6/models/Qwen3.6-27B-FP8`(§4.3)
 1. シラバスバックエンド側で `bin/init_clean.sh`(初回のみデータ投入込み)、以降は `docker compose -f docker-compose.clean.yml up -d`
 2. 本プロジェクトで `docker compose up -d`
 
@@ -329,9 +362,15 @@ backend/
 
 ### 4.3 vllm(LLM 推論サーバ)
 
-- vLLM を Docker(`vllm/vllm-openai:latest` 等)で起動
-- `--model Qwen/Qwen3.6-27B-FP8`(暫定モデル)
-- `--enable-auto-tool-choice` と `--tool-call-parser hermes`(Qwen 系モデル用パーサー)をセットで指定して tool calling に対応(`--tool-call-parser` がないと vLLM は起動時にエラーで停止する)
+- vLLM を Docker(`vllm/vllm-openai:latest`)で起動。Qwen3.6 対応には **vLLM >= 0.19.0** が必要(DGX 上の現行イメージは 0.20.0 で対応済み、アーキ `Qwen3_5ForConditionalGeneration` をサポート確認済み)
+- `--model Qwen/Qwen3.6-27B-FP8`(暫定モデル)。FP8(e4m3)量子化済み、約 31GB
+- このモデルは**ビジョンエンコーダ付き(画像/動画対応)**だが、本プロジェクトはテキスト用途のため **`--language-model-only`** を付け、ビジョンを無効化してメモリを KV cache に回す
+- **`--reasoning-parser qwen3`** を指定(思考(reasoning)モデルのため必須。無いと思考トークンが本文に混ざり、PydanticAI の構造化出力が壊れる)
+- tool calling は **`--enable-auto-tool-choice` + `--tool-call-parser qwen3_coder`** で対応(公式モデルカード指定。`hermes` ではこのモデルの出力書式と合わず、ツール呼び出しがエラーにならず**サイレントに無視される**。`--tool-call-parser` 自体がないと vLLM は起動時にエラーで停止する)
+- **`--served-model-name qwen3.6-27b-fp8`** を指定し、§6.3 の `OpenAIModel(model='qwen3.6-27b-fp8')` と一致させる(不一致だと 404)
+- `--max-model-len 131072`(既定 262,144 はメモリ過大。公式は思考能力維持のため最低 128K の確保を推奨。OOM 時はさらに削減)
+- DGX Spark は**単GPU**のため tensor parallel は使わない(=1)。`--gpu-memory-utilization` は同一GPUを共有する他ワークロードがある前提で 121GiB のユニファイドメモリに収めるため **0.4(≒48GB)** を起点とする(起動ログの KV cache サイズを見て余裕があれば 0.45 まで上げてよい)
+- モデルは**事前に取得**して `/srv/qwen3.6/models/Qwen3.6-27B-FP8` に置き、`-v .../Qwen3.6-27B-FP8:/models:ro` で**読み取り専用 bind mount** する(`--model /models`)。取得は `hf download Qwen/Qwen3.6-27B-FP8 --revision <commit SHA> --local-dir ...` で**リビジョンを固定**し、起動時はオフライン・再現性を確保する(コンテナ起動時に HF から都度DLしない)
 - OpenAI 互換 API を `/v1/chat/completions` で公開
 - backend からのみアクセス可能(`app-net` 内)、frontend からは直接呼ばない
 
