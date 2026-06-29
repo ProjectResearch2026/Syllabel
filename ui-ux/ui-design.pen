@@ -18,7 +18,7 @@
           "name": "StatusBar",
           "width": "fill_container",
           "height": 44,
-          "fill": "$surface-inverse",
+          "fill": "$surface-primary",
           "padding": [
             0,
             20
@@ -30,7 +30,7 @@
               "type": "text",
               "id": "D8ROC7",
               "name": "Time",
-              "fill": "$fg-inverse",
+              "fill": "#1A2B4E",
               "content": "9:41",
               "fontFamily": "Inter",
               "fontSize": 14,
@@ -51,7 +51,7 @@
                   "height": 16,
                   "icon": "signal",
                   "library": "lucide",
-                  "fill": "$fg-inverse"
+                  "fill": "#1A2B4E"
                 },
                 {
                   "type": "icon",
@@ -61,7 +61,7 @@
                   "height": 16,
                   "icon": "wifi",
                   "library": "lucide",
-                  "fill": "$fg-inverse"
+                  "fill": "#1A2B4E"
                 },
                 {
                   "type": "icon",
@@ -71,7 +71,7 @@
                   "height": 18,
                   "icon": "battery-full",
                   "library": "lucide",
-                  "fill": "$fg-inverse"
+                  "fill": "#1A2B4E"
                 }
               ]
             }
@@ -83,7 +83,11 @@
           "name": "Header",
           "width": "fill_container",
           "height": 56,
-          "fill": "$surface-inverse",
+          "fill": "$surface-primary",
+          "stroke": "#D1D5DB",
+          "strokeWidth": {
+            "bottom": 1
+          },
           "padding": [
             0,
             20
@@ -95,7 +99,7 @@
               "type": "text",
               "id": "mUDkR",
               "name": "Title",
-              "fill": "$fg-inverse",
+              "fill": "#1A2B4E",
               "content": "時間割",
               "fontFamily": "Inter",
               "fontSize": 20,
@@ -126,7 +130,7 @@
                   "height": 22,
                   "icon": "bell",
                   "library": "lucide",
-                  "fill": "$fg-inverse"
+                  "fill": "#1A2B4E"
                 }
               ]
             }
@@ -158,7 +162,7 @@
                   "type": "text",
                   "id": "uHnrq",
                   "name": "取得済みVal",
-                  "fill": "$fg-inverse",
+                  "fill": "#FFFFFF",
                   "content": "62",
                   "fontFamily": "IBM Plex Mono",
                   "fontSize": 20,
@@ -168,7 +172,7 @@
                   "type": "text",
                   "id": "EISCM",
                   "name": "取得済みLbl",
-                  "fill": "$fg-inverse",
+                  "fill": "#FFFFFF",
                   "content": "取得済み",
                   "fontFamily": "Funnel Sans",
                   "fontSize": 10,
@@ -188,7 +192,7 @@
                   "type": "text",
                   "id": "VcEk5",
                   "name": "今期登録Val",
-                  "fill": "$fg-inverse",
+                  "fill": "#FFFFFF",
                   "content": "18",
                   "fontFamily": "IBM Plex Mono",
                   "fontSize": 20,
@@ -198,7 +202,7 @@
                   "type": "text",
                   "id": "VvApG",
                   "name": "今期登録Lbl",
-                  "fill": "$fg-inverse",
+                  "fill": "#FFFFFF",
                   "content": "今期登録",
                   "fontFamily": "Funnel Sans",
                   "fontSize": 10,
@@ -218,7 +222,7 @@
                   "type": "text",
                   "id": "a9v93q",
                   "name": "必要残Val",
-                  "fill": "$fg-inverse",
+                  "fill": "#FFFFFF",
                   "content": "46",
                   "fontFamily": "IBM Plex Mono",
                   "fontSize": 20,
@@ -228,7 +232,7 @@
                   "type": "text",
                   "id": "z9dmq",
                   "name": "必要残Lbl",
-                  "fill": "$fg-inverse",
+                  "fill": "#FFFFFF",
                   "content": "必要残",
                   "fontFamily": "Funnel Sans",
                   "fontSize": 10,
@@ -1493,6 +1497,10 @@
           "width": "fill_container",
           "height": 80,
           "fill": "$surface-primary",
+          "stroke": "#D1D5DB",
+          "strokeWidth": {
+            "top": 1
+          },
           "padding": [
             0,
             16,
@@ -1508,17 +1516,17 @@
               "name": "TabBar",
               "width": "fill_container",
               "height": 56,
-              "fill": "#0A0A0A",
+              "fill": "#FFFFFF",
               "cornerRadius": 28,
               "effect": {
                 "type": "shadow",
                 "shadowType": "outer",
-                "color": "#00000033",
+                "color": "#00000012",
                 "offset": {
                   "x": 0,
-                  "y": 4
+                  "y": -1
                 },
-                "blur": 20
+                "blur": 8
               },
               "padding": 6,
               "justifyContent": "space_between",
@@ -1547,13 +1555,13 @@
                       "height": 20,
                       "icon": "calendar-days",
                       "library": "lucide",
-                      "fill": "$surface-inverse"
+                      "fill": "#FFFFFF"
                     },
                     {
                       "type": "text",
                       "id": "DqO8i",
                       "name": "TabLabel_時間割",
-                      "fill": "$surface-inverse",
+                      "fill": "#FFFFFF",
                       "content": "時間割",
                       "fontFamily": "Funnel Sans",
                       "fontSize": 10,
@@ -1707,7 +1715,7 @@
           "name": "StatusBar",
           "width": "fill_container",
           "height": 44,
-          "fill": "$surface-inverse",
+          "fill": "$surface-primary",
           "padding": [
             0,
             20
@@ -1719,7 +1727,7 @@
               "type": "text",
               "id": "LJQCG",
               "name": "Time",
-              "fill": "$fg-inverse",
+              "fill": "#1A2B4E",
               "content": "9:41",
               "fontFamily": "Inter",
               "fontSize": 14,
@@ -1740,7 +1748,7 @@
                   "height": 16,
                   "icon": "signal",
                   "library": "lucide",
-                  "fill": "$fg-inverse"
+                  "fill": "#1A2B4E"
                 },
                 {
                   "type": "icon",
@@ -1750,7 +1758,7 @@
                   "height": 16,
                   "icon": "wifi",
                   "library": "lucide",
-                  "fill": "$fg-inverse"
+                  "fill": "#1A2B4E"
                 },
                 {
                   "type": "icon",
@@ -1760,7 +1768,7 @@
                   "height": 18,
                   "icon": "battery-full",
                   "library": "lucide",
-                  "fill": "$fg-inverse"
+                  "fill": "#1A2B4E"
                 }
               ]
             }
@@ -1772,7 +1780,11 @@
           "name": "ChatHeader",
           "width": "fill_container",
           "height": 60,
-          "fill": "$surface-inverse",
+          "fill": "$surface-primary",
+          "stroke": "#D1D5DB",
+          "strokeWidth": {
+            "bottom": 1
+          },
           "padding": [
             0,
             20
@@ -1795,7 +1807,7 @@
                   "height": 22,
                   "icon": "chevron-left",
                   "library": "lucide",
-                  "fill": "$fg-inverse"
+                  "fill": "#1A2B4E"
                 },
                 {
                   "type": "frame",
@@ -1816,7 +1828,7 @@
                       "height": 20,
                       "icon": "bot",
                       "library": "lucide",
-                      "fill": "$surface-inverse"
+                      "fill": "#FFFFFF"
                     }
                   ]
                 },
@@ -1831,7 +1843,7 @@
                       "type": "text",
                       "id": "rmWKv",
                       "name": "ChatTitle",
-                      "fill": "$fg-inverse",
+                      "fill": "#1A2B4E",
                       "content": "履修AIアシスタント",
                       "fontFamily": "Inter",
                       "fontSize": 15,
@@ -1883,7 +1895,7 @@
                   "height": 22,
                   "icon": "info",
                   "library": "lucide",
-                  "fill": "#9CA3AF"
+                  "fill": "#1A2B4E"
                 },
                 {
                   "type": "icon",
@@ -1893,7 +1905,7 @@
                   "height": 20,
                   "icon": "ellipsis-vertical",
                   "library": "lucide",
-                  "fill": "#9CA3AF"
+                  "fill": "#1A2B4E"
                 }
               ]
             }
@@ -2601,6 +2613,10 @@
           "width": "fill_container",
           "height": 80,
           "fill": "$surface-primary",
+          "stroke": "#D1D5DB",
+          "strokeWidth": {
+            "top": 1
+          },
           "padding": [
             0,
             16,
@@ -2616,17 +2632,17 @@
               "name": "TabBar2",
               "width": "fill_container",
               "height": 56,
-              "fill": "#0A0A0A",
+              "fill": "#FFFFFF",
               "cornerRadius": 28,
               "effect": {
                 "type": "shadow",
                 "shadowType": "outer",
-                "color": "#00000033",
+                "color": "#00000012",
                 "offset": {
                   "x": 0,
-                  "y": 4
+                  "y": -1
                 },
-                "blur": 20
+                "blur": 8
               },
               "padding": 6,
               "justifyContent": "space_between",
@@ -2737,13 +2753,13 @@
                       "height": 20,
                       "icon": "message-circle",
                       "library": "lucide",
-                      "fill": "$surface-inverse"
+                      "fill": "#FFFFFF"
                     },
                     {
                       "type": "text",
                       "id": "QC1vR",
                       "name": "TabLabel2_AIチャット",
-                      "fill": "$surface-inverse",
+                      "fill": "#FFFFFF",
                       "content": "AIチャット",
                       "fontFamily": "Funnel Sans",
                       "fontSize": 10,
@@ -2815,7 +2831,7 @@
           "name": "StatusBar",
           "width": "fill_container",
           "height": 44,
-          "fill": "$surface-inverse",
+          "fill": "$surface-primary",
           "padding": [
             0,
             20
@@ -2827,7 +2843,7 @@
               "type": "text",
               "id": "EEcqm",
               "name": "Time",
-              "fill": "$fg-inverse",
+              "fill": "#1A2B4E",
               "content": "9:41",
               "fontFamily": "Inter",
               "fontSize": 14,
@@ -2848,7 +2864,7 @@
                   "height": 16,
                   "icon": "signal",
                   "library": "lucide",
-                  "fill": "$fg-inverse"
+                  "fill": "#1A2B4E"
                 },
                 {
                   "type": "icon",
@@ -2858,7 +2874,7 @@
                   "height": 16,
                   "icon": "wifi",
                   "library": "lucide",
-                  "fill": "$fg-inverse"
+                  "fill": "#1A2B4E"
                 },
                 {
                   "type": "icon",
@@ -2868,7 +2884,7 @@
                   "height": 18,
                   "icon": "battery-full",
                   "library": "lucide",
-                  "fill": "$fg-inverse"
+                  "fill": "#1A2B4E"
                 }
               ]
             }
@@ -2880,7 +2896,11 @@
           "name": "ImportHeader",
           "width": "fill_container",
           "height": 56,
-          "fill": "$surface-inverse",
+          "fill": "$surface-primary",
+          "stroke": "#D1D5DB",
+          "strokeWidth": {
+            "bottom": 1
+          },
           "padding": [
             0,
             20
@@ -2903,13 +2923,13 @@
                   "height": 22,
                   "icon": "chevron-left",
                   "library": "lucide",
-                  "fill": "$fg-inverse"
+                  "fill": "#1A2B4E"
                 },
                 {
                   "type": "text",
                   "id": "u9KNL",
                   "name": "PageTitle",
-                  "fill": "$fg-inverse",
+                  "fill": "#1A2B4E",
                   "content": "成績表インポート",
                   "fontFamily": "Inter",
                   "fontSize": 18,
@@ -2935,8 +2955,8 @@
           "name": "StepBar",
           "width": "fill_container",
           "height": 48,
-          "fill": "#F9FAFB",
-          "stroke": "$border-primary",
+          "fill": "#FFFFFF",
+          "stroke": "#D1D5DB",
           "strokeWidth": {
             "bottom": 1
           },
@@ -4244,6 +4264,10 @@
           "width": "fill_container",
           "height": 80,
           "fill": "$surface-primary",
+          "stroke": "#D1D5DB",
+          "strokeWidth": {
+            "top": 1
+          },
           "padding": [
             0,
             16,
@@ -4259,17 +4283,17 @@
               "name": "TabBar3",
               "width": "fill_container",
               "height": 56,
-              "fill": "#0A0A0A",
+              "fill": "#FFFFFF",
               "cornerRadius": 28,
               "effect": {
                 "type": "shadow",
                 "shadowType": "outer",
-                "color": "#00000033",
+                "color": "#00000012",
                 "offset": {
                   "x": 0,
-                  "y": 4
+                  "y": -1
                 },
-                "blur": 20
+                "blur": 8
               },
               "padding": 6,
               "justifyContent": "space_between",
@@ -4421,13 +4445,13 @@
                       "height": 20,
                       "icon": "user",
                       "library": "lucide",
-                      "fill": "$surface-inverse"
+                      "fill": "#FFFFFF"
                     },
                     {
                       "type": "text",
                       "id": "vRPI0",
                       "name": "TabLabel3_マイデータ",
-                      "fill": "$surface-inverse",
+                      "fill": "#FFFFFF",
                       "content": "マイデータ",
                       "fontFamily": "Funnel Sans",
                       "fontSize": 10,
@@ -4458,7 +4482,7 @@
           "name": "StatusBar",
           "width": "fill_container",
           "height": 44,
-          "fill": "$surface-inverse",
+          "fill": "$surface-primary",
           "padding": [
             0,
             20
@@ -4470,7 +4494,7 @@
               "type": "text",
               "id": "Cuidz",
               "name": "Time",
-              "fill": "$fg-inverse",
+              "fill": "#1A2B4E",
               "content": "9:41",
               "fontFamily": "Inter",
               "fontSize": 14,
@@ -4491,7 +4515,7 @@
                   "height": 16,
                   "icon": "signal",
                   "library": "lucide",
-                  "fill": "$fg-inverse"
+                  "fill": "#1A2B4E"
                 },
                 {
                   "type": "icon",
@@ -4501,7 +4525,7 @@
                   "height": 16,
                   "icon": "wifi",
                   "library": "lucide",
-                  "fill": "$fg-inverse"
+                  "fill": "#1A2B4E"
                 },
                 {
                   "type": "icon",
@@ -4511,7 +4535,7 @@
                   "height": 18,
                   "icon": "battery-full",
                   "library": "lucide",
-                  "fill": "$fg-inverse"
+                  "fill": "#1A2B4E"
                 }
               ]
             }
@@ -4523,7 +4547,11 @@
           "name": "SettingsHeader",
           "width": "fill_container",
           "height": 56,
-          "fill": "$surface-inverse",
+          "fill": "$surface-primary",
+          "stroke": "#D1D5DB",
+          "strokeWidth": {
+            "bottom": 1
+          },
           "padding": [
             0,
             20
@@ -4535,7 +4563,7 @@
               "type": "text",
               "id": "i8AWPJ",
               "name": "PageTitle",
-              "fill": "$fg-inverse",
+              "fill": "#1A2B4E",
               "content": "マイデータ・設定",
               "fontFamily": "Inter",
               "fontSize": 18,
@@ -4561,13 +4589,13 @@
                   "height": 16,
                   "icon": "file-up",
                   "library": "lucide",
-                  "fill": "$surface-inverse"
+                  "fill": "#FFFFFF"
                 },
                 {
                   "type": "text",
                   "id": "HRbn7",
                   "name": "ImportShortcutLabel",
-                  "fill": "$surface-inverse",
+                  "fill": "#FFFFFF",
                   "content": "PDF取込",
                   "fontFamily": "Funnel Sans",
                   "fontSize": 12,
@@ -5650,7 +5678,11 @@
           "name": "TabBarOuter4",
           "width": "fill_container",
           "height": 80,
-          "fill": "#F8F9FA",
+          "fill": "$surface-primary",
+          "stroke": "#D1D5DB",
+          "strokeWidth": {
+            "top": 1
+          },
           "padding": [
             0,
             16,
@@ -5666,17 +5698,17 @@
               "name": "TabBar4",
               "width": "fill_container",
               "height": 56,
-              "fill": "#0A0A0A",
+              "fill": "#FFFFFF",
               "cornerRadius": 28,
               "effect": {
                 "type": "shadow",
                 "shadowType": "outer",
-                "color": "#00000033",
+                "color": "#00000012",
                 "offset": {
                   "x": 0,
-                  "y": 4
+                  "y": -1
                 },
-                "blur": 20
+                "blur": 8
               },
               "padding": 6,
               "justifyContent": "space_between",
@@ -5828,13 +5860,13 @@
                       "height": 20,
                       "icon": "user",
                       "library": "lucide",
-                      "fill": "$surface-inverse"
+                      "fill": "#FFFFFF"
                     },
                     {
                       "type": "text",
                       "id": "rlM9g",
                       "name": "TabLabel4_マイデータ",
-                      "fill": "$surface-inverse",
+                      "fill": "#FFFFFF",
                       "content": "マイデータ",
                       "fontFamily": "Funnel Sans",
                       "fontSize": 10,
