@@ -1819,7 +1819,7 @@
                   "name": "AIAvatar",
                   "width": 36,
                   "height": 36,
-                  "fill": "$accent",
+                  "fill": "#1A2B4E",
                   "cornerRadius": 18,
                   "justifyContent": "center",
                   "alignItems": "center",
@@ -2024,8 +2024,10 @@
                   "name": "AIMsgAvatar",
                   "width": 32,
                   "height": 32,
-                  "fill": "$surface-inverse",
+                  "fill": "#FFFFFF",
                   "cornerRadius": 16,
+                  "stroke": "#D1D5DB",
+                  "strokeWidth": 1,
                   "justifyContent": "center",
                   "alignItems": "center",
                   "children": [
@@ -2037,7 +2039,7 @@
                       "height": 18,
                       "icon": "bot",
                       "library": "lucide",
-                      "fill": "$accent"
+                      "fill": "#1A2B4E"
                     }
                   ]
                 },
@@ -2096,7 +2098,7 @@
                   "id": "QovoH",
                   "name": "UserBubble1",
                   "width": 260,
-                  "fill": "$surface-inverse",
+                  "fill": "#EEF1F8",
                   "layout": "vertical",
                   "gap": 4,
                   "padding": [
@@ -2108,7 +2110,7 @@
                       "type": "text",
                       "id": "k78I1n",
                       "name": "UserText1",
-                      "fill": "$fg-inverse",
+                      "fill": "#1A2B4E",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
                       "content": "必修科目でまだ取っていないものを教えてください。",
@@ -2145,8 +2147,10 @@
                   "name": "AIMsgAvatar2",
                   "width": 32,
                   "height": 32,
-                  "fill": "$surface-inverse",
+                  "fill": "#FFFFFF",
                   "cornerRadius": 16,
+                  "stroke": "#D1D5DB",
+                  "strokeWidth": 1,
                   "justifyContent": "center",
                   "alignItems": "center",
                   "children": [
@@ -2158,7 +2162,7 @@
                       "height": 18,
                       "icon": "bot",
                       "library": "lucide",
-                      "fill": "$accent"
+                      "fill": "#1A2B4E"
                     }
                   ]
                 },
@@ -2359,8 +2363,10 @@
                   "name": "AIMsgAvatar3",
                   "width": 32,
                   "height": 32,
-                  "fill": "$surface-inverse",
+                  "fill": "#FFFFFF",
                   "cornerRadius": 16,
+                  "stroke": "#D1D5DB",
+                  "strokeWidth": 1,
                   "justifyContent": "center",
                   "alignItems": "center",
                   "children": [
@@ -2372,7 +2378,7 @@
                       "height": 18,
                       "icon": "bot",
                       "library": "lucide",
-                      "fill": "$accent"
+                      "fill": "#1A2B4E"
                     }
                   ]
                 },
@@ -2382,8 +2388,10 @@
                   "name": "StreamBubble",
                   "width": 290,
                   "fill": "$surface-primary",
-                  "stroke": "$accent",
-                  "strokeWidth": 2,
+                  "stroke": "#E60012",
+                  "strokeWidth": {
+                    "left": 3
+                  },
                   "layout": "vertical",
                   "gap": 8,
                   "padding": [
