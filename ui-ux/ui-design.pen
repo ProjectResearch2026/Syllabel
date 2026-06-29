@@ -1521,7 +1521,7 @@
               "width": "fill_container",
               "height": 56,
               "fill": "#FFFFFF",
-              "cornerRadius": 28,
+              "cornerRadius": 12,
               "effect": {
                 "type": "shadow",
                 "shadowType": "outer",
@@ -1541,7 +1541,7 @@
                   "id": "H82G1",
                   "name": "Tab_時間割",
                   "fill": "$accent",
-                  "cornerRadius": 20,
+                  "cornerRadius": 8,
                   "layout": "vertical",
                   "gap": 3,
                   "padding": [
@@ -1582,7 +1582,7 @@
                     "color": "#FFFFFF",
                     "enabled": false
                   },
-                  "cornerRadius": 20,
+                  "cornerRadius": 8,
                   "layout": "vertical",
                   "gap": 3,
                   "padding": [
@@ -1623,7 +1623,7 @@
                     "color": "#FFFFFF",
                     "enabled": false
                   },
-                  "cornerRadius": 20,
+                  "cornerRadius": 8,
                   "layout": "vertical",
                   "gap": 3,
                   "padding": [
@@ -1664,7 +1664,7 @@
                     "color": "#FFFFFF",
                     "enabled": false
                   },
-                  "cornerRadius": 20,
+                  "cornerRadius": 8,
                   "layout": "vertical",
                   "gap": 3,
                   "padding": [
@@ -2645,7 +2645,7 @@
               "width": "fill_container",
               "height": 56,
               "fill": "#FFFFFF",
-              "cornerRadius": 28,
+              "cornerRadius": 12,
               "effect": {
                 "type": "shadow",
                 "shadowType": "outer",
@@ -2669,7 +2669,7 @@
                     "color": "#FFFFFF",
                     "enabled": false
                   },
-                  "cornerRadius": 20,
+                  "cornerRadius": 8,
                   "layout": "vertical",
                   "gap": 3,
                   "padding": [
@@ -2710,7 +2710,7 @@
                     "color": "#FFFFFF",
                     "enabled": false
                   },
-                  "cornerRadius": 20,
+                  "cornerRadius": 8,
                   "layout": "vertical",
                   "gap": 3,
                   "padding": [
@@ -2747,7 +2747,7 @@
                   "id": "wru3u",
                   "name": "Tab2_AIチャット",
                   "fill": "$accent",
-                  "cornerRadius": 20,
+                  "cornerRadius": 8,
                   "layout": "vertical",
                   "gap": 3,
                   "padding": [
@@ -2788,7 +2788,7 @@
                     "color": "#FFFFFF",
                     "enabled": false
                   },
-                  "cornerRadius": 20,
+                  "cornerRadius": 8,
                   "layout": "vertical",
                   "gap": 3,
                   "padding": [
@@ -4312,7 +4312,7 @@
               "width": "fill_container",
               "height": 56,
               "fill": "#FFFFFF",
-              "cornerRadius": 28,
+              "cornerRadius": 12,
               "effect": {
                 "type": "shadow",
                 "shadowType": "outer",
@@ -4336,7 +4336,7 @@
                     "color": "#FFFFFF",
                     "enabled": false
                   },
-                  "cornerRadius": 20,
+                  "cornerRadius": 8,
                   "layout": "vertical",
                   "gap": 3,
                   "padding": [
@@ -4377,7 +4377,7 @@
                     "color": "#FFFFFF",
                     "enabled": false
                   },
-                  "cornerRadius": 20,
+                  "cornerRadius": 8,
                   "layout": "vertical",
                   "gap": 3,
                   "padding": [
@@ -4418,7 +4418,7 @@
                     "color": "#FFFFFF",
                     "enabled": false
                   },
-                  "cornerRadius": 20,
+                  "cornerRadius": 8,
                   "layout": "vertical",
                   "gap": 3,
                   "padding": [
@@ -4455,7 +4455,7 @@
                   "id": "AitGs",
                   "name": "Tab3_マイデータ",
                   "fill": "$accent",
-                  "cornerRadius": 20,
+                  "cornerRadius": 8,
                   "layout": "vertical",
                   "gap": 3,
                   "padding": [
@@ -5501,7 +5501,7 @@
               "width": "fill_container",
               "height": 56,
               "fill": "#FFFFFF",
-              "cornerRadius": 28,
+              "cornerRadius": 12,
               "effect": {
                 "type": "shadow",
                 "shadowType": "outer",
@@ -5525,7 +5525,7 @@
                     "color": "#FFFFFF",
                     "enabled": false
                   },
-                  "cornerRadius": 20,
+                  "cornerRadius": 8,
                   "layout": "vertical",
                   "gap": 3,
                   "padding": [
@@ -5566,7 +5566,7 @@
                     "color": "#FFFFFF",
                     "enabled": false
                   },
-                  "cornerRadius": 20,
+                  "cornerRadius": 8,
                   "layout": "vertical",
                   "gap": 3,
                   "padding": [
@@ -5607,7 +5607,7 @@
                     "color": "#FFFFFF",
                     "enabled": false
                   },
-                  "cornerRadius": 20,
+                  "cornerRadius": 8,
                   "layout": "vertical",
                   "gap": 3,
                   "padding": [
@@ -5648,7 +5648,7 @@
                     "color": "#FFFFFF",
                     "enabled": false
                   },
-                  "cornerRadius": 20,
+                  "cornerRadius": 8,
                   "layout": "vertical",
                   "gap": 3,
                   "padding": [
@@ -6397,7 +6397,7 @@
               "width": "fill_container",
               "height": 56,
               "fill": "#FFFFFF",
-              "cornerRadius": 28,
+              "cornerRadius": 12,
               "effect": {
                 "type": "shadow",
                 "shadowType": "outer",
@@ -6421,7 +6421,7 @@
                     "color": "#FFFFFF",
                     "enabled": false
                   },
-                  "cornerRadius": 20,
+                  "cornerRadius": 8,
                   "layout": "vertical",
                   "gap": 3,
                   "padding": [
@@ -6462,7 +6462,7 @@
                     "color": "#FFFFFF",
                     "enabled": false
                   },
-                  "cornerRadius": 20,
+                  "cornerRadius": 8,
                   "layout": "vertical",
                   "gap": 3,
                   "padding": [
@@ -6503,7 +6503,7 @@
                     "color": "#FFFFFF",
                     "enabled": false
                   },
-                  "cornerRadius": 20,
+                  "cornerRadius": 8,
                   "layout": "vertical",
                   "gap": 3,
                   "padding": [
@@ -6544,7 +6544,7 @@
                     "color": "#FFFFFF",
                     "enabled": false
                   },
-                  "cornerRadius": 20,
+                  "cornerRadius": 8,
                   "layout": "vertical",
                   "gap": 3,
                   "padding": [
@@ -7820,7 +7820,7 @@
               "width": "fill_container",
               "height": 56,
               "fill": "#FFFFFF",
-              "cornerRadius": 28,
+              "cornerRadius": 12,
               "effect": {
                 "type": "shadow",
                 "shadowType": "outer",
@@ -7844,7 +7844,7 @@
                     "color": "#FFFFFF",
                     "enabled": false
                   },
-                  "cornerRadius": 20,
+                  "cornerRadius": 8,
                   "layout": "vertical",
                   "gap": 3,
                   "padding": [
@@ -7885,7 +7885,7 @@
                     "color": "#FFFFFF",
                     "enabled": false
                   },
-                  "cornerRadius": 20,
+                  "cornerRadius": 8,
                   "layout": "vertical",
                   "gap": 3,
                   "padding": [
@@ -7926,7 +7926,7 @@
                     "color": "#FFFFFF",
                     "enabled": false
                   },
-                  "cornerRadius": 20,
+                  "cornerRadius": 8,
                   "layout": "vertical",
                   "gap": 3,
                   "padding": [
@@ -7963,7 +7963,7 @@
                   "id": "RZy7s",
                   "name": "Tab4_マイデータ",
                   "fill": "$accent",
-                  "cornerRadius": 20,
+                  "cornerRadius": 8,
                   "layout": "vertical",
                   "gap": 3,
                   "padding": [
