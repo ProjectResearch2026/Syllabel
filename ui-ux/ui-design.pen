@@ -142,7 +142,11 @@
           "name": "CreditBar",
           "width": "fill_container",
           "height": 52,
-          "fill": "$accent",
+          "fill": "#FFFFFF",
+          "stroke": "#D1D5DB",
+          "strokeWidth": {
+            "bottom": 1
+          },
           "padding": [
             0,
             20
@@ -162,7 +166,7 @@
                   "type": "text",
                   "id": "uHnrq",
                   "name": "取得済みVal",
-                  "fill": "#FFFFFF",
+                  "fill": "#1A2B4E",
                   "content": "62",
                   "fontFamily": "IBM Plex Mono",
                   "fontSize": 20,
@@ -172,7 +176,7 @@
                   "type": "text",
                   "id": "EISCM",
                   "name": "取得済みLbl",
-                  "fill": "#FFFFFF",
+                  "fill": "#6B7280",
                   "content": "取得済み",
                   "fontFamily": "Funnel Sans",
                   "fontSize": 10,
@@ -192,7 +196,7 @@
                   "type": "text",
                   "id": "VcEk5",
                   "name": "今期登録Val",
-                  "fill": "#FFFFFF",
+                  "fill": "#1A2B4E",
                   "content": "18",
                   "fontFamily": "IBM Plex Mono",
                   "fontSize": 20,
@@ -202,7 +206,7 @@
                   "type": "text",
                   "id": "VvApG",
                   "name": "今期登録Lbl",
-                  "fill": "#FFFFFF",
+                  "fill": "#6B7280",
                   "content": "今期登録",
                   "fontFamily": "Funnel Sans",
                   "fontSize": 10,
@@ -222,7 +226,7 @@
                   "type": "text",
                   "id": "a9v93q",
                   "name": "必要残Val",
-                  "fill": "#FFFFFF",
+                  "fill": "#1A2B4E",
                   "content": "46",
                   "fontFamily": "IBM Plex Mono",
                   "fontSize": 20,
@@ -232,7 +236,7 @@
                   "type": "text",
                   "id": "z9dmq",
                   "name": "必要残Lbl",
-                  "fill": "#FFFFFF",
+                  "fill": "#6B7280",
                   "content": "必要残",
                   "fontFamily": "Funnel Sans",
                   "fontSize": 10,
@@ -1916,10 +1920,10 @@
           "id": "Q3UBo",
           "name": "ContextBanner",
           "width": "fill_container",
-          "fill": "$accent-light",
-          "stroke": "$accent",
+          "fill": "#F8F9FA",
+          "stroke": "#E60012",
           "strokeWidth": {
-            "bottom": 2
+            "left": 3
           },
           "gap": 10,
           "padding": [
@@ -3116,10 +3120,10 @@
           "id": "TFD1Z",
           "name": "PrivacyBanner",
           "width": "fill_container",
-          "fill": "$accent-light",
-          "stroke": "$accent",
+          "fill": "#F8F9FA",
+          "stroke": "#E60012",
           "strokeWidth": {
-            "bottom": 2
+            "left": 3
           },
           "gap": 10,
           "padding": [
@@ -3135,7 +3139,7 @@
               "height": 20,
               "icon": "shield-check",
               "library": "lucide",
-              "fill": "$accent"
+              "fill": "#1A2B4E"
             },
             {
               "type": "frame",
@@ -3597,7 +3601,11 @@
                   "name": "ResultCardHeader",
                   "width": "fill_container",
                   "height": 44,
-                  "fill": "$surface-inverse",
+                  "fill": "#FFFFFF",
+                  "stroke": "#D1D5DB",
+                  "strokeWidth": {
+                    "bottom": 1
+                  },
                   "gap": 10,
                   "padding": [
                     0,
@@ -3613,13 +3621,13 @@
                       "height": 18,
                       "icon": "file-check",
                       "library": "lucide",
-                      "fill": "#FFFFFF"
+                      "fill": "#E60012"
                     },
                     {
                       "type": "text",
                       "id": "x7xzWY",
                       "name": "ResultFileName",
-                      "fill": "$fg-inverse",
+                      "fill": "#1A2B4E",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
                       "content": "成績表_2024.pdf",
@@ -4196,7 +4204,7 @@
               "name": "ConfirmBtn",
               "width": "fill_container",
               "height": 52,
-              "fill": "$surface-inverse",
+              "fill": "#E60012",
               "gap": 8,
               "padding": [
                 0,
@@ -4610,7 +4618,11 @@
           "id": "e9KTsw",
           "name": "ProfileCard",
           "width": "fill_container",
-          "fill": "$surface-inverse",
+          "fill": "#FFFFFF",
+          "stroke": "#D1D5DB",
+          "strokeWidth": {
+            "bottom": 1
+          },
           "layout": "vertical",
           "children": [
             {
@@ -4659,7 +4671,7 @@
                       "type": "text",
                       "id": "z0Lq6",
                       "name": "ProfileName",
-                      "fill": "$fg-inverse",
+                      "fill": "#1A2B4E",
                       "content": "知能情報メディア課程 · 3回生",
                       "fontFamily": "Geist",
                       "fontSize": 14,
@@ -4676,7 +4688,7 @@
                           "type": "frame",
                           "id": "wQK9W",
                           "name": "PTag_62単位取得済",
-                          "fill": "#FF9800",
+                          "fill": "#EEF0F5",
                           "padding": [
                             3,
                             8
@@ -4686,7 +4698,7 @@
                               "type": "text",
                               "id": "MwMnw",
                               "name": "PTagLabel_62単位取得済",
-                              "fill": "$surface-inverse",
+                              "fill": "#1A2B4E",
                               "content": "62単位取得済",
                               "fontFamily": "Funnel Sans",
                               "fontSize": 10,
@@ -4698,7 +4710,7 @@
                           "type": "frame",
                           "id": "RzWim",
                           "name": "PTag_今期18単位",
-                          "fill": "#10B981",
+                          "fill": "#EEF0F5",
                           "padding": [
                             3,
                             8
@@ -4708,7 +4720,7 @@
                               "type": "text",
                               "id": "YBO4i",
                               "name": "PTagLabel_今期18単位",
-                              "fill": "$surface-inverse",
+                              "fill": "#1A2B4E",
                               "content": "今期18単位",
                               "fontFamily": "Funnel Sans",
                               "fontSize": 10,
@@ -4726,7 +4738,7 @@
                   "name": "EditProfileBtn",
                   "width": 36,
                   "height": 36,
-                  "fill": "#0D1B35",
+                  "fill": "#F3F4F6",
                   "justifyContent": "center",
                   "alignItems": "center",
                   "children": [
@@ -4738,7 +4750,7 @@
                       "height": 16,
                       "icon": "pencil",
                       "library": "lucide",
-                      "fill": "#9CA3AF"
+                      "fill": "#1A2B4E"
                     }
                   ]
                 }
@@ -4750,7 +4762,7 @@
               "name": "DataSourceRow",
               "width": "fill_container",
               "height": 36,
-              "fill": "#0D1B35",
+              "fill": "#F8F9FA",
               "gap": 8,
               "padding": [
                 0,
@@ -4766,7 +4778,7 @@
                   "height": 14,
                   "icon": "file-check",
                   "library": "lucide",
-                  "fill": "$accent"
+                  "fill": "#1A2B4E"
                 },
                 {
                   "type": "text",
