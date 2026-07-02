@@ -332,7 +332,8 @@ backend/
 │   ├── api/                   # ルーティング
 │   │   ├── proposal.py        # 履修提案
 │   │   ├── chat_proposal.py   # 提案チャット
-│   │   └── chat_syllabus.py   # シラバスチャット
+│   │   ├── chat_syllabus.py   # シラバスチャット
+│   │   └── syllabus.py        # シラバス検索・詳細・値マスタ(api-clean 中継 JSON)
 │   ├── agents/                # PydanticAI エージェント定義
 │   │   ├── proposal_agent.py
 │   │   ├── chat_agent.py
@@ -487,10 +488,15 @@ type ChatState = {
 | POST | /api/chat/proposal | 履修提案に関するチャット | SSE |
 | POST | /api/chat/syllabus | シラバス全体チャット | SSE |
 | POST | /api/chat/syllabus/{code} | 講義単位チャット | SSE |
+| GET | /api/syllabi | シラバス検索(一覧・絞り込み) | JSON |
+| GET | /api/syllabi/{code} | シラバス詳細(講義ページ表示) | JSON |
+| GET | /api/masters | 検索絞り込み用の値マスタ | JSON |
 | GET | /api/curricula/{program}/{year} | 履修要項データ参照(タグ表示用) | JSON |
 | GET | /healthz | ヘルスチェック | JSON |
 
-リクエストには学生プロファイルと対話履歴を毎回含める(サーバ側で永続化しないため)。
+チャット系(SSE)のリクエストには学生プロファイルと対話履歴を毎回含める(サーバ側で永続化しないため)。
+
+`GET /api/syllabi` / `/api/syllabi/{code}` / `/api/masters` は、検索画面(§4.1 の `/syllabus` 一覧・検索および `/syllabus/[code]` 詳細)が使う読み取り専用エンドポイントで、backend は §6.2 の api-clean(`GET /syllabi` / `GET /syllabi/{code}` / `GET /masters`)を中継する。公開経路はゲートウェイの単一オリジンに統一され、`/` は frontend、`/api/*` は backend へ振り分けられる一方、api-clean は公開されない(§1.2)。したがって frontend は api-clean を直接呼べず、検索画面向けにも backend 側の口が必要となる。クエリパラメータは api-clean の `/syllabi`(`q` / `faculty` / `program` / `campus` / `term` / `day` / `period` / `year` / `instructor` / `grade` / `limit` / `offset`)を素通しする。検索結果に付す「必修 / 選択 / 既修得済み」タグ(§8)は、この結果と `GET /api/curricula` の履修要項、ブラウザ内の学生プロファイルを frontend 側で突き合わせて生成する。
 
 ### 6.2 既存シラバスバックエンド API の利用
 
