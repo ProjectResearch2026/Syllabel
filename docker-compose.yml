@@ -1,8 +1,17 @@
 # 本プロジェクトのサービス定義(design.md §3.2)。
-# 現状は vllm のみ。frontend / backend は実装後に追加し、その際 backend を
-# app-net と外部ネット(syllabus_backend_syllabus-clean-net)に参加させる。
 # 検証時は `docker compose up -d vllm` で vllm だけ起動する。
 services:
+  backend:
+    build: ./backend
+    networks:
+      - app-net
+      - syllabus-clean-net
+    ports:
+      - "8000:8000"
+    depends_on:
+      vllm:
+        condition: service_healthy   # モデルロード完了を待ってから起動
+
   vllm:
     image: vllm/vllm-openai:latest   # vLLM >= 0.19.0 が必須(Qwen3.6対応)。DGX 上の現行は 0.20.0
     networks: [app-net]
@@ -43,3 +52,6 @@ services:
 
 networks:
   app-net:
+  syllabus-clean-net:
+    external: true
+    name: syllabus_backend_syllabus-clean-net
