@@ -1,4 +1,4 @@
-# 履修登録支援AIチャットボット 設計書(v0.5)
+# 履修登録支援AIチャットボット 設計書(v0.6)
 
 ## 0. この文書について
 
@@ -170,7 +170,7 @@ services:
     command:
       - --model
       - /models                       # 事前DLしたローカルパス。起動時に HF からは取得しない
-      - --served-model-name          # §6.3 の OpenAIModel(model=...) と一致させ 404 を防ぐ
+      - --served-model-name          # §6.3 の OpenAIChatModel(model=...) と一致させ 404 を防ぐ
       - qwen3.6-27b-fp8
       - --language-model-only         # テキスト専用。ビジョンを省きメモリを KV cache に回す
       - --reasoning-parser            # 思考モデルのため必須。無いと思考が本文に漏れ構造化出力が壊れる
@@ -368,7 +368,7 @@ backend/
 - このモデルは**ビジョンエンコーダ付き(画像/動画対応)**だが、本プロジェクトはテキスト用途のため **`--language-model-only`** を付け、ビジョンを無効化してメモリを KV cache に回す
 - **`--reasoning-parser qwen3`** を指定(思考(reasoning)モデルのため必須。無いと思考トークンが本文に混ざり、PydanticAI の構造化出力が壊れる)
 - tool calling は **`--enable-auto-tool-choice` + `--tool-call-parser qwen3_coder`** で対応(公式モデルカード指定。`hermes` ではこのモデルの出力書式と合わず、ツール呼び出しがエラーにならず**サイレントに無視される**。`--tool-call-parser` 自体がないと vLLM は起動時にエラーで停止する)
-- **`--served-model-name qwen3.6-27b-fp8`** を指定し、§6.3 の `OpenAIModel(model='qwen3.6-27b-fp8')` と一致させる(不一致だと 404)
+- **`--served-model-name qwen3.6-27b-fp8`** を指定し、§6.3 の `OpenAIChatModel('qwen3.6-27b-fp8', ...)` と一致させる(不一致だと 404)
 - `--max-model-len 131072`(既定 262,144 はメモリ過大。公式は思考能力維持のため最低 128K の確保を推奨。OOM 時はさらに削減)
 - DGX Spark は**単GPU**のため tensor parallel は使わない(=1)。`--gpu-memory-utilization` は同一GPUを共有する他ワークロードがある前提で 121GiB のユニファイドメモリに収めるため **0.4(≒48GB)** を起点とする(起動ログの KV cache サイズを見て余裕があれば 0.45 まで上げてよい)
 - モデルは**事前に取得**して `/srv/qwen3.6/models/Qwen3.6-27B-FP8` に置き、`-v .../Qwen3.6-27B-FP8:/models:ro` で**読み取り専用 bind mount** する(`--model /models`)。取得は `hf download Qwen/Qwen3.6-27B-FP8 --revision <commit SHA> --local-dir ...` で**リビジョンを固定**する。`--model` がローカルパスを指すため起動時に HF から重みを取得せず、再現性を確保する(コンテナ起動時に都度DLしない。なお現状 `HF_HUB_OFFLINE` 等の環境変数までは設定していない)
@@ -511,7 +511,7 @@ backend から `http://api-clean:5000` 経由で以下を主に利用する:
 ### 6.3 vLLM との連携
 
 - backend は OpenAI 互換クライアント経由で `http://vllm:8000/v1/chat/completions` を呼ぶ
-- PydanticAI の `OpenAIModel(model='qwen3.6-27b-fp8', base_url='http://vllm:8000/v1')` 形式で設定
+- PydanticAI の `OpenAIChatModel('qwen3.6-27b-fp8', provider=OpenAIProvider(base_url='http://vllm:8000/v1', api_key='EMPTY'))` 形式で設定(base_url / api_key はモデルでなく `OpenAIProvider` に渡す。vllm は認証なしのため api_key はダミー。旧称 `OpenAIModel` は現行 pydantic-ai で `OpenAIChatModel` にリネーム)
 - ツール呼び出しは PydanticAI の `@agent.tool` で定義し、内部で api-clean を HTTP で叩く
 
 ---
@@ -719,3 +719,4 @@ TLS はゲートウェイで終端するため、ゲートウェイ↔DGX Spark 
 | v0.3 | 2026-06-08 | 学外からのアクセスを許可する方針へ変更(旧「学外公開しない」は DGX 直結前提の名残のため修正)。アクセス経路の公開と、学生データ処理の学外非送信を別概念として整理。RINS の正式申請区分(Web サーバ外部公開申請・ファイアウォール制限解除申請・DNS 登録・サーバ証明書)を公式情報に基づき§3.5.2・§3.5.3・§3.1・§11・§13へ反映。§3.5.4 を新設し、必須申請2件の確定値・段取り(申請①→公開フェーズで②)・証明書は Let's Encrypt 採用・実務管理担当(清水喜一)を記載 |
 | v0.4 | 2026-06-11 | §7.2 の履修提案シーケンスに api-clean からの開講情報(曜日・時限・教室)取得を追加。曜講時・教室は履修要項 YAML では保持せず api-clean を参照する旨を§5.1 に明記(既存シラバス DB に `day_of_week` / `period` / `room` があることを実コードで確認済み)。vLLM の起動オプションに `--tool-call-parser hermes` を追記(§3.2、§4.3。指定がないと起動エラーになるため)。タイトルの版番号を改訂履歴と同期 |
 | v0.5 | 2026-07-02 | 検索画面向けの内部 API を §6.1 に追加(`GET /api/syllabi` / `/api/syllabi/{code}` / `/api/masters`)。従来 §6.1 は chat(SSE)のみで検索一覧の口が未定義だったため、api-clean を中継する読み取り専用 JSON を新設。§4.2.1 に `app/api/syllabus.py` を追加。frontend は単一オリジン経由で api-clean を直接呼べない(§1.2)ため backend パススルーが必要である旨を明記。あわせて §3.2・§4.3 の vLLM 起動オプションを実機に合わせて正確化(`--tool-call-parser qwen3_coder`、`--model /models`・オフライン運用) |
+| v0.6 | 2026-07-06 | §6.3・§4.3 の PydanticAI モデル生成記法を現行 API に合わせて修正。クラス名が `OpenAIModel` → `OpenAIChatModel` にリネームされ、`base_url` / `api_key` はモデルでなく `OpenAIProvider` に渡す形式へ変更(vllm は認証なしのため api_key はダミー)。実装(board #5)着手に伴い公式ドキュメントで確認・反映 |
