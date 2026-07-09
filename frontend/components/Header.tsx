@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { GraduationCap, Info, RotateCcw } from "lucide-react";
 
 const navItems = [
-  { href: "/", label: "学生情報" },
+  { href: "/", label: "成績インポート" },
   { href: "/proposal", label: "履修提案" },
   { href: "/syllabus", label: "シラバス" },
 ];
@@ -13,44 +14,58 @@ export default function Header() {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-[#D1D5DB]">
-      <div className="max-w-screen-xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-        <Link href="/" className="flex items-center gap-2 shrink-0">
-          <span className="block w-1 h-6 bg-[#E60012] rounded-full" />
-          <span className="text-[#1A2B4E] font-bold text-sm leading-tight">
-            履修登録支援AI
+    <header className="sticky top-0 z-50 bg-[#1A2B4E] h-[60px] flex items-center">
+      <div className="w-full px-8 flex items-center justify-between gap-4">
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-2.5 shrink-0">
+          <GraduationCap size={24} className="text-white" />
+          <span className="text-white font-bold text-base leading-tight">
+            龍谷大学 履修支援AI
           </span>
         </Link>
 
-        <nav className="flex items-center gap-1 overflow-x-auto">
+        {/* Nav links */}
+        <nav className="flex items-center gap-7">
           {navItems.map((item) => {
-            const active = pathname === item.href;
+            const active =
+              item.href === "/"
+                ? pathname === "/"
+                : pathname.startsWith(item.href);
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap transition-colors ${
-                  active
-                    ? "bg-[#E60012] text-white"
-                    : "text-[#1A2B4E] hover:bg-[#F8F9FA]"
-                }`}
-              >
-                {item.label}
-              </Link>
+              <div key={item.href} className="flex flex-col items-center py-1">
+                <Link
+                  href={item.href}
+                  className={`text-sm leading-none transition-colors ${
+                    active
+                      ? "text-white font-semibold"
+                      : "text-[#93A8C4] font-normal hover:text-white"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+                {active && (
+                  <div className="mt-1 h-[2px] w-[60px] bg-[#E60012] rounded-full" />
+                )}
+              </div>
             );
           })}
         </nav>
 
-        <button
-          onClick={() => {
-            if (confirm("入力データと対話履歴をすべて消去しますか?")) {
-              window.location.href = "/";
-            }
-          }}
-          className="shrink-0 px-3 py-1.5 rounded border border-[#D1D5DB] text-sm text-[#5f3f3b] hover:bg-[#ffdad6] transition-colors"
-        >
-          リセット
-        </button>
+        {/* Right area */}
+        <div className="flex items-center gap-3 shrink-0">
+          <Info size={20} className="text-[#93A8C4]" />
+          <button
+            onClick={() => {
+              if (confirm("入力データと対話履歴をすべて消去しますか?")) {
+                window.location.href = "/";
+              }
+            }}
+            className="flex items-center gap-1.5 text-[#93A8C4] hover:text-white transition-colors text-sm"
+          >
+            <RotateCcw size={18} />
+            <span>リセット</span>
+          </button>
+        </div>
       </div>
     </header>
   );

@@ -40,6 +40,7 @@
   --spacing-xl: 32px;
 
   --font-sans: var(--font-noto-sans);
+  --font-mono: var(--font-ibm-plex-mono);
 }
 
 body {
