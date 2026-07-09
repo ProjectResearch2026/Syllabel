@@ -1,7 +1,7 @@
 "use client";
 
 import { Bell } from "lucide-react";
-import { DAYS, PERIODS, TIMETABLE, CELL_STYLES } from "@/lib/timetable";
+import { DAYS, PERIODS, TIMETABLE } from "@/lib/timetable";
 import type { CourseType } from "@/lib/timetable";
 
 const TAG_STYLES: Record<NonNullable<CourseType>, { cell: string; tag: string; label: string }> = {

@@ -1,4 +1,4 @@
-import { Bot, ChevronLeft, Info, EllipsisVertical } from "lucide-react";
+import { Bot, Info, EllipsisVertical } from "lucide-react";
 
 export default function ChatHeader() {
   return (
