@@ -10,7 +10,7 @@
 #   courses                 - 各科目の詳細情報
 program: "知能情報メディア課程"
 admission_year: 2024
-syllabus_year: 2026  # courses の syllabus_codes を api-clean から取得した開講年度
+syllabus_codes_year: 2026   # courses の syllabus_codes の取得元開講年度(design.md §5.1)
 # 卒業要件の定義
 graduation_requirements:
   total_credits: 124
@@ -117,7 +117,7 @@ study_programs:
 # - grade・term・quarters: 配当年次・学期・クォーター。クォーター完結科目は ["1Q"] のように1要素、
 #   セメスター科目は ["1Q", "2Q"](前期) / ["3Q", "4Q"](後期) のように2クォーターにまたがる
 # - programs: 当該科目が含まれる学修プログラムの番号(study_programs 参照)
-# - syllabus_codes: api-clean のシラバスコード一覧(2026年度取得)。DBに未登録の科目は省略
+# - syllabus_codes: api-clean のシラバスコード一覧(取得元開講年度はトップレベルの syllabus_codes_year)。DBに未登録の科目は省略
 courses:
   # ---- 教養教育科目: 「仏教の思想」科目 ----
   - {title: "仏教の思想A", category: "教養教育科目", subcategory: "「仏教の思想」科目", type: "必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260110004", "G260110005", "G260110017"]}
@@ -179,7 +179,7 @@ courses:
   - {title: "宗教学のすすめ", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610007", "G260610008"]}
   - {title: "宗教の世界", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610010", "G260610012"]}
   - {title: "日本の文学M", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610014", "G260610033"]}
-  - {title: "日本の文学N", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "日本の文学N", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], notes: "近年不開講(2025・2026年度)のため syllabus_codes なし。履修要項には掲載"}
   - {title: "アジアの文学A", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610030", "G260610060", "G260610061"]}
   - {title: "アジアの文学B", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610031", "G260610062", "G260610063"]}
   - {title: "西洋の文学A", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610015", "G260610064", "G260610065", "G260610066"]}
@@ -187,10 +187,10 @@ courses:
   - {title: "言語学入門", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610058"]}
   - {title: "歴史入門", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610035", "G260610037"]}
   - {title: "日本の歴史M", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610039", "G260610041"]}
-  - {title: "日本の歴史N", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"]}
+  - {title: "日本の歴史N", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], notes: "近年不開講(2025・2026年度)のため syllabus_codes なし。履修要項には掲載"}
   - {title: "日本の文化", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610059"]}
   - {title: "西洋の歴史M", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610043", "G260610045"]}
-  - {title: "西洋の歴史N", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "西洋の歴史N", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], notes: "近年不開講(2025・2026年度)のため syllabus_codes なし。履修要項には掲載"}
   - {title: "心理学入門", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610050", "G260610051"]}
   - {title: "教育原論A", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610052", "G260610053"]}
   - {title: "教育原論B", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260610054", "G260610055"]}
