@@ -1,99 +1,137 @@
-"use client";
-
-import { use } from "react";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
-import { TYPE_META } from "@/lib/syllabus";
+import { getSyllabus } from "@/lib/syllabus-api";
 import SyllabusChatBox from "../_components/SyllabusChatBox";
 
-const DEMO_DETAIL = {
-  code: "CS-101",
-  title: "プログラミング基礎",
-  instructor: "山田 教授",
-  credits: 2,
-  semester: "前期",
-  day: "月",
-  period: "1限",
-  type: "required" as const,
-  description:
-    "本講義では、計算機科学における基本的なアルゴリズムとデータ構造について学ぶ。配列・リスト・スタック・キュー・木・グラフなどの構造と、それらを用いた探索・整列・動的計画法などのアルゴリズムを扱う。計算量の概念を理解し、問題に応じた適切なアルゴリズムを選択する能力を養う。",
-  evaluation: "期末試験 60%・レポート課題 30%・平常点 10%（出席状況・授業への参加度）",
-  textbook: "アルゴリズムとデータ構造（第2版）著:野崎昭弘 他",
-  note: "プログラミング基礎（B11111）を事前に履修していることが望ましい。",
-};
+type Params = Promise<{ code: string }>;
+type SearchParams = Promise<{ year?: string }>;
 
-export default function SyllabusDetailPage({
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h2 className="text-sm font-semibold text-[#1A2B4E] border-b border-[#E5E7EB] pb-1 mb-2">{title}</h2>
+      <div className="text-sm text-[#374151] leading-relaxed whitespace-pre-wrap">{children}</div>
+    </div>
+  );
+}
+
+export default async function SyllabusDetailPage({
   params,
+  searchParams,
 }: {
-  params: Promise<{ code: string }>;
+  params: Params;
+  searchParams: SearchParams;
 }) {
-  const { code } = use(params);
-  const course = { ...DEMO_DETAIL, code };
-  const meta = TYPE_META[course.type];
+  const { code } = await params;
+  const { year } = await searchParams;
+
+  let syllabus;
+  try {
+    syllabus = await getSyllabus(code, year ? parseInt(year, 10) : undefined);
+  } catch {
+    notFound();
+  }
+
+  const instructorNames = syllabus.instructors.map((i) => i.kanji_name).join("、");
 
   return (
-    <div className="max-w-screen-lg mx-auto px-4 md:px-8 py-6">
-      <nav className="flex items-center gap-1 text-xs text-[#6B7280] mb-5">
-        <Link href="/syllabus" className="flex items-center gap-0.5 hover:text-[#1A2B4E]">
-          <ChevronLeft size={14} />
-          シラバス一覧
-        </Link>
-        <span className="mx-1">›</span>
-        <span className="text-[#1A2B4E] font-medium truncate">{course.title}</span>
-      </nav>
+    <div className="max-w-screen-md mx-auto px-4 md:px-8 py-6">
+      <Link
+        href="/syllabus"
+        className="inline-flex items-center gap-1 text-xs text-[#6B7280] hover:text-[#1A2B4E] transition-colors mb-4"
+      >
+        <ChevronLeft size={14} />
+        シラバス一覧に戻る
+      </Link>
 
-      {/* 講義ヘッダーカード */}
-      <div className="bg-white border border-[#D1D5DB] rounded-xl overflow-hidden mb-4">
-        <div className="flex">
-          <div className={`w-1 shrink-0 ${meta.accent}`} />
-          <div className="flex-1 p-5">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs text-[#6B7280]">{course.code}</span>
-              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${meta.pill}`}>
-                {meta.label}
-              </span>
-            </div>
-            <h1 className="text-xl font-bold text-[#1A2B4E] leading-snug mb-1">{course.title}</h1>
-            <p className="text-sm text-[#6B7280]">{course.instructor}</p>
-            <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-[#E5E7EB]">
-              {[
-                { label: "単位数", value: `${course.credits}単位` },
-                { label: "開講期", value: course.semester },
-                { label: "曜日・時限", value: `${course.day}曜${course.period}` },
-              ].map((item) => (
-                <div key={item.label} className="text-center">
-                  <p className="text-[10px] text-[#9CA3AF] font-medium uppercase tracking-wide">
-                    {item.label}
-                  </p>
-                  <p className="text-sm font-semibold text-[#1A2B4E] mt-0.5">{item.value}</p>
-                </div>
-              ))}
-            </div>
+      <div className="bg-white border border-[#D1D5DB] rounded-xl overflow-hidden mb-6">
+        <div className="px-5 py-4 border-b border-[#E5E7EB]">
+          <p className="text-xs text-[#6B7280] mb-1">{syllabus.syllabus_code} · {syllabus.year}年度</p>
+          <h1 className="text-lg font-bold text-[#1A2B4E]">
+            {syllabus.course_title}
+            {syllabus.subtitle && <span className="text-sm font-normal text-[#6B7280] ml-2">({syllabus.subtitle})</span>}
+          </h1>
+          {instructorNames && (
+            <p className="text-sm text-[#374151] mt-1">{instructorNames}</p>
+          )}
+        </div>
+
+        <div className="px-5 py-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs border-b border-[#E5E7EB]">
+          <div>
+            <span className="text-[#9CA3AF]">キャンパス</span>
+            <p className="font-medium text-[#1A2B4E]">{syllabus.campus}</p>
           </div>
+          <div>
+            <span className="text-[#9CA3AF]">開講期</span>
+            <p className="font-medium text-[#1A2B4E]">{syllabus.term}</p>
+          </div>
+          <div>
+            <span className="text-[#9CA3AF]">時限</span>
+            <p className="font-medium text-[#1A2B4E]">{syllabus.day_of_week}曜 {syllabus.period}限</p>
+          </div>
+          <div>
+            <span className="text-[#9CA3AF]">単位</span>
+            <p className="font-medium text-[#1A2B4E]">{syllabus.credits}単位</p>
+          </div>
+          <div>
+            <span className="text-[#9CA3AF]">配当学年</span>
+            <p className="font-medium text-[#1A2B4E]">{syllabus.grade_raw}</p>
+          </div>
+          {syllabus.faculties.length > 0 && (
+            <div className="col-span-2">
+              <span className="text-[#9CA3AF]">学部</span>
+              <p className="font-medium text-[#1A2B4E]">{syllabus.faculties.join("・")}</p>
+            </div>
+          )}
+          {syllabus.room && (
+            <div>
+              <span className="text-[#9CA3AF]">教室</span>
+              <p className="font-medium text-[#1A2B4E]">{syllabus.room}</p>
+            </div>
+          )}
+        </div>
+
+        {syllabus.note && (
+          <div className="px-5 py-3 bg-[#FFFBEB] border-b border-[#E5E7EB]">
+            <p className="text-xs text-[#92400E]">{syllabus.note}</p>
+          </div>
+        )}
+
+        <div className="px-5 py-4 space-y-5">
+          {syllabus.goals && <Section title="到達目標">{syllabus.goals}</Section>}
+          {syllabus.summary && <Section title="授業概要">{syllabus.summary}</Section>}
+          {syllabus.methods && <Section title="授業方法">{syllabus.methods}</Section>}
+          {syllabus.outside_study && <Section title="授業外学習">{syllabus.outside_study}</Section>}
+          {syllabus.grading && <Section title="成績評価">{syllabus.grading}</Section>}
+          {syllabus.textbook_note && <Section title="テキスト">{syllabus.textbook_note}</Section>}
+          {syllabus.reference_note && <Section title="参考書">{syllabus.reference_note}</Section>}
+          {syllabus.advice && <Section title="受講に際しての注意">{syllabus.advice}</Section>}
         </div>
       </div>
 
-      {/* 講義内容セクション */}
-      <div className="space-y-3 mb-6">
-        {[
-          { label: "講義概要", content: course.description },
-          { label: "成績評価", content: course.evaluation },
-          { label: "教科書", content: course.textbook },
-          { label: "備考", content: course.note },
-        ].map((section) => (
-          <div key={section.label} className="bg-white border border-[#D1D5DB] rounded-xl p-4">
-            <h2 className="text-xs font-semibold text-[#1A2B4E] uppercase tracking-wide mb-2">
-              {section.label}
-            </h2>
-            <p className="text-sm text-[#1A2B4E] leading-relaxed">{section.content}</p>
+      {syllabus.course_plan.length > 0 && (
+        <div className="bg-white border border-[#D1D5DB] rounded-xl overflow-hidden mb-6">
+          <div className="px-5 py-3 border-b border-[#E5E7EB] bg-[#F9FAFB]">
+            <h2 className="text-sm font-semibold text-[#1A2B4E]">授業計画</h2>
           </div>
-        ))}
-      </div>
+          <div className="divide-y divide-[#F3F4F6]">
+            {syllabus.course_plan.map((plan) => (
+              <div key={plan.session_number} className="flex gap-3 px-5 py-3">
+                <span className="text-xs font-semibold text-[#9CA3AF] w-6 shrink-0 pt-0.5">
+                  {plan.session_number}
+                </span>
+                <p className="text-sm text-[#374151]">{plan.content}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <SyllabusChatBox
         title="AIに質問する（この講義について）"
         placeholder="この講義について質問..."
-        initialMessage={`「${course.title}」についてご質問ください。例：「この講義と類似する講義との違いは？」`}
+        initialMessage={`「${syllabus.course_title}」についてご質問ください。例：「この講義の成績評価方法は？」`}
       />
     </div>
   );
