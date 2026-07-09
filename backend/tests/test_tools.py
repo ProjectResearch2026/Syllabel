@@ -1,7 +1,6 @@
 """app/agents/tools.py のユニットテスト。実サーバには接続しない。"""
 import pytest
 import httpx
-import pytest_asyncio
 
 from app.agents import tools as tools_module
 from app.agents.tools import search_syllabi, get_syllabus, get_masters
@@ -13,14 +12,6 @@ def reset_client_cache():
     tools_module._get_client.cache_clear()
     yield
     tools_module._get_client.cache_clear()
-
-
-@pytest.fixture
-def mock_transport():
-    """httpx.MockTransport を返すファクトリ fixture。"""
-    def _make(handler):
-        return httpx.MockTransport(handler)
-    return _make
 
 
 def _patch_client(monkeypatch, handler):
