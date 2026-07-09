@@ -28,7 +28,7 @@ async def search_syllabi(
     grade: int | None = None,
     limit: int | None = None,
     offset: int | None = None,
-) -> list[dict]:
+) -> dict:
     """シラバス一覧を検索して返す。design.md §6.2 GET /syllabi。
 
     Args:
@@ -46,7 +46,20 @@ async def search_syllabi(
         offset: 取得開始位置
 
     Returns:
-        api-clean の /syllabi レスポンス(list)をそのまま返す。
+        api-clean の /syllabi レスポンス。実形式(2026-07-09 実疎通確認済み):
+        {
+            "count": int,    # 返却件数(総ヒット数ではない)
+            "limit": int,
+            "offset": int,
+            "results": [
+                {
+                    "syllabus_code": str,  # 講義コード。get_syllabus() に渡すキー
+                    "year": int,
+                    "course_title": str,
+                    ...
+                }
+            ]
+        }
     """
     params = {
         "q": q,

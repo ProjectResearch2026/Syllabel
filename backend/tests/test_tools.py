@@ -36,13 +36,13 @@ async def test_search_syllabi_path(monkeypatch):
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured["url"] = request.url
-        return httpx.Response(200, json=[])
+        return httpx.Response(200, json={"count": 0, "limit": 20, "offset": 0, "results": []})
 
     _patch_client(monkeypatch, handler)
     result = await search_syllabi()
 
     assert captured["url"].path == "/syllabi"
-    assert result == []
+    assert result == {"count": 0, "limit": 20, "offset": 0, "results": []}
 
 
 @pytest.mark.asyncio
@@ -52,7 +52,7 @@ async def test_search_syllabi_query_params(monkeypatch):
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured["params"] = dict(request.url.params)
-        return httpx.Response(200, json=[{"code": "B12345"}])
+        return httpx.Response(200, json={"count": 1, "limit": 10, "offset": 0, "results": [{"syllabus_code": "B12345"}]})
 
     _patch_client(monkeypatch, handler)
     await search_syllabi(q="情報", faculty="理工", limit=10, offset=0)
@@ -70,7 +70,7 @@ async def test_search_syllabi_none_params_omitted(monkeypatch):
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured["params"] = dict(request.url.params)
-        return httpx.Response(200, json=[])
+        return httpx.Response(200, json={"count": 0, "limit": 20, "offset": 0, "results": []})
 
     _patch_client(monkeypatch, handler)
     await search_syllabi(q="AI", program=None, campus=None)
