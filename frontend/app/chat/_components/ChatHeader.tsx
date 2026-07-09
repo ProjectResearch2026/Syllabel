@@ -4,7 +4,6 @@ export default function ChatHeader() {
   return (
     <header className="flex items-center justify-between px-5 h-[60px] bg-white border-b border-[#D1D5DB] shrink-0">
       <div className="flex items-center gap-3">
-        <ChevronLeft size={22} className="text-[#1A2B4E]" />
         <div className="w-9 h-9 rounded-full bg-[#1A2B4E] flex items-center justify-center shrink-0">
           <Bot size={20} className="text-white" />
         </div>
