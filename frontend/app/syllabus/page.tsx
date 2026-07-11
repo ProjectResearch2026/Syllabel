@@ -12,15 +12,19 @@ type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
 export default async function SyllabusPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
 
+  const now = new Date();
+  const currentNendo = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+
   const q = typeof sp.q === "string" ? sp.q : undefined;
   const faculty = typeof sp.faculty === "string" ? sp.faculty : undefined;
   const campus = typeof sp.campus === "string" ? sp.campus : undefined;
   const term = typeof sp.term === "string" ? sp.term : undefined;
   const day = typeof sp.day === "string" ? sp.day : undefined;
+  const year = typeof sp.year === "string" ? parseInt(sp.year, 10) : currentNendo;
   const offset = typeof sp.offset === "string" ? parseInt(sp.offset, 10) : 0;
 
   const [data, masters] = await Promise.all([
-    searchSyllabi({ q, faculty, campus, term, day, limit: LIMIT, offset }),
+    searchSyllabi({ q, faculty, campus, term, day, year, limit: LIMIT, offset }),
     getMasters(),
   ]);
 
@@ -29,7 +33,7 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
       <h1 className="text-[#1A2B4E] text-xl font-bold mb-4">シラバス検索</h1>
 
       <Suspense>
-        <SyllabusSearchForm masters={masters} />
+        <SyllabusSearchForm masters={masters} currentNendo={currentNendo} />
       </Suspense>
 
       <div className="flex items-center justify-between mb-3">
