@@ -1,9 +1,11 @@
 import { Suspense } from "react";
 import { searchSyllabi, getMasters } from "@/lib/syllabus-api";
 import CourseCard from "./_components/CourseCard";
+import CourseCardGrid from "./_components/CourseCardGrid";
 import SyllabusSearchForm from "./_components/SyllabusSearchForm";
 import SyllabusChatBox from "./_components/SyllabusChatBox";
 import SyllabusPagination from "./_components/SyllabusPagination";
+import ViewToggle from "./_components/ViewToggle";
 
 const LIMIT = 30;
 
@@ -22,6 +24,7 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
   const day = typeof sp.day === "string" ? sp.day : undefined;
   const year = typeof sp.year === "string" ? parseInt(sp.year, 10) : currentNendo;
   const offset = typeof sp.offset === "string" ? parseInt(sp.offset, 10) : 0;
+  const view = typeof sp.view === "string" && sp.view === "grid" ? "grid" : "list";
 
   const [data, masters] = await Promise.all([
     searchSyllabi({ q, faculty, campus, term, day, year, limit: LIMIT, offset }),
@@ -40,15 +43,28 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
         <p className="text-xs text-[#6B7280]">
           {data.count.toLocaleString()} 件ヒット
         </p>
+        <Suspense>
+          <ViewToggle />
+        </Suspense>
       </div>
 
-      <div className="space-y-2 mb-4">
-        {data.results.length === 0 ? (
-          <p className="text-sm text-[#6B7280] text-center py-10">該当する科目がありません</p>
-        ) : (
-          data.results.map((c) => <CourseCard key={`${c.syllabus_code}-${c.year}`} course={c} />)
-        )}
-      </div>
+      {view === "grid" ? (
+        <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-4">
+          {data.results.length === 0 ? (
+            <p className="text-sm text-[#6B7280] text-center py-10 col-span-full">該当する科目がありません</p>
+          ) : (
+            data.results.map((c) => <CourseCardGrid key={`${c.syllabus_code}-${c.year}`} course={c} />)
+          )}
+        </div>
+      ) : (
+        <div className="space-y-2 mb-4">
+          {data.results.length === 0 ? (
+            <p className="text-sm text-[#6B7280] text-center py-10">該当する科目がありません</p>
+          ) : (
+            data.results.map((c) => <CourseCard key={`${c.syllabus_code}-${c.year}`} course={c} />)
+          )}
+        </div>
+      )}
 
       <Suspense>
         <SyllabusPagination total={data.count} limit={LIMIT} offset={offset} />
