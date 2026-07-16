@@ -261,7 +261,7 @@ courses:
   # ---- 専門基礎科目 ----
   - {title: "情報基礎", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y000001030"]}
   - {title: "フレッシャーズセミナー", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], notes: "配当年次必須登録", syllabus_codes: ["Y000002030"]}
-  - {title: "キャリア実習・実習指導", category: "専門基礎科目", type: "随意", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "キャリア実習・実習指導", category: "専門基礎科目", type: "随意", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], notes: "2026年度不開講のため syllabus_codes なし"}
   - {title: "理工学のすすめ", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], notes: "1年次のみ", syllabus_codes: ["Y000004010"]}
   - {title: "基礎数学Ⅰ・演習", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y003001010"]}
   - {title: "情報通信基礎", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y003002010"]}
@@ -300,7 +300,7 @@ courses:
   - {title: "グローバル人材育成プログラム", category: "専門基礎科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y000007010"]}
   - {title: "プロジェクトリサーチⅠ", category: "専門基礎科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q", "2Q"], notes: "卒業要件算入合計2単位まで", syllabus_codes: ["Y000008010"]}
   - {title: "プロジェクトリサーチⅡ", category: "専門基礎科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q", "2Q"], notes: "卒業要件算入合計2単位まで", syllabus_codes: ["Y000009010"]}
-  - {title: "先端理工キャリア実習Ⅰ", category: "専門基礎科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q", "2Q"]}
+  - {title: "先端理工キャリア実習Ⅰ", category: "専門基礎科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q", "2Q"], notes: "2026年度不開講のため syllabus_codes なし"}
   - {title: "理工インターンシップ（学外実習）Ⅰ", category: "専門基礎科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q", "2Q"], notes: "卒業要件算入合計2単位まで。2026年度不開講のため syllabus_codes なし"}
   - {title: "先端理工キャリア実習Ⅱ", category: "専門基礎科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y000011031"]}
   - {title: "理工インターンシップ（学外実習）Ⅱ", category: "専門基礎科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q", "2Q"], notes: "卒業要件算入合計2単位まで", syllabus_codes: ["Y000011030"]}
