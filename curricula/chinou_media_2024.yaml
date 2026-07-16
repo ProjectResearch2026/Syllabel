@@ -311,5 +311,5 @@ courses:
   - {title: "ネットワークシステム・演習", category: "専門応用科目", type: "必修", credits: 4, grade: 3, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y002037010"]}
   - {title: "コラボレーション演習", category: "専門応用科目", type: "選択", credits: 4, grade: 3, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y002038010"]}
   - {title: "知能情報メディアセミナー", category: "専門応用科目", type: "必修", credits: 2, grade: 3, term: "後期", quarters: ["3Q", "4Q"], notes: "履修には3年前期終了時点で卒業要件総修得単位数80単位以上、かつ専門基礎科目（必修）の修得単位数20単位以上が必要。4年次への進級要件", syllabus_codes: ["Y002039010"]}
-  - {title: "科学技術英語", category: "専門応用科目", type: "必修", credits: 2, grade: 4, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y002040510"]}
-  - {title: "特別研究", category: "専門応用科目", type: "必修", credits: 6, grade: 4, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y002041540", "Y002041560", "Y002041570", "Y002041580", "Y002041590", "Y002041600", "Y002041610", "Y002041620", "Y002041630", "Y002041640", "Y002041650", "Y002041660"]}
+  - {title: "科学技術英語", category: "専門応用科目", type: "必修", credits: 2, grade: 4, term: "通年", syllabus_codes: ["Y002040510"]}
+  - {title: "特別研究", category: "専門応用科目", type: "必修", credits: 6, grade: 4, term: "通年", syllabus_codes: ["Y002041540", "Y002041560", "Y002041570", "Y002041580", "Y002041590", "Y002041600", "Y002041610", "Y002041620", "Y002041630", "Y002041640", "Y002041650", "Y002041660"]}
