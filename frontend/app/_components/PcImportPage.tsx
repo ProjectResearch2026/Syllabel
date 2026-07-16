@@ -1,7 +1,20 @@
+"use client";
+
+import { useRouter } from "next/navigation";
 import { ShieldCheck, Lock, WifiOff, Trash2, Upload, Play } from "lucide-react";
 import StepItem from "./StepItem";
+import { useStudentStore } from "@/lib/student";
+import { DUMMY_PROFILES } from "@/lib/dummy/profiles";
 
 export default function PcImportPage() {
+  const router = useRouter();
+  const setProfile = useStudentStore((s) => s.setProfile);
+
+  const handleDemoLoad = () => {
+    setProfile(DUMMY_PROFILES[0].profile);
+    router.push("/mydata");
+  };
+
   return (
     <div className="flex flex-1 min-h-[calc(100vh-60px)]">
       {/* Left Panel */}
@@ -68,7 +81,10 @@ export default function PcImportPage() {
             <div className="flex-1 h-px bg-[#E5E7EB]" />
           </div>
 
-          <button className="w-full h-11 rounded-lg border border-[#1A2B4E] flex items-center justify-center gap-2 hover:bg-[#EEF1F8] transition-colors">
+          <button
+            onClick={handleDemoLoad}
+            className="w-full h-11 rounded-lg border border-[#1A2B4E] flex items-center justify-center gap-2 hover:bg-[#EEF1F8] transition-colors"
+          >
             <Play size={16} className="text-[#1A2B4E]" />
             <span className="text-[#1A2B4E] text-sm font-semibold">
               ダミーデータで試す（展示用）
