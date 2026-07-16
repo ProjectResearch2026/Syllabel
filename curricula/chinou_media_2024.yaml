@@ -6,7 +6,6 @@
 # 構成:
 #   graduation_requirements - 卒業要件単位数・進級条件
 #   registration_limits     - 履修登録制限単位数(CAP制)
-#   study_programs          - 学修プログラム(科目の programs 欄が参照する凡例)
 #   courses                 - 各科目の詳細情報
 program: "知能情報メディア課程"
 admission_year: 2024
@@ -86,37 +85,10 @@ registration_limits:
     随意科目（教職課程・博物館学芸員課程など）、サマーセッション科目、「海外英語研修」、
     大学コンソーシアム京都の単位互換科目、放送大学科目は制限単位数に含まれない。
   gpa_exception: "前学期までの累積GPA3.5以上の学生は、申請により各学期2単位まで制限を拡大できる（毎学期初めの履修登録期間に先端理工学部教務課へ申請）"
-# 学修プログラムの定義(courses の programs 欄の番号に対応。知能情報メディア課程の科目が関わるもののみ)
-study_programs:
-  - number: 4
-    name: "データサイエンス"
-    min_credits: 14
-    notes: "科目群A・B・Cのいずれかで14単位。責任課程は数理・情報科学課程"
-  - number: 5
-    name: "リアル＆バーチャルメディア"
-    min_credits: 12
-    notes: "責任課程は知能情報メディア課程"
-  - number: 6
-    name: "応用ソフトウェア"
-    min_credits: 12
-    notes: "責任課程は知能情報メディア課程"
-  - number: 7
-    name: "人工知能"
-    min_credits: 12
-    notes: "責任課程は知能情報メディア課程"
-  - number: 14
-    name: "先端ロボティクス"
-    min_credits: 14
-    notes: "責任課程は機械工学・ロボティクス課程"
-  - number: 15
-    name: "バイオニックデザイン"
-    min_credits: 14
-    notes: "責任課程は機械工学・ロボティクス課程"
 # 各授業の定義
 # - type: 必修 / 選択必修 / 選択 / 随意
 # - grade・term・quarters: 配当年次・学期・クォーター。クォーター完結科目は ["1Q"] のように1要素、
 #   セメスター科目は ["1Q", "2Q"](前期) / ["3Q", "4Q"](後期) のように2クォーターにまたがる
-# - programs: 当該科目が含まれる学修プログラムの番号(study_programs 参照)
 # - syllabus_codes: api-clean のシラバスコード一覧(取得元開講年度はトップレベルの syllabus_codes_year)。DBに未登録の科目は省略
 courses:
   # ---- 教養教育科目: 「仏教の思想」科目 ----
@@ -281,33 +253,33 @@ courses:
   - {title: "ハードウェア基礎", category: "専門基礎科目", type: "必修", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y002011010"]}
   - {title: "データ構造とアルゴリズム・演習", category: "専門基礎科目", type: "必修", credits: 4, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y002015010"]}
   - {title: "情報システム基礎", category: "専門基礎科目", type: "必修", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y002004010"]}
-  - {title: "ディジタル信号処理", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], programs: [5], syllabus_codes: ["Y002008010"]}
-  - {title: "仮想メディアシステム", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], programs: [5], syllabus_codes: ["Y002012010"]}
-  - {title: "情報とセキュリティ", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], programs: [4, 6], syllabus_codes: ["Y002013010"]}
-  - {title: "システムソフトウェア", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], programs: [6], syllabus_codes: ["Y002016010"]}
-  - {title: "データベース", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], programs: [4, 6], syllabus_codes: ["Y002020010"]}
+  - {title: "ディジタル信号処理", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y002008010"]}
+  - {title: "仮想メディアシステム", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y002012010"]}
+  - {title: "情報とセキュリティ", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y002013010"]}
+  - {title: "システムソフトウェア", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y002016010"]}
+  - {title: "データベース", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y002020010"]}
   - {title: "知的財産概論", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y002010010"]}
   - {title: "情報学概論", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y002017010"]}
   - {title: "人間工学概論", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y002018010"]}
   - {title: "情報と職業", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y009001010"]}
   - {title: "クラウドコンピューティング演習", category: "専門基礎科目", type: "随意", credits: 2, grade: 2, term: "後期", quarters: ["4Q"], notes: "随意科目のため卒業要件単位に算入されない。履修登録制限単位数(CAP)の対象外。2026年度不開講のため syllabus_codes なし"}
   # ---- 専門応用科目 ----
-  - {title: "ヒューマンコンピュータインタラクション", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], programs: [5, 15], syllabus_codes: ["Y002021010"]}
-  - {title: "多様なプログラミング言語", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], programs: [6], syllabus_codes: ["Y002022010"]}
-  - {title: "コンピュータビジョン", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], programs: [5, 7], syllabus_codes: ["Y002023010"]}
+  - {title: "ヒューマンコンピュータインタラクション", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y002021010"]}
+  - {title: "多様なプログラミング言語", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y002022010"]}
+  - {title: "コンピュータビジョン", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y002023010"]}
   - {title: "知能情報メディア演習", category: "専門応用科目", type: "必修", credits: 4, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y002024010"]}
-  - {title: "音声・音響メディア処理論", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], programs: [5, 14], syllabus_codes: ["Y002025010"]}
-  - {title: "環境としての情報技術", category: "専門応用科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q", "2Q"], programs: [4, 5], syllabus_codes: ["Y002026010"]}
-  - {title: "ニューロとAI", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], programs: [6, 7, 15], syllabus_codes: ["Y002027010"]}
-  - {title: "言語メディア処理論", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], programs: [4, 5, 7], syllabus_codes: ["Y002028010"]}
-  - {title: "CGとVR", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], programs: [5], syllabus_codes: ["Y002029010"]}
-  - {title: "データインテリジェンス", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], programs: [4, 6, 7], syllabus_codes: ["Y002030010"]}
-  - {title: "ネットワーク構成論", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], programs: [6], syllabus_codes: ["Y002031010"]}
+  - {title: "音声・音響メディア処理論", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y002025010"]}
+  - {title: "環境としての情報技術", category: "専門応用科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y002026010"]}
+  - {title: "ニューロとAI", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y002027010"]}
+  - {title: "言語メディア処理論", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y002028010"]}
+  - {title: "CGとVR", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y002029010"]}
+  - {title: "データインテリジェンス", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y002030010"]}
+  - {title: "ネットワーク構成論", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y002031010"]}
   - {title: "実践プログラミング・演習", category: "専門応用科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y002032010"]}
   - {title: "科学技術計算・演習", category: "専門応用科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y002033010"]}
-  - {title: "画像メディア処理論", category: "専門応用科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q"], programs: [5], syllabus_codes: ["Y002034010"]}
-  - {title: "ソフトウェア開発法", category: "専門応用科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q", "2Q"], programs: [6], syllabus_codes: ["Y002035010"]}
-  - {title: "応用アルゴリズム", category: "専門応用科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q", "2Q"], programs: [4, 6, 7], syllabus_codes: ["Y002036020"]}
+  - {title: "画像メディア処理論", category: "専門応用科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y002034010"]}
+  - {title: "ソフトウェア開発法", category: "専門応用科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y002035010"]}
+  - {title: "応用アルゴリズム", category: "専門応用科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y002036020"]}
   - {title: "ネットワークシステム・演習", category: "専門応用科目", type: "必修", credits: 4, grade: 3, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y002037010"]}
   - {title: "コラボレーション演習", category: "専門応用科目", type: "選択", credits: 4, grade: 3, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y002038010"]}
   - {title: "知能情報メディアセミナー", category: "専門応用科目", type: "必修", credits: 2, grade: 3, term: "後期", quarters: ["3Q", "4Q"], notes: "履修には3年前期終了時点で卒業要件総修得単位数80単位以上、かつ専門基礎科目（必修）の修得単位数20単位以上が必要。4年次への進級要件", syllabus_codes: ["Y002039010"]}
