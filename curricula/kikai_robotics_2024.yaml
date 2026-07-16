@@ -250,20 +250,20 @@ courses:
   # ---- 教養教育科目: 教養特別講義科目 ----
   - {title: "教養教育科目特別講義", category: "教養教育科目", subcategory: "教養特別講義科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620065", "G260620067", "G260620069", "G260620078", "G260620079"]}
   # ---- 専門基礎科目 ----
-  - {title: "情報基礎", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y000001040"]}
-  - {title: "フレッシャーズセミナー", category: "専門基礎科目", type: "随意", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y000002040"]}
+  - {title: "情報基礎", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y000001040"]}
+  - {title: "フレッシャーズセミナー", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y000002040"]}
   - {title: "キャリア実習・実習指導", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
-  - {title: "理工学のすすめ", category: "専門基礎科目", type: "随意", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], notes: "1年次のみ", syllabus_codes: ["Y000004010"]}
+  - {title: "理工学のすすめ", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], notes: "1年次のみ", syllabus_codes: ["Y000004010"]}
   - {title: "微分積分", category: "専門基礎科目", type: "必修", credits: 1, grade: 1, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y004001010"]}
-  - {title: "微分方程式", category: "専門基礎科目", type: "選択", credits: 1, grade: 1, term: "前期", quarters: ["2Q"], syllabus_codes: ["Y004003010"]}
-  - {title: "偏微分", category: "専門基礎科目", type: "選択", credits: 1, grade: 1, term: "後期", quarters: ["3Q"], syllabus_codes: ["Y004007010"]}
-  - {title: "重積分", category: "専門基礎科目", type: "選択", credits: 1, grade: 1, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y004010010"]}
+  - {title: "微分方程式", category: "専門基礎科目", type: "必修", credits: 1, grade: 1, term: "前期", quarters: ["2Q"], syllabus_codes: ["Y004003010"]}
+  - {title: "偏微分", category: "専門基礎科目", type: "必修", credits: 1, grade: 1, term: "後期", quarters: ["3Q"], syllabus_codes: ["Y004007010"]}
+  - {title: "重積分", category: "専門基礎科目", type: "必修", credits: 1, grade: 1, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y004010010"]}
   - {title: "線形代数Ⅰ", category: "専門基礎科目", type: "必修", credits: 1, grade: 1, term: "後期", quarters: ["3Q"], syllabus_codes: ["Y004008010"]}
   - {title: "線形代数Ⅱ", category: "専門基礎科目", type: "必修", credits: 1, grade: 1, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y004011010"]}
   - {title: "基礎力学Ⅰ", category: "専門基礎科目", type: "必修", credits: 1, grade: 1, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y004002010"]}
   - {title: "基礎力学Ⅱ", category: "専門基礎科目", type: "必修", credits: 1, grade: 1, term: "前期", quarters: ["2Q"], syllabus_codes: ["Y004004010"]}
-  - {title: "力学Ⅰ", category: "専門基礎科目", type: "選択", credits: 1, grade: 1, term: "後期", quarters: ["3Q"], syllabus_codes: ["Y004009010"]}
-  - {title: "力学Ⅱ", category: "専門基礎科目", type: "選択", credits: 1, grade: 1, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y004012010"]}
+  - {title: "力学Ⅰ", category: "専門基礎科目", type: "必修", credits: 1, grade: 1, term: "後期", quarters: ["3Q"], syllabus_codes: ["Y004009010"]}
+  - {title: "力学Ⅱ", category: "専門基礎科目", type: "必修", credits: 1, grade: 1, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y004012010"]}
   - {title: "数学・物理学演習Ⅰ", category: "専門基礎科目", type: "必修", credits: 1, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y004006010"]}
   - {title: "数学・物理学演習Ⅱ", category: "専門基礎科目", type: "必修", credits: 1, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y004013010"]}
   - {title: "物理実験", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y009003010"]}
@@ -322,11 +322,11 @@ courses:
   - {title: "電子・制御演習", category: "専門応用科目", type: "必修", credits: 1, grade: 3, term: "後期", quarters: ["3Q"], syllabus_codes: ["Y004076010"]}
   - {title: "熱・流体演習", category: "専門応用科目", type: "必修", credits: 1, grade: 3, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y004082010"]}
   - {title: "設計製図", category: "専門応用科目", type: "必修", credits: 2, grade: 3, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y004088010"]}
-  - {title: "材料力学実習", category: "専門応用科目", type: "必修", credits: 1, grade: 3, term: "前期", quarters: ["2Q"], syllabus_codes: ["Y004062010"]}
-  - {title: "ロボット実習", category: "専門応用科目", type: "必修", credits: 1, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y004063010"]}
-  - {title: "熱・流体実習", category: "専門応用科目", type: "必修", credits: 1, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y004064010"]}
+  - {title: "材料力学実習", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["2Q"], syllabus_codes: ["Y004062010"]}
+  - {title: "ロボット実習", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y004063010"]}
+  - {title: "熱・流体実習", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y004064010"]}
   - {title: "セミナー", category: "専門応用科目", type: "必修", credits: 2, grade: 3, term: "後期", quarters: ["3Q", "4Q"], notes: "先修：3年前期終了時点で卒業要件総修得80単位以上かつ必修科目31単位以上。4年次進級要件", syllabus_codes: ["Y004089020", "Y004089030", "Y004089040", "Y004089050", "Y004089060", "Y004089070", "Y004089080", "Y004089090", "Y004089100", "Y004089110", "Y004089120", "Y004089130", "Y004089140", "Y004089150"]}
-  - {title: "機械要素", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y004058010"]}
+  - {title: "機械要素", category: "専門応用科目", type: "必修", credits: 1, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y004058010"]}
   - {title: "計測工学Ⅰ", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y004051010"]}
   - {title: "計測工学Ⅱ", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["2Q"], syllabus_codes: ["Y004065010"]}
   - {title: "弾性力学", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y004052010"]}

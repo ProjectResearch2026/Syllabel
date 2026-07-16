@@ -224,24 +224,24 @@ courses:
   # ---- 教養教育科目: 教養特別講義科目 ----
   - {title: "教養教育科目特別講義", category: "教養教育科目", subcategory: "教養特別講義科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620065", "G260620067", "G260620069", "G260620078", "G260620079"]}
   # ---- 専門基礎科目 ----
-  - {title: "情報基礎", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y000001050"]}
-  - {title: "フレッシャーズセミナー", category: "専門基礎科目", type: "随意", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y000002050"]}
+  - {title: "情報基礎", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y000001050"]}
+  - {title: "フレッシャーズセミナー", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y000002050"]}
   - {title: "キャリア実習・実習指導", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"]}
-  - {title: "理工学のすすめ", category: "専門基礎科目", type: "随意", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], notes: "1年次のみ", syllabus_codes: ["Y000004010"]}
-  - {title: "化学の基礎", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y005003010"]}
-  - {title: "化学と社会", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y005001010"]}
+  - {title: "理工学のすすめ", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], notes: "1年次のみ", syllabus_codes: ["Y000004010"]}
+  - {title: "化学の基礎", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y005003010"]}
+  - {title: "化学と社会", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y005001010"]}
   - {title: "数学の基礎", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y005002010"]}
   - {title: "物理の基礎", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y005006010"]}
   - {title: "物理化学Ⅰ", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y005008010"]}
   - {title: "無機化学Ⅰ", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y005010010"]}
   - {title: "有機化学Ⅰ", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y005009010"]}
-  - {title: "プロジェクト演習Ⅰ", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y005004010"]}
+  - {title: "プロジェクト演習Ⅰ", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y005004010"]}
   - {title: "化学基礎実験", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y005007010"]}
-  - {title: "資源・エネルギーと環境", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y005005010"]}
-  - {title: "物理化学Ⅱ", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y005014010"]}
-  - {title: "物理化学Ⅲ", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y005020010"]}
-  - {title: "無機化学Ⅱ", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y005016010"]}
-  - {title: "有機化学Ⅱ", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y005015010"]}
+  - {title: "資源・エネルギーと環境", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y005005010"]}
+  - {title: "物理化学Ⅱ", category: "専門基礎科目", type: "必修", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y005014010"]}
+  - {title: "物理化学Ⅲ", category: "専門基礎科目", type: "必修", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y005020010"]}
+  - {title: "無機化学Ⅱ", category: "専門基礎科目", type: "必修", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y005016010"]}
+  - {title: "有機化学Ⅱ", category: "専門基礎科目", type: "必修", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y005015010"]}
   - {title: "プロジェクト演習Ⅱ", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y005019010"]}
   - {title: "地学概論", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y009004010"]}
   - {title: "生物学概論", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y009005010"]}
@@ -250,8 +250,8 @@ courses:
   - {title: "機器分析化学実験", category: "専門基礎科目", type: "必修", credits: 1, grade: 2, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y005013010"]}
   - {title: "地学実験", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y009006010"]}
   - {title: "生物学実験", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y009007010"]}
-  - {title: "化学と安全管理", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y005017010"]}
-  - {title: "化学と情報処理", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y005018010"]}
+  - {title: "化学と安全管理", category: "専門基礎科目", type: "必修", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y005017010"]}
+  - {title: "化学と情報処理", category: "専門基礎科目", type: "必修", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y005018010"]}
   - {title: "アドバンスト数学Ⅰ", category: "専門基礎科目", type: "選択", credits: 1, grade: 2, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y005023010"]}
   - {title: "アドバンスト数学Ⅱ", category: "専門基礎科目", type: "選択", credits: 1, grade: 2, term: "前期", quarters: ["2Q"], syllabus_codes: ["Y005025010"]}
   - {title: "アドバンスト数学Ⅲ", category: "専門基礎科目", type: "選択", credits: 1, grade: 2, term: "後期", quarters: ["3Q"], syllabus_codes: ["Y005027010"]}
@@ -286,9 +286,9 @@ courses:
   - {title: "量子材料科学Ⅰ", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "後期", quarters: ["3Q"], syllabus_codes: ["Y005030010"]}
   - {title: "量子材料科学Ⅱ", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y005039010"]}
   - {title: "化学工学", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y005045010"]}
-  - {title: "化学の英語", category: "専門応用科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y005021010"]}
-  - {title: "科学技術英語", category: "専門応用科目", type: "選択", credits: 2, grade: 3, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y005080390", "Y005080400", "Y005080420", "Y005080430", "Y005080440", "Y005080450", "Y005080460", "Y005080470", "Y005080480", "Y005080490", "Y005080500", "Y005080700"]}
-  - {title: "化学合成実験", category: "専門応用科目", type: "必修", credits: 2, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y005022010"]}
+  - {title: "化学の英語", category: "専門基礎科目", type: "必修", credits: 2, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y005021010"]}
+  - {title: "科学技術英語", category: "専門応用科目", type: "必修", credits: 2, grade: 3, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y005080390", "Y005080400", "Y005080420", "Y005080430", "Y005080440", "Y005080450", "Y005080460", "Y005080470", "Y005080480", "Y005080490", "Y005080500", "Y005080700"]}
+  - {title: "化学合成実験", category: "専門基礎科目", type: "必修", credits: 2, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y005022010"]}
   - {title: "アドバンスト電気化学", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["2Q"], syllabus_codes: ["Y005061010"]}
   - {title: "固体物性化学Ⅰ", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y005047010"]}
   - {title: "固体物性化学Ⅱ", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["2Q"], syllabus_codes: ["Y005060010"]}
@@ -319,9 +319,9 @@ courses:
   - {title: "循環系グリーンケミストリー", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y005056010"]}
   - {title: "食と分子科学", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y005057010"]}
   - {title: "アドバンスト物質科学合成実験", category: "専門応用科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["2Q"], syllabus_codes: ["Y005058010"]}
-  - {title: "研究デザイン演習", category: "専門応用科目", type: "選択", credits: 2, grade: 3, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y005079010", "Y005079020", "Y005079040", "Y005079050", "Y005079060", "Y005079070", "Y005079080", "Y005079090", "Y005079100", "Y005079110", "Y005079120", "Y005079130"]}
+  - {title: "研究デザイン演習", category: "専門応用科目", type: "必修", credits: 2, grade: 3, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y005079010", "Y005079020", "Y005079040", "Y005079050", "Y005079060", "Y005079070", "Y005079080", "Y005079090", "Y005079100", "Y005079110", "Y005079120", "Y005079130"]}
   - {title: "反応工学", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y005078010"]}
   - {title: "エネルギー変換工学Ⅰ", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y005048010"]}
   - {title: "エネルギー変換工学Ⅱ", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["2Q"], syllabus_codes: ["Y005062010"]}
-  - {title: "英語セミナー", category: "専門応用科目", type: "選択", credits: 2, grade: 4, term: "前期", quarters: ["1Q", "2Q"], notes: "2026年度不開講のため syllabus_codes なし。履修要項には掲載"}
+  - {title: "英語セミナー", category: "専門応用科目", type: "必修", credits: 2, grade: 4, term: "前期", quarters: ["1Q", "2Q"], notes: "2026年度不開講のため syllabus_codes なし。履修要項には掲載"}
   - {title: "特別研究", category: "専門応用科目", type: "必修", credits: 10, grade: 4, term: "通年", notes: "先修：卒業要件総修得単位数100単位以上", syllabus_codes: ["Y005082420", "Y005082430", "Y005082450", "Y005082460", "Y005082470", "Y005082480", "Y005082490", "Y005082500", "Y005082510", "Y005082520", "Y005082530", "Y005082540"]}
