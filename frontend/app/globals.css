@@ -46,4 +46,5 @@
 body {
   background-color: #F8F9FA;
   color: #1a1c1c;
+  scrollbar-gutter: stable;
 }

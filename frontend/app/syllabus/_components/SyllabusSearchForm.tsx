@@ -9,9 +9,10 @@ const DAYS = ["月", "火", "水", "木", "金", "土"];
 
 type Props = {
   masters: Masters;
+  currentNendo: number;
 };
 
-export default function SyllabusSearchForm({ masters }: Props) {
+export default function SyllabusSearchForm({ masters, currentNendo }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -38,6 +39,9 @@ export default function SyllabusSearchForm({ masters }: Props) {
   const campus = searchParams.get("campus") ?? "";
   const term = searchParams.get("term") ?? "";
   const day = searchParams.get("day") ?? "";
+  const year = searchParams.get("year") ?? String(currentNendo);
+
+  const nendoOptions = Array.from({ length: 5 }, (_, i) => currentNendo - 2 + i);
 
   return (
     <div className="space-y-3 mb-5">
@@ -60,6 +64,16 @@ export default function SyllabusSearchForm({ masters }: Props) {
         </summary>
 
         <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
+          <select
+            value={year}
+            onChange={(e) => update("year", e.target.value)}
+            className="border border-[#D1D5DB] rounded-lg px-2 py-1.5 text-xs text-[#374151] focus:outline-none focus:border-[#1A2B4E]"
+          >
+            {nendoOptions.map((y) => (
+              <option key={y} value={y}>{y}年度</option>
+            ))}
+          </select>
+
           <select
             value={faculty}
             onChange={(e) => update("faculty", e.target.value)}
