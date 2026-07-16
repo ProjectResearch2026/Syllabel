@@ -9,9 +9,50 @@ admission_year: 2024
 graduation_requirements:
   total_credits: 124
   categories:
-    - name: "詳細はWebページ画像参照"
-      required_credits: null
-      notes: "詳細はWebページ画像参照"
+    - name: "教養教育科目"
+      required_credits: 28
+      notes: "仏教必修・言語必修・スポーツ必修・選択必修・選択の合計"
+    - name: "仏教必修"
+      required_credits: 4
+    - name: "言語必修"
+      required_credits: 6
+    - name: "スポーツ必修"
+      required_credits: 2
+    - name: "教養選択必修（人文）"
+      required_credits: 2
+      notes: "人文科学系の選択必修（基幹科目）から1科目2単位以上を修得する"
+    - name: "教養選択必修（社会）"
+      required_credits: 2
+      notes: "社会科学系の選択必修（基幹科目）から1科目2単位以上を修得する"
+    - name: "教養選択"
+      required_credits: 12
+      notes: "教養教育科目の選択必修（基幹科目）の余剰修得単位はここに計上される"
+    - name: "専門基礎科目"
+      required_credits: 28
+      notes: "専門基礎必修・専門基礎選択必修・専門基礎選択の合計"
+    - name: "専門基礎必修"
+      required_credits: 19
+    - name: "専門基礎選択必修"
+      required_credits: 4
+      notes: "選択必修科目の余剰修得単位は専門基礎選択として計上される"
+    - name: "専門基礎選択"
+      required_credits: 5
+    - name: "専門応用科目"
+      required_credits: 54
+      notes: "専門応用必修・専門応用選択の合計"
+    - name: "専門応用必修"
+      required_credits: 18
+    - name: "専門応用選択"
+      required_credits: 36
+    - name: "専門関連選択"
+      required_credits: 0
+      notes: "専門関連科目とは、所属する課程以外の他課程が主体となって開講する専攻科目(学修プログラムに含まれる科目など)。修得単位は学部フリーゾーンまたはオールフリーゾーンに算入する"
+    - name: "学部フリーゾーン"
+      required_credits: 10
+      notes: "専門基礎・専門応用・専門関連から区分を問わず修得可。随意科目は除く"
+    - name: "オールフリーゾーン"
+      required_credits: 4
+      notes: "教養教育科目を含め区分を問わず修得可。随意科目は除く"
   prerequisites:
     - course_title: "特別研究"
       term: "通年"

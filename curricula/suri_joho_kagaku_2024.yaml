@@ -47,22 +47,33 @@ graduation_requirements:
       required_credits: 12
       notes: "教養教育科目の選択必修（基幹科目）の余剰修得単位はここに計上される"
     - name: "専門基礎科目"
-      required_credits: null
-      notes: "詳細単位数はWebページ画像参照"
-    - name: "専門応用科目（必修）"
+      required_credits: 9
+      notes: "専門基礎必修のみ（選択科目に要件枠はない）"
+    - name: "専門基礎必修"
+      required_credits: 9
+    - name: "専門基礎選択"
+      required_credits: 0
+      notes: "要件枠なし。修得単位は学部フリーゾーンまたはオールフリーゾーンに算入する"
+    - name: "専門応用科目"
+      required_credits: 71
+      notes: "専門応用必修・専門応用選択必修・専門応用選択の合計。数学系・情報系・総合のいずれか一つのコースを選択する。数学系または情報系コースを選択した場合は別表に定めるコース毎の履修要件を満たす必要がある（総合コースは卒業要件単位数を揃えれば自動的に満たされる）"
+    - name: "専門応用必修"
       required_credits: 18
-    - name: "専門応用科目（選択必修）"
+    - name: "専門応用選択必修"
       required_credits: 22
-      notes: "コースにより内訳の最低単位数が異なる"
-    - name: "専門応用科目（選択）"
+      notes: "選択必修科目の余剰修得単位は専門応用選択として計上される。コースにより内訳の最低単位数が異なる"
+    - name: "専門応用選択"
       required_credits: 31
       notes: "コースにより最低単位数が異なる"
+    - name: "専門関連選択"
+      required_credits: 0
+      notes: "専門関連科目とは、所属する課程以外の他課程が主体となって開講する専攻科目(学修プログラムに含まれる科目など)。修得単位は学部フリーゾーンまたはオールフリーゾーンに算入する"
     - name: "学部フリーゾーン"
-      required_credits: null
-      notes: "詳細はWebページ画像参照"
+      required_credits: 6
+      notes: "専門基礎・専門応用・専門関連から区分を問わず修得可。随意科目は除く"
     - name: "オールフリーゾーン"
-      required_credits: null
-      notes: "詳細はWebページ画像参照"
+      required_credits: 10
+      notes: "教養教育科目を含め区分を問わず修得可。随意科目は除く"
   # 進級・先修要件
   prerequisites:
     - course_title: "数理情報演習"

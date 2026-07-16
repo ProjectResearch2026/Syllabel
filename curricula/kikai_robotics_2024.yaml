@@ -15,11 +15,44 @@ graduation_requirements:
   total_credits: 124
   categories:
     - name: "教養教育科目"
-      notes: "詳細はWebページ画像参照"
+      required_credits: 28
+      notes: "仏教必修・言語必修・スポーツ必修・選択必修・選択の合計"
+    - name: "仏教必修"
+      required_credits: 4
+    - name: "言語必修"
+      required_credits: 6
+    - name: "スポーツ必修"
+      required_credits: 2
+    - name: "教養選択必修（人文）"
+      required_credits: 2
+      notes: "人文科学系の選択必修（基幹科目）から1科目2単位以上を修得する"
+    - name: "教養選択必修（社会）"
+      required_credits: 2
+      notes: "社会科学系の選択必修（基幹科目）から1科目2単位以上を修得する"
+    - name: "教養選択"
+      required_credits: 12
+      notes: "教養教育科目の選択必修（基幹科目）の余剰修得単位はここに計上される"
     - name: "専門基礎科目"
-      notes: "詳細はWebページ画像参照"
+      required_credits: 17
+      notes: "専門基礎必修のみ（選択科目に要件枠はない）"
+    - name: "専門基礎必修"
+      required_credits: 17
+    - name: "専門基礎選択"
+      required_credits: 0
+      notes: "要件枠なし。修得単位は学部フリーゾーンに算入する"
     - name: "専門応用科目"
-      notes: "詳細はWebページ画像参照"
+      required_credits: 69
+      notes: "専門応用必修・専門応用選択の合計"
+    - name: "専門応用必修"
+      required_credits: 37
+    - name: "専門応用選択"
+      required_credits: 32
+    - name: "専門関連選択"
+      required_credits: 0
+      notes: "専門関連科目とは、所属する課程以外の他課程が主体となって開講する専攻科目(学修プログラムに含まれる科目など)。修得単位は学部フリーゾーンに算入する"
+    - name: "学部フリーゾーン"
+      required_credits: 10
+      notes: "専門基礎・専門応用・専門関連から区分を問わず修得可。随意科目は除く"
   # 進級・先修要件の定義
   prerequisites:
     - course_title: "セミナー"
@@ -29,11 +62,13 @@ graduation_requirements:
       conditions: "3年前期終了時点で卒業要件総修得単位数80単位以上、かつ必修科目修得単位数31単位以上"
   grade_up_requirements:
     - to_grade: 2
-      conditions: null
+      conditions: "必修科目14単位以上かつ卒業要件総修得単位数30単位以上。「微分積分」「基礎力学Ⅰ」を単位修得していること"
     - to_grade: 3
       conditions: null
+      notes: "取得単位数の要件を設けない"
     - to_grade: 4
-      conditions: "「セミナー」を単位修得していること"
+      conditions: "必修科目53単位以上かつ卒業要件総修得単位数102単位以上。「セミナー」を単位修得していること"
+  graduation_notes: "卒業には必修科目66単位以上・選択必修科目4単位以上を含む卒業要件総修得単位数124単位以上が必要"
 # 履修登録制限単位数(CAP制)の定義
 registration_limits:
   by_semester:
