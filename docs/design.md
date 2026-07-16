@@ -380,9 +380,11 @@ backend/
 #### 4.4.1 データ生成方針
 
 - 龍谷大学公式サイトから閲覧できる履修要項を、**手動で YAML 形式に転記**する
-- 第1フェーズの対象範囲(知能情報メディア課程・該当入学年度)分のみを作成
+- 出典ページの設置科目一覧・卒業要件表は画像形式で提供されるが、これらも転記対象とする(単位数・配当年次・開講クォーター・科目区分・区分別要件単位数)。画像にのみ掲載される科目(キャリア実習系・職業指導など)も記載する
+- 先端理工学部6課程(2024年度入学)分を作成済み。第1フェーズで利用するのは知能情報メディア課程分のみで、他課程分は第2フェーズ以降に向けた先行整備という位置づけ
+- 学修プログラムは構造が複雑なため現時点では転記しない。第2フェーズで扱いを確定した上でスキーマ・データに追加する
 - 転記担当者がドラフトを作成 → Pull Request → アドバイザー教員のレビュー・承認(要件§8末尾)
-- 第2フェーズ以降で他課程・他学年・他学部に対象を広げる際は、同じ手順で対象範囲のファイルを追加する
+- 第2フェーズ以降で他学年・他学部に対象を広げる際は、同じ手順で対象範囲のファイルを追加する
 
 #### 4.4.2 ファイル配置と命名
 
@@ -392,8 +394,14 @@ backend/
 
 #### 4.4.3 ロード方式
 
-- backend 起動時に `curricula/*.yaml` を全件読み込み、Pydantic スキーマで型付けしてメモリ上に保持
-- 起動時にスキーマバリデーションを実行し、不正があれば起動失敗(転記ミスを早期に検出)
+- backend 起動時に `curricula/*.yaml` を全件読み込み、Pydantic スキーマ(§5.1)で型付けしてメモリ上に保持
+- 起動時にスキーマバリデーションを実行し、不正があれば起動失敗(転記ミスを早期に検出)。型検査に加えて以下の整合性を検証する:
+  - `type` が {必修, 選択必修, 選択, 随意} のいずれかであること
+  - `term` と `quarters` の整合(§5.1.2)
+  - `track` の参照先が `courses_tracks` に存在すること
+  - `by_semester` の各要素が `max_credits_per_semester` と `max_credits_per_year` のどちらか一方のみを持つこと
+  - 同一ファイル内で `title` および `syllabus_codes` に重複がないこと(コード形式は `^[A-Z]\d{9}$`)
+- `syllabus_codes` 等の任意フィールドは null / 省略を許容する(当該年度不開講などでシラバス DB に未登録の科目があるため)。Pydantic では `Optional` として定義する
 - 個々のリクエストでは、該当課程・該当入学年度のオブジェクトのみを参照する
 - クライアントへ全量を返すことはせず、必要な部分のみを JSON で返却する
 
@@ -401,39 +409,85 @@ backend/
 
 - YAMLファイルの追加・変更は Pull Request 経由でアドバイザー教員のレビュー・承認を必須とする
 - GitHub の CODEOWNERS で `curricula/` 配下の承認者をアドバイザー教員に限定することを想定
+- `syllabus_codes` は履修要項ではなく api-clean のシラバス DB から機械的に取得した値であり、アドバイザー教員のレビュー対象は履修要項の転記部分(要件・区分・単位数等)とする。コードの正しさは CI の api-clean 照合(§12.2)で担保する
+- シラバスコードは開講年度単位で失効し得るため、毎年度シラバス公開後にコードを再取得して全件差し替え、`syllabus_codes_year` を更新する
 
 ---
 
 ## 5. データ設計
 
-### 5.1 履修要項 YAML スキーマ(暫定)
+### 5.1 履修要項 YAML スキーマ
+
+実データ(`curricula/*.yaml`)の構造を以下に定義する。backend の Pydantic モデル(§4.4.3)はこの定義に従って実装する。「任意」と記したフィールドは省略または null があり得るため、`Optional` として定義する。
+
+#### 5.1.1 全体構造
 
 ```yaml
-program: "知能情報メディア課程"
-admission_year: 2024
+program: "知能情報メディア課程"      # 課程名
+admission_year: 2024                # 入学年度(この履修要項が適用されるコホート)
+syllabus_codes_year: 2026           # 任意。courses[].syllabus_codes の取得元開講年度(未突合の課程では省略)
+
+courses_tracks:                     # 任意。課程内コース区分(存在する課程のみ。例: 数理・情報科学課程)
+  - id: "math"                      # courses[].track が参照する ID
+    name: "数学系コース"
+    notes: "選択必修：数学系18単位中13単位以上 ..."   # 任意
+
 graduation_requirements:
-  total_credits: 124          # 卒業所要総単位数
-  categories:
-    - name: "仏教必修"
-      required_credits: 4
-    - name: "言語必修"
-      required_credits: 6
-    # ... 以下、教養・専門の各区分
-  notes: |
-    補足事項や例外規定があればここに記述
+  total_credits: 124                # 卒業所要総単位数
+  categories:                       # 区分別の要件単位数(大区分と下位区分の併記あり。§5.1.2)
+    - name: "専門基礎科目"
+      required_credits: 38          # 区分の要件単位数。要件枠がない区分(専門関連選択、要件枠なしの選択区分)は 0
+      notes: "専門基礎必修・専門基礎選択の合計"        # 任意
+  prerequisites:                    # 任意。先修要件
+    - course_title: "知能情報メディアセミナー"
+      grade: 3                      # 配当年次
+      term: "後期"                  # 任意
+      quarters: ["3Q", "4Q"]        # 任意
+      required: true                # 必修科目か
+      conditions: "3年前期終了時点で卒業要件総修得単位数80単位以上 ..."   # 任意
+  grade_up_requirements:            # 任意。進級要件
+    - to_grade: 4
+      conditions: "「知能情報メディアセミナー」を単位修得していること"    # 条件なしは null
+      notes: "..."                  # 任意。補足(例: 機械工学・ロボティクス課程の「取得単位数の要件を設けない」)
+  internship_cap_credits: 4         # 任意。課程固有の算入上限(例: 応用化学課程)
+  internship_cap_notes: "..."       # 任意
+  graduation_notes: "..."           # 任意。卒業要件の補足(例: 機械工学・ロボティクス課程の卒業時必修66単位・選必4単位条件)
+
+registration_limits:                # 履修登録制限単位数(CAP制)
+  by_semester:
+    - semesters: [1, 2, 3, 4]       # 対象セメスター(通算)
+      max_credits_per_semester: 22  # 学期あたり上限
+    - semesters: [7, 8]
+      max_credits_per_year: 48      # 年間上限。per_semester とはどちらか一方のみを持つ
+      notes: "..."                  # 任意
+  notes: |                          # 任意。通年・クォーター科目の算入規則、CAP対象外科目など
+    ...
+  gpa_exception: "..."              # 任意。GPA による制限緩和の規定
+
 courses:
-  - code: "B12345"            # api-clean の syllabus_code と対応
-    title: "情報基礎"
-    credits: 2
-    category: "基礎必修"
-    required: true
-    grade_min: 1
-    grade_max: 1
-    term: "前期"
-  # ... 以下、課程の対象科目を列挙
+  - title: "仏教の思想A"            # 科目名(ファイル内で一意)
+    category: "教養教育科目"        # 大区分(教養教育科目 / 専門基礎科目 / 専門応用科目)
+    subcategory: "「仏教の思想」科目" # 任意。細区分(主に教養教育科目)
+    type: "必修"                    # 必修 / 選択必修 / 選択 / 随意
+    credits: 2                      # 単位数(設置科目一覧画像から転記)
+    grade: 1                        # 配当年次(§5.1.2)
+    term: "前期"                    # 前期 / 後期 / 通年
+    quarters: ["1Q", "2Q"]          # クォーター完結科目は1要素、セメスター科目は2要素、通年科目は持たない(§5.1.2)
+    track: ["math", "info"]         # 任意。対応コース(courses_tracks.id を参照)
+    syllabus_codes: ["G260110004", "G260110005"]   # 任意。api-clean の syllabus_code(§5.1.2)
+    notes: "..."                    # 任意。例外規定・補足
 ```
 
-なお、**開講曜日・時限・教室は履修要項 YAML では保持しない**。これらは既存シラバスバックエンドの `syllabus` テーブル(`day_of_week` / `period` / `room` カラム)が保持しており、api-clean(`GET /syllabi`、`GET /syllabi/{code}`)経由で参照する。YAML 側に持たせると二重管理になるため、YAML は卒業要件・科目区分(課程固有の情報)のみを担う。
+#### 5.1.2 フィールドの規約
+
+- **`grade`(配当年次)** は「この年次**から**履修可能」を意味する。特定年次に限る等の例外は `notes` に記す。
+- **`type`** は {必修, 選択必修, 選択, 随意} の4値。`随意` は卒業要件単位に算入されない(多くは CAP 対象外。詳細は各科目の `notes` に従う)。
+- **`term` と `quarters`** は整合する: `前期` ⇔ `quarters ⊆ {1Q, 2Q}`、`後期` ⇔ `quarters ⊆ {3Q, 4Q}`、`通年` ⇔ `quarters` を持たない。設置科目一覧画像では、単一クォーター科目はセル中央・セメスター科目は2クォーター境界上・通年科目は前期|後期境界上のマークで表される。
+- **`credits`** は全科目転記済み(画像出典を含む)。新規転記時も必須とする。
+- **`categories`** は大区分(小計)と下位区分が併記されるため、`required_credits` の単純合計は `total_credits` と一致しない。表示および LLM への文脈提供に用い、機械的な合計計算には用いない(第1フェーズでは要件充足の判定は LLM の解釈に委ね、決定的なコード判定は行わない)。
+- **`syllabus_codes`** は `syllabus_codes_year` が示す開講年度における api-clean の `syllabus_code`。1科目が複数クラス開講される場合は複数値(1:N)。シラバス DB 未登録の科目(＝当該年度に不開講の科目)では省略し、理由を `notes` に記す(例:「2026年度不開講のため syllabus_codes なし」)。不開講であっても履修要項に掲載されている科目は `courses` に記載する(YAML は履修要項を正とし、開講実態はシラバス DB 側が持つ)。1ファイルには常に1年度分のコードのみを保持し、開講年度が進むごとに全件差し替える(§4.4.4)。
+
+なお、**開講曜日・時限・教室・担当者などの開講属性は履修要項 YAML では保持しない**。これらは既存シラバスバックエンドの `syllabus` テーブル(`day_of_week` / `period` / `room` カラム)が保持しており、api-clean(`GET /syllabi`、`GET /syllabi/{code}`)経由で参照する。YAML 側に持たせると二重管理になるため、YAML は卒業要件・科目区分(課程固有の情報)のみを担う。唯一の例外として、api-clean との結合キーである `syllabus_codes` は YAML 側に保持する(結合キーの重複保持であり、開講属性の二重管理ではない)。
 
 スキーマの最終確定はアドバイザー教員監修のもと、要件§8に従って行う。
 
@@ -496,7 +550,7 @@ type ChatState = {
 
 チャット系(SSE)のリクエストには学生プロファイルと対話履歴を毎回含める(サーバ側で永続化しないため)。
 
-`GET /api/syllabi` / `/api/syllabi/{code}` / `/api/masters` は、検索画面(§4.1 の `/syllabus` 一覧・検索および `/syllabus/[code]` 詳細)が使う読み取り専用エンドポイントで、backend は §6.2 の api-clean(`GET /syllabi` / `GET /syllabi/{code}` / `GET /masters`)を中継する。公開経路はゲートウェイの単一オリジンに統一され、`/` は frontend、`/api/*` は backend へ振り分けられる一方、api-clean は公開されない(§1.2)。したがって frontend は api-clean を直接呼べず、検索画面向けにも backend 側の口が必要となる。クエリパラメータは api-clean の `/syllabi`(`q` / `faculty` / `program` / `campus` / `term` / `day` / `period` / `year` / `instructor` / `grade` / `limit` / `offset`)を素通しする。検索結果に付す「必修 / 選択 / 既修得済み」タグ(§8)は、この結果と `GET /api/curricula` の履修要項、ブラウザ内の学生プロファイルを frontend 側で突き合わせて生成する。
+`GET /api/syllabi` / `/api/syllabi/{code}` / `/api/masters` は、検索画面(§4.1 の `/syllabus` 一覧・検索および `/syllabus/[code]` 詳細)が使う読み取り専用エンドポイントで、backend は §6.2 の api-clean(`GET /syllabi` / `GET /syllabi/{code}` / `GET /masters`)を中継する。公開経路はゲートウェイの単一オリジンに統一され、`/` は frontend、`/api/*` は backend へ振り分けられる一方、api-clean は公開されない(§1.2)。したがって frontend は api-clean を直接呼べず、検索画面向けにも backend 側の口が必要となる。クエリパラメータは api-clean の `/syllabi`(`q` / `faculty` / `program` / `campus` / `term` / `day` / `period` / `year` / `instructor` / `grade` / `limit` / `offset`)を素通しする。検索結果に付す「必修 / 選択 / 既修得済み」タグ(§8)は、この結果と `GET /api/curricula` の履修要項、ブラウザ内の学生プロファイルを frontend 側で突き合わせて生成する。突合はシラバスコード(履修要項側の `syllabus_codes` と検索結果の `syllabus_code`)による結合を第一とし、コード未付与の科目(シラバス DB 未登録等)はタグ付けの対象外とする。
 
 ### 6.2 既存シラバスバックエンド API の利用
 
@@ -680,7 +734,7 @@ TLS はゲートウェイで終端するため、ゲートウェイ↔DGX Spark 
 
 - frontend: 型チェック(`tsc --noEmit`)、Lint(ESLint)、ビルド
 - backend: 型チェック(`mypy` または `pyright`)、Lint(`ruff`)、ユニットテスト(`pytest`)
-- curricula: YAML スキーマバリデーション(Pydantic でロード可能かを検査)
+- curricula: YAML スキーマバリデーション(Pydantic でロード可能かと §4.4.3 の整合性検査)、および `syllabus_codes` 全件の api-clean 存在照合(`syllabus_codes_year` の開講年度で解決できること)
 
 ### 12.3 テスト
 

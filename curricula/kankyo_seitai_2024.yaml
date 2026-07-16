@@ -1,0 +1,324 @@
+# 環境生態工学課程 2024年度入学 履修要項データ
+# 出典:
+#   https://rishu.ryukoku.ac.jp/curriculum/2024/faculty-rikou/s04/ (教養教育科目)
+#   https://rishu.ryukoku.ac.jp/curriculum/2024/faculty-rikou/s05/ (専攻科目・学修プログラム)
+#   http://rishu.ryukoku.ac.jp/knowledge/no5-01/ (履修登録制限単位数)
+program: "環境生態工学課程"
+admission_year: 2024
+syllabus_codes_year: 2026  # courses の syllabus_codes の取得元開講年度(design.md §5.1)
+# 卒業要件の定義
+graduation_requirements:
+  total_credits: 124
+  categories:
+    - name: "教養教育科目"
+      required_credits: 28
+      notes: "仏教必修・言語必修・スポーツ必修・選択必修・選択の合計"
+    - name: "仏教必修"
+      required_credits: 4
+    - name: "言語必修"
+      required_credits: 6
+    - name: "スポーツ必修"
+      required_credits: 2
+    - name: "教養選択必修（人文）"
+      required_credits: 2
+      notes: "人文科学系の選択必修（基幹科目）から1科目2単位以上を修得する"
+    - name: "教養選択必修（社会）"
+      required_credits: 2
+      notes: "社会科学系の選択必修（基幹科目）から1科目2単位以上を修得する"
+    - name: "教養選択"
+      required_credits: 12
+      notes: "教養教育科目の選択必修（基幹科目）の余剰修得単位はここに計上される"
+    - name: "専門基礎科目"
+      required_credits: 28
+      notes: "専門基礎必修・専門基礎選択必修・専門基礎選択の合計"
+    - name: "専門基礎必修"
+      required_credits: 19
+    - name: "専門基礎選択必修"
+      required_credits: 4
+      notes: "選択必修科目の余剰修得単位は専門基礎選択として計上される"
+    - name: "専門基礎選択"
+      required_credits: 5
+    - name: "専門応用科目"
+      required_credits: 54
+      notes: "専門応用必修・専門応用選択の合計"
+    - name: "専門応用必修"
+      required_credits: 18
+    - name: "専門応用選択"
+      required_credits: 36
+    - name: "専門関連選択"
+      required_credits: 0
+      notes: "専門関連科目とは、所属する課程以外の他課程が主体となって開講する専攻科目(学修プログラムに含まれる科目など)。修得単位は学部フリーゾーンまたはオールフリーゾーンに算入する"
+    - name: "学部フリーゾーン"
+      required_credits: 10
+      notes: "専門基礎・専門応用・専門関連から区分を問わず修得可。随意科目は除く"
+    - name: "オールフリーゾーン"
+      required_credits: 4
+      notes: "教養教育科目を含め区分を問わず修得可。随意科目は除く"
+  prerequisites:
+    - course_title: "特別研究"
+      term: "通年"
+      grade: 4
+      required: true
+      conditions: "卒業要件総修得単位数100単位以上"
+  grade_up_requirements:
+    - to_grade: 2
+      conditions: null
+    - to_grade: 3
+      conditions: null
+    - to_grade: 4
+      conditions: null
+# 履修登録制限単位数(CAP制)の定義
+registration_limits:
+  by_semester:
+    - semesters: [1, 2, 3, 4]   # 1・2年次
+      max_credits_per_semester: 22
+    - semesters: [5, 6]         # 3年次
+      max_credits_per_semester: 24
+    - semesters: [7, 8]         # 4年次
+      max_credits_per_year: 48
+      notes: "4年次は学期ごとの上限ではなく、通年（7・8セメスター合計）で48単位が上限"
+  notes: |
+    通年科目の単位数は第1学期（前期）と第2学期（後期）で2分割して計算する。
+    クォーター型科目の単位数は1Q・2Qを前期に、3Q・4Qを後期に算入する。
+    随意科目（教職課程・博物館学芸員課程など）、サマーセッション科目、「海外英語研修」、
+    大学コンソーシアム京都の単位互換科目、放送大学科目は制限単位数に含まれない。
+  gpa_exception: "前学期までの累積GPA3.5以上の学生は、申請により各学期2単位まで制限を拡大できる（毎学期初めの履修登録期間に先端理工学部教務課へ申請）"
+# 各授業の定義
+# - type: 必修 / 選択必修 / 選択 / 随意
+# - grade・term・quarters: 配当年次・学期・クォーター
+# - credits: null の場合は「単位数・開講時期はWebページ画像参照」
+courses:
+  # ---- 教養教育科目: 「仏教の思想」科目 ----
+  - {title: "仏教の思想A", category: "教養教育科目", subcategory: "「仏教の思想」科目", type: "必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260110006", "G260110007", "G260110008"]}
+  - {title: "仏教の思想B", category: "教養教育科目", subcategory: "「仏教の思想」科目", type: "必修", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260110023", "G260110024", "G260110025"]}
+  - {title: "歎異抄の思想Ⅰ", category: "教養教育科目", subcategory: "「仏教の思想」科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260190001"]}
+  - {title: "歎異抄の思想Ⅱ", category: "教養教育科目", subcategory: "「仏教の思想」科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260190002"]}
+  # ---- 教養教育科目: 言語科目 ----
+  - {title: "英語総合1（A）", category: "教養教育科目", subcategory: "言語科目", type: "必修", credits: 1, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260200020", "G260200021", "G260200022", "G260200023", "G260200024", "G260200025", "G260200026", "G260200027", "G260200028", "G260200029", "G260200030"]}
+  - {title: "英語総合1（B）", category: "教養教育科目", subcategory: "言語科目", type: "必修", credits: 1, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260200039", "G260200040", "G260200041", "G260200042", "G260200043", "G260200044", "G260200045", "G260200046", "G260200047", "G260200048", "G260200049"]}
+  - {title: "英語総合2（A）", category: "教養教育科目", subcategory: "言語科目", type: "必修", credits: 1, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260200096", "G260200097", "G260200098", "G260200099", "G260200100", "G260200101", "G260200102", "G260200103", "G260200104", "G260200105", "G260200106"]}
+  - {title: "英語総合2（B）", category: "教養教育科目", subcategory: "言語科目", type: "必修", credits: 1, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260200115", "G260200116", "G260200117", "G260200118", "G260200119", "G260200120", "G260200121", "G260200122", "G260200123", "G260200124", "G260200125"]}
+  - {title: "英語総合3", category: "教養教育科目", subcategory: "言語科目", type: "必修", credits: 1, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260200153", "G260200154", "G260200155", "G260200156", "G260200157", "G260200158", "G260200159", "G260200160", "G260200161", "G260200162", "G260200163"]}
+  - {title: "英語総合4", category: "教養教育科目", subcategory: "言語科目", type: "必修", credits: 1, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260200191", "G260200192", "G260200193", "G260200194", "G260200195", "G260200196", "G260200197", "G260200198", "G260200199", "G260200200", "G260200201"]}
+  - {title: "英語セミナーA1", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260500002", "G260500004", "G260500006", "G260500008"]}
+  - {title: "英語セミナーA2", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260500010", "G260500012", "G260500014", "G260500016"]}
+  - {title: "英語セミナーB1", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260500022"]}
+  - {title: "英語セミナーB2", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260500024"]}
+  - {title: "英語セミナーC1", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260500026"]}
+  - {title: "英語セミナーC2", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260500028"]}
+  - {title: "英語セミナーD1", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260500030"]}
+  - {title: "英語セミナーD2", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260500032"]}
+  - {title: "英語セミナーE1", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260500034"]}
+  - {title: "英語セミナーE2", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260500036"]}
+  - {title: "英語セミナーF1", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260500038"]}
+  - {title: "英語セミナーF2", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260500040"]}
+  - {title: "英語セミナーG1", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260500018"]}
+  - {title: "英語セミナーG2", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260500020"]}
+  - {title: "海外英語研修", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], notes: "1・2年次のみ履修可能。履修登録制限単位数(CAP)の対象外。2026年度不開講のため syllabus_codes なし"}
+  - {title: "ドイツ語ⅠA", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260510007", "G260510008", "G260510009"]}
+  - {title: "ドイツ語ⅠB", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260510001", "G260510002"]}
+  - {title: "ドイツ語ⅡA", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260510010", "G260510011"]}
+  - {title: "ドイツ語ⅡB", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260510012"]}
+  - {title: "フランス語ⅠA", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260520008", "G260520009", "G260520010"]}
+  - {title: "フランス語ⅠB", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260520001", "G260520002", "G260520003"]}
+  - {title: "フランス語ⅡA", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260520011"]}
+  - {title: "フランス語ⅡB", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260520012"]}
+  - {title: "中国語ⅠA", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260530012", "G260530013", "G260530014", "G260530015", "G260530016", "G260530019"]}
+  - {title: "中国語ⅠB", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260530001", "G260530002", "G260530003"]}
+  - {title: "中国語ⅡA", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260530020", "G260530021", "G260530022", "G260530023"]}
+  - {title: "中国語ⅡB", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260530026", "G260530027", "G260530028"]}
+  - {title: "コリア語ⅠA", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260540010", "G260540011", "G260540012"]}
+  - {title: "コリア語ⅠB", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260540003", "G260540004", "G260540005"]}
+  - {title: "コリア語ⅡA", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260540001"]}
+  - {title: "コリア語ⅡB", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260540002"]}
+  - {title: "ドイツ語セミナーⅠA", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260510003"]}
+  - {title: "ドイツ語セミナーⅠB", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260510005"]}
+  - {title: "フランス語セミナーⅠA", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260520004"]}
+  - {title: "フランス語セミナーⅠB", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260520006"]}
+  - {title: "中国語セミナーⅠA", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260530004", "G260530006"]}
+  - {title: "中国語セミナーⅠB", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260530008", "G260530010"]}
+  - {title: "コリア語セミナーⅠA", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260540006"]}
+  - {title: "コリア語セミナーⅠB", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260540008"]}
+  - {title: "日本語", category: "教養教育科目", subcategory: "言語科目", type: "選択", credits: 1, grade: 1, term: "前期", quarters: ["1Q", "2Q"], notes: "留学生対象科目。2026年度不開講のため syllabus_codes なし"}
+  # ---- 教養教育科目: 教養科目(人文科学系) ----
+  - {title: "哲学入門", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610048", "G260610049"]}
+  - {title: "倫理学入門", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610056", "G260610057"]}
+  - {title: "倫理学A", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610001"]}
+  - {title: "クリティカル・シンキング", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610005", "G260610006"]}
+  - {title: "宗教学のすすめ", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610007", "G260610008"]}
+  - {title: "宗教の世界", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610010", "G260610012"]}
+  - {title: "日本の文学M", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610014", "G260610033"]}
+  - {title: "日本の文学N", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], notes: "2026年度不開講のため syllabus_codes なし。履修要項には掲載"}
+  - {title: "アジアの文学A", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610030"]}
+  - {title: "アジアの文学B", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610031"]}
+  - {title: "西洋の文学A", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610015", "G260610064", "G260610065", "G260610066"]}
+  - {title: "西洋の文学B", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610017", "G260610067", "G260610068", "G260610069"]}
+  - {title: "言語学入門", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610058"]}
+  - {title: "歴史入門", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610035", "G260610037"]}
+  - {title: "日本の歴史M", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610039", "G260610041"]}
+  - {title: "日本の歴史N", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], notes: "2026年度不開講のため syllabus_codes なし。履修要項には掲載"}
+  - {title: "日本の文化", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610059"]}
+  - {title: "西洋の歴史M", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610043", "G260610045"]}
+  - {title: "西洋の歴史N", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], notes: "2026年度不開講のため syllabus_codes なし。履修要項には掲載"}
+  - {title: "心理学入門", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610050", "G260610051"]}
+  - {title: "教育原論A", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610052", "G260610053"]}
+  - {title: "教育原論B", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択必修", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260610054", "G260610055"]}
+  - {title: "倫理学B", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610003"]}
+  - {title: "アジアの歴史M", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610047"]}
+  - {title: "アジアの歴史N", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260610019"]}
+  - {title: "アジアの文化", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610026", "G260610027", "G260610028", "G260610029"]}
+  - {title: "心理学A", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610020", "G260610021"]}
+  - {title: "心理学B", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260610022", "G260610023"]}
+  - {title: "学習・発達論A", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260610024"]}
+  - {title: "学習・発達論B", category: "教養教育科目", subcategory: "人文科学系科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260610025"]}
+  # ---- 教養教育科目: 教養科目(社会科学系) ----
+  - {title: "日本国憲法", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620044", "G260620045", "G260620046", "G260620047"]}
+  - {title: "法学のすすめ", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620001", "G260620003"]}
+  - {title: "政治学のすすめ", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620005"]}
+  - {title: "社会学のすすめ", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620009"]}
+  - {title: "地理学のすすめ", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620011"]}
+  - {title: "経済学のすすめ", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620012", "G260620014", "G260620016"]}
+  - {title: "経営学のすすめ", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620019"]}
+  - {title: "国際学のすすめ", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620041"]}
+  - {title: "文化人類学のすすめ", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620039"]}
+  - {title: "社会調査のすすめ", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620018"]}
+  - {title: "社会統計学のすすめ", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620007"]}
+  - {title: "人権論A", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620056", "G260620057", "G260620058", "G260620059"]}
+  - {title: "人権論B", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260620060", "G260620061", "G260620062", "G260620063"]}
+  - {title: "現代社会とメディア", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620020"]}
+  - {title: "現代社会と福祉", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620053", "G260620054"]}
+  - {title: "現代社会と法", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620022"]}
+  - {title: "現代社会と労働", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620024"]}
+  - {title: "現代社会の諸問題", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620025", "G260620076"]}
+  - {title: "環境と社会", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620026"]}
+  - {title: "平和学A", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620027", "G260620029"]}
+  - {title: "ジェンダー論", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620064"]}
+  - {title: "国際社会論", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620031", "G260620033"]}
+  - {title: "地域論", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620035"]}
+  - {title: "企業と会計", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620036"]}
+  - {title: "社会思想史", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620037"]}
+  - {title: "情報倫理", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620052"]}
+  - {title: "情報社会とメディア", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620048", "G260620050"]}
+  - {title: "データサイエンス・AI入門", category: "教養教育科目", subcategory: "社会科学系科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620042", "G260620043", "G260620070", "G260620071", "G260620072", "G260620073", "G260620074"]}
+  # ---- 教養教育科目: 教養科目(自然科学系) ----
+  - {title: "生活の中の数学", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], notes: "「生活の中の数学・化学・物理・生物学」の4科目のうち、卒業要件単位として認められるのは1科目2単位まで", syllabus_codes: ["G260630013"]}
+  - {title: "生活の中の統計技術", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260630017"]}
+  - {title: "生活の中の化学", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], notes: "「生活の中の数学・化学・物理・生物学」の4科目のうち、卒業要件単位として認められるのは1科目2単位まで", syllabus_codes: ["G260630015"]}
+  - {title: "生活の中の物理", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], notes: "「生活の中の数学・化学・物理・生物学」の4科目のうち、卒業要件単位として認められるのは1科目2単位まで", syllabus_codes: ["G260630014"]}
+  - {title: "生活の中の生物学", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], notes: "「生活の中の数学・化学・物理・生物学」の4科目のうち、卒業要件単位として認められるのは1科目2単位まで", syllabus_codes: ["G260630018"]}
+  - {title: "生活の中の地学", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260630001"]}
+  - {title: "生命と科学", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260630016"]}
+  - {title: "現代の技術", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260630019"]}
+  - {title: "自然観察法", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260630020"]}
+  - {title: "里山学", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], notes: "2026年度不開講のため syllabus_codes なし。履修要項には掲載"}
+  - {title: "植物の自然誌", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260630008"]}
+  - {title: "環境の科学", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260630010"]}
+  - {title: "人類の科学", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], notes: "2026年度不開講のため syllabus_codes なし。履修要項には掲載"}
+  - {title: "情報と人間", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], notes: "2026年度不開講のため syllabus_codes なし。履修要項には掲載"}
+  - {title: "現代社会と栄養", category: "教養教育科目", subcategory: "自然科学系科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260630003", "G260630005"]}
+  # ---- 教養教育科目: 教養科目(スポーツ科学系) ----
+  - {title: "スポーツ技術学A", category: "教養教育科目", subcategory: "スポーツ科学系科目", type: "必修", credits: 1, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260640007", "G260640009", "G260640011", "G260640013", "G260640015", "G260640043", "G260640045", "G260640047", "G260640049", "G260640051"]}
+  - {title: "スポーツ技術学B", category: "教養教育科目", subcategory: "スポーツ科学系科目", type: "必修", credits: 1, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260640008", "G260640010", "G260640012", "G260640014", "G260640016", "G260640042", "G260640044", "G260640046", "G260640048", "G260640050"]}
+  - {title: "健康とスポーツ", category: "教養教育科目", subcategory: "スポーツ科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260640201", "G260640202"]}
+  - {title: "現代社会とスポーツ", category: "教養教育科目", subcategory: "スポーツ科学系科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["G260640203", "G260640204"]}
+  - {title: "スポーツ文化論", category: "教養教育科目", subcategory: "スポーツ科学系科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260640205", "G260640206"]}
+  # ---- 教養教育科目: 教養特別講義科目 ----
+  - {title: "教養教育科目特別講義", category: "教養教育科目", subcategory: "教養特別講義科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["G260620065", "G260620067", "G260620069", "G260620078", "G260620079"]}
+  # ---- 専門基礎科目 ----
+  - {title: "情報基礎", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y000001060"]}
+  - {title: "フレッシャーズセミナー", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y000002060"]}
+  - {title: "キャリア実習・実習指導", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], notes: "2026年度不開講のため syllabus_codes なし"}
+  - {title: "理工学のすすめ", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], notes: "1年次のみ", syllabus_codes: ["Y000004010"]}
+  - {title: "化学概論", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y006005010"]}
+  - {title: "環境生態工学概論", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y006003010"]}
+  - {title: "環境寄席", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y006011010"]}
+  - {title: "数学概論", category: "専門基礎科目", type: "必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y006004010"]}
+  - {title: "生態学概論Ⅰ", category: "専門基礎科目", type: "必修", credits: 1, grade: 1, term: "後期", quarters: ["3Q"], syllabus_codes: ["Y006009010"]}
+  - {title: "生態学概論Ⅱ", category: "専門基礎科目", type: "必修", credits: 1, grade: 1, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y006012010"]}
+  - {title: "地域環境概論A", category: "専門基礎科目", type: "必修", credits: 1, grade: 1, term: "前期", quarters: ["2Q"], syllabus_codes: ["Y006002010"]}
+  - {title: "地域環境概論B", category: "専門基礎科目", type: "必修", credits: 1, grade: 1, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y006006010"]}
+  - {title: "地球環境概論A", category: "専門基礎科目", type: "必修", credits: 1, grade: 1, term: "後期", quarters: ["3Q"], syllabus_codes: ["Y006007010"]}
+  - {title: "地球環境概論B", category: "専門基礎科目", type: "必修", credits: 1, grade: 1, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y006008010"]}
+  - {title: "生物学概論", category: "専門基礎科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y009005010"]}
+  - {title: "地学概論", category: "専門基礎科目", type: "選択必修", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y009004010"]}
+  - {title: "物理学概論", category: "専門基礎科目", type: "選択必修", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y006010010"]}
+  - {title: "進化学", category: "専門基礎科目", type: "必修", credits: 1, grade: 1, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y006018010"]}
+  - {title: "大気環境科学", category: "専門基礎科目", type: "必修", credits: 1, grade: 1, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y006017010"]}
+  - {title: "SDGs概論", category: "専門基礎科目", type: "選択", credits: 1, grade: 1, term: "後期", quarters: ["3Q"], syllabus_codes: ["Y006014010"]}
+  - {title: "里山の生態学", category: "専門基礎科目", type: "選択", credits: 1, grade: 1, term: "前期", quarters: ["2Q"], syllabus_codes: ["Y006016010"]}
+  - {title: "生物資源利用", category: "専門基礎科目", type: "選択", credits: 1, grade: 1, term: "後期", quarters: ["3Q"], syllabus_codes: ["Y006019010"]}
+  - {title: "水環境科学", category: "専門基礎科目", type: "選択", credits: 1, grade: 1, term: "前期", quarters: ["2Q"], syllabus_codes: ["Y006015010"]}
+  - {title: "生物学実験", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y009007010"]}
+  - {title: "地学実験", category: "専門基礎科目", type: "選択", credits: 2, grade: 1, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y009006010"]}
+  - {title: "環境実習ⅠA", category: "専門基礎科目", type: "必修", credits: 1, grade: 1, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y006001010"]}
+  - {title: "ASEANグローバルプログラム", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y000005010"]}
+  - {title: "デザインシンキング", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y000006010"]}
+  - {title: "クラウドコンピューティング演習", category: "専門基礎科目", type: "選択", credits: 2, grade: 2, term: "後期", quarters: ["4Q"], notes: "随意科目のため卒業要件単位に算入されない。2026年度不開講のため syllabus_codes なし"}
+  - {title: "グローバル人材育成プログラム", category: "専門基礎科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y000007010"]}
+  - {title: "プロジェクトリサーチⅠ", category: "専門基礎科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q", "2Q"], notes: "卒業要件算入合計2単位まで", syllabus_codes: ["Y000008010"]}
+  - {title: "プロジェクトリサーチⅡ", category: "専門基礎科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q", "2Q"], notes: "卒業要件算入合計2単位まで", syllabus_codes: ["Y000009010"]}
+  - {title: "先端理工キャリア実習Ⅰ", category: "専門基礎科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q", "2Q"], notes: "2026年度不開講のため syllabus_codes なし"}
+  - {title: "理工インターンシップ（学外実習）Ⅰ", category: "専門基礎科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q", "2Q"], notes: "卒業要件算入合計2単位まで。2026年度不開講のため syllabus_codes なし"}
+  - {title: "先端理工キャリア実習Ⅱ", category: "専門基礎科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y000011061"]}
+  - {title: "理工インターンシップ（学外実習）Ⅱ", category: "専門基礎科目", type: "選択", credits: 2, grade: 3, term: "前期", quarters: ["1Q", "2Q"], notes: "卒業要件算入合計2単位まで", syllabus_codes: ["Y000011060"]}
+  # ---- 専門応用科目 ----
+  - {title: "化学実験", category: "専門応用科目", type: "必修", credits: 2, grade: 2, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y006013010"]}
+  - {title: "物理実験", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y009003020"]}
+  - {title: "環境分析化学実験", category: "専門応用科目", type: "必修", credits: 1, grade: 2, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y006051010"]}
+  - {title: "環境実習ⅡA", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "前期", quarters: ["2Q"], syllabus_codes: ["Y006031010"]}
+  - {title: "個体群生態学", category: "専門応用科目", type: "必修", credits: 1, grade: 2, term: "後期", quarters: ["3Q"], syllabus_codes: ["Y006048010"]}
+  - {title: "自然の浄化機構", category: "専門応用科目", type: "必修", credits: 1, grade: 2, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y006032010"]}
+  - {title: "化学工学Ⅰ", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y006020010"]}
+  - {title: "化学工学Ⅱ", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "前期", quarters: ["2Q"], notes: "2026年度不開講のため syllabus_codes なし。履修要項には掲載"}
+  - {title: "環境移動現象論", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "後期", quarters: ["3Q"], syllabus_codes: ["Y006037010"]}
+  - {title: "環境経済学", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "前期", quarters: ["2Q"], syllabus_codes: ["Y006025010"]}
+  - {title: "環境計測学", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "前期", quarters: ["2Q"], notes: "2026年度不開講のため syllabus_codes なし。履修要項には掲載"}
+  - {title: "環境社会学", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "前期", quarters: ["1Q"], notes: "2026年度不開講のため syllabus_codes なし。履修要項には掲載"}
+  - {title: "環境政策論", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "前期", quarters: ["2Q"], syllabus_codes: ["Y006036010"]}
+  - {title: "環境調査", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y006027010"]}
+  - {title: "環境微生物学", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "後期", quarters: ["3Q"], syllabus_codes: ["Y006038010"]}
+  - {title: "環境倫理学", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y006024010"]}
+  - {title: "気象学", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y006026010"]}
+  - {title: "資源管理学及び演習", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y006057010"]}
+  - {title: "資源循環論", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "後期", quarters: ["3Q"], syllabus_codes: ["Y006055010"]}
+  - {title: "社会調査法及び演習", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y006028010"]}
+  - {title: "森林生態学", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y006050010"]}
+  - {title: "水域生態学", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y006049010"]}
+  - {title: "水理学", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "後期", quarters: ["3Q"], syllabus_codes: ["Y006045010"]}
+  - {title: "数理生態学", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "後期", quarters: ["3Q"], syllabus_codes: ["Y006042010"]}
+  - {title: "製図学及び演習", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["2Q"], syllabus_codes: ["Y006034010"]}
+  - {title: "生理生態学", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "後期", quarters: ["3Q"], syllabus_codes: ["Y006030010"]}
+  - {title: "先端技術", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "後期", quarters: ["3Q"], syllabus_codes: ["Y006041010"]}
+  - {title: "測量学及び演習", category: "専門応用科目", type: "選択", credits: 2, grade: 2, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y006022010"]}
+  - {title: "データサイエンス及び演習", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y006046010"]}
+  - {title: "土壌地質学", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "前期", quarters: ["2Q"], syllabus_codes: ["Y006047010"]}
+  - {title: "土木工学Ⅰ", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y006021010"]}
+  - {title: "土木工学Ⅱ", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "前期", quarters: ["2Q"], syllabus_codes: ["Y006035010"]}
+  - {title: "燃焼工学", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y006043010"]}
+  - {title: "廃棄物管理学Ⅰ", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "後期", quarters: ["3Q"], syllabus_codes: ["Y006039010"]}
+  - {title: "廃棄物管理学Ⅱ", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y006044010"]}
+  - {title: "保全生態学", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y006029010"]}
+  - {title: "水処理工学", category: "専門応用科目", type: "選択", credits: 1, grade: 2, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y006062010"]}
+  - {title: "廃棄物・大気環境施設実験", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y006061010"]}
+  - {title: "水環境施設実験", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y006059010"]}
+  - {title: "環境実習ⅢA", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y006060010"]}
+  - {title: "生態系生態学", category: "専門応用科目", type: "必修", credits: 1, grade: 3, term: "後期", quarters: ["3Q"], syllabus_codes: ["Y006066010"]}
+  - {title: "応用生態学", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y006073010"]}
+  - {title: "環境アセスメントA", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y006069010"]}
+  - {title: "環境アセスメントB", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "後期", quarters: ["3Q"], syllabus_codes: ["Y006065010"]}
+  - {title: "環境毒性学", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y006052010"]}
+  - {title: "空気調和工学", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y006054010"]}
+  - {title: "群集生態学", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y006058010"]}
+  - {title: "景観生態学", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "後期", quarters: ["4Q"], notes: "2026年度不開講のため syllabus_codes なし。履修要項には掲載"}
+  - {title: "下水道工学", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y006067010"]}
+  - {title: "水道工学", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "後期", quarters: ["3Q"], syllabus_codes: ["Y006063011"]}
+  - {title: "数値計算法基礎及び演習", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y006070010"]}
+  - {title: "地理情報学", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y006056010"]}
+  - {title: "排ガス処理工学", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "前期", quarters: ["1Q"], syllabus_codes: ["Y006053010"]}
+  - {title: "廃棄物処理施設設計", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y006068010"]}
+  - {title: "微生物生態学", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "後期", quarters: ["4Q"], syllabus_codes: ["Y006072010"]}
+  - {title: "水処理施設設計", category: "専門応用科目", type: "選択", credits: 1, grade: 3, term: "後期", quarters: ["3Q"], syllabus_codes: ["Y006064010"]}
+  - {title: "セミナーⅠ", category: "専門応用科目", type: "必修", credits: 2, grade: 3, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y006074010", "Y006074020", "Y006074050", "Y006074060", "Y006074080", "Y006074100", "Y006074110", "Y006074120", "Y006074140", "Y006074160", "Y006074170"]}
+  - {title: "セミナーⅡ", category: "専門応用科目", type: "必修", credits: 2, grade: 4, term: "前期", quarters: ["1Q", "2Q"], syllabus_codes: ["Y006075010", "Y006075020", "Y006075050", "Y006075060", "Y006075080", "Y006075100", "Y006075130", "Y006075140", "Y006075160", "Y006075170"]}
+  - {title: "セミナーⅢ", category: "専門応用科目", type: "必修", credits: 2, grade: 4, term: "後期", quarters: ["3Q", "4Q"], syllabus_codes: ["Y006076010", "Y006076020", "Y006076050", "Y006076060", "Y006076080", "Y006076100", "Y006076130", "Y006076140", "Y006076160", "Y006076170"]}
+  - {title: "特別研究", category: "専門応用科目", type: "必修", credits: 6, grade: 4, term: "通年", notes: "先修：卒業要件総修得単位数100単位以上", syllabus_codes: ["Y006077660", "Y006077670", "Y006077700", "Y006077710", "Y006077730", "Y006077750", "Y006077780", "Y006077790", "Y006077810", "Y006077820"]}
