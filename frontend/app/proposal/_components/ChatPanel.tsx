@@ -1,36 +1,44 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Send } from "lucide-react";
+import { useChatStore } from "@/lib/chat";
 
-type Message = { id: string; role: "user" | "assistant"; content: string };
-
-const INIT_MESSAGES: Message[] = [
-  {
-    id: "1",
-    role: "assistant",
-    content:
-      "3回生・知能情報メディア課程の履修提案を生成しました。卒業要件を考慮し、必修5科目・選択3科目で合計18単位を提案しています。ご質問があればお気軽にどうぞ。",
-  },
-];
+const INIT_MESSAGE_ID = "proposal-init-1";
 
 export default function ChatPanel() {
-  const [messages, setMessages] = useState<Message[]>(INIT_MESSAGES);
+  const { proposalMessages, setProposalMessages, addProposalMessage } = useChatStore();
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (proposalMessages.length === 0) {
+      const now = new Date();
+      const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
+      setProposalMessages([
+        {
+          id: INIT_MESSAGE_ID,
+          role: "assistant",
+          content:
+            "3回生・知能情報メディア課程の履修提案を生成しました。卒業要件を考慮し、必修5科目・選択3科目で合計18単位を提案しています。ご質問があればお気軽にどうぞ。",
+          time,
+        },
+      ]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [proposalMessages]);
 
   const handleSend = () => {
     const text = input.trim();
     if (!text) return;
-    setMessages((prev) => [
-      ...prev,
-      { id: String(Date.now()), role: "user", content: text },
-      { id: String(Date.now() + 1), role: "assistant", content: "（AI応答はバックエンド実装後に有効になります）" },
-    ]);
+    const now = new Date();
+    const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
+    addProposalMessage({ id: String(Date.now()), role: "user", content: text, time });
+    addProposalMessage({ id: String(Date.now() + 1), role: "assistant", content: "（AI応答はバックエンド実装後に有効になります）", time });
     setInput("");
   };
 
@@ -42,7 +50,7 @@ export default function ChatPanel() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-        {messages.map((msg) => (
+        {proposalMessages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
               className={`max-w-[85%] rounded-xl px-4 py-2.5 text-sm leading-relaxed ${
