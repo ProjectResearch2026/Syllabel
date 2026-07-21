@@ -267,7 +267,11 @@
       "reusable": true,
       "width": 1440,
       "height": 60,
-      "fill": "$surface-inverse",
+      "fill": "$surface-primary",
+      "stroke": "$border-primary",
+      "strokeWidth": {
+        "bottom": 1
+      },
       "padding": [
         0,
         32
@@ -290,13 +294,13 @@
               "height": 24,
               "icon": "graduation-cap",
               "library": "lucide",
-              "fill": "$fg-inverse"
+              "fill": "$academic-navy"
             },
             {
               "type": "text",
               "id": "xS6wt",
               "name": "LogoText",
-              "fill": "$fg-inverse",
+              "fill": "$fg-primary",
               "content": "龍谷大学 履修支援AI",
               "fontFamily": "$font-sans",
               "fontSize": 16,
@@ -327,7 +331,7 @@
                   "type": "text",
                   "id": "w2dV3y",
                   "name": "NavLabel_時間割",
-                  "fill": "$fg-inverse",
+                  "fill": "$accent",
                   "content": "時間割",
                   "fontFamily": "$font-sans",
                   "fontSize": 14,
@@ -359,7 +363,7 @@
                   "type": "text",
                   "id": "EkcyB",
                   "name": "NavLabel_シラバス",
-                  "fill": "#93A8C4",
+                  "fill": "#6B7280",
                   "content": "シラバス",
                   "fontFamily": "$font-sans",
                   "fontSize": 14,
@@ -391,7 +395,7 @@
                   "type": "text",
                   "id": "knubm",
                   "name": "NavLabel_AIチャット",
-                  "fill": "#93A8C4",
+                  "fill": "#6B7280",
                   "content": "AIチャット",
                   "fontFamily": "$font-sans",
                   "fontSize": 14,
@@ -423,7 +427,7 @@
                   "type": "text",
                   "id": "TDbK2",
                   "name": "NavLabel_マイデータ",
-                  "fill": "#93A8C4",
+                  "fill": "#6B7280",
                   "content": "マイデータ",
                   "fontFamily": "$font-sans",
                   "fontSize": 14,
@@ -463,13 +467,13 @@
                   "height": 18,
                   "icon": "rotate-ccw",
                   "library": "lucide",
-                  "fill": "#93A8C4"
+                  "fill": "#6B7280"
                 },
                 {
                   "type": "text",
                   "id": "ASlPe",
                   "name": "ResetLabel",
-                  "fill": "#93A8C4",
+                  "fill": "#6B7280",
                   "content": "リセット",
                   "fontFamily": "$font-sans",
                   "fontSize": 13,
@@ -538,7 +542,7 @@
           "width": "fill_container",
           "descendants": {
             "w2dV3y": {
-              "fill": "#93A8C4",
+              "fill": "#6B7280",
               "fontWeight": "normal"
             },
             "QOqLu": {
@@ -546,7 +550,7 @@
               "fill": "#00000000"
             },
             "TDbK2": {
-              "fill": "$fg-inverse",
+              "fill": "$accent",
               "fontWeight": "600"
             },
             "QTx2S": {
@@ -1097,7 +1101,7 @@
           "width": "fill_container",
           "descendants": {
             "w2dV3y": {
-              "fill": "#93A8C4",
+              "fill": "#6B7280",
               "fontWeight": "normal"
             },
             "QOqLu": {
@@ -1105,7 +1109,7 @@
               "fill": "#00000000"
             },
             "TDbK2": {
-              "fill": "$fg-inverse",
+              "fill": "$accent",
               "fontWeight": "600"
             },
             "QTx2S": {
@@ -1121,174 +1125,6 @@
           "width": "fill_container",
           "height": "fill_container",
           "children": [
-            {
-              "type": "frame",
-              "id": "F5az87",
-              "name": "LeftPanel",
-              "width": 480,
-              "height": "fill_container",
-              "fill": "$surface-inverse",
-              "layout": "vertical",
-              "gap": 32,
-              "padding": 60,
-              "justifyContent": "center",
-              "alignItems": "center",
-              "children": [
-                {
-                  "type": "frame",
-                  "id": "U12Zt",
-                  "name": "IntroBox",
-                  "layout": "vertical",
-                  "gap": 20,
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "Ui8iY",
-                      "name": "ShieldIcon",
-                      "width": 64,
-                      "height": 64,
-                      "icon": "shield-check",
-                      "library": "lucide",
-                      "fill": "$fg-inverse"
-                    },
-                    {
-                      "type": "frame",
-                      "id": "P7CqE",
-                      "name": "IntroCopy",
-                      "layout": "vertical",
-                      "gap": 12,
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "text",
-                          "id": "p9Ewld",
-                          "name": "IntroTitle",
-                          "fill": "$fg-inverse",
-                          "textGrowth": "fixed-width",
-                          "width": 320,
-                          "content": "安心のプライバシー設計",
-                          "textAlign": "center",
-                          "fontFamily": "$font-sans",
-                          "fontSize": 22,
-                          "fontWeight": "700"
-                        },
-                        {
-                          "type": "text",
-                          "id": "VSguv",
-                          "name": "IntroBody",
-                          "fill": "#93A8C4",
-                          "textGrowth": "fixed-width",
-                          "width": 320,
-                          "content": "成績表はブラウザ上でのみ処理されます。外部のAIサービスには送信されず、ページを閉じると即時に消去されます。",
-                          "lineHeight": 1.7,
-                          "textAlign": "center",
-                          "fontFamily": "$font-sans",
-                          "fontSize": 14,
-                          "fontWeight": "normal"
-                        }
-                      ]
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "cpCWv",
-                  "name": "FeatureList",
-                  "layout": "vertical",
-                  "gap": 16,
-                  "children": [
-                    {
-                      "type": "frame",
-                      "id": "hfqU1",
-                      "name": "Feature_lock",
-                      "gap": 12,
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "icon",
-                          "id": "se7HJ",
-                          "name": "FIcon_lock",
-                          "width": 16,
-                          "height": 16,
-                          "icon": "lock",
-                          "library": "lucide",
-                          "fill": "#93A8C4"
-                        },
-                        {
-                          "type": "text",
-                          "id": "aV8pY",
-                          "name": "FLabel_lock",
-                          "fill": "#D1D5DB",
-                          "content": "学内サーバーのみで処理",
-                          "fontFamily": "$font-sans",
-                          "fontSize": 13,
-                          "fontWeight": "normal"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "GXOEN",
-                      "name": "Feature_wifi-off",
-                      "gap": 12,
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "icon",
-                          "id": "K5SeCG",
-                          "name": "FIcon_wifi-off",
-                          "width": 16,
-                          "height": 16,
-                          "icon": "wifi-off",
-                          "library": "lucide",
-                          "fill": "#93A8C4"
-                        },
-                        {
-                          "type": "text",
-                          "id": "okUdo",
-                          "name": "FLabel_wifi-off",
-                          "fill": "#D1D5DB",
-                          "content": "外部AI不使用",
-                          "fontFamily": "$font-sans",
-                          "fontSize": 13,
-                          "fontWeight": "normal"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "B5uSw1",
-                      "name": "Feature_trash-2",
-                      "gap": 12,
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "icon",
-                          "id": "GasCw",
-                          "name": "FIcon_trash-2",
-                          "width": 16,
-                          "height": 16,
-                          "icon": "trash-2",
-                          "library": "lucide",
-                          "fill": "#93A8C4"
-                        },
-                        {
-                          "type": "text",
-                          "id": "t5IaoR",
-                          "name": "FLabel_trash-2",
-                          "fill": "#D1D5DB",
-                          "content": "閉じると即時消去",
-                          "fontFamily": "$font-sans",
-                          "fontSize": 13,
-                          "fontWeight": "normal"
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            },
             {
               "type": "frame",
               "id": "KqON4",
@@ -1828,7 +1664,7 @@
           "width": "fill_container",
           "descendants": {
             "w2dV3y": {
-              "fill": "#93A8C4",
+              "fill": "#6B7280",
               "fontWeight": "normal"
             },
             "QOqLu": {
@@ -1836,7 +1672,7 @@
               "fill": "#00000000"
             },
             "TDbK2": {
-              "fill": "$fg-inverse",
+              "fill": "$accent",
               "fontWeight": "600"
             },
             "QTx2S": {
@@ -1852,174 +1688,6 @@
           "width": "fill_container",
           "height": "fill_container",
           "children": [
-            {
-              "type": "frame",
-              "id": "gaQuC",
-              "name": "LeftPanel",
-              "width": 480,
-              "height": "fill_container",
-              "fill": "$surface-inverse",
-              "layout": "vertical",
-              "gap": 32,
-              "padding": 60,
-              "justifyContent": "center",
-              "alignItems": "center",
-              "children": [
-                {
-                  "type": "frame",
-                  "id": "WNKss",
-                  "name": "IntroBox",
-                  "layout": "vertical",
-                  "gap": 20,
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "J1HDSv",
-                      "name": "ShieldIcon",
-                      "width": 64,
-                      "height": 64,
-                      "icon": "shield-check",
-                      "library": "lucide",
-                      "fill": "$fg-inverse"
-                    },
-                    {
-                      "type": "frame",
-                      "id": "L1nJCK",
-                      "name": "IntroCopy",
-                      "layout": "vertical",
-                      "gap": 12,
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "text",
-                          "id": "K3QEH7",
-                          "name": "IntroTitle",
-                          "fill": "$fg-inverse",
-                          "textGrowth": "fixed-width",
-                          "width": 320,
-                          "content": "安心のプライバシー設計",
-                          "textAlign": "center",
-                          "fontFamily": "$font-sans",
-                          "fontSize": 22,
-                          "fontWeight": "700"
-                        },
-                        {
-                          "type": "text",
-                          "id": "j9WZb",
-                          "name": "IntroBody",
-                          "fill": "#93A8C4",
-                          "textGrowth": "fixed-width",
-                          "width": 320,
-                          "content": "成績表はブラウザ上でのみ処理されます。外部のAIサービスには送信されず、ページを閉じると即時に消去されます。",
-                          "lineHeight": 1.7,
-                          "textAlign": "center",
-                          "fontFamily": "$font-sans",
-                          "fontSize": 14,
-                          "fontWeight": "normal"
-                        }
-                      ]
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "t54rk",
-                  "name": "FeatureList",
-                  "layout": "vertical",
-                  "gap": 16,
-                  "children": [
-                    {
-                      "type": "frame",
-                      "id": "yzNaD",
-                      "name": "Feature_lock",
-                      "gap": 12,
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "icon",
-                          "id": "pTpFb",
-                          "name": "FIcon_lock",
-                          "width": 16,
-                          "height": 16,
-                          "icon": "lock",
-                          "library": "lucide",
-                          "fill": "#93A8C4"
-                        },
-                        {
-                          "type": "text",
-                          "id": "Krgi0",
-                          "name": "FLabel_lock",
-                          "fill": "#D1D5DB",
-                          "content": "学内サーバーのみで処理",
-                          "fontFamily": "$font-sans",
-                          "fontSize": 13,
-                          "fontWeight": "normal"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "GcOwa",
-                      "name": "Feature_wifi-off",
-                      "gap": 12,
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "icon",
-                          "id": "ffgb3",
-                          "name": "FIcon_wifi-off",
-                          "width": 16,
-                          "height": 16,
-                          "icon": "wifi-off",
-                          "library": "lucide",
-                          "fill": "#93A8C4"
-                        },
-                        {
-                          "type": "text",
-                          "id": "zwaqA",
-                          "name": "FLabel_wifi-off",
-                          "fill": "#D1D5DB",
-                          "content": "外部AI不使用",
-                          "fontFamily": "$font-sans",
-                          "fontSize": 13,
-                          "fontWeight": "normal"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "vixKX",
-                      "name": "Feature_trash-2",
-                      "gap": 12,
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "icon",
-                          "id": "QFYQW",
-                          "name": "FIcon_trash-2",
-                          "width": 16,
-                          "height": 16,
-                          "icon": "trash-2",
-                          "library": "lucide",
-                          "fill": "#93A8C4"
-                        },
-                        {
-                          "type": "text",
-                          "id": "UGICd",
-                          "name": "FLabel_trash-2",
-                          "fill": "#D1D5DB",
-                          "content": "閉じると即時消去",
-                          "fontFamily": "$font-sans",
-                          "fontSize": 13,
-                          "fontWeight": "normal"
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            },
             {
               "type": "frame",
               "id": "M569l",
@@ -4031,7 +3699,7 @@
           "width": "fill_container",
           "descendants": {
             "w2dV3y": {
-              "fill": "#93A8C4",
+              "fill": "#6B7280",
               "fontWeight": "normal"
             },
             "QOqLu": {
@@ -4039,7 +3707,7 @@
               "fill": "#00000000"
             },
             "EkcyB": {
-              "fill": "$fg-inverse",
+              "fill": "$accent",
               "fontWeight": "600"
             },
             "b1YsZ": {
@@ -4837,7 +4505,7 @@
           "width": "fill_container",
           "descendants": {
             "w2dV3y": {
-              "fill": "#93A8C4",
+              "fill": "#6B7280",
               "fontWeight": "normal"
             },
             "QOqLu": {
@@ -4845,7 +4513,7 @@
               "fill": "#00000000"
             },
             "EkcyB": {
-              "fill": "$fg-inverse",
+              "fill": "$accent",
               "fontWeight": "600"
             },
             "b1YsZ": {
@@ -5915,7 +5583,7 @@
           "width": "fill_container",
           "descendants": {
             "w2dV3y": {
-              "fill": "#93A8C4",
+              "fill": "#6B7280",
               "fontWeight": "normal"
             },
             "QOqLu": {
@@ -5923,7 +5591,7 @@
               "fill": "#00000000"
             },
             "TDbK2": {
-              "fill": "$fg-inverse",
+              "fill": "$accent",
               "fontWeight": "600"
             },
             "QTx2S": {
@@ -6623,7 +6291,7 @@
           "width": "fill_container",
           "descendants": {
             "w2dV3y": {
-              "fill": "#93A8C4",
+              "fill": "#6B7280",
               "fontWeight": "normal"
             },
             "QOqLu": {
@@ -6631,7 +6299,7 @@
               "fill": "#00000000"
             },
             "TDbK2": {
-              "fill": "$fg-inverse",
+              "fill": "$accent",
               "fontWeight": "600"
             },
             "QTx2S": {
