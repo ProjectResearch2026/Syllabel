@@ -572,7 +572,11 @@
               "name": "LeftPanel",
               "width": 480,
               "height": "fill_container",
-              "fill": "$surface-inverse",
+              "fill": "$surface-primary",
+              "stroke": "$border-primary",
+              "strokeWidth": {
+                "right": 1
+              },
               "layout": "vertical",
               "gap": 32,
               "padding": 60,
@@ -595,7 +599,7 @@
                       "height": 64,
                       "icon": "shield-check",
                       "library": "lucide",
-                      "fill": "$fg-inverse"
+                      "fill": "$academic-navy"
                     },
                     {
                       "type": "frame",
@@ -609,7 +613,7 @@
                           "type": "text",
                           "id": "ZWTl3",
                           "name": "IntroTitle",
-                          "fill": "$fg-inverse",
+                          "fill": "$fg-primary",
                           "textGrowth": "fixed-width",
                           "width": 320,
                           "content": "安心のプライバシー設計",
@@ -622,7 +626,7 @@
                           "type": "text",
                           "id": "i3dFI",
                           "name": "IntroBody",
-                          "fill": "#93A8C4",
+                          "fill": "$fg-secondary",
                           "textGrowth": "fixed-width",
                           "width": 320,
                           "content": "成績表はブラウザ上でのみ処理されます。外部のAIサービスには送信されず、ページを閉じると即時に消去されます。",
@@ -658,13 +662,13 @@
                           "height": 16,
                           "icon": "lock",
                           "library": "lucide",
-                          "fill": "#93A8C4"
+                          "fill": "$academic-navy"
                         },
                         {
                           "type": "text",
                           "id": "n2mpU",
                           "name": "FLabel_lock",
-                          "fill": "#D1D5DB",
+                          "fill": "$fg-secondary",
                           "content": "学内サーバーのみで処理",
                           "fontFamily": "$font-sans",
                           "fontSize": 13,
@@ -687,13 +691,13 @@
                           "height": 16,
                           "icon": "wifi-off",
                           "library": "lucide",
-                          "fill": "#93A8C4"
+                          "fill": "$academic-navy"
                         },
                         {
                           "type": "text",
                           "id": "GoPy2",
                           "name": "FLabel_wifi-off",
-                          "fill": "#D1D5DB",
+                          "fill": "$fg-secondary",
                           "content": "外部AI不使用",
                           "fontFamily": "$font-sans",
                           "fontSize": 13,
@@ -716,14 +720,14 @@
                           "height": 16,
                           "icon": "trash-2",
                           "library": "lucide",
-                          "fill": "#93A8C4"
+                          "fill": "$academic-navy"
                         },
                         {
                           "type": "text",
                           "id": "m8Tw43",
                           "name": "FLabel_trash-2",
-                          "fill": "#D1D5DB",
-                          "content": "閉じると即時消去",
+                          "fill": "$fg-secondary",
+                          "content": "閉じると即時データ消去",
                           "fontFamily": "$font-sans",
                           "fontSize": 13,
                           "fontWeight": "normal"
@@ -957,7 +961,7 @@
                           "name": "UploadIconBg",
                           "width": 48,
                           "height": 48,
-                          "fill": "$surface-inverse",
+                          "fill": "#EEF0F5",
                           "cornerRadius": 24,
                           "justifyContent": "center",
                           "alignItems": "center",
@@ -970,7 +974,7 @@
                               "height": 22,
                               "icon": "upload",
                               "library": "lucide",
-                              "fill": "$fg-inverse"
+                              "fill": "$academic-navy"
                             }
                           ]
                         },
@@ -1881,7 +1885,7 @@
                       "name": "SuccessIconBg",
                       "width": 80,
                       "height": 80,
-                      "fill": "$surface-inverse",
+                      "fill": "#EEF0F5",
                       "cornerRadius": 40,
                       "justifyContent": "center",
                       "alignItems": "center",
@@ -2275,7 +2279,11 @@
                       "name": "DayHeader",
                       "width": "fill_container",
                       "height": 40,
-                      "fill": "$surface-inverse",
+                      "fill": "$surface-gray",
+                      "stroke": "$border-primary",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
                       "children": [
                         {
                           "type": "frame",
@@ -2283,7 +2291,7 @@
                           "name": "CornerCell",
                           "width": 44,
                           "height": 40,
-                          "fill": "$surface-inverse"
+                          "fill": "$surface-gray"
                         },
                         {
                           "type": "frame",
@@ -2291,8 +2299,8 @@
                           "name": "Day_月",
                           "width": "fill_container",
                           "height": 40,
-                          "fill": "$surface-inverse",
-                          "stroke": "#2D4070",
+                          "fill": "$surface-gray",
+                          "stroke": "$border-primary",
                           "strokeWidth": {
                             "left": 1
                           },
@@ -2303,7 +2311,7 @@
                               "type": "text",
                               "id": "R3ewRU",
                               "name": "DayLabel_月",
-                              "fill": "$fg-inverse",
+                              "fill": "$fg-primary",
                               "content": "月",
                               "fontFamily": "$font-sans",
                               "fontSize": 13,
@@ -2317,8 +2325,8 @@
                           "name": "Day_火",
                           "width": "fill_container",
                           "height": 40,
-                          "fill": "$surface-inverse",
-                          "stroke": "#2D4070",
+                          "fill": "$surface-gray",
+                          "stroke": "$border-primary",
                           "strokeWidth": {
                             "left": 1
                           },
@@ -2329,7 +2337,7 @@
                               "type": "text",
                               "id": "i6NVF",
                               "name": "DayLabel_火",
-                              "fill": "$fg-inverse",
+                              "fill": "$fg-primary",
                               "content": "火",
                               "fontFamily": "$font-sans",
                               "fontSize": 13,
@@ -2343,8 +2351,8 @@
                           "name": "Day_水",
                           "width": "fill_container",
                           "height": 40,
-                          "fill": "$surface-inverse",
-                          "stroke": "#2D4070",
+                          "fill": "$surface-gray",
+                          "stroke": "$border-primary",
                           "strokeWidth": {
                             "left": 1
                           },
@@ -2355,7 +2363,7 @@
                               "type": "text",
                               "id": "R93yZs",
                               "name": "DayLabel_水",
-                              "fill": "$fg-inverse",
+                              "fill": "$fg-primary",
                               "content": "水",
                               "fontFamily": "$font-sans",
                               "fontSize": 13,
@@ -2369,8 +2377,8 @@
                           "name": "Day_木",
                           "width": "fill_container",
                           "height": 40,
-                          "fill": "$surface-inverse",
-                          "stroke": "#2D4070",
+                          "fill": "$surface-gray",
+                          "stroke": "$border-primary",
                           "strokeWidth": {
                             "left": 1
                           },
@@ -2381,7 +2389,7 @@
                               "type": "text",
                               "id": "l0wxeX",
                               "name": "DayLabel_木",
-                              "fill": "$fg-inverse",
+                              "fill": "$fg-primary",
                               "content": "木",
                               "fontFamily": "$font-sans",
                               "fontSize": 13,
@@ -2395,8 +2403,8 @@
                           "name": "Day_金",
                           "width": "fill_container",
                           "height": 40,
-                          "fill": "$surface-inverse",
-                          "stroke": "#2D4070",
+                          "fill": "$surface-gray",
+                          "stroke": "$border-primary",
                           "strokeWidth": {
                             "left": 1
                           },
@@ -2407,7 +2415,7 @@
                               "type": "text",
                               "id": "e0Y0Fh",
                               "name": "DayLabel_金",
-                              "fill": "$fg-inverse",
+                              "fill": "$fg-primary",
                               "content": "金",
                               "fontFamily": "$font-sans",
                               "fontSize": 13,
@@ -3510,20 +3518,22 @@
                           "id": "njGPO",
                           "name": "UserMsg1",
                           "width": 220,
-                          "fill": "$surface-inverse",
+                          "fill": "#EEF0F5",
                           "cornerRadius": [
                             12,
                             2,
                             12,
                             12
                           ],
+                          "stroke": "$border-primary",
+                          "strokeWidth": 1,
                           "padding": 12,
                           "children": [
                             {
                               "type": "text",
                               "id": "ASOSg",
                               "name": "UserText1",
-                              "fill": "$fg-inverse",
+                              "fill": "$fg-primary",
                               "textGrowth": "fixed-width",
                               "width": "fill_container",
                               "content": "金曜1限を空けたいです。代わりの選択科目はある？",
@@ -5371,20 +5381,22 @@
                           "id": "oVAG1",
                           "name": "UserMsg1",
                           "width": 230,
-                          "fill": "$surface-inverse",
+                          "fill": "#EEF0F5",
                           "cornerRadius": [
                             12,
                             2,
                             12,
                             12
                           ],
+                          "stroke": "$border-primary",
+                          "strokeWidth": 1,
                           "padding": 12,
                           "children": [
                             {
                               "type": "text",
                               "id": "SRWCt",
                               "name": "UserText1",
-                              "fill": "$fg-inverse",
+                              "fill": "$fg-primary",
                               "textGrowth": "fixed-width",
                               "width": "fill_container",
                               "content": "プログラミング基礎を落としていても履修できますか？",
@@ -5629,7 +5641,7 @@
                   "name": "HeroIconBg",
                   "width": 64,
                   "height": 64,
-                  "fill": "$surface-inverse",
+                  "fill": "#EEF0F5",
                   "cornerRadius": 32,
                   "justifyContent": "center",
                   "alignItems": "center",
@@ -5642,7 +5654,7 @@
                       "height": 32,
                       "icon": "shield-check",
                       "library": "lucide",
-                      "fill": "$fg-inverse"
+                      "fill": "$academic-navy"
                     }
                   ]
                 },
@@ -6040,7 +6052,7 @@
                       "name": "PIconBg_monitor",
                       "width": 36,
                       "height": 36,
-                      "fill": "$surface-inverse",
+                      "fill": "#EEF0F5",
                       "cornerRadius": 8,
                       "justifyContent": "center",
                       "alignItems": "center",
@@ -6053,7 +6065,7 @@
                           "height": 18,
                           "icon": "monitor",
                           "library": "lucide",
-                          "fill": "$fg-inverse"
+                          "fill": "$academic-navy"
                         }
                       ]
                     },
@@ -6101,7 +6113,7 @@
                       "name": "PIconBg_wifi-off",
                       "width": 36,
                       "height": 36,
-                      "fill": "$surface-inverse",
+                      "fill": "#EEF0F5",
                       "cornerRadius": 8,
                       "justifyContent": "center",
                       "alignItems": "center",
@@ -6114,7 +6126,7 @@
                           "height": 18,
                           "icon": "wifi-off",
                           "library": "lucide",
-                          "fill": "$fg-inverse"
+                          "fill": "$academic-navy"
                         }
                       ]
                     },
@@ -6162,7 +6174,7 @@
                       "name": "PIconBg_database",
                       "width": 36,
                       "height": 36,
-                      "fill": "$surface-inverse",
+                      "fill": "#EEF0F5",
                       "cornerRadius": 8,
                       "justifyContent": "center",
                       "alignItems": "center",
@@ -6175,7 +6187,7 @@
                           "height": 18,
                           "icon": "database",
                           "library": "lucide",
-                          "fill": "$fg-inverse"
+                          "fill": "$academic-navy"
                         }
                       ]
                     },
@@ -6223,7 +6235,7 @@
                       "name": "PIconBg_eye-off",
                       "width": 36,
                       "height": 36,
-                      "fill": "$surface-inverse",
+                      "fill": "#EEF0F5",
                       "cornerRadius": 8,
                       "justifyContent": "center",
                       "alignItems": "center",
@@ -6236,7 +6248,7 @@
                           "height": 18,
                           "icon": "eye-off",
                           "library": "lucide",
-                          "fill": "$fg-inverse"
+                          "fill": "$academic-navy"
                         }
                       ]
                     },
