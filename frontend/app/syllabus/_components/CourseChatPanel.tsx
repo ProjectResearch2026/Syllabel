@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useMemo, useState } from "react";
 import { MessageCircle, Send } from "lucide-react";
 import { useChatStore } from "@/lib/chat";
 
@@ -14,9 +14,10 @@ export default function CourseChatPanel({
   title: string;
 }) {
   const { courseMessages, setCourseMessages, addCourseMessage } = useChatStore();
-  const messages = courseMessages[code] ?? [];
+  const messages = useMemo(() => courseMessages[code] ?? [], [courseMessages, code]);
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const seq = useRef(0);
 
   useEffect(() => {
     if ((courseMessages[code] ?? []).length === 0) {
@@ -42,9 +43,11 @@ export default function CourseChatPanel({
     if (!text.trim()) return;
     const now = new Date();
     const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
-    addCourseMessage(code, { id: String(Date.now()), role: "user", content: text, time });
+    const base = seq.current;
+    seq.current += 2;
+    addCourseMessage(code, { id: `${code}-u${base}`, role: "user", content: text, time });
     addCourseMessage(code, {
-      id: String(Date.now() + 1),
+      id: `${code}-a${base + 1}`,
       role: "assistant",
       content: "（AI応答はバックエンド実装後に有効になります）",
       time,
