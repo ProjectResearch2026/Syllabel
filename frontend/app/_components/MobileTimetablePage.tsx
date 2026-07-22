@@ -5,8 +5,9 @@ import { DAYS, PERIODS, TIMETABLE } from "@/lib/timetable";
 import type { CourseType } from "@/lib/timetable";
 
 const TAG_STYLES: Record<NonNullable<CourseType>, { cell: string; tag: string; label: string }> = {
-  required: { cell: "bg-[#FFE8E9]", tag: "bg-[#E60012]", label: "必修" },
+  required: { cell: "bg-[#FFF0F1]", tag: "bg-[#E60012]", label: "必修" },
   elective: { cell: "bg-[#E8F0FF]", tag: "bg-[#1A2B4E]", label: "選択" },
+  done: { cell: "bg-[#E7F7F0]", tag: "bg-[#10B981]", label: "既修得" },
 };
 
 export default function MobileTimetablePage() {
