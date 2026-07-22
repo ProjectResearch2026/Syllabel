@@ -4889,7 +4889,7 @@
                       "type": "text",
                       "id": "vJRLv",
                       "name": "StepNum_2",
-                      "fill": "$accent",
+                      "fill": "$fg-inverse",
                       "content": "3",
                       "fontFamily": "IBM Plex Mono",
                       "fontSize": 11,
@@ -4938,18 +4938,18 @@
               "children": [
                 {
                   "type": "frame",
-                  "id": "uMwJB",
+                  "id": "Z11Re",
                   "name": "SuccessIconBg",
                   "width": 80,
                   "height": 80,
-                  "fill": "$surface-inverse",
+                  "fill": "#EEF0F5",
                   "cornerRadius": 40,
                   "justifyContent": "center",
                   "alignItems": "center",
                   "children": [
                     {
                       "type": "icon",
-                      "id": "iUCkF",
+                      "id": "v8Z2ME",
                       "name": "SuccessIcon",
                       "width": 40,
                       "height": 40,
