@@ -15,6 +15,8 @@ import {
   ArrowRight,
   AlertCircle,
   Loader2,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import StepBar from "./StepBar";
 import PrivacyConsentModal from "./PrivacyConsentModal";
@@ -37,9 +39,10 @@ export default function PcImportPage() {
 
   const [step, setStep] = useState(0);
   const [pending, setPending] = useState<StudentProfile | null>(null);
-  const [fileName, setFileName] = useState("成績表_2024.pdf");
+  const [fileName, setFileName] = useState("");
   const [importState, setImportState] = useState<ImportState>({ type: "idle" });
   const [isDragOver, setIsDragOver] = useState(false);
+  const [demoOpen, setDemoOpen] = useState(false);
 
   const stage = (profile: StudentProfile, name?: string) => {
     setPending(profile);
@@ -47,7 +50,10 @@ export default function PcImportPage() {
     setStep(1);
   };
 
-  const handleDemoLoad = () => stage(DUMMY_PROFILES[0].profile);
+  const handleDemoLoad = (index: number) => {
+    setDemoOpen(false);
+    stage(DUMMY_PROFILES[index].profile, `デモ: ${DUMMY_PROFILES[index].label}`);
+  };
 
   const handleFileSelect = useCallback((file: File) => {
     if (file.type !== "application/pdf") {
@@ -219,15 +225,35 @@ export default function PcImportPage() {
                 <div className="flex-1 h-px bg-[#E5E7EB]" />
               </div>
 
-              <button
-                onClick={handleDemoLoad}
-                className="w-full h-11 rounded-lg border border-[#1A2B4E] flex items-center justify-center gap-2 hover:bg-[#EEF1F8] transition-colors"
-              >
-                <Play size={16} className="text-[#1A2B4E]" />
-                <span className="text-[#1A2B4E] text-sm font-semibold">
-                  ダミーデータで試す（展示用）
-                </span>
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setDemoOpen((o) => !o)}
+                  className="w-full h-11 rounded-lg border border-[#1A2B4E] flex items-center justify-center gap-2 hover:bg-[#EEF1F8] transition-colors"
+                >
+                  <Play size={16} className="text-[#1A2B4E]" />
+                  <span className="text-[#1A2B4E] text-sm font-semibold">
+                    ダミーデータで試す（展示用）
+                  </span>
+                  {demoOpen ? (
+                    <ChevronUp size={15} className="text-[#1A2B4E]" />
+                  ) : (
+                    <ChevronDown size={15} className="text-[#1A2B4E]" />
+                  )}
+                </button>
+                {demoOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#D1D5DB] rounded-lg shadow-md overflow-hidden z-10">
+                    {DUMMY_PROFILES.map((p, i) => (
+                      <button
+                        key={p.label}
+                        onClick={() => handleDemoLoad(i)}
+                        className="w-full h-11 px-4 flex items-center gap-2 text-left hover:bg-[#EEF1F8] transition-colors border-b border-[#E5E7EB] last:border-b-0"
+                      >
+                        <span className="text-[#1A2B4E] text-sm">{p.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
