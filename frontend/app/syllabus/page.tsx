@@ -6,6 +6,7 @@ import SyllabusTopBar from "./_components/SyllabusTopBar";
 import SyllabusFilters from "./_components/SyllabusFilters";
 import SyllabusChatBox from "./_components/SyllabusChatBox";
 import SyllabusPagination from "./_components/SyllabusPagination";
+import MobileSyllabusPage from "./_components/MobileSyllabusPage";
 
 const LIMIT = 30;
 
@@ -32,6 +33,21 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
 
   return (
     <div className="flex flex-col flex-1 min-w-0">
+      {/* モバイル */}
+      <div className="md:hidden flex-1">
+        <Suspense>
+          <MobileSyllabusPage
+            results={data.results}
+            count={data.count}
+            offset={offset}
+            masters={masters}
+            currentNendo={currentNendo}
+          />
+        </Suspense>
+      </div>
+
+      {/* デスクトップ */}
+      <div className="hidden md:flex md:flex-col md:flex-1 min-w-0">
       <Suspense>
         <SyllabusTopBar />
       </Suspense>
@@ -76,6 +92,7 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
             />
           </div>
         </main>
+      </div>
       </div>
     </div>
   );
