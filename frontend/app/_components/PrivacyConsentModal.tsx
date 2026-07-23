@@ -10,7 +10,7 @@ type Props = {
 export default function PrivacyConsentModal({ onAccept, onCancel }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 flex flex-col gap-5">
+      <div className="w-[448px] bg-white rounded-2xl shadow-xl p-6 flex flex-col gap-5">
         <div>
           <h2 className="text-[#1A2B4E] text-lg font-bold mb-1">
             成績表の取り扱いについて
