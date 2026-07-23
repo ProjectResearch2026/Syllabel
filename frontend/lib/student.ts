@@ -1,16 +1,29 @@
 import { create } from "zustand";
 
-export type CompletedCourse = {
-  code: string;
+export type CourseTerm =
+  | "前期"
+  | "後期"
+  | "通年"
+  | "1Q"
+  | "2Q"
+  | "3Q"
+  | "4Q"
+  | "サ集";
+
+export type Course = {
+  code?: string;
   title: string;
+  year: number;
+  term: CourseTerm;
   credits: number;
-  grade: string;
+  status: "passed" | "failed" | "withdrawn";
+  rawScore?: string;
 };
 
 export type StudentProfile = {
-  grade: number;
-  program: string;
-  completedCourses: CompletedCourse[];
+  grade: 1 | 2 | 3 | 4 | null;
+  program: string | null;
+  completedCourses: Course[];
 };
 
 type StudentStore = {
