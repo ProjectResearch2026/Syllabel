@@ -25,9 +25,9 @@ export default function InputBar({
       <button
         onClick={onSend}
         disabled={!value.trim()}
-        className="w-11 h-11 flex items-center justify-center bg-[#1A2B4E] rounded-lg disabled:opacity-40 transition-opacity"
+        className="w-11 h-11 flex items-center justify-center bg-[#E60012] rounded-lg disabled:opacity-40 transition-opacity"
       >
-        <SendHorizontal size={20} className="text-[#E60012]" />
+        <SendHorizontal size={20} className="text-white" />
       </button>
     </div>
   );
