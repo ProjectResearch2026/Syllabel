@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:5050";
+const API_BASE = "http://localhost:8000/api";
 
 export type SyllabusListItem = {
   syllabus_code: string;
@@ -37,7 +37,7 @@ export type CoursePlan = {
   method: string | null;
 };
 
-export type SyllabusDetail = SyllabusListItem & {
+export type SyllabusDetail = Omit<SyllabusListItem, "campus" | "term" | "detail_url"> & {
   id: number;
   subject_id: number;
   campus_id: number;
@@ -53,6 +53,8 @@ export type SyllabusDetail = SyllabusListItem & {
   textbook_note: string | null;
   reference_note: string | null;
   advice: string | null;
+  source: string | null;
+  extraction_time: string | null;
   campus_name: string;
   term_name: string;
   faculties: string[];
@@ -97,10 +99,8 @@ export async function searchSyllabi(params: SearchParams): Promise<SyllabusListR
   return res.json();
 }
 
-export async function getSyllabus(code: string, year?: number): Promise<SyllabusDetail> {
-  const url = new URL(`${API_BASE}/syllabi/${code}`);
-  if (year) url.searchParams.set("year", String(year));
-  const res = await fetch(url.toString(), { cache: "no-store" });
+export async function getSyllabus(code: string): Promise<SyllabusDetail> {
+  const res = await fetch(`${API_BASE}/syllabi/${code}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   return res.json();
 }

@@ -24,7 +24,6 @@ import SyllabusChatBox from "../_components/SyllabusChatBox";
 import CourseChatPanel from "../_components/CourseChatPanel";
 
 type Params = Promise<{ code: string }>;
-type SearchParams = Promise<{ year?: string }>;
 
 function SectionCard({
   icon: Icon,
@@ -48,17 +47,14 @@ function SectionCard({
 
 export default async function SyllabusDetailPage({
   params,
-  searchParams,
 }: {
   params: Params;
-  searchParams: SearchParams;
 }) {
   const { code } = await params;
-  const { year } = await searchParams;
 
   let syllabus;
   try {
-    syllabus = await getSyllabus(code, year ? parseInt(year, 10) : undefined);
+    syllabus = await getSyllabus(code);
   } catch {
     notFound();
   }
