@@ -6,6 +6,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ---
 
+> **重要**: コードを書く前に必ず `docs/design.md` を参照し、その内容に準拠すること。
+
 # フロントエンド開発ガイド
 
 ## プロジェクト概要

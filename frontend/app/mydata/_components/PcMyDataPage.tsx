@@ -124,6 +124,36 @@ export default function PcMyDataPage() {
           </div>
         </section>
 
+        <section className="bg-white border border-[#D1D5DB] rounded-xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-[#E5E7EB] bg-[#F9FAFB]">
+            <h2 className="text-sm font-semibold text-[#1A2B4E]">修得済み科目</h2>
+          </div>
+          <div className="divide-y divide-[#F3F4F6]">
+            {profile.completedCourses.map((course) => (
+              <div
+                key={`${course.title}-${course.year}-${course.term}`}
+                className="flex items-center justify-between px-5 py-3 gap-3"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-[#1A2B4E] font-medium truncate">{course.title}</p>
+                  <p className="text-xs text-[#9CA3AF] mt-0.5">
+                    {course.year}年度 {course.term}
+                    {course.code ? ` · ${course.code}` : ""}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="text-xs text-[#6B7280]">{course.credits}単位</span>
+                  {course.rawScore && (
+                    <span className="text-xs font-semibold text-center text-[#1A2B4E] bg-[#EFF6FF] rounded px-1.5 py-0.5">
+                      {course.rawScore}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {/* デモモード */}
         <section className="bg-white rounded-lg border border-[#D1D5DB] p-6 flex flex-col gap-4">
           <div className="flex items-center gap-2">
