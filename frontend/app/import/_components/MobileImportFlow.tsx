@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Info,
   ShieldCheck,
   ArrowUpRight,
@@ -16,13 +18,14 @@ import {
   MessageCircle,
   CalendarDays,
   Check,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { useStudentStore, type StudentProfile } from "@/lib/student";
 import { DUMMY_PROFILES } from "@/lib/dummy/profiles";
 
 const GRADUATION_CREDITS = 124;
 const STEPS = ["アップロード", "確認", "完了"] as const;
-const FAIL_GRADES = ["D", "E", "F", "不可", "×"];
 
 function StepBar({ current }: { current: number }) {
   return (
@@ -63,13 +66,20 @@ function StepBar({ current }: { current: number }) {
   );
 }
 
+type ParseState =
+  | { type: "idle" }
+  | { type: "parsing" }
+  | { type: "error"; message: string };
+
 export default function MobileImportFlow() {
   const router = useRouter();
   const setProfile = useStudentStore((s) => s.setProfile);
 
   const [step, setStep] = useState(0);
   const [pending, setPending] = useState<StudentProfile | null>(null);
-  const [fileName, setFileName] = useState("成績表_2024.pdf");
+  const [fileName, setFileName] = useState("");
+  const [parseState, setParseState] = useState<ParseState>({ type: "idle" });
+  const [demoOpen, setDemoOpen] = useState(false);
 
   const stage = (profile: StudentProfile, name?: string) => {
     setPending(profile);
@@ -77,17 +87,34 @@ export default function MobileImportFlow() {
     setStep(1);
   };
 
-  const handleDemoLoad = () => stage(DUMMY_PROFILES[0].profile);
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDemoLoad = (index: number) => {
+    setDemoOpen(false);
+    stage(DUMMY_PROFILES[index].profile, `デモ: ${DUMMY_PROFILES[index].label}`);
+  };
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    stage(DUMMY_PROFILES[0].profile, file.name);
+    e.target.value = "";
+    setParseState({ type: "parsing" });
+    try {
+      const { parseGradeReport } = await import("@/lib/pdf/parseGradeReport");
+      const { profile, warnings } = await parseGradeReport(file);
+      if (warnings.length > 0) console.warn("PDF parse warnings:", warnings);
+      stage(profile, file.name);
+      setParseState({ type: "idle" });
+    } catch (err) {
+      setParseState({
+        type: "error",
+        message: err instanceof Error ? err.message : "PDFの読み取りに失敗しました",
+      });
+    }
   };
 
   const totalCredits = pending?.completedCourses.reduce((sum, c) => sum + c.credits, 0) ?? 0;
   const remaining = Math.max(0, GRADUATION_CREDITS - totalCredits);
   const courses = pending?.completedCourses ?? [];
-  const failCourses = courses.filter((c) => FAIL_GRADES.includes(c.grade));
+  const failCourses = courses.filter((c) => c.status === "failed");
 
   const handleConfirm = () => {
     if (pending) setProfile(pending);
@@ -134,18 +161,36 @@ export default function MobileImportFlow() {
           <div className="flex flex-col gap-5 p-5">
             <h2 className="text-[15px] font-bold text-[#1A2B4E]">成績表PDFを選択</h2>
 
-            <label className="w-full h-[180px] bg-[#FAFAFA] rounded-lg border-2 border-dashed border-[#D1D5DB] flex flex-col items-center justify-center gap-3 cursor-pointer active:border-[#1A2B4E] transition-colors">
-              <input type="file" accept="application/pdf" className="hidden" onChange={handleFile} />
-              <div className="w-14 h-14 rounded-full bg-[#EEF0F5] flex items-center justify-center">
-                <FileUp size={28} className="text-[#1A2B4E]" />
+            {parseState.type === "parsing" ? (
+              <div className="w-full h-[180px] bg-[#FAFAFA] rounded-lg border-2 border-dashed border-[#D1D5DB] flex flex-col items-center justify-center gap-3">
+                <Loader2 size={32} className="text-[#1A2B4E] animate-spin" />
+                <span className="text-sm font-semibold text-[#1A2B4E]">解析中...</span>
               </div>
-              <span className="text-sm font-semibold text-[#1A2B4E]">PDFファイルをタップして選択</span>
-              <span className="text-xs text-[#4B5563] text-center leading-relaxed">
-                龍谷大学ポータルから
-                <br />
-                ダウンロードした成績表PDF
-              </span>
-            </label>
+            ) : parseState.type === "error" ? (
+              <div className="w-full rounded-lg border border-[#FCA5A5] bg-[#FEF2F2] p-4 flex flex-col gap-3">
+                <div className="flex items-start gap-2">
+                  <AlertCircle size={18} className="text-[#DC2626] shrink-0 mt-px" />
+                  <p className="text-sm text-[#991B1B]">{parseState.message}</p>
+                </div>
+                <label className="w-full h-10 rounded-lg border border-[#DC2626] flex items-center justify-center gap-2 cursor-pointer active:bg-[#FEE2E2] transition-colors">
+                  <input type="file" accept="application/pdf" className="hidden" onChange={handleFile} />
+                  <span className="text-sm font-semibold text-[#DC2626]">もう一度選択する</span>
+                </label>
+              </div>
+            ) : (
+              <label className="w-full h-[180px] bg-[#FAFAFA] rounded-lg border-2 border-dashed border-[#D1D5DB] flex flex-col items-center justify-center gap-3 cursor-pointer active:border-[#1A2B4E] transition-colors">
+                <input type="file" accept="application/pdf" className="hidden" onChange={handleFile} />
+                <div className="w-14 h-14 rounded-full bg-[#EEF0F5] flex items-center justify-center">
+                  <FileUp size={28} className="text-[#1A2B4E]" />
+                </div>
+                <span className="text-sm font-semibold text-[#1A2B4E]">PDFファイルをタップして選択</span>
+                <span className="text-xs text-[#4B5563] text-center leading-relaxed">
+                  龍谷大学ポータルから
+                  <br />
+                  ダウンロードした成績表PDF
+                </span>
+              </label>
+            )}
 
             <div className="flex items-center gap-3">
               <div className="flex-1 h-px bg-[#E5E7EB]" />
@@ -153,13 +198,33 @@ export default function MobileImportFlow() {
               <div className="flex-1 h-px bg-[#E5E7EB]" />
             </div>
 
-            <button
-              onClick={handleDemoLoad}
-              className="w-full h-12 rounded-lg border-2 border-[#1A2B4E] flex items-center justify-center gap-2.5 active:bg-[#EEF1F8] transition-colors"
-            >
-              <CirclePlay size={18} className="text-[#1A2B4E]" />
-              <span className="text-sm font-semibold text-[#1A2B4E]">ダミーデータで試す（展示用）</span>
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setDemoOpen((o) => !o)}
+                className="w-full h-12 rounded-lg border-2 border-[#1A2B4E] flex items-center justify-center gap-2.5 active:bg-[#EEF1F8] transition-colors"
+              >
+                <CirclePlay size={18} className="text-[#1A2B4E]" />
+                <span className="text-sm font-semibold text-[#1A2B4E]">ダミーデータで試す（展示用）</span>
+                {demoOpen ? (
+                  <ChevronUp size={15} className="text-[#1A2B4E]" />
+                ) : (
+                  <ChevronDown size={15} className="text-[#1A2B4E]" />
+                )}
+              </button>
+              {demoOpen && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#D1D5DB] rounded-lg shadow-md overflow-hidden z-10">
+                  {DUMMY_PROFILES.map((p, i) => (
+                    <button
+                      key={p.label}
+                      onClick={() => handleDemoLoad(i)}
+                      className="w-full h-12 px-4 flex items-center text-left active:bg-[#EEF1F8] transition-colors border-b border-[#E5E7EB] last:border-b-0"
+                    >
+                      <span className="text-sm text-[#1A2B4E]">{p.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <h2 className="text-[15px] font-bold text-[#1A2B4E] mt-1">インポート方法</h2>
             {[
@@ -222,10 +287,11 @@ export default function MobileImportFlow() {
               <span className="text-[11px] text-[#E60012] font-mono">全{courses.length}件 →</span>
             </div>
             {courses.slice(0, 5).map((c, i) => {
-              const fail = FAIL_GRADES.includes(c.grade);
+              const fail = c.status === "failed";
+              const scoreLabel = c.rawScore ?? (fail ? "不合格" : "合格");
               return (
                 <div
-                  key={c.code}
+                  key={`${c.title}-${i}`}
                   className={`flex items-center gap-2.5 h-11 px-3.5 border-b border-[#E5E7EB] last:border-b-0 ${
                     i % 2 === 0 ? "bg-white" : "bg-[#F8F9FA]"
                   }`}
@@ -235,7 +301,7 @@ export default function MobileImportFlow() {
                       fail ? "bg-[#FEE2E2] text-[#991B1B]" : "bg-[#D1FAE5] text-[#065F46]"
                     }`}
                   >
-                    {c.grade}
+                    {scoreLabel}
                   </span>
                   <span className="flex-1 text-xs font-semibold text-[#1A2B4E] truncate">{c.title}</span>
                 </div>
