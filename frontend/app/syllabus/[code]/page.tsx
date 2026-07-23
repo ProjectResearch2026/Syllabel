@@ -5,7 +5,6 @@ import { getSyllabus } from "@/lib/syllabus-api";
 import SyllabusChatBox from "../_components/SyllabusChatBox";
 
 type Params = Promise<{ code: string }>;
-type SearchParams = Promise<{ year?: string }>;
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -18,17 +17,14 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default async function SyllabusDetailPage({
   params,
-  searchParams,
 }: {
   params: Params;
-  searchParams: SearchParams;
 }) {
   const { code } = await params;
-  const { year } = await searchParams;
 
   let syllabus;
   try {
-    syllabus = await getSyllabus(code, year ? parseInt(year, 10) : undefined);
+    syllabus = await getSyllabus(code);
   } catch {
     notFound();
   }
@@ -60,11 +56,11 @@ export default async function SyllabusDetailPage({
         <div className="px-5 py-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs border-b border-[#E5E7EB]">
           <div>
             <span className="text-[#9CA3AF]">キャンパス</span>
-            <p className="font-medium text-[#1A2B4E]">{syllabus.campus}</p>
+            <p className="font-medium text-[#1A2B4E]">{syllabus.campus_name}</p>
           </div>
           <div>
             <span className="text-[#9CA3AF]">開講期</span>
-            <p className="font-medium text-[#1A2B4E]">{syllabus.term}</p>
+            <p className="font-medium text-[#1A2B4E]">{syllabus.term_name}</p>
           </div>
           <div>
             <span className="text-[#9CA3AF]">時限</span>
