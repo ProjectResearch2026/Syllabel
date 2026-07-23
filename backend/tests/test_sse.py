@@ -17,7 +17,7 @@ def test_sse_response_streams_events():
     app = FastAPI()
 
     @app.get("/stream")
-    def stream():
+    async def stream():
         async def gen():
             yield format_sse({"delta": "こん"})
             yield format_sse({"done": True})
@@ -31,4 +31,3 @@ def test_sse_response_streams_events():
     assert resp.headers["content-type"].startswith("text/event-stream")
     assert resp.headers["cache-control"] == "no-cache"
     assert resp.text == 'data: {"delta": "こん"}\n\ndata: {"done": true}\n\n'
-    
