@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:8000/api";
+const API_BASE = "/api";
 
 export type SyllabusListItem = {
   syllabus_code: string;
@@ -90,11 +90,12 @@ export type SearchParams = {
 };
 
 export async function searchSyllabi(params: SearchParams): Promise<SyllabusListResponse> {
-  const url = new URL(`${API_BASE}/syllabi`);
+  const qs = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => {
-    if (v != null && v !== "") url.searchParams.set(k, String(v));
+    if (v != null && v !== "") qs.set(k, String(v));
   });
-  const res = await fetch(url.toString(), { cache: "no-store" });
+  const query = qs.toString() ? `?${qs.toString()}` : "";
+  const res = await fetch(`${API_BASE}/syllabi${query}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   return res.json();
 }
