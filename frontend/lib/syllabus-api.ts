@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:5050";
+const API_BASE = "http://localhost:8000";
 
 export type SyllabusListItem = {
   syllabus_code: string;
