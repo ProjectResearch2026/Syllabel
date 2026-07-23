@@ -1,11 +1,12 @@
 import { Suspense } from "react";
+import { ArrowUpDown } from "lucide-react";
 import { searchSyllabi, getMasters } from "@/lib/syllabus-api";
 import CourseCard from "./_components/CourseCard";
-import CourseCardGrid from "./_components/CourseCardGrid";
-import SyllabusSearchForm from "./_components/SyllabusSearchForm";
+import SyllabusTopBar from "./_components/SyllabusTopBar";
+import SyllabusFilters from "./_components/SyllabusFilters";
 import SyllabusChatBox from "./_components/SyllabusChatBox";
 import SyllabusPagination from "./_components/SyllabusPagination";
-import ViewToggle from "./_components/ViewToggle";
+import MobileSyllabusPage from "./_components/MobileSyllabusPage";
 
 const LIMIT = 30;
 
@@ -24,7 +25,6 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
   const day = typeof sp.day === "string" ? sp.day : undefined;
   const year = typeof sp.year === "string" ? parseInt(sp.year, 10) : currentNendo;
   const offset = typeof sp.offset === "string" ? parseInt(sp.offset, 10) : 0;
-  const view = typeof sp.view === "string" && sp.view === "grid" ? "grid" : "list";
 
   const [data, masters] = await Promise.all([
     searchSyllabi({ q, faculty, campus, term, day, year, limit: LIMIT, offset }),
@@ -32,50 +32,67 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
   ]);
 
   return (
-    <div className="max-w-screen-xl mx-auto px-4 md:px-8 py-6">
-      <h1 className="text-[#1A2B4E] text-xl font-bold mb-4">シラバス検索</h1>
-
-      <Suspense>
-        <SyllabusSearchForm masters={masters} currentNendo={currentNendo} />
-      </Suspense>
-
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-xs text-[#6B7280]">
-          {data.count.toLocaleString()} 件ヒット
-        </p>
+    <div className="flex flex-col flex-1 min-w-0">
+      {/* モバイル */}
+      <div className="md:hidden flex-1">
         <Suspense>
-          <ViewToggle />
+          <MobileSyllabusPage
+            results={data.results}
+            count={data.count}
+            offset={offset}
+            masters={masters}
+            currentNendo={currentNendo}
+          />
         </Suspense>
       </div>
 
-      {view === "grid" ? (
-        <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-4">
-          {data.results.length === 0 ? (
-            <p className="text-sm text-[#6B7280] text-center py-10 col-span-full">該当する科目がありません</p>
-          ) : (
-            data.results.map((c) => <CourseCardGrid key={`${c.syllabus_code}-${c.year}`} course={c} />)
-          )}
-        </div>
-      ) : (
-        <div className="space-y-2 mb-4">
-          {data.results.length === 0 ? (
-            <p className="text-sm text-[#6B7280] text-center py-10">該当する科目がありません</p>
-          ) : (
-            data.results.map((c) => <CourseCard key={`${c.syllabus_code}-${c.year}`} course={c} />)
-          )}
-        </div>
-      )}
-
+      {/* デスクトップ */}
+      <div className="hidden md:flex md:flex-col md:flex-1 min-w-0">
       <Suspense>
-        <SyllabusPagination total={data.count} limit={LIMIT} offset={offset} />
+        <SyllabusTopBar />
       </Suspense>
 
-      <div className="mt-8">
-        <SyllabusChatBox
-          title="AIに質問する（シラバス全体）"
-          placeholder="シラバスについて質問..."
-          initialMessage='シラバスについて質問してください。例：「プログラミングを扱う選択科目を一覧で」'
-        />
+      <div className="flex flex-1 min-w-0">
+        <Suspense>
+          <SyllabusFilters masters={masters} currentNendo={currentNendo} />
+        </Suspense>
+
+        <main className="flex-1 min-w-0 bg-[#F8F9FA] px-4 md:px-6 py-5">
+          {/* Result header */}
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-[#1A2B4E] text-sm font-bold">
+              検索結果 {data.count.toLocaleString()}件
+            </h1>
+            <div className="flex items-center gap-1.5 text-[#4B5563] text-xs">
+              <ArrowUpDown size={14} />
+              <span>配当年次順</span>
+            </div>
+          </div>
+
+          {/* Card grid */}
+          {data.results.length === 0 ? (
+            <p className="text-sm text-[#6B7280] text-center py-16">該当する科目がありません</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {data.results.map((c) => (
+                <CourseCard key={`${c.syllabus_code}-${c.year}`} course={c} />
+              ))}
+            </div>
+          )}
+
+          <Suspense>
+            <SyllabusPagination total={data.count} limit={LIMIT} offset={offset} />
+          </Suspense>
+
+          <div id="ai-chat" className="mt-8 scroll-mt-32">
+            <SyllabusChatBox
+              title="AIに質問する（シラバス全体）"
+              placeholder="シラバスについて質問..."
+              initialMessage='シラバスについて質問してください。例：「プログラミングを扱う選択科目を一覧で」'
+            />
+          </div>
+        </main>
+      </div>
       </div>
     </div>
   );

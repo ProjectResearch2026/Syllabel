@@ -2,7 +2,7 @@ import { Calendar } from "lucide-react";
 
 export default function CreditBar() {
   return (
-    <div className="flex items-center justify-between px-8 h-12 bg-white border-b border-[#E5E7EB] shrink-0">
+    <div className="flex items-center justify-between px-8 h-12 bg-white border-b border-[#D1D5DB] shrink-0">
       <div className="flex items-center gap-8">
         {[
           { val: "62", label: "取得済み単位", color: "text-[#1A2B4E]" },

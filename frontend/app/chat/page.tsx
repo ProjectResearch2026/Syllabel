@@ -43,7 +43,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-64px)] md:h-[calc(100vh-3.5rem)] bg-[#F8F9FA]">
+    <div className="flex flex-col h-[calc(100dvh-76px)] md:h-[calc(100vh-60px)] bg-[#F8F9FA]">
       <ChatHeader />
       <ContextBanner />
       <MessageList messages={syllabusMessages} bottomRef={bottomRef} />
