@@ -4,3 +4,7 @@ __pycache__/
 *.pyo
 .env
 *.egg-info/
+
+
+sample.pdf
+sample.png
