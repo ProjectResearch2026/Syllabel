@@ -58,14 +58,14 @@ export default function PcImportPage() {
     return (
       <div className="flex flex-1 min-h-[calc(100vh-60px)]">
         {/* Left Panel */}
-        <div className="w-[480px] shrink-0 bg-[#1A2B4E] flex flex-col items-center justify-center gap-8 px-[60px] py-[60px]">
+        <div className="w-[480px] shrink-0 bg-white flex flex-col items-center justify-center gap-8 px-[60px] py-[60px]">
           <div className="flex flex-col items-center gap-5">
-            <ShieldCheck size={64} className="text-white" />
+            <ShieldCheck size={64} className="text-[#1A2B4E]" />
             <div className="flex flex-col items-center gap-3">
-              <h2 className="text-white text-[22px] font-bold text-center w-[320px]">
+              <h2 className="text-[#1A2B4E] text-[22px] font-bold text-center w-[320px]">
                 安心のプライバシー設計
               </h2>
-              <p className="text-[#93A8C4] text-sm text-center leading-[1.7] w-[320px]">
+              <p className="text-[#4c5663] text-sm text-center leading-[1.7] w-[320px]">
                 成績表はブラウザ上でのみ処理されます。外部のAIサービスには送信されず、ページを閉じると即時に消去されます。
               </p>
             </div>
@@ -78,8 +78,8 @@ export default function PcImportPage() {
               { icon: Trash2, label: "閉じると即時消去" },
             ].map(({ icon: Icon, label }) => (
               <div key={label} className="flex items-center gap-3">
-                <Icon size={16} className="text-[#93A8C4] shrink-0" />
-                <span className="text-[#D1D5DB] text-[13px]">{label}</span>
+                <Icon size={16} className="text-[#1a2c4f] shrink-0" />
+                <span className="text-[#4c5663] text-[13px]">{label}</span>
               </div>
             ))}
           </div>
