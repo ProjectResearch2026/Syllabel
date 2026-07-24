@@ -35,7 +35,7 @@ export default function RootLayout({
         <div className="hidden md:block">
           <Header />
         </div>
-        <main className="flex-1 flex flex-col pb-24 md:pb-0">{children}</main>
+        <main className="flex-1 flex flex-col pb-[76px] md:pb-0">{children}</main>
         {/* モバイル用ボトムタブ */}
         <div className="md:hidden">
           <BottomTabBar />
