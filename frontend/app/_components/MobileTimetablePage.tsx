@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Bell, FileUp } from "lucide-react";
 import { useStudentStore } from "@/lib/student";
 
+const GRADUATION_CREDITS = 124;
 const DAYS = ["月", "火", "水", "木", "金"] as const;
 const PERIODS = [1, 2, 3, 4, 5] as const;
 
@@ -55,7 +56,12 @@ export default function MobileTimetablePage() {
     <div className="flex flex-col bg-white min-h-full">
       {/* Header */}
       <header className="sticky top-0 z-20 flex items-center justify-between px-5 h-14 bg-white border-b border-[#D1D5DB]">
-        <span className="text-[#1A2B4E] text-xl font-bold">時間割</span>
+        <div className="flex flex-col">
+          <span className="text-[#1A2B4E] text-xl font-bold">時間割</span>
+          {profile.program && (
+            <span className="text-[#6B7280] text-[10px] leading-none">{profile.grade}回生・{profile.program}</span>
+          )}
+        </div>
         <div className="flex items-center gap-3">
           <span className="text-[#E60012] text-xs">{nendo}年度 {semester}</span>
           <Bell size={22} className="text-[#1A2B4E]" />
