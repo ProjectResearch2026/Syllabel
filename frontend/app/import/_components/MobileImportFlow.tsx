@@ -20,9 +20,11 @@ import {
   Check,
   Loader2,
   AlertCircle,
+  Pencil,
 } from "lucide-react";
 import { useStudentStore, type StudentProfile } from "@/lib/student";
 import { DUMMY_PROFILES } from "@/lib/dummy/profiles";
+import ManualInputForm from "./ManualInputForm";
 
 const GRADUATION_CREDITS = 124;
 const STEPS = ["アップロード", "確認", "完了"] as const;
@@ -69,7 +71,8 @@ function StepBar({ current }: { current: number }) {
 type ParseState =
   | { type: "idle" }
   | { type: "parsing" }
-  | { type: "error"; message: string };
+  | { type: "error"; message: string }
+  | { type: "manual" };
 
 export default function MobileImportFlow() {
   const router = useRouter();
@@ -136,8 +139,13 @@ export default function MobileImportFlow() {
 
       <StepBar current={step} />
 
+      {/* ── Step 0: 手入力モード ── */}
+      {step === 0 && parseState.type === "manual" && (
+        <ManualInputForm onComplete={(profile) => { stage(profile, "手入力"); setParseState({ type: "idle" }); }} />
+      )}
+
       {/* ── Step 0: アップロード ── */}
-      {step === 0 && (
+      {step === 0 && parseState.type !== "manual" && (
         <>
           <div className="flex items-start gap-2.5 px-4 py-3 bg-[#F8F9FA] border-l-[3px] border-[#E60012]">
             <ShieldCheck size={18} className="text-[#E60012] shrink-0 mt-px" />
@@ -172,10 +180,19 @@ export default function MobileImportFlow() {
                   <AlertCircle size={18} className="text-[#DC2626] shrink-0 mt-px" />
                   <p className="text-sm text-[#991B1B]">{parseState.message}</p>
                 </div>
-                <label className="w-full h-10 rounded-lg border border-[#DC2626] flex items-center justify-center gap-2 cursor-pointer active:bg-[#FEE2E2] transition-colors">
-                  <input type="file" accept="application/pdf" className="hidden" onChange={handleFile} />
-                  <span className="text-sm font-semibold text-[#DC2626]">もう一度選択する</span>
-                </label>
+                <div className="flex gap-2">
+                  <label className="flex-1 h-10 rounded-lg border border-[#DC2626] flex items-center justify-center gap-2 cursor-pointer active:bg-[#FEE2E2] transition-colors">
+                    <input type="file" accept="application/pdf" className="hidden" onChange={handleFile} />
+                    <span className="text-sm font-semibold text-[#DC2626]">もう一度選択</span>
+                  </label>
+                  <button
+                    onClick={() => setParseState({ type: "manual" })}
+                    className="flex-1 h-10 rounded-lg border border-[#D1D5DB] bg-white flex items-center justify-center gap-1.5 active:bg-[#F8F9FA] transition-colors"
+                  >
+                    <Pencil size={14} className="text-[#4B5563]" />
+                    <span className="text-sm font-semibold text-[#4B5563]">手入力で続ける</span>
+                  </button>
+                </div>
               </div>
             ) : (
               <label className="w-full h-[180px] bg-[#FAFAFA] rounded-lg border-2 border-dashed border-[#D1D5DB] flex flex-col items-center justify-center gap-3 cursor-pointer active:border-[#1A2B4E] transition-colors">
