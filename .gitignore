@@ -4,7 +4,6 @@ __pycache__/
 *.pyo
 .env
 *.egg-info/
-
-
+.pytest_cache/
 sample.pdf
 sample.png
