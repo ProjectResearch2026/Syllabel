@@ -8,8 +8,6 @@ const GRADUATION_CREDITS = 124;
 const DAYS = ["月", "火", "水", "木", "金"] as const;
 const PERIODS = [1, 2, 3, 4, 5] as const;
 
-const GRADUATION_CREDITS = 124;
-
 export default function MobileTimetablePage() {
   const profile = useStudentStore((s) => s.profile);
 

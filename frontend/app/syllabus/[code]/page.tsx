@@ -65,8 +65,8 @@ export default async function SyllabusDetailPage({
     ...(instructorNames ? [{ icon: User, text: instructorNames }] : []),
     { icon: Award, text: `${syllabus.credits}単位` },
     { icon: Clock, text: `${syllabus.day_of_week}曜 ${syllabus.period}限` },
-    { icon: Calendar, text: `${syllabus.year}年度 ${syllabus.term}` },
-    ...(syllabus.campus ? [{ icon: MapPin, text: syllabus.campus }] : []),
+    { icon: Calendar, text: `${syllabus.year}年度 ${syllabus.term_name}` },
+    ...(syllabus.campus_name ? [{ icon: MapPin, text: syllabus.campus_name }] : []),
     ...(syllabus.grade_raw ? [{ icon: GraduationCap, text: syllabus.grade_raw }] : []),
   ];
 
@@ -86,7 +86,7 @@ export default async function SyllabusDetailPage({
         <div className="bg-white rounded-lg border border-[#D1D5DB] p-6 flex flex-col gap-3">
           <div className="flex items-center gap-2.5">
             <span className="bg-[#1A2B4E] text-white text-[11px] font-bold rounded-xl px-2.5 py-0.5">
-              {syllabus.term}
+              {syllabus.term_name}
             </span>
             <span className="text-[#4B5563] text-[13px] font-semibold font-mono">
               {syllabus.syllabus_code}
