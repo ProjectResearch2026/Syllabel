@@ -1,7 +1,11 @@
 "use client";
 
-import { Bell } from "lucide-react";
+import { Bell, FileUp, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useStudentStore } from "@/lib/student";
+import MobileImportFlow from "@/app/import/_components/MobileImportFlow";
 
+const GRADUATION_CREDITS = 124;
 const DAYS = ["月", "火", "水", "木", "金"] as const;
 const PERIODS = [1, 2, 3, 4, 5] as const;
 
@@ -15,65 +19,57 @@ const CELL_STYLES: Record<CellType, { cell: string; tag: string; label: string |
   free: { cell: "bg-[#F9FAFB]", tag: "", label: null },
 };
 
-const TIMETABLE: Record<number, Record<string, Cell>> = {
-  1: {
-    月: { name: "線形代数", type: "required" },
-    火: null,
-    水: { name: "情報理論", type: "required" },
-    木: null,
-    金: { name: "英語ⅡA", type: "required" },
-  },
-  2: {
-    月: null,
-    火: { name: "アルゴリズム", type: "elective-required" },
-    水: { name: "データ構造", type: "elective-required" },
-    木: { name: "統計学", type: "elective-required" },
-    金: null,
-  },
-  3: {
-    月: { name: "機械学習基礎", type: "elective" },
-    火: null,
-    水: null,
-    木: null,
-    金: { name: "プロジェクト演習", type: "elective" },
-  },
-  4: {
-    月: null,
-    火: { name: "コンピュータビジョン", type: "elective" },
-    水: null,
-    木: { name: "卒業研究基礎", type: "required" },
-    金: null,
-  },
-  5: {
-    月: null,
-    火: null,
-    水: { name: "自由時間", type: "free" },
-    木: null,
-    金: null,
-  },
+const EMPTY_TIMETABLE: Record<number, Record<string, Cell>> = {
+  1: { 月: null, 火: null, 水: null, 木: null, 金: null },
+  2: { 月: null, 火: null, 水: null, 木: null, 金: null },
+  3: { 月: null, 火: null, 水: null, 木: null, 金: null },
+  4: { 月: null, 火: null, 水: null, 木: null, 金: null },
+  5: { 月: null, 火: null, 水: null, 木: null, 金: null },
 };
 
-const CREDITS = [
-  { val: "62", label: "取得済み単位" },
-  { val: "18", label: "今期登録単位" },
-  { val: "46", label: "卒業残り単位" },
-];
-
 export default function MobileTimetablePage() {
+  const router = useRouter();
+  const profile = useStudentStore((s) => s.profile);
+
+  if (!profile) {
+    return <MobileImportFlow />;
+  }
+
+  const earned = profile.completedCourses
+    .filter((c) => c.status === "passed")
+    .reduce((sum, c) => sum + c.credits, 0);
+  const remaining = Math.max(0, GRADUATION_CREDITS - earned);
+
+  const credits = [
+    { val: String(earned), label: "取得済み単位" },
+    { val: String(remaining), label: "卒業残り単位" },
+  ];
+
   return (
     <div className="flex flex-col bg-white min-h-full">
       {/* Header */}
       <header className="sticky top-0 z-20 flex items-center justify-between px-5 h-14 bg-white border-b border-[#D1D5DB]">
-        <span className="text-[#1A2B4E] text-xl font-bold">時間割</span>
+        <div className="flex flex-col">
+          <span className="text-[#1A2B4E] text-xl font-bold">時間割</span>
+          {profile.program && (
+            <span className="text-[#6B7280] text-[10px] leading-none">{profile.grade}回生・{profile.program}</span>
+          )}
+        </div>
         <div className="flex items-center gap-3">
-          <span className="text-[#E60012] text-xs">2024年度 後期</span>
+          <button
+            onClick={() => router.push("/import")}
+            className="flex items-center gap-1 text-[#6B7280]"
+            aria-label="成績表を再インポート"
+          >
+            <FileUp size={18} />
+          </button>
           <Bell size={22} className="text-[#1A2B4E]" />
         </div>
       </header>
 
       {/* CreditBar */}
       <div className="flex items-center justify-around px-5 h-[52px] bg-white border-b border-[#D1D5DB]">
-        {CREDITS.map(({ val, label }) => (
+        {credits.map(({ val, label }) => (
           <div key={label} className="flex flex-col items-center gap-0.5">
             <span className="text-[#1A2B4E] text-xl font-bold font-mono leading-none">{val}</span>
             <span className="text-[#6B7280] text-[10px]">{label}</span>
@@ -104,7 +100,7 @@ export default function MobileTimetablePage() {
               <span className="text-[#4B5563] text-[9px]">限</span>
             </div>
             {DAYS.map((d) => {
-              const cell = TIMETABLE[p]?.[d] ?? null;
+              const cell = EMPTY_TIMETABLE[p]?.[d] ?? null;
               const style = cell ? CELL_STYLES[cell.type] : null;
               return (
                 <div
@@ -132,6 +128,17 @@ export default function MobileTimetablePage() {
             })}
           </div>
         ))}
+      </div>
+
+      {/* CTA: 履修提案 */}
+      <div className="p-5">
+        <button
+          onClick={() => router.push("/proposal")}
+          className="w-full h-[52px] rounded-lg bg-[#1A2B4E] flex items-center justify-center gap-2 active:opacity-80 transition-opacity"
+        >
+          <Sparkles size={18} className="text-white" />
+          <span className="text-[15px] font-bold text-white">AIに履修提案を依頼する</span>
+        </button>
       </div>
     </div>
   );
