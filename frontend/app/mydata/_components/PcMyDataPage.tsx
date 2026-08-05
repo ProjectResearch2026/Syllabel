@@ -14,15 +14,32 @@ import {
 } from "lucide-react";
 import { useStudentStore } from "@/lib/student";
 import { useChatStore } from "@/lib/chat";
+import { DUMMY_PROFILES } from "@/lib/dummy/profiles";
 
 const GRADUATION_CREDITS = 124;
 
 export default function PcMyDataPage() {
   const router = useRouter();
   const profile = useStudentStore((s) => s.profile);
+  const setProfile = useStudentStore((s) => s.setProfile);
   const clearProfile = useStudentStore((s) => s.clearProfile);
   const clearAll = useChatStore((s) => s.clearAll);
-  const [demoMode, setDemoMode] = useState(true);
+  const [demoMode, setDemoMode] = useState(false);
+  const [demoIndex, setDemoIndex] = useState(0);
+
+  const handleDemoToggle = () => {
+    if (!demoMode) {
+      setProfile(DUMMY_PROFILES[demoIndex].profile);
+    } else {
+      clearProfile();
+    }
+    setDemoMode((v) => !v);
+  };
+
+  const handleDemoSelect = (index: number) => {
+    setDemoIndex(index);
+    setProfile(DUMMY_PROFILES[index].profile);
+  };
 
   const handleReset = () => {
     if (confirm("取り込んだ成績・対話履歴をすべて消去しますか? この操作は取り消せません。")) {
@@ -170,7 +187,7 @@ export default function PcMyDataPage() {
             <button
               role="switch"
               aria-checked={demoMode}
-              onClick={() => setDemoMode((v) => !v)}
+              onClick={handleDemoToggle}
               className={`w-11 h-6 rounded-full p-0.5 flex items-center transition-colors shrink-0 ${
                 demoMode ? "bg-[#E60012] justify-end" : "bg-[#D1D5DB] justify-start"
               }`}
@@ -178,6 +195,17 @@ export default function PcMyDataPage() {
               <span className="w-5 h-5 rounded-full bg-white shadow-sm" />
             </button>
           </div>
+          {demoMode && (
+            <select
+              value={demoIndex}
+              onChange={(e) => handleDemoSelect(Number(e.target.value))}
+              className="w-full border border-[#D1D5DB] rounded px-3 py-2 text-[13px] text-[#1A2B4E] bg-[#F8F9FA] focus:outline-none focus:border-[#1A2B4E]"
+            >
+              {DUMMY_PROFILES.map((p, i) => (
+                <option key={i} value={i}>{p.label}</option>
+              ))}
+            </select>
+          )}
         </section>
 
         {/* Danger zone */}
