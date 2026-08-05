@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useStudentStore } from "@/lib/student";
 import { useChatStore } from "@/lib/chat";
+import ManualInputForm from "@/app/import/_components/ManualInputForm";
 
 function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   return (
@@ -82,10 +83,12 @@ function Row({
 export default function MobileSettingsPage() {
   const router = useRouter();
   const profile = useStudentStore((s) => s.profile);
+  const setProfile = useStudentStore((s) => s.setProfile);
   const clearProfile = useStudentStore((s) => s.clearProfile);
   const clearAll = useChatStore((s) => s.clearAll);
   const [notify, setNotify] = useState(true);
   const [dark, setDark] = useState(false);
+  const [editMode, setEditMode] = useState<"grade-program" | "courses" | null>(null);
 
   const handleReset = () => {
     if (confirm("学生データ・成績情報・対話履歴をすべて消去しますか? この操作は取り消せません。")) {
@@ -98,6 +101,20 @@ export default function MobileSettingsPage() {
   const totalCredits = profile?.completedCourses.reduce((sum, c) => sum + c.credits, 0) ?? 0;
   const courseCount = profile?.completedCourses.length ?? 0;
   const iconCls = "text-[#1A2B4E]";
+
+  if (editMode !== null) {
+    return (
+      <ManualInputForm
+        initialProfile={profile ?? undefined}
+        mode="edit"
+        onComplete={(updated) => {
+          setProfile(updated);
+          setEditMode(null);
+        }}
+        onCancel={() => setEditMode(null)}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col bg-[#F8F9FA] min-h-full">
@@ -127,6 +144,7 @@ export default function MobileSettingsPage() {
           </div>
           <button
             aria-label="プロフィールを編集"
+            onClick={() => setEditMode("grade-program")}
             className="w-9 h-9 rounded-lg bg-[#F3F4F6] flex items-center justify-center shrink-0 active:bg-[#EEF0F5] transition-colors"
           >
             <Pencil size={16} className="text-[#1A2B4E]" />
@@ -153,13 +171,13 @@ export default function MobileSettingsPage() {
               icon={<GraduationCap size={16} className={iconCls} />}
               label="学年・課程"
               value={profile ? `${profile.grade}回生 / ${profile.program}` : "未登録"}
-              onClick={() => {}}
+              onClick={() => setEditMode("grade-program")}
             />
             <Row
               icon={<FileText size={16} className={iconCls} />}
               label="修得科目を編集"
               value={`${courseCount}科目`}
-              onClick={() => {}}
+              onClick={() => setEditMode("courses")}
             />
             <Row
               icon={<FileUp size={16} className={iconCls} />}
