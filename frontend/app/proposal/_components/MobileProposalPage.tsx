@@ -2,21 +2,38 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Send } from "lucide-react";
-import { DAYS, PERIODS, TIMETABLE, CELL_STYLES } from "@/lib/timetable";
+import { DAYS, PERIODS } from "@/lib/timetable";
+import { useStudentStore } from "@/lib/student";
 
 type Message = { id: string; role: "user" | "assistant"; content: string };
 
-const INIT_MESSAGES: Message[] = [
-  {
-    id: "1",
-    role: "assistant",
-    content:
-      "3回生・知能情報メディア課程の履修提案を生成しました。卒業要件を考慮し、必修5科目・選択3科目で合計18単位を提案しています。ご質問があればお気軽にどうぞ。",
-  },
-];
+const GRADUATION_CREDITS = 124;
 
 export default function MobileProposalPage() {
-  const [messages, setMessages] = useState<Message[]>(INIT_MESSAGES);
+  const profile = useStudentStore((s) => s.profile);
+
+  const earnedCredits = profile
+    ? profile.completedCourses
+        .filter((c) => c.status === "passed")
+        .reduce((sum, c) => sum + c.credits, 0)
+    : null;
+  const remainingCredits =
+    earnedCredits != null ? Math.max(0, GRADUATION_CREDITS - earnedCredits) : null;
+
+  const profileLabel =
+    profile
+      ? `${profile.grade != null ? `${profile.grade}回生` : ""}${profile.program ? `・${profile.program}` : ""}`.replace(/^・|・$/, "")
+      : null;
+
+  const initMessage: Message = {
+    id: "1",
+    role: "assistant",
+    content: profileLabel
+      ? `${profileLabel}の履修提案を生成しました。提案内容についてご質問があればお気軽にどうぞ。`
+      : "履修提案を生成しました。提案内容についてご質問があればお気軽にどうぞ。",
+  };
+
+  const [messages, setMessages] = useState<Message[]>([initMessage]);
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -40,9 +57,9 @@ export default function MobileProposalPage() {
       {/* CreditBar */}
       <div className="flex items-center justify-around px-5 bg-white border-b border-[#D1D5DB] shrink-0 py-2">
         {[
-          { val: "62", label: "取得済み単位" },
-          { val: "18", label: "今期登録単位" },
-          { val: "46", label: "卒業残り単位" },
+          { val: earnedCredits != null ? String(earnedCredits) : "—", label: "取得済み単位" },
+          { val: "—", label: "今期登録単位" },
+          { val: remainingCredits != null ? String(remainingCredits) : "—", label: "卒業残り単位" },
         ].map(({ val, label }) => (
           <div key={label} className="flex flex-col items-center gap-0.5">
             <span className="text-[#1A2B4E] text-xl font-bold font-mono leading-none">{val}</span>
@@ -62,35 +79,19 @@ export default function MobileProposalPage() {
               </div>
             ))}
           </div>
+          {/* 提案前は空グリッド */}
           {PERIODS.map((p) => (
             <div key={p} className="flex border-b border-[#E5E7EB]" style={{ height: 64 }}>
               <div className="w-7 shrink-0 bg-[#F9FAFB] border-r border-[#E5E7EB] flex flex-col items-center justify-center">
                 <span className="text-[#1A2B4E] text-[13px] font-bold font-mono leading-none">{p}</span>
                 <span className="text-[#9CA3AF] text-[9px]">限</span>
               </div>
-              {DAYS.map((d) => {
-                const cell = TIMETABLE[p]?.[d] ?? null;
-                const style = cell?.type ? CELL_STYLES[cell.type] : null;
-                return (
-                  <div
-                    key={d}
-                    className={`flex-1 border-r border-[#E5E7EB] last:border-r-0 flex flex-col justify-center gap-0.5 px-1 py-1 ${
-                      style ? style.bg : "bg-white"
-                    }`}
-                  >
-                    {cell && style && (
-                      <>
-                        <span className="text-[#1A2B4E] text-[9px] font-semibold leading-tight">
-                          {cell.name}
-                        </span>
-                        <span className={`inline-block self-start px-1 py-px rounded-sm text-white text-[7px] ${style.tag}`}>
-                          {style.label}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                );
-              })}
+              {DAYS.map((d) => (
+                <div
+                  key={d}
+                  className="flex-1 border-r border-[#E5E7EB] last:border-r-0 bg-white"
+                />
+              ))}
             </div>
           ))}
         </div>
