@@ -1,6 +1,6 @@
 # フロントエンド タスクリスト
 
-最終更新: 2026-07-23
+最終更新: 2026-08-05
 
 ---
 
@@ -33,6 +33,15 @@
   - `parseGradeReport` 呼び出し・ローディング/エラー状態・確認画面・デモモードドロップダウンすべて実装済み
 - [x] **手入力フォールバックUI** — `app/import/_components/ManualInputForm.tsx`
   - PDF解析失敗時の「手入力で続ける」導線、学年・課程・既修得科目の入力フォーム、`MobileSettingsPage` 編集機能
+- [x] **デモモードスイッチャー（PC・モバイル取り込みフロー）**
+  - `PcImportPage.tsx` / `MobileImportFlow.tsx` でプロファイル選択UIを実装済み。store への反映も完了
+- [x] **エラー・ローディング状態（シラバス検索・詳細）**
+  - `app/syllabus/error.tsx` / `loading.tsx` — 検索一覧のエラーUI・スケルトン実装済み
+  - `app/syllabus/[code]/error.tsx` / `loading.tsx` — 詳細ページのエラーUI・スケルトン実装済み
+- [~] **モバイル版トップページ** — `app/_components/MobileTimetablePage.tsx`
+  - プロファイル未取得時の空ステート・`/import` への導線は実装済み
+  - `StudentProfile` との接続（学年・課程・クレジット表示）は実装済み
+  - **時間割グリッドは常に空セル** — 提案API接続まで未対応（コメント `{/* 提案前は空グリッド */}`）
 
 ---
 
@@ -40,13 +49,14 @@
 
 ### 高優先度（デモ・機能の核心）
 
-- [x] **PDF解析（モバイル）** — `app/import/_components/MobileImportFlow.tsx`
-  - `parseGradeReport` 呼び出し・ローディング/エラー状態・確認画面すべて実装済み（コミット c9805fc）
+- [ ] **`lib/syllabus-api.ts` のベースURLを相対パスに変更**
+  - 現在: `http://localhost:8000/api`（3関数すべてに絶対URL直打ち）→ `/api` に統一（design.md §1.2）
+  - 他のAPI接続タスクの前提となる
 
 - [ ] **履修提案API接続** (`POST /api/proposal` SSE)
   - `app/proposal/_components/ChatPanel.tsx` — プレースホルダー文字列をSSE受信に置換
   - `app/proposal/_components/TimetablePanel.tsx` — `lib/timetable.ts` のハードコード時間割をAPIレスポンスで動的描画
-  - `app/proposal/_components/CreditBar.tsx` — ハードコード値(`"62"`/`"18"`/`"46"`)を `StudentProfile` から算出
+  - `app/proposal/_components/CreditBar.tsx` — 「今期登録単位」「卒業残り単位」が `"—"` のまま。APIレスポンス + `GET /api/curricula` で算出
   - リクエストにプロファイル + 希望条件を含める（design.md §7.2）
 
 - [ ] **チャットAPI接続** (`POST /api/chat/proposal` / `POST /api/chat/syllabus` SSE)
@@ -55,7 +65,7 @@
   - リクエストに `StudentProfile` + 対話履歴を毎回含める（サーバー側永続化なし、design.md §6.1）
 
 - [ ] **シラバス単体チャットAPI接続** (`POST /api/chat/syllabus/{code}` SSE)
-  - `CourseChatPanel.tsx` / `SyllabusChatBox.tsx` のプレースホルダーをSSE接続に置換
+  - `app/syllabus/_components/CourseChatPanel.tsx` / `SyllabusChatBox.tsx` のプレースホルダーをSSE接続に置換
   - 現在表示中の `syllabus_code` をリクエストに含める（design.md §7.5）
 
 ### 中優先度（UX・正確性）
@@ -65,30 +75,22 @@
   - 検索結果 × `GET /api/curricula` × `StudentProfile` を突き合わせて「必修」「選択」「既修得済み」タグ生成
   - 突合はシラバスコード（`syllabus_codes` ↔ `syllabus_code`）による結合を第一とする
   - `app/syllabus/_components/CourseCard.tsx` にタグ表示を追加
+  - `SyllabusTopBar.tsx` / `MobileSyllabusPage.tsx` のタグチップは現在ビジュアルのみ — 絞り込みロジックも合わせて実装
 
-- [ ] **`lib/syllabus-api.ts` のベースURLを相対パスに変更**
-  - 現在: `http://localhost:8000/api`（絶対URL直打ち）→ `/api` プレフィックス経由に統一（design.md §1.2）
+- [x] **デモモードトグル（マイデータページ）**
+  - `app/mydata/_components/PcMyDataPage.tsx` のスイッチを `DUMMY_PROFILES` + `setProfile` に接続済み
+  - ON にするとプロファイル選択ドロップダウンが表示され、store へ即時反映
 
-- [ ] **デモモードボタン**（龍谷祭展示用、design.md §11）
-  - 3パターンのダミープロファイルをボタン操作で切り替えられるUIを実装
-  - 現状: 3パターン定義済みだが `DUMMY_PROFILES[0]` のみ参照。スイッチャーなし
-  - 展示用端末ではPDF取り込みを無効化し、ダミーデータ専用とする
-
-- [ ] **モバイル版トップページ** — `app/_components/MobileTimetablePage.tsx`
-  - 現状: ハードコードの静的時間割とクレジット表示のみ
-  - 対応: PDF取り込みフロー(`MobileImportFlow`)へ切り替え、`StudentProfile` に連動した表示に変更
-
-- [x] **手入力フォールバックUI** — `app/import/_components/ManualInputForm.tsx`
-  - エラー画面に「手入力で続ける」ボタン追加（`MobileImportFlow.tsx`）
-  - 学年・課程・既修得科目の手動入力フォーム実装
-  - `MobileSettingsPage.tsx` の「学年・課程」「修得科目を編集」「編集ボタン」をフォームに接続済み
+- [~] **MobileProposalPage の完成** — `app/proposal/_components/MobileProposalPage.tsx`
+  - ~~クレジット表示が `"62"/"18"/"46"` のハードコード~~ → 取得済み単位・卒業残り単位は `StudentProfile` から算出済み。今期登録単位は提案API接続後に対応
+  - 時間割は提案APIレスポンス待ち（現在は空グリッド）
+  - ~~初期メッセージが固定~~ → `StudentProfile` の学年・課程から動的生成済み
 
 ### 低優先度 / 将来対応
 
-- [ ] **エラー・ローディング状態** — シラバス検索・提案生成
-  - シラバス検索: `<Suspense fallback=...>` にスケルトンUI追加、エラー境界(`error.tsx`)を設置
-  - 提案ページ: 提案生成中のスピナー、失敗時のエラーメッセージ
-- [ ] **MobileProposalPage の完成** — `app/proposal/_components/MobileProposalPage.tsx` の中身を実装
+- [ ] **エラー・ローディング状態（提案ページ）**
+  - `app/proposal/` 配下に `error.tsx` / `loading.tsx` が存在しない
+  - 提案生成中のスピナー、失敗時のエラーメッセージを追加
 
 ---
 
@@ -99,3 +101,4 @@
 - PDFファイル自体をサーバーへ送信しない — 解析はクライアント完結
 - design.md §8 の正規ルート: `/`・`/proposal`・`/syllabus`・`/syllabus/[code]`・`/privacy`
 - `lib/chat.ts` の `courseMessages` フィールドは design.md §5.2.2 では `syllabusPerCourse` として定義されているが、実装名が異なる（機能は同等）
+- SSE はアプリ全体でまだ1箇所も実装されていない（`fetch` + `ReadableStream` 方式で実装予定）
