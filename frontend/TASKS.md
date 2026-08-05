@@ -29,6 +29,10 @@
 - [x] ダミープロファイル — `lib/dummy/profiles.ts`（3パターン: 3回生・知能情報メディア / 2回生・再履修あり / 1回生・電子情報通信）
 - [x] ヘッダー・BottomTabBar
 - [x] プライバシーポリシーページ
+- [x] **PDF解析実装（モバイル）** — `app/import/_components/MobileImportFlow.tsx`
+  - `parseGradeReport` 呼び出し・ローディング/エラー状態・確認画面・デモモードドロップダウンすべて実装済み
+- [x] **手入力フォールバックUI** — `app/import/_components/ManualInputForm.tsx`
+  - PDF解析失敗時の「手入力で続ける」導線、学年・課程・既修得科目の入力フォーム、`MobileSettingsPage` 編集機能
 
 ---
 
@@ -36,9 +40,8 @@
 
 ### 高優先度（デモ・機能の核心）
 
-- [~] **PDF解析（モバイル）** — `app/import/_components/MobileImportFlow.tsx`
-  - 現状: ファイル選択後も `DUMMY_PROFILES[0]` を固定で読み込むスタブ
-  - 対応: `parseGradeReport` を呼び出してPCと同等の解析フローに変更
+- [x] **PDF解析（モバイル）** — `app/import/_components/MobileImportFlow.tsx`
+  - `parseGradeReport` 呼び出し・ローディング/エラー状態・確認画面すべて実装済み（コミット c9805fc）
 
 - [ ] **履修提案API接続** (`POST /api/proposal` SSE)
   - `app/proposal/_components/ChatPanel.tsx` — プレースホルダー文字列をSSE受信に置換
@@ -75,10 +78,10 @@
   - 現状: ハードコードの静的時間割とクレジット表示のみ
   - 対応: PDF取り込みフロー(`MobileImportFlow`)へ切り替え、`StudentProfile` に連動した表示に変更
 
-- [ ] **手入力フォールバックUI** — PDF解析失敗時
-  - エラー画面の「もう一度選択する」ボタンの隣に「手入力で続ける」導線を追加
-  - 学年・課程・既修得科目を手動入力できるフォームコンポーネントを実装（design.md §8: `/` に手入力フォームあり）
-  - `MobileSettingsPage.tsx` の「修得科目を編集」(`onClick={() => {}}` スタブ)も実装
+- [x] **手入力フォールバックUI** — `app/import/_components/ManualInputForm.tsx`
+  - エラー画面に「手入力で続ける」ボタン追加（`MobileImportFlow.tsx`）
+  - 学年・課程・既修得科目の手動入力フォーム実装
+  - `MobileSettingsPage.tsx` の「学年・課程」「修得科目を編集」「編集ボタン」をフォームに接続済み
 
 ### 低優先度 / 将来対応
 
