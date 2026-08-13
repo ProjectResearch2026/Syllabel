@@ -21,11 +21,18 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
-RUN addgroup -g 1001 -S nodejs && adduser -u 1001 -S nextjs -G nodejs
+# 非rootユーザーへの切り替えは意図的に行わない。
+# デプロイ先VMのホームには default ACL (other::---) が設定されており、
+# rootless podman のイメージ層もその配下に置かれる。コンテナ内の非rootユーザーは
+# ホスト上では別uidにマップされるためファイル所有者から見て「その他」に該当し、
+# /usr/local/bin/node すら実行できず起動に失敗する。
+# rootless podman ではコンテナ内rootもホスト上の非特権uidにマップされるため、
+# ホストのroot権限には繋がらない。
 # public と .next/static は standalone 出力に含まれないため個別にコピーする
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-USER nextjs
+# ベースイメージの docker-entrypoint.sh を経由せず直接 node を起動する
+ENTRYPOINT []
 EXPOSE 3000
 CMD ["node", "server.js"]
