@@ -168,6 +168,7 @@ export default async function SyllabusDetailPage({
         {/* Mobile chat (desktop uses the side panel) */}
         <div className="md:hidden">
           <SyllabusChatBox
+            code={syllabus.syllabus_code}
             title="この講義について質問"
             placeholder="この講義について質問..."
             initialMessage={`「${syllabus.course_title}」についてご質問ください。例：「この講義の成績評価方法は？」`}

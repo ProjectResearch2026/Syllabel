@@ -1,8 +1,10 @@
 "use client";
 
-import { useRef, useEffect, useMemo, useState } from "react";
+import { useRef, useEffect, useMemo, useState, useCallback } from "react";
 import { MessageCircle, Send } from "lucide-react";
 import { useChatStore } from "@/lib/chat";
+import { useStudentStore } from "@/lib/student";
+import { streamCourseChat } from "@/lib/chatApi";
 
 const QUICK_ASKS = ["課題の分量はどのくらい？", "出席は評価に影響する？"];
 
@@ -14,10 +16,13 @@ export default function CourseChatPanel({
   title: string;
 }) {
   const { courseMessages, setCourseMessages, addCourseMessage } = useChatStore();
+  const profile = useStudentStore((s) => s.profile);
   const messages = useMemo(() => courseMessages[code] ?? [], [courseMessages, code]);
   const [input, setInput] = useState("");
+  const [streaming, setStreaming] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const seq = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if ((courseMessages[code] ?? []).length === 0) {
@@ -39,21 +44,71 @@ export default function CourseChatPanel({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const send = (text: string) => {
-    if (!text.trim()) return;
+  const send = useCallback(async (text: string) => {
+    if (!text.trim() || streaming) return;
+    setInput("");
+
     const now = new Date();
     const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
     const base = seq.current;
     seq.current += 2;
+    const assistantId = `${code}-a${base + 1}`;
+
+    const history = (courseMessages[code] ?? [])
+      .filter((m) => !m.streaming)
+      .map((m) => ({ role: m.role, content: m.content }));
+
     addCourseMessage(code, { id: `${code}-u${base}`, role: "user", content: text, time });
-    addCourseMessage(code, {
-      id: `${code}-a${base + 1}`,
-      role: "assistant",
-      content: "（AI応答はバックエンド実装後に有効になります）",
-      time,
-    });
-    setInput("");
-  };
+    addCourseMessage(code, { id: assistantId, role: "assistant", content: "", time, streaming: true });
+
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setStreaming(true);
+
+    try {
+      let accumulated = "";
+      await streamCourseChat(
+        code,
+        { profile, history, message: text },
+        (delta) => {
+          accumulated += delta;
+          useChatStore.setState((state) => ({
+            courseMessages: {
+              ...state.courseMessages,
+              [code]: (state.courseMessages[code] ?? []).map((m) =>
+                m.id === assistantId ? { ...m, content: accumulated } : m,
+              ),
+            },
+          }));
+        },
+        ctrl.signal,
+      );
+    } catch (err) {
+      if ((err as Error).name !== "AbortError") {
+        useChatStore.setState((state) => ({
+          courseMessages: {
+            ...state.courseMessages,
+            [code]: (state.courseMessages[code] ?? []).map((m) =>
+              m.id === assistantId
+                ? { ...m, content: "申し訳ありません。応答の取得に失敗しました。" }
+                : m,
+            ),
+          },
+        }));
+      }
+    } finally {
+      useChatStore.setState((state) => ({
+        courseMessages: {
+          ...state.courseMessages,
+          [code]: (state.courseMessages[code] ?? []).map((m) =>
+            m.id === assistantId ? { ...m, streaming: false } : m,
+          ),
+        },
+      }));
+      setStreaming(false);
+      abortRef.current = null;
+    }
+  }, [code, streaming, profile, courseMessages, addCourseMessage]);
 
   return (
     <div className="hidden md:flex w-[360px] shrink-0 flex-col border-l border-[#D1D5DB] bg-white">
@@ -79,22 +134,24 @@ export default function CourseChatPanel({
                   : "bg-white border-[#D1D5DB] text-[#1A2B4E] rounded-tl-sm"
               }`}
             >
-              {msg.content}
+              {msg.content || (msg.streaming ? <span className="animate-pulse">▌</span> : "")}
             </div>
           </div>
         ))}
         {/* Quick asks */}
-        <div className="flex flex-col gap-2 pt-1">
-          {QUICK_ASKS.map((q) => (
-            <button
-              key={q}
-              onClick={() => send(q)}
-              className="self-start bg-white border border-[#D1D5DB] rounded-full px-3 py-1.5 text-xs text-[#E60012] font-medium hover:bg-[#FFF0F1] transition-colors"
-            >
-              {q}
-            </button>
-          ))}
-        </div>
+        {!streaming && (
+          <div className="flex flex-col gap-2 pt-1">
+            {QUICK_ASKS.map((q) => (
+              <button
+                key={q}
+                onClick={() => send(q)}
+                className="self-start bg-white border border-[#D1D5DB] rounded-full px-3 py-1.5 text-xs text-[#E60012] font-medium hover:bg-[#FFF0F1] transition-colors"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
 
@@ -106,11 +163,12 @@ export default function CourseChatPanel({
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send(input)}
           placeholder="この講義について質問する…"
-          className="flex-1 h-10 bg-[#F8F9FA] border border-[#D1D5DB] rounded-full px-3.5 text-[13px] text-[#1A2B4E] placeholder-[#9CA3AF] focus:outline-none focus:border-[#1A2B4E] transition-colors"
+          disabled={streaming}
+          className="flex-1 h-10 bg-[#F8F9FA] border border-[#D1D5DB] rounded-full px-3.5 text-[13px] text-[#1A2B4E] placeholder-[#9CA3AF] focus:outline-none focus:border-[#1A2B4E] transition-colors disabled:opacity-60"
         />
         <button
           onClick={() => send(input)}
-          disabled={!input.trim()}
+          disabled={!input.trim() || streaming}
           className="w-10 h-10 flex items-center justify-center rounded-full bg-[#E60012] disabled:opacity-40 hover:bg-[#b7000c] transition-colors shrink-0"
         >
           <Send size={18} className="text-white" />
