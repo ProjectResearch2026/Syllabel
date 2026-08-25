@@ -46,7 +46,13 @@ def _build_prompt(message: str, profile: StudentProfile | None) -> str:
 
     return "【学生情報】\n" + "\n".join(facts) + "\n\n【質問】\n" + message
 
-def _stream_response(prompt: str, history: list[ModelMessage], instructions: str | None = None):
+
+def _stream_response(
+    prompt: str, 
+    history: list[ModelMessage], 
+    instructions: str | None = None,
+    ):
+
     """エージェントの応答を SSE ストリームとして返す。2つのチャットルートで共有する。"""
     agent = build_chat_agent()
 
@@ -69,7 +75,6 @@ def _stream_response(prompt: str, history: list[ModelMessage], instructions: str
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
-
 @router.post("/chat/syllabus")
 async def chat_syllabus(req: ChatRequest):
     """シラバス全体に対するチャット。design.md §7.4。"""
@@ -90,9 +95,7 @@ async def chat_syllabus_by_code(code: str, req: ChatRequest):
     except httpx.RequestError:
         raise HTTPException(status_code=502, detail="upstream error")
 
-    instructions = (
-        f"【対象講義】\n{json.dumps(detail, ensure_ascii=False)}"
-    )
+    instructions = f"【対象講義】\n{json.dumps(detail, ensure_ascii=False)}"
     return _stream_response(
         _build_prompt(req.message, req.profile),
         _to_history(req.history),
