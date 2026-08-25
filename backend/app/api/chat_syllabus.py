@@ -12,7 +12,7 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 
-from app.agents.chat_agent import _SYSTEM_PROMPT, build_chat_agent
+from app.agents.chat_agent import build_chat_agent
 from app.agents.tools import get_syllabus
 from app.api.sse import format_sse, sse_response
 from app.schemas.chat import ChatMessage, ChatRequest
@@ -46,7 +46,7 @@ def _build_prompt(message: str, profile: StudentProfile | None) -> str:
 
     return "【学生情報】\n" + "\n".join(facts) + "\n\n【質問】\n" + message
 
-def _stream_response(prompt: str, history: list[ModelMessage], instructions: str):
+def _stream_response(prompt: str, history: list[ModelMessage], instructions: str | None = None):
     """エージェントの応答を SSE ストリームとして返す。2つのチャットルートで共有する。"""
     agent = build_chat_agent()
 
@@ -76,7 +76,6 @@ async def chat_syllabus(req: ChatRequest):
     return _stream_response(
         _build_prompt(req.message, req.profile),
         _to_history(req.history),
-        _SYSTEM_PROMPT,
     )
 
 @router.post("/chat/syllabus/{code}")
@@ -92,7 +91,6 @@ async def chat_syllabus_by_code(code: str, req: ChatRequest):
         raise HTTPException(status_code=502, detail="upstream error")
 
     instructions = (
-        f"{_SYSTEM_PROMPT}\n\n"
         f"【対象講義】\n{json.dumps(detail, ensure_ascii=False)}"
     )
     return _stream_response(

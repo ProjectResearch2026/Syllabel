@@ -34,7 +34,7 @@ def spy_stream(monkeypatch):
     captured = {}
     original = mod._stream_response
 
-    def spy(prompt, history, instructions):
+    def spy(prompt, history, instructions=None):
         captured["prompt"] = prompt
         captured["history"] = history
         captured["instructions"] = instructions
