@@ -19,6 +19,12 @@ from app.api.sse import format_sse, sse_response
 from app.schemas.chat import ChatMessage, ChatRequest
 from app.schemas.student import StudentProfile
 
+_SYLLABUS_PROMPT = (
+    "あなたは龍谷大学の履修登録を支援するAIアシスタントです。\n"
+    "学生のシラバスに関する質問に日本語で答えてください。\n"
+    "必要に応じてツールを使ってシラバス情報を検索・参照してください。"
+)
+
 
 def _to_history(history: list[ChatMessage]) -> list[ModelMessage]:
     """対話履歴を PydanticAI が読める形式に変換する。"""
@@ -83,6 +89,7 @@ async def chat_syllabus(req: ChatRequest):
     return _stream_response(
         _build_prompt(req.message, req.profile),
         _to_history(req.history),
+        _SYLLABUS_PROMPT,
     )
 
 
@@ -98,7 +105,9 @@ async def chat_syllabus_by_code(code: str, req: ChatRequest):
     except httpx.RequestError:
         raise HTTPException(status_code=502, detail="upstream error")
 
-    instructions = f"【対象講義】\n{json.dumps(detail, ensure_ascii=False)}"
+    instructions = (
+        f"{_SYLLABUS_PROMPT}\n\n【対象講義】\n{json.dumps(detail, ensure_ascii=False)}"
+    )
     return _stream_response(
         _build_prompt(req.message, req.profile),
         _to_history(req.history),

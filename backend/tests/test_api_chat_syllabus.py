@@ -117,6 +117,7 @@ def test_chat_syllabus_accepts_history(spy_stream):
     assert [type(m).__name__ for m in spy_stream["history"]] == ["ModelRequest", "ModelResponse"]
     assert "続き" in spy_stream["prompt"]
     assert resp.text.endswith(DONE_EVENT)
+    assert "龍谷大学" in spy_stream["instructions"]
 
 def test_chat_syllabus_emits_error_event(monkeypatch):
     """ストリーム中に例外が起きても error → done が流れること。"""
