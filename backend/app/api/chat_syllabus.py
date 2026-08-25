@@ -1,4 +1,5 @@
 """シラバスチャットのSSEエンドポイント。design.md §6.1 / §7.4 / §7.5。"""
+
 import asyncio
 import json
 
@@ -48,11 +49,10 @@ def _build_prompt(message: str, profile: StudentProfile | None) -> str:
 
 
 def _stream_response(
-    prompt: str, 
-    history: list[ModelMessage], 
+    prompt: str,
+    history: list[ModelMessage],
     instructions: str | None = None,
-    ):
-
+):
     """エージェントの応答を SSE ストリームとして返す。2つのチャットルートで共有する。"""
     agent = build_chat_agent()
 
@@ -73,7 +73,9 @@ def _stream_response(
 
     return sse_response(gen())
 
+
 router = APIRouter(prefix="/api", tags=["chat"])
+
 
 @router.post("/chat/syllabus")
 async def chat_syllabus(req: ChatRequest):
@@ -82,6 +84,7 @@ async def chat_syllabus(req: ChatRequest):
         _build_prompt(req.message, req.profile),
         _to_history(req.history),
     )
+
 
 @router.post("/chat/syllabus/{code}")
 async def chat_syllabus_by_code(code: str, req: ChatRequest):
@@ -101,4 +104,3 @@ async def chat_syllabus_by_code(code: str, req: ChatRequest):
         _to_history(req.history),
         instructions,
     )
-
