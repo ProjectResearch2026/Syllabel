@@ -842,8 +842,8 @@ courses:
     type: "選択"
     credits: 1
     grade: 3
-    term: "後期"
-    quarters: ["4Q"]
+    term: "前期"
+    quarters: ["2Q"]
   - title: "科学技術英語"
     category: "専門応用科目"
     type: "必修"

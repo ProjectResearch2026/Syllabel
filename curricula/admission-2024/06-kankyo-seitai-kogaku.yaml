@@ -281,7 +281,7 @@ courses:
     credits: 1
     grade: 1
     term: "前期"
-    quarters: ["1Q"]
+    quarters: ["2Q"]
   - title: "ASEANグローバルプログラム"
     category: "専門基礎科目"
     type: "選択"
@@ -379,8 +379,8 @@ courses:
     type: "選択"
     credits: 1
     grade: 2
-    term: "前期"
-    quarters: ["2Q"]
+    term: "後期"
+    quarters: ["3Q"]
   - title: "個体群生態学"
     category: "専門応用科目"
     type: "必修"
