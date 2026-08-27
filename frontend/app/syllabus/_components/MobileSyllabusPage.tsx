@@ -14,6 +14,8 @@ import {
 import type { SyllabusListItem, Masters, CurriculaData } from "@/lib/syllabus-api";
 import { fetchCurricula } from "@/lib/syllabus-api";
 import { useStudentStore } from "@/lib/student";
+import { SYLLABUS_CONTEXT, useAiStore } from "@/lib/ai";
+import AskBar from "@/components/ai/AskBar";
 import SyllabusPagination from "./SyllabusPagination";
 import type { TagType } from "./SyllabusTagList";
 
@@ -54,9 +56,14 @@ export default function MobileSyllabusPage({
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
   const [activeChip, setActiveChip] = useState<string>("すべて");
-  const [filterOpen, setFilterOpen] = useState(false);
+  // 空きコマ長押しメニューの「シラバスで絞り込む」から来たときは開いた状態で始める
+  const [filterOpen, setFilterOpen] = useState(searchParams.get("filters") === "open");
   const [curricula, setCurricula] = useState<CurriculaData | null>(null);
   const profile = useStudentStore((s) => s.profile);
+  const setSelection = useAiStore((s) => s.setSelection);
+
+  // 他の画面へ移ったら Ask Bar の文脈を持ち越さない
+  useEffect(() => () => setSelection(null), [setSelection]);
 
   useEffect(() => {
     if (!profile?.program || !profile?.grade) return;
@@ -183,10 +190,10 @@ export default function MobileSyllabusPage({
   ];
 
   return (
-    <div className="flex flex-col bg-white min-h-full">
+    <div className="flex flex-col bg-white min-h-full pb-[84px]">
       {/* Header */}
       <header className="sticky top-0 z-20 flex items-center justify-between px-5 h-14 bg-white border-b border-[#D1D5DB]">
-        <span className="text-[#1A2B4E] text-xl font-bold">シラバス検索</span>
+        <span className="font-display text-[#1A2B4E] text-xl font-bold">シラバス検索</span>
         <button
           onClick={() => setFilterOpen((v) => !v)}
           aria-label="絞り込み"
@@ -330,6 +337,9 @@ export default function MobileSyllabusPage({
       <div className="px-4 py-4">
         <SyllabusPagination total={count} limit={LIMIT} offset={offset} />
       </div>
+
+      {/* 時間割と同じ Ask Bar パターン。参照中の文脈が「この検索結果」に変わるだけ */}
+      <AskBar base={SYLLABUS_CONTEXT} />
     </div>
   );
 }

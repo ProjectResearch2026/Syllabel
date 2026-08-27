@@ -10,9 +10,10 @@ type ChatRequest = {
 export type ProposedCourse = {
   code: string;
   name: string;
-  day: "月" | "火" | "水" | "木" | "金";
+  day: "月" | "火" | "水" | "木" | "金" | "土";
   period: 1 | 2 | 3 | 4 | 5;
-  type: "required" | "elective";
+  // 選択必修（selective）は ui-design_phone.pen の時間割セルが出し分ける区分
+  type: "required" | "selective" | "elective";
   credits: number;
 };
 
@@ -27,6 +28,8 @@ async function readSSE(
   body: unknown,
   onChunk: (delta: string) => void,
   signal?: AbortSignal,
+  // 構造化された候補科目を含むチャンクが来た場合に呼ぶ（AIシートの提案カード用）
+  onCourses?: (courses: ProposedCourse[]) => void,
 ): Promise<string> {
   const res = await fetch(url, {
     method: "POST",
@@ -54,12 +57,17 @@ async function readSSE(
       const raw = line.slice(5).trim();
       if (raw === "[DONE]") break;
       try {
-        const parsed: { text?: string; content?: string } = JSON.parse(raw);
+        const parsed: {
+          text?: string;
+          content?: string;
+          courses?: ProposedCourse[];
+        } = JSON.parse(raw);
         const delta = parsed.text ?? parsed.content ?? "";
         if (delta) {
           full += delta;
           onChunk(delta);
         }
+        if (parsed.courses && onCourses) onCourses(parsed.courses);
       } catch {
         // ignore malformed chunks
       }
@@ -100,8 +108,9 @@ export async function streamProposalChat(
   body: ChatRequest,
   onChunk: (delta: string) => void,
   signal?: AbortSignal,
+  onCourses?: (courses: ProposedCourse[]) => void,
 ): Promise<string> {
-  return readSSE("/api/chat/proposal", body, onChunk, signal);
+  return readSSE("/api/chat/proposal", body, onChunk, signal, onCourses);
 }
 
 /**

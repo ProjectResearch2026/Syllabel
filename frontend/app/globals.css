@@ -1,36 +1,63 @@
 @import "tailwindcss";
 
+/*
+ * デザイントークン
+ * ui-ux/ui-design_phone.pen の `variables` をそのまま CSS カスタムプロパティへ移植している。
+ * Pencil の値は CSS 互換（#RRGGBB / rgba() / px）なので変換は不要で、
+ * 変数名も 1:1 で対応させてある（surface-primary → --color-surface-primary）。
+ * 設計を直せばここを直すだけで済むよう、リテラル色の再定義はしない。
+ */
 @theme inline {
-  /* Brand colors from DESIGN.md */
-  --color-ryukoku-red: #E60012;
-  --color-academic-navy: #1A2B4E;
-  --color-surface-gray: #F8F9FA;
-  --color-border-subtle: #D1D5DB;
-  --color-status-required: #E60012;
-  --color-status-elective: #1A2B4E;
+  /* --- .pen variables（1:1 対応） --- */
+  --color-surface-primary: #ffffff;
+  --color-surface-inverse: #1a2b4e;
+  --color-fg-primary: #1a2b4e;
+  --color-fg-secondary: #4b5563;
+  --color-fg-inverse: #ffffff;
+  --color-border-primary: #d1d5db;
+  --color-accent: #e60012;
+  --color-accent-light: #fff0f1;
+  --color-required-tag: #e60012;
+  --color-elective-tag: #1a2b4e;
+  --color-done-tag: #10b981;
+  --color-tab-bg: rgba(0, 0, 0, 0.75);
+  --color-ryukoku-red: #e60012;
+  --color-academic-navy: #1a2b4e;
+  --color-surface-gray: #f8f9fa;
 
-  /* Material design tokens */
-  --color-primary: #b7000c;
-  --color-on-primary: #ffffff;
-  --color-primary-container: #e60012;
-  --color-on-primary-container: #fff7f6;
-  --color-secondary: #4e5e84;
-  --color-on-secondary: #ffffff;
-  --color-secondary-container: #c1d1fd;
-  --color-on-secondary-container: #49597f;
-  --color-surface: #f9f9f9;
-  --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #f3f3f3;
-  --color-surface-container: #eeeeee;
-  --color-surface-container-high: #e8e8e8;
-  --color-on-surface: #1a1c1c;
-  --color-on-surface-variant: #5f3f3b;
-  --color-outline: #946e69;
-  --color-outline-variant: #e9bcb6;
-  --color-error: #ba1a1a;
-  --color-on-error: #ffffff;
-  --color-error-container: #ffdad6;
-  --color-on-error-container: #93000a;
+  /* --- .pen 内でリテラル指定されている色に名前を与えたもの --- */
+  --color-fg-muted: #8a93a3; /* 補助テキスト・アイコン */
+  --color-fg-faint: #9ca3af; /* プレースホルダ */
+  --color-border-subtle: #edeff2; /* シート内の区切り線 */
+  --color-chevron: #c7ccd4;
+  --color-scrim: #1a2b4e66; /* シート背後のスクリム */
+  --color-scrim-menu: #1a2b4e59; /* 長押しメニューのスクリム */
+
+  /* 時間割セルの地色（種別ごと） */
+  --color-cell-required: #ffe8e9;
+  --color-cell-selective: #eaeef5;
+  --color-cell-elective: #f3f4f6;
+  --color-cell-free: #f9fafb;
+  /* リスト行の時間バッジ地色（種別ごと） */
+  --color-badge-required: #ffe8e9;
+  --color-badge-selective: #eef1f7;
+  --color-badge-elective: #f5f6f8;
+  /* 「選択」タグ（淡色地＋濃色文字） */
+  --color-tag-elective-bg: #f1f3f6;
+
+  /* --- .pen effect（shadow）--- */
+  --shadow-askbar: 0 3px 12px #1a2b4e24;
+  --shadow-sheet: 0 -4px 20px #1a2b4e33;
+  --shadow-popover: 0 8px 24px #1a2b4e3d;
+  --shadow-tabbar: 0 -1px 8px #00000012;
+  --shadow-card: 0 4px 24px #1a2b4e14;
+
+  /* --- .pen fontFamily --- */
+  --font-ui: var(--font-funnel-sans), var(--font-noto-sans), sans-serif;
+  --font-display: var(--font-inter), var(--font-noto-sans), sans-serif;
+  --font-cell: var(--font-geist), var(--font-noto-sans), sans-serif;
+  --font-sans: var(--font-noto-sans), sans-serif;
+  --font-mono: var(--font-ibm-plex-mono), monospace;
 
   /* Spacing */
   --spacing-xs: 8px;
@@ -38,13 +65,29 @@
   --spacing-md: 16px;
   --spacing-lg: 24px;
   --spacing-xl: 32px;
-
-  --font-sans: var(--font-noto-sans);
-  --font-mono: var(--font-ibm-plex-mono);
 }
 
 body {
-  background-color: #F8F9FA;
-  color: #1a1c1c;
+  background-color: var(--color-surface-gray);
+  color: var(--color-fg-primary);
   scrollbar-gutter: stable;
+}
+
+/* ハーフシート → フルスクリーン昇格のトランジション（AI導線 STEP4→STEP5） */
+@keyframes ai-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes ai-scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }

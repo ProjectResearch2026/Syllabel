@@ -23,11 +23,13 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
   const campus = typeof sp.campus === "string" ? sp.campus : undefined;
   const term = typeof sp.term === "string" ? sp.term : undefined;
   const day = typeof sp.day === "string" ? sp.day : undefined;
+  // 時間割の空きコマ長押しメニューから「この時間に入る科目を探す」で渡ってくる
+  const period = typeof sp.period === "string" ? parseInt(sp.period, 10) : undefined;
   const year = typeof sp.year === "string" ? parseInt(sp.year, 10) : currentNendo;
   const offset = typeof sp.offset === "string" ? parseInt(sp.offset, 10) : 0;
 
   const [data, masters] = await Promise.all([
-    searchSyllabi({ q, faculty, campus, term, day, year, limit: LIMIT, offset }),
+    searchSyllabi({ q, faculty, campus, term, day, period, year, limit: LIMIT, offset }),
     getMasters(),
   ]);
 
