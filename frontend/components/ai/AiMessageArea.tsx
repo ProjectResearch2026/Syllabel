@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { motion } from "motion/react";
 import type { ChatMessage } from "@/lib/chat";
 import AiProposalCard from "./AiProposalCard";
 
@@ -26,7 +27,13 @@ export default function AiMessageArea({ messages }: { messages: ChatMessage[] })
 
       {messages.map((message) =>
         message.role === "assistant" ? (
-          <div key={message.id} className="flex flex-col gap-3">
+          <motion.div
+            key={message.id}
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+            className="flex flex-col gap-3"
+          >
             <div className="w-[288px] rounded-[4px_16px_16px_16px] bg-surface-gray px-3.5 py-[11px]">
               <p className="whitespace-pre-wrap text-[13px] leading-[1.65] text-fg-primary">
                 {message.content}
@@ -42,15 +49,21 @@ export default function AiMessageArea({ messages }: { messages: ChatMessage[] })
             {message.proposals && message.proposals.length > 0 && (
               <AiProposalCard courses={message.proposals} />
             )}
-          </div>
+          </motion.div>
         ) : (
-          <div key={message.id} className="flex justify-end">
+          <motion.div
+            key={message.id}
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+            className="flex justify-end"
+          >
             <div className="max-w-[288px] rounded-[16px_4px_16px_16px] bg-academic-navy px-3.5 py-[11px]">
               <p className="whitespace-pre-wrap text-[13px] leading-[1.65] text-fg-inverse">
                 {message.content}
               </p>
             </div>
-          </div>
+          </motion.div>
         ),
       )}
       <div ref={bottomRef} />
