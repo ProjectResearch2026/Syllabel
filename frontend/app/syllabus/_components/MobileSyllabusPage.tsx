@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useState, useTransition, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   Search,
   SlidersHorizontal,
@@ -220,16 +221,26 @@ export default function MobileSyllabusPage({
       </div>
 
       {/* Filter panel */}
-      {filterOpen && (
-        <div className="grid grid-cols-2 gap-3 px-4 py-3.5 bg-[#F8F9FA] border-b border-[#D1D5DB]">
-          {filterFields.map((f) => (
-            <label key={f.label} className="flex flex-col gap-1">
-              <span className="text-[11px] font-semibold text-[#4B5563]">{f.label}</span>
-              {f.node}
-            </label>
-          ))}
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {filterOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: [0.25, 0.1, 0.25, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="grid grid-cols-2 gap-3 px-4 py-3.5 bg-[#F8F9FA] border-b border-[#D1D5DB]">
+              {filterFields.map((f) => (
+                <label key={f.label} className="flex flex-col gap-1">
+                  <span className="text-[11px] font-semibold text-[#4B5563]">{f.label}</span>
+                  {f.node}
+                </label>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Filter chips */}
       <div className="flex items-center gap-2 px-4 py-2.5 bg-white border-b border-[#D1D5DB] overflow-x-auto">

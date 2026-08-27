@@ -1,4 +1,5 @@
 import { Bot } from "lucide-react";
+import { motion } from "motion/react";
 import type { Message } from "./types";
 
 export default function MessageList({
@@ -16,7 +17,13 @@ export default function MessageList({
 
       {messages.map((msg) =>
         msg.role === "assistant" ? (
-          <div key={msg.id} className="flex gap-2.5 items-start">
+          <motion.div
+            key={msg.id}
+            initial={{ opacity: 0, x: -12 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+            className="flex gap-2.5 items-start"
+          >
             <div className="w-8 h-8 rounded-full bg-white border border-[#D1D5DB] flex items-center justify-center shrink-0">
               <Bot size={18} className="text-[#1A2B4E]" />
             </div>
@@ -52,16 +59,22 @@ export default function MessageList({
               )}
               <span className="block text-[#9CA3AF] text-[10px]">{msg.time}</span>
             </div>
-          </div>
+          </motion.div>
         ) : (
-          <div key={msg.id} className="flex justify-end items-end gap-2.5">
+          <motion.div
+            key={msg.id}
+            initial={{ opacity: 0, x: 12 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+            className="flex justify-end items-end gap-2.5"
+          >
             <div className="max-w-[260px] bg-[#EEF1F8] rounded-lg px-3.5 py-3 space-y-1">
               <p className="text-[#1A2B4E] text-[13px] leading-snug whitespace-pre-wrap">
                 {msg.content}
               </p>
               <span className="block text-[#9CA3AF] text-[10px] text-right">{msg.time}</span>
             </div>
-          </div>
+          </motion.div>
         )
       )}
       <div ref={bottomRef} />

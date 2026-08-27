@@ -10,6 +10,7 @@ import {
   Timer,
   X,
 } from "lucide-react";
+import { motion } from "motion/react";
 import {
   AI_QUICK_CHIPS,
   sheetInputPlaceholder,
@@ -58,8 +59,12 @@ export default function AiSheet() {
   const full = mode === "full";
 
   return (
-    <div
-      className={`fixed inset-x-0 z-50 flex flex-col overflow-hidden rounded-t-[20px] bg-surface-primary shadow-sheet [animation:ai-sheet-in_.22s_ease-out] ${
+    <motion.div
+      initial={{ y: "100%" }}
+      animate={{ y: 0 }}
+      exit={{ y: "100%" }}
+      transition={{ type: "spring", damping: 32, stiffness: 380, mass: 0.8 }}
+      className={`fixed inset-x-0 z-50 flex flex-col overflow-hidden rounded-t-[20px] bg-surface-primary shadow-sheet ${
         full ? "top-3 bottom-0" : "bottom-20 h-96"
       }`}
       role="dialog"
@@ -153,6 +158,6 @@ export default function AiSheet() {
         // 自分で書いて送信した瞬間に全画面へ昇格する（STEP4 → STEP5）
         onSend={(text) => send(text, { promote: true })}
       />
-    </div>
+    </motion.div>
   );
 }
