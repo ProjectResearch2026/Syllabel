@@ -6,7 +6,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ---
 
-> **重要**: コードを書く前に必ず `docs/design.md` を参照し、その内容に準拠すること。
+> **重要**: コードを書く前に必ず設計書を参照し、その内容に準拠すること。設計書は `docs/design.md`(目次・改訂履歴)と `docs/design/01-07`(本文)に分かれており、§番号とファイルの対応は `docs/design.md` の「0.3 本書の構成」にある。
 
 # フロントエンド開発ガイド
 
