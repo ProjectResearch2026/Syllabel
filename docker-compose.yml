@@ -7,7 +7,7 @@ services:
       - app-net
       - syllabus-clean-net
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
       vllm:
         condition: service_healthy   # モデルロード完了を待ってから起動
