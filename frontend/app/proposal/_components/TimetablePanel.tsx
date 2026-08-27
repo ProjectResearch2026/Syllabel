@@ -48,7 +48,7 @@ export default function TimetablePanel() {
                 <div
                   key={d}
                   className={`flex-1 border-r border-[#D1D5DB] last:border-r-0 flex flex-col justify-center gap-1 p-2 ${
-                    style ? style.bg : "bg-white"
+                    style ? style.cell : "bg-white"
                   } ${isLoading ? "animate-pulse" : ""}`}
                 >
                   {cell && style && (

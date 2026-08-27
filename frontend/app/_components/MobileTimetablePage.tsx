@@ -1,44 +1,60 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Bell, FileUp } from "lucide-react";
 import { useStudentStore } from "@/lib/student";
 import { useProposalStore } from "@/lib/proposal";
-import { CELL_STYLES, type Timetable } from "@/lib/timetable";
-import type { ProposedCourse } from "@/lib/chatApi";
+import { useGraduationCredits } from "@/lib/curricula";
+import { coursesToTimetable } from "@/lib/timetable";
+import {
+  courseContext,
+  slotContext,
+  TIMETABLE_CONTEXT,
+  useAiStore,
+} from "@/lib/ai";
+import AskBar from "@/components/ai/AskBar";
+import TimetableGrid from "./TimetableGrid";
+import CourseListSection from "./CourseListSection";
+import SlotPopover, { type SlotTarget } from "./SlotPopover";
 
-const GRADUATION_CREDITS = 124;
-const DAYS = ["月", "火", "水", "木", "金"] as const;
-const PERIODS = [1, 2, 3, 4, 5] as const;
-
-function coursesToTimetable(courses: ProposedCourse[]): Timetable {
-  const timetable: Timetable = {};
-  for (const course of courses) {
-    if (!timetable[course.period]) timetable[course.period] = {};
-    timetable[course.period][course.day] = { name: course.name, type: course.type };
-  }
-  return timetable;
-}
-
+/**
+ * 時間割画面（ui-design_phone.pen CalendarPage / STEP1〜3）。
+ *
+ * AIへの入口は下部の Ask Bar と空きコマ長押しメニューの2つだけで、
+ * どちらも別ページへは遷移せず、同一画面上にシートが重なる。
+ */
 export default function MobileTimetablePage() {
+  const router = useRouter();
   const profile = useStudentStore((s) => s.profile);
-  const { status: proposalStatus, courses } = useProposalStore();
+  const { status: proposalStatus, courses, totalCredits } = useProposalStore();
+  const graduationCredits = useGraduationCredits(profile);
+
+  const setSelection = useAiStore((s) => s.setSelection);
+  const openHalf = useAiStore((s) => s.openHalf);
+
+  const [selected, setSelected] = useState<{ day: string; period: number } | null>(null);
+  const [slotTarget, setSlotTarget] = useState<SlotTarget | null>(null);
+
+  // 他の画面へ移ったら Ask Bar の文脈を持ち越さない
+  useEffect(() => () => setSelection(null), [setSelection]);
 
   if (!profile) {
     return (
-      <div className="flex flex-col bg-white min-h-full">
-        <header className="sticky top-0 z-20 flex items-center justify-between px-5 h-14 bg-white border-b border-[#D1D5DB]">
-          <span className="text-[#1A2B4E] text-xl font-bold">時間割</span>
-          <Bell size={22} className="text-[#1A2B4E]" />
+      <div className="flex min-h-full flex-col bg-surface-primary">
+        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border-primary bg-surface-primary px-5">
+          <span className="font-display text-xl font-bold text-fg-primary">時間割</span>
+          <Bell size={22} className="text-fg-primary" />
         </header>
 
-        <div className="flex flex-col items-center justify-center flex-1 gap-6 px-8 py-16">
-          <div className="w-20 h-20 rounded-full bg-[#EEF0F5] flex items-center justify-center">
-            <FileUp size={36} className="text-[#1A2B4E]" />
+        <div className="flex flex-1 flex-col items-center justify-center gap-6 px-8 py-16">
+          <div className="grid size-20 place-items-center rounded-full bg-[#eef0f5]">
+            <FileUp size={36} className="text-fg-primary" />
           </div>
           <div className="flex flex-col items-center gap-2 text-center">
-            <h2 className="text-lg font-bold text-[#1A2B4E]">成績表をインポートしてください</h2>
-            <p className="text-sm text-[#4B5563] leading-relaxed">
+            <h2 className="text-lg font-bold text-fg-primary">成績表をインポートしてください</h2>
+            <p className="text-sm leading-relaxed text-fg-secondary">
               龍谷大学ポータルからダウンロードした
               <br />
               成績表PDFを取り込むと、時間割と単位情報が表示されます
@@ -46,114 +62,93 @@ export default function MobileTimetablePage() {
           </div>
           <Link
             href="/import"
-            className="w-full h-[52px] rounded-lg bg-[#E60012] flex items-center justify-center gap-2 active:bg-[#b7000c] transition-colors"
+            className="flex h-[52px] w-full items-center justify-center gap-2 rounded-lg bg-accent transition-colors active:opacity-80"
           >
-            <FileUp size={20} className="text-white" />
-            <span className="text-[15px] font-bold text-white">成績表を取り込む</span>
+            <FileUp size={20} className="text-fg-inverse" />
+            <span className="text-[15px] font-bold text-fg-inverse">成績表を取り込む</span>
           </Link>
         </div>
       </div>
     );
   }
 
-  const totalCredits = profile.completedCourses.reduce((sum, c) => sum + c.credits, 0);
-  const remaining = Math.max(0, GRADUATION_CREDITS - totalCredits);
+  const earnedCredits = profile.completedCourses
+    .filter((c) => c.status === "passed")
+    .reduce((sum, c) => sum + c.credits, 0);
+  const currentCredits = proposalStatus === "done" ? totalCredits : 0;
+  const remainingCredits = Math.max(0, graduationCredits - earnedCredits - currentCredits);
 
   const now = new Date();
   const nendo = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
   const semester = now.getMonth() < 9 ? "前期" : "後期";
 
+  const timetable = proposalStatus === "done" ? coursesToTimetable(courses) : {};
+
+  const goSyllabus = (target: SlotTarget, openFilters: boolean) => {
+    const params = new URLSearchParams({ day: target.day, period: String(target.period) });
+    if (openFilters) params.set("filters", "open");
+    setSlotTarget(null);
+    router.push(`/syllabus?${params.toString()}`);
+  };
+
   return (
-    <div className="flex flex-col bg-white min-h-full">
+    <div className="flex min-h-full flex-col bg-surface-primary pb-[84px]">
       {/* Header */}
-      <header className="sticky top-0 z-20 flex items-center justify-between px-5 h-14 bg-white border-b border-[#D1D5DB]">
-        <div className="flex flex-col">
-          <span className="text-[#1A2B4E] text-xl font-bold">時間割</span>
-          {profile.program && (
-            <span className="text-[#6B7280] text-[10px] leading-none">{profile.grade}回生・{profile.program}</span>
-          )}
-        </div>
+      <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border-primary bg-surface-primary px-5">
+        <span className="font-display text-xl font-bold text-fg-primary">時間割</span>
         <div className="flex items-center gap-3">
-          <span className="text-[#E60012] text-xs">{nendo}年度 {semester}</span>
-          <Bell size={22} className="text-[#1A2B4E]" />
+          <span className="text-xs text-accent">
+            {nendo}年度 {semester}
+          </span>
+          <Bell size={22} className="text-fg-primary" />
         </div>
       </header>
 
-      {/* CreditBar */}
-      <div className="flex items-center justify-around px-5 h-[52px] bg-white border-b border-[#D1D5DB]">
+      {/* 単位バー */}
+      <div className="flex h-[52px] items-center justify-around border-b border-border-primary bg-surface-primary px-5">
         {[
-          { val: totalCredits, label: "取得済み単位" },
-          { val: GRADUATION_CREDITS, label: "卒業必要単位" },
-          { val: remaining, label: "卒業残り単位" },
+          { val: earnedCredits, label: "取得済み単位" },
+          { val: currentCredits, label: "今期登録単位" },
+          { val: remainingCredits, label: "卒業残り単位" },
         ].map(({ val, label }) => (
           <div key={label} className="flex flex-col items-center gap-0.5">
-            <span className="text-[#1A2B4E] text-xl font-bold font-mono leading-none">{val}</span>
-            <span className="text-[#6B7280] text-[10px]">{label}</span>
+            <span className="font-mono text-xl font-bold leading-none text-fg-primary">{val}</span>
+            <span className="text-[10px] text-[#6b7280]">{label}</span>
           </div>
         ))}
       </div>
 
-      {/* Timetable */}
-      <div className="flex flex-col">
-        {/* DayHeader */}
-        <div className="flex h-8 bg-[#F8F9FA] border-b border-[#D1D5DB]">
-          <div className="w-7 shrink-0 border-r border-[#D1D5DB]" />
-          {DAYS.map((d) => (
-            <div key={d} className="flex-1 flex items-center justify-center border-r border-[#D1D5DB]">
-              <span className="text-[#1A2B4E] text-[13px] font-semibold">{d}</span>
-            </div>
-          ))}
-        </div>
+      <TimetableGrid
+        timetable={timetable}
+        loading={proposalStatus === "loading"}
+        selected={selected}
+        onSelectCourse={(day, period, name, code) => {
+          const same = selected?.day === day && selected?.period === period;
+          setSelected(same ? null : { day, period });
+          setSelection(same ? null : courseContext(name, code));
+        }}
+        onLongPressEmpty={setSlotTarget}
+      />
 
-        {(() => {
-          const timetable = proposalStatus === "done" ? coursesToTimetable(courses) : {};
-          const isLoading = proposalStatus === "loading";
-          return PERIODS.map((p) => (
-            <div key={p} className="flex h-[72px] border-b border-[#D1D5DB]">
-              <div className="w-7 shrink-0 bg-[#F9FAFB] border-r border-[#D1D5DB] flex flex-col items-center justify-center">
-                <span className="text-[#1A2B4E] text-[13px] font-bold font-mono leading-none">{p}</span>
-                <span className="text-[#4B5563] text-[9px]">限</span>
-              </div>
-              {DAYS.map((d) => {
-                const cell = timetable[p]?.[d] ?? null;
-                const style = cell?.type ? CELL_STYLES[cell.type] : null;
-                return (
-                  <div
-                    key={d}
-                    className={`flex-1 border-r border-[#D1D5DB] last:border-r-0 flex flex-col justify-center gap-0.5 px-1 ${
-                      style ? style.bg : "bg-white"
-                    } ${isLoading ? "animate-pulse" : ""}`}
-                  >
-                    {cell && style && (
-                      <>
-                        <span className="text-[#1A2B4E] text-[9px] font-semibold leading-tight line-clamp-2">
-                          {cell.name}
-                        </span>
-                        <span className={`inline-block self-start px-1 py-px rounded-sm text-white text-[8px] ${style.tag}`}>
-                          {style.label}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ));
-        })()}
-      </div>
+      <CourseListSection timetable={timetable} />
 
-      {/* 提案へのCTA */}
-      <div className="flex flex-col gap-2 px-4 py-4 border-t border-[#E5E7EB] bg-[#F8F9FA]">
-        <p className="text-xs text-[#6B7280] text-center">
-          {profile.grade}回生 · {profile.program} · 取得済み {totalCredits} 単位
-        </p>
-        <Link
-          href="/proposal"
-          className="w-full h-12 rounded-lg bg-[#1A2B4E] flex items-center justify-center gap-2 active:bg-[#0f1b30] transition-colors"
-        >
-          <span className="text-sm font-bold text-white">AIに履修提案を作ってもらう</span>
-        </Link>
-      </div>
+      <AskBar base={TIMETABLE_CONTEXT} />
+
+      {slotTarget && (
+        <SlotPopover
+          target={slotTarget}
+          onClose={() => setSlotTarget(null)}
+          onSearch={() => goSyllabus(slotTarget, false)}
+          onFilter={() => goSyllabus(slotTarget, true)}
+          onAskAi={() => {
+            const context = slotContext(slotTarget.day, slotTarget.period);
+            setSelected({ day: slotTarget.day, period: slotTarget.period });
+            setSelection(context);
+            setSlotTarget(null);
+            openHalf(context);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -193,7 +193,7 @@ export default function MobileProposalPage() {
                   <div
                     key={d}
                     className={`flex-1 border-r border-[#E5E7EB] last:border-r-0 flex flex-col justify-center gap-0.5 px-1 ${
-                      style ? style.bg : "bg-white"
+                      style ? style.cell : "bg-white"
                     } ${status === "loading" ? "animate-pulse" : ""}`}
                   >
                     {cell && style && (

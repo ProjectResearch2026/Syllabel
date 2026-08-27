@@ -4,11 +4,12 @@
     {
       "type": "frame",
       "id": "jjAu7",
-      "x": 904,
-      "y": 0,
-      "name": "ChatPage",
+      "x": 1768,
+      "y": 1930,
+      "name": "STEP5 AIフルスクリーン（追加質問後）",
       "clip": true,
       "width": 390,
+      "height": 844,
       "fill": "$surface-primary",
       "layout": "vertical",
       "children": [
@@ -79,464 +80,499 @@
         },
         {
           "type": "frame",
-          "id": "cFghN",
-          "name": "ChatHeader",
+          "id": "OLsaA",
+          "name": "Backdrop",
           "width": "fill_container",
-          "height": 60,
+          "height": 12,
+          "fill": "#1A2B4E66"
+        },
+        {
+          "type": "frame",
+          "id": "Zok0g",
+          "name": "ChatSheetFull",
+          "clip": true,
+          "width": "fill_container",
+          "height": "fill_container",
           "fill": "$surface-primary",
-          "stroke": "#D1D5DB",
-          "strokeWidth": {
-            "bottom": 1
-          },
-          "strokeLinejoin": "round",
-          "padding": [
+          "cornerRadius": [
+            20,
+            20,
             0,
-            20
+            0
           ],
-          "justifyContent": "space_between",
-          "alignItems": "center",
+          "effect": {
+            "type": "shadow",
+            "shadowType": "outer",
+            "color": "#1A2B4E33",
+            "offset": {
+              "x": 0,
+              "y": -4
+            },
+            "blur": 20
+          },
+          "layout": "vertical",
           "children": [
             {
               "type": "frame",
-              "id": "bygX1",
-              "name": "HeaderLeft",
-              "gap": 12,
+              "id": "ctZYx",
+              "name": "GrabberRow",
+              "width": "fill_container",
+              "padding": [
+                8,
+                0,
+                4,
+                0
+              ],
+              "justifyContent": "center",
+              "children": [
+                {
+                  "type": "rectangle",
+                  "id": "jvwDl",
+                  "name": "Grabber",
+                  "fill": "#D1D5DB",
+                  "width": 40,
+                  "height": 4
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "wmYQJ",
+              "name": "Header",
+              "width": "fill_container",
+              "height": 44,
+              "fill": "$surface-primary",
+              "stroke": "#D1D5DB",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "strokeLinejoin": "round",
+              "gap": 8,
+              "padding": [
+                0,
+                16
+              ],
               "alignItems": "center",
               "children": [
                 {
                   "type": "icon",
-                  "id": "sbxjn",
-                  "name": "BackIcon",
-                  "width": 22,
-                  "height": 22,
-                  "icon": "chevron-left",
+                  "id": "dc7tZ",
+                  "name": "HeaderIcon",
+                  "width": 18,
+                  "height": 18,
+                  "icon": "sparkles",
                   "library": "lucide",
-                  "fill": "#1A2B4E"
+                  "fill": "$accent"
+                },
+                {
+                  "type": "text",
+                  "id": "YNIP7",
+                  "name": "Title",
+                  "fill": "$fg-primary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "履修AIアシスタント",
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 15,
+                  "fontWeight": "bold"
                 },
                 {
                   "type": "frame",
-                  "id": "ycTce",
-                  "name": "AIAvatar",
-                  "width": 36,
-                  "height": 36,
-                  "fill": "#EEF0F5",
-                  "cornerRadius": 18,
-                  "justifyContent": "center",
+                  "id": "LwtNj",
+                  "name": "HeaderRight",
+                  "gap": 14,
                   "alignItems": "center",
                   "children": [
                     {
                       "type": "icon",
-                      "id": "Ys6Ig",
-                      "name": "BotIcon",
+                      "id": "INVvj",
+                      "name": "HistoryIcon",
+                      "width": 18,
+                      "height": 18,
+                      "icon": "minimize-2",
+                      "library": "lucide",
+                      "fill": "#8A93A3"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "HachM",
+                      "name": "NewChatIcon",
                       "width": 20,
                       "height": 20,
-                      "icon": "bot",
+                      "icon": "x",
                       "library": "lucide",
-                      "fill": "$academic-navy"
+                      "fill": "#8A93A3"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "O4JzhD",
+              "name": "ContextBar",
+              "width": "fill_container",
+              "height": 46,
+              "fill": "$surface-gray",
+              "stroke": "#EDEFF2",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "gap": 8,
+              "padding": [
+                0,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "yLhKB",
+                  "name": "ContextChip",
+                  "fill": "$accent-light",
+                  "cornerRadius": 999,
+                  "gap": 5,
+                  "padding": [
+                    5,
+                    10
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "pb258",
+                      "name": "CI",
+                      "width": 13,
+                      "height": 13,
+                      "icon": "timer",
+                      "library": "lucide",
+                      "fill": "$accent"
+                    },
+                    {
+                      "type": "text",
+                      "id": "y13S9",
+                      "name": "CT",
+                      "fill": "$accent",
+                      "content": "水曜3限 の空きコマ",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 11,
+                      "fontWeight": "bold"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "eJe5b",
+                  "name": "ContextNote",
+                  "fill": "$fg-secondary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "を参照中 ・ 追加で質問中",
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "icon",
+                  "id": "jPxqO",
+                  "name": "SwapIcon",
+                  "width": 15,
+                  "height": 15,
+                  "icon": "repeat",
+                  "library": "lucide",
+                  "fill": "#8A93A3"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "tWNDs",
+              "name": "MessageArea",
+              "width": "fill_container",
+              "height": "fill_container",
+              "layout": "vertical",
+              "gap": 12,
+              "padding": [
+                14,
+                16,
+                10,
+                16
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "jJjRx",
+                  "name": "DateRow",
+                  "width": "fill_container",
+                  "justifyContent": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "y1R6b",
+                      "name": "DateChip",
+                      "fill": "$surface-gray",
+                      "cornerRadius": 999,
+                      "padding": [
+                        4,
+                        10
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "HEVc4",
+                          "name": "T",
+                          "fill": "#8A93A3",
+                          "content": "今日",
+                          "fontFamily": "Funnel Sans",
+                          "fontSize": 10,
+                          "fontWeight": "bold"
+                        }
+                      ]
                     }
                   ]
                 },
                 {
                   "type": "frame",
-                  "id": "sE6Jw",
-                  "name": "TitleCol",
-                  "layout": "vertical",
-                  "gap": 2,
+                  "id": "KLedL",
+                  "name": "AIMsg",
+                  "width": 288,
+                  "fill": "$surface-gray",
+                  "cornerRadius": [
+                    4,
+                    16,
+                    16,
+                    16
+                  ],
+                  "padding": [
+                    11,
+                    14
+                  ],
                   "children": [
                     {
                       "type": "text",
-                      "id": "rmWKv",
-                      "name": "ChatTitle",
-                      "fill": "#1A2B4E",
-                      "content": "履修AIアシスタント",
-                      "fontFamily": "Inter",
-                      "fontSize": 15,
-                      "fontWeight": "700"
-                    },
+                      "id": "j8AOcv",
+                      "name": "T",
+                      "fill": "$fg-primary",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "こんにちは。いまの時間割を見ています。水曜3限と金曜5限が空いていますね。",
+                      "lineHeight": 1.65,
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Uz4uu",
+                  "name": "UserRow",
+                  "width": "fill_container",
+                  "justifyContent": "end",
+                  "children": [
                     {
                       "type": "frame",
-                      "id": "mdxfF",
-                      "name": "OnlineBadge",
-                      "gap": 4,
-                      "alignItems": "center",
+                      "id": "ED0Xm",
+                      "name": "UserMsg",
+                      "fill": "$academic-navy",
+                      "cornerRadius": [
+                        16,
+                        4,
+                        16,
+                        16
+                      ],
+                      "padding": [
+                        11,
+                        14
+                      ],
                       "children": [
                         {
-                          "type": "ellipse",
-                          "id": "m3QBi",
-                          "name": "OnlineDot",
-                          "fill": "$accent",
-                          "width": 7,
-                          "height": 7
-                        },
-                        {
                           "type": "text",
-                          "id": "rSIDo",
-                          "name": "OnlineLabel",
-                          "fill": "#9CA3AF",
-                          "content": "オンライン",
+                          "id": "gxzp5",
+                          "name": "T",
+                          "fill": "$fg-inverse",
+                          "content": "水3を埋めたい",
+                          "lineHeight": 1.65,
                           "fontFamily": "Funnel Sans",
-                          "fontSize": 11,
+                          "fontSize": 13,
                           "fontWeight": "normal"
                         }
                       ]
                     }
                   ]
-                }
-              ]
-            },
-            {
-              "type": "frame",
-              "id": "kqFx0",
-              "name": "HeaderRight",
-              "gap": 14,
-              "alignItems": "center",
-              "children": [
-                {
-                  "type": "icon",
-                  "id": "eMbRr",
-                  "name": "InfoIcon",
-                  "width": 22,
-                  "height": 22,
-                  "icon": "info",
-                  "library": "lucide",
-                  "fill": "#1A2B4E"
-                },
-                {
-                  "type": "icon",
-                  "id": "My93k",
-                  "name": "MenuIcon",
-                  "width": 20,
-                  "height": 20,
-                  "icon": "ellipsis-vertical",
-                  "library": "lucide",
-                  "fill": "#1A2B4E"
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "type": "frame",
-          "id": "Q3UBo",
-          "name": "ContextBanner",
-          "width": "fill_container",
-          "fill": "#F8F9FA",
-          "stroke": "#E60012",
-          "strokeWidth": {
-            "left": 3
-          },
-          "strokeLinejoin": "round",
-          "gap": 10,
-          "padding": [
-            10,
-            16
-          ],
-          "alignItems": "center",
-          "children": [
-            {
-              "type": "icon",
-              "id": "FOzSM",
-              "name": "CalIcon",
-              "width": 18,
-              "height": 18,
-              "icon": "calendar-check",
-              "library": "lucide",
-              "fill": "$accent"
-            },
-            {
-              "type": "frame",
-              "id": "ew8bI",
-              "name": "BannerText",
-              "width": "fill_container",
-              "layout": "vertical",
-              "gap": 1,
-              "children": [
-                {
-                  "type": "text",
-                  "id": "gOQEr",
-                  "name": "BannerTitle",
-                  "fill": "$fg-primary",
-                  "textGrowth": "fixed-width",
-                  "width": "fill_container",
-                  "content": "時間割データ連携中",
-                  "fontFamily": "Geist",
-                  "fontSize": 12,
-                  "fontWeight": "600"
-                },
-                {
-                  "type": "text",
-                  "id": "VKXdd",
-                  "name": "BannerSub",
-                  "fill": "$fg-secondary",
-                  "textGrowth": "fixed-width",
-                  "width": "fill_container",
-                  "content": "今期登録18単位・取得済み62単位を参照しています",
-                  "fontFamily": "Funnel Sans",
-                  "fontSize": 10,
-                  "fontWeight": "normal"
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "type": "frame",
-          "id": "mKyFW",
-          "name": "MessageArea",
-          "width": "fill_container",
-          "fill": "#F8F9FA",
-          "layout": "vertical",
-          "gap": 16,
-          "padding": [
-            16,
-            16,
-            12,
-            16
-          ],
-          "children": [
-            {
-              "type": "frame",
-              "id": "nd5yP",
-              "name": "DateChip",
-              "width": "fill_container",
-              "justifyContent": "center",
-              "children": [
-                {
-                  "type": "text",
-                  "id": "NV3Kz",
-                  "name": "DateLabel",
-                  "fill": "#9CA3AF",
-                  "content": "今日 · 9:38",
-                  "fontFamily": "Funnel Sans",
-                  "fontSize": 11,
-                  "fontWeight": "normal"
-                }
-              ]
-            },
-            {
-              "type": "frame",
-              "id": "o19R7y",
-              "name": "AIMsg1",
-              "gap": 10,
-              "children": [
-                {
-                  "type": "frame",
-                  "id": "APLwf",
-                  "name": "AIMsgAvatar",
-                  "width": 32,
-                  "height": 32,
-                  "fill": "#FFFFFF",
-                  "cornerRadius": 16,
-                  "stroke": "#D1D5DB",
-                  "strokeWidth": 1,
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "pwguT",
-                      "name": "BotIcon2",
-                      "width": 18,
-                      "height": 18,
-                      "icon": "bot",
-                      "library": "lucide",
-                      "fill": "#1A2B4E"
-                    }
-                  ]
                 },
                 {
                   "type": "frame",
-                  "id": "vmqK5",
-                  "name": "AIBubble1",
-                  "width": 290,
-                  "fill": "$surface-primary",
-                  "stroke": "$border-primary",
-                  "strokeWidth": 1,
-                  "layout": "vertical",
-                  "gap": 6,
+                  "id": "p7t6Pi",
+                  "name": "AIMsg",
+                  "width": 288,
+                  "fill": "$surface-gray",
+                  "cornerRadius": [
+                    4,
+                    16,
+                    16,
+                    16
+                  ],
                   "padding": [
-                    12,
+                    11,
                     14
                   ],
                   "children": [
                     {
                       "type": "text",
-                      "id": "cBF3n",
-                      "name": "AIText1",
+                      "id": "Y2et8",
+                      "name": "T",
                       "fill": "$fg-primary",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "こんにちは！履修登録のお手伝いをします。\n現在の時間割データを確認しました。後期の登録状況について何か聞いてみてください。",
-                      "fontFamily": "Geist",
+                      "content": "卒業要件に効く候補を3件見つけました。単位の埋まり方が良い順です。",
+                      "lineHeight": 1.65,
+                      "fontFamily": "Funnel Sans",
                       "fontSize": 13,
                       "fontWeight": "normal"
-                    },
-                    {
-                      "type": "text",
-                      "id": "A2xUN",
-                      "name": "AITime1",
-                      "fill": "#9CA3AF",
-                      "content": "9:38",
-                      "fontFamily": "Funnel Sans",
-                      "fontSize": 10,
-                      "fontWeight": "normal"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "type": "frame",
-              "id": "apY6Z",
-              "name": "UserMsg1",
-              "width": "fill_container",
-              "gap": 10,
-              "justifyContent": "end",
-              "alignItems": "end",
-              "children": [
-                {
-                  "type": "frame",
-                  "id": "QovoH",
-                  "name": "UserBubble1",
-                  "width": 260,
-                  "fill": "#EEF1F8",
-                  "layout": "vertical",
-                  "gap": 4,
-                  "padding": [
-                    12,
-                    14
-                  ],
-                  "children": [
-                    {
-                      "type": "text",
-                      "id": "k78I1n",
-                      "name": "UserText1",
-                      "fill": "#1A2B4E",
-                      "textGrowth": "fixed-width",
-                      "width": "fill_container",
-                      "content": "必修科目でまだ取っていないものを教えてください。",
-                      "fontFamily": "Geist",
-                      "fontSize": 13,
-                      "fontWeight": "normal"
-                    },
-                    {
-                      "type": "text",
-                      "id": "Uz7Xf",
-                      "name": "UserTime1",
-                      "fill": "#9CA3AF",
-                      "textGrowth": "fixed-width",
-                      "width": "fill_container",
-                      "content": "9:39",
-                      "textAlign": "right",
-                      "fontFamily": "Funnel Sans",
-                      "fontSize": 10,
-                      "fontWeight": "normal"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "type": "frame",
-              "id": "mApe8",
-              "name": "AIMsg2",
-              "gap": 10,
-              "children": [
-                {
-                  "type": "frame",
-                  "id": "TABcL",
-                  "name": "AIMsgAvatar2",
-                  "width": 32,
-                  "height": 32,
-                  "fill": "#FFFFFF",
-                  "cornerRadius": 16,
-                  "stroke": "#D1D5DB",
-                  "strokeWidth": 1,
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "BMu4i",
-                      "name": "BotIcon3",
-                      "width": 18,
-                      "height": 18,
-                      "icon": "bot",
-                      "library": "lucide",
-                      "fill": "#1A2B4E"
                     }
                   ]
                 },
                 {
                   "type": "frame",
-                  "id": "hJOop",
-                  "name": "AIBubble2",
-                  "width": 290,
+                  "id": "hQBZI",
+                  "name": "ProposalCard",
+                  "clip": true,
+                  "width": 308,
                   "fill": "$surface-primary",
+                  "cornerRadius": 14,
                   "stroke": "$border-primary",
                   "strokeWidth": 1,
                   "layout": "vertical",
-                  "gap": 8,
-                  "padding": [
-                    12,
-                    14
-                  ],
                   "children": [
-                    {
-                      "type": "text",
-                      "id": "zoER4",
-                      "name": "AIText2a",
-                      "fill": "$fg-primary",
-                      "textGrowth": "fixed-width",
-                      "width": "fill_container",
-                      "content": "未修得の必修科目は以下の3科目です：",
-                      "fontFamily": "Geist",
-                      "fontSize": 13,
-                      "fontWeight": "normal"
-                    },
                     {
                       "type": "frame",
-                      "id": "l6DNE",
-                      "name": "ReqRow_データベース論",
+                      "id": "a9jPD",
+                      "name": "P_DB301",
                       "width": "fill_container",
-                      "gap": 8,
+                      "stroke": "#EDEFF2",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 10,
+                      "padding": [
+                        10,
+                        12
+                      ],
                       "alignItems": "center",
                       "children": [
                         {
-                          "type": "rectangle",
-                          "cornerRadius": 3,
-                          "id": "Mfnev",
-                          "name": "Dot_データベース論",
-                          "fill": "#E60012",
-                          "width": 6,
-                          "height": 6
-                        },
-                        {
                           "type": "frame",
-                          "id": "gudoM",
-                          "name": "RowText_データベース論",
+                          "id": "hF52M",
+                          "name": "TimeBadge",
+                          "width": 36,
+                          "height": 36,
+                          "fill": "#EEF1F7",
+                          "cornerRadius": 10,
                           "layout": "vertical",
-                          "gap": 1,
+                          "justifyContent": "center",
+                          "alignItems": "center",
                           "children": [
                             {
                               "type": "text",
-                              "id": "m6Sj9L",
-                              "name": "ReqName_データベース論",
+                              "id": "xu5yW",
+                              "name": "Day",
+                              "fill": "$fg-secondary",
+                              "content": "水",
+                              "fontFamily": "Funnel Sans",
+                              "fontSize": 9,
+                              "fontWeight": "bold"
+                            },
+                            {
+                              "type": "text",
+                              "id": "PLEGA",
+                              "name": "Period",
                               "fill": "$fg-primary",
+                              "content": "3",
+                              "lineHeight": 1.2,
+                              "fontFamily": "IBM Plex Mono",
+                              "fontSize": 14,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "AlYmt",
+                          "name": "Texts",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "hQGjv",
+                              "name": "Name",
+                              "fill": "$fg-primary",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
                               "content": "データベース論",
-                              "fontFamily": "Geist",
-                              "fontSize": 12,
-                              "fontWeight": "600"
+                              "fontFamily": "Funnel Sans",
+                              "fontSize": 13,
+                              "fontWeight": "bold"
                             },
                             {
                               "type": "text",
-                              "id": "AOKTF",
-                              "name": "ReqNote_データベース論",
-                              "fill": "$fg-secondary",
-                              "content": "3回生対象・後期",
+                              "id": "lqWMA",
+                              "name": "Meta",
+                              "fill": "#8A93A3",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "DB301 ・ 森 直樹 ・ 2単位",
                               "fontFamily": "Funnel Sans",
                               "fontSize": 10,
                               "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "JwRDy",
+                          "name": "Tag",
+                          "fill": "#1A2B4E",
+                          "cornerRadius": 999,
+                          "padding": [
+                            3,
+                            8
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "wSOU8",
+                              "name": "T",
+                              "fill": "#FFFFFF",
+                              "content": "選択必修",
+                              "fontFamily": "Funnel Sans",
+                              "fontSize": 10,
+                              "fontWeight": "bold"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "CVV4e",
+                          "name": "Add",
+                          "width": 28,
+                          "height": 28,
+                          "fill": "$accent",
+                          "cornerRadius": 999,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "k6VCen",
+                              "name": "I",
+                              "width": 14,
+                              "height": 14,
+                              "icon": "plus",
+                              "library": "lucide",
+                              "fill": "$fg-inverse"
                             }
                           ]
                         }
@@ -544,583 +580,367 @@
                     },
                     {
                       "type": "frame",
-                      "id": "tSe7z",
-                      "name": "ReqRow_ソフトウェア工学",
+                      "id": "IThnI",
+                      "name": "P_SE201",
                       "width": "fill_container",
-                      "gap": 8,
+                      "stroke": "#EDEFF2",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 10,
+                      "padding": [
+                        10,
+                        12
+                      ],
                       "alignItems": "center",
                       "children": [
                         {
-                          "type": "rectangle",
-                          "cornerRadius": 3,
-                          "id": "j3dZJP",
-                          "name": "Dot_ソフトウェア工学",
-                          "fill": "#E60012",
-                          "width": 6,
-                          "height": 6
-                        },
-                        {
                           "type": "frame",
-                          "id": "oONur",
-                          "name": "RowText_ソフトウェア工学",
+                          "id": "cRIm2",
+                          "name": "TimeBadge",
+                          "width": 36,
+                          "height": 36,
+                          "fill": "#EEF1F7",
+                          "cornerRadius": 10,
                           "layout": "vertical",
-                          "gap": 1,
+                          "justifyContent": "center",
+                          "alignItems": "center",
                           "children": [
                             {
                               "type": "text",
-                              "id": "TTNty",
-                              "name": "ReqName_ソフトウェア工学",
+                              "id": "HRiy5",
+                              "name": "Day",
+                              "fill": "$fg-secondary",
+                              "content": "水",
+                              "fontFamily": "Funnel Sans",
+                              "fontSize": 9,
+                              "fontWeight": "bold"
+                            },
+                            {
+                              "type": "text",
+                              "id": "u7As0",
+                              "name": "Period",
                               "fill": "$fg-primary",
+                              "content": "3",
+                              "lineHeight": 1.2,
+                              "fontFamily": "IBM Plex Mono",
+                              "fontSize": 14,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "SoGg8",
+                          "name": "Texts",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "Lz3Eo",
+                              "name": "Name",
+                              "fill": "$fg-primary",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
                               "content": "ソフトウェア工学",
-                              "fontFamily": "Geist",
-                              "fontSize": 12,
-                              "fontWeight": "600"
+                              "fontFamily": "Funnel Sans",
+                              "fontSize": 13,
+                              "fontWeight": "bold"
                             },
                             {
                               "type": "text",
-                              "id": "eiHHS",
-                              "name": "ReqNote_ソフトウェア工学",
-                              "fill": "$fg-secondary",
-                              "content": "3回生対象・前期 ※来年度",
+                              "id": "L64LV",
+                              "name": "Meta",
+                              "fill": "#8A93A3",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "SE201 ・ 岡本 玲 ・ 2単位",
                               "fontFamily": "Funnel Sans",
                               "fontSize": 10,
                               "fontWeight": "normal"
                             }
                           ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "MxoxV",
-                      "name": "ReqRow_卒業論文研究",
-                      "width": "fill_container",
-                      "gap": 8,
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "rectangle",
-                          "cornerRadius": 3,
-                          "id": "pWaXO",
-                          "name": "Dot_卒業論文研究",
-                          "fill": "#E60012",
-                          "width": 6,
-                          "height": 6
                         },
                         {
                           "type": "frame",
-                          "id": "MOGI1",
-                          "name": "RowText_卒業論文研究",
-                          "layout": "vertical",
-                          "gap": 1,
+                          "id": "tFJ8y",
+                          "name": "Tag",
+                          "fill": "#1A2B4E",
+                          "cornerRadius": 999,
+                          "padding": [
+                            3,
+                            8
+                          ],
                           "children": [
                             {
                               "type": "text",
-                              "id": "aHGTe",
-                              "name": "ReqName_卒業論文研究",
-                              "fill": "$fg-primary",
-                              "content": "卒業論文研究",
-                              "fontFamily": "Geist",
-                              "fontSize": 12,
-                              "fontWeight": "600"
-                            },
-                            {
-                              "type": "text",
-                              "id": "DNWWg",
-                              "name": "ReqNote_卒業論文研究",
-                              "fill": "$fg-secondary",
-                              "content": "4回生進級後に登録可",
+                              "id": "i63x1",
+                              "name": "T",
+                              "fill": "#FFFFFF",
+                              "content": "選択必修",
                               "fontFamily": "Funnel Sans",
                               "fontSize": 10,
-                              "fontWeight": "normal"
+                              "fontWeight": "bold"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "E2k8R",
+                          "name": "Add",
+                          "width": 28,
+                          "height": 28,
+                          "fill": "$accent",
+                          "cornerRadius": 999,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "lPPSK",
+                              "name": "I",
+                              "width": 14,
+                              "height": 14,
+                              "icon": "plus",
+                              "library": "lucide",
+                              "fill": "$fg-inverse"
                             }
                           ]
                         }
                       ]
                     },
                     {
-                      "type": "text",
-                      "id": "BqYZs",
-                      "name": "AITime2",
-                      "fill": "#9CA3AF",
-                      "content": "9:39",
-                      "fontFamily": "Funnel Sans",
-                      "fontSize": 10,
-                      "fontWeight": "normal"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "type": "frame",
-              "id": "n70wLL",
-              "name": "StreamingMsg",
-              "gap": 10,
-              "children": [
-                {
-                  "type": "frame",
-                  "id": "mrMpz",
-                  "name": "AIMsgAvatar3",
-                  "width": 32,
-                  "height": 32,
-                  "fill": "#FFFFFF",
-                  "cornerRadius": 16,
-                  "stroke": "#D1D5DB",
-                  "strokeWidth": 1,
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "s2wnCK",
-                      "name": "BotIcon4",
-                      "width": 18,
-                      "height": 18,
-                      "icon": "bot",
-                      "library": "lucide",
-                      "fill": "#1A2B4E"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "CJ3Cj",
-                  "name": "StreamBubble",
-                  "width": 290,
-                  "fill": "$surface-primary",
-                  "stroke": "#E60012",
-                  "strokeWidth": {
-                    "left": 3
-                  },
-                  "strokeLinejoin": "round",
-                  "layout": "vertical",
-                  "gap": 8,
-                  "padding": [
-                    12,
-                    14
-                  ],
-                  "children": [
-                    {
-                      "type": "text",
-                      "id": "v1tbvD",
-                      "name": "StreamText",
-                      "fill": "$fg-primary",
-                      "textGrowth": "fixed-width",
-                      "width": "fill_container",
-                      "content": "「データベース論」は今学期の後期に開講されています。シラバスによると…",
-                      "fontFamily": "Geist",
-                      "fontSize": 13,
-                      "fontWeight": "normal"
-                    },
-                    {
                       "type": "frame",
-                      "id": "XZeft",
-                      "name": "TypingRow",
-                      "gap": 4,
+                      "id": "iDKTe",
+                      "name": "MoreRow",
+                      "width": "fill_container",
+                      "gap": 5,
+                      "padding": [
+                        9,
+                        12
+                      ],
+                      "justifyContent": "center",
                       "alignItems": "center",
                       "children": [
                         {
-                          "type": "ellipse",
-                          "id": "wN0nA",
-                          "name": "Dot1",
+                          "type": "text",
+                          "id": "CiOMS",
+                          "name": "T",
                           "fill": "$accent",
-                          "width": 6,
-                          "height": 6
+                          "content": "他1件を見る",
+                          "fontFamily": "Funnel Sans",
+                          "fontSize": 11,
+                          "fontWeight": "bold"
                         },
                         {
-                          "type": "ellipse",
-                          "id": "yN17O",
-                          "name": "Dot2",
-                          "fill": "$accent",
-                          "width": 6,
-                          "height": 6
-                        },
-                        {
-                          "type": "ellipse",
-                          "id": "qu2LZ",
-                          "name": "Dot3",
-                          "fill": "#D1D5DB",
-                          "width": 6,
-                          "height": 6
+                          "type": "icon",
+                          "id": "mkSOl",
+                          "name": "I",
+                          "width": 12,
+                          "height": 12,
+                          "icon": "chevron-down",
+                          "library": "lucide",
+                          "fill": "$accent"
                         }
                       ]
                     }
                   ]
                 }
               ]
-            }
-          ]
-        },
-        {
-          "type": "frame",
-          "id": "l2eQag",
-          "name": "QuickChips",
-          "width": "fill_container",
-          "fill": "#F8F9FA",
-          "gap": 8,
-          "padding": [
-            8,
-            16
-          ],
-          "children": [
-            {
-              "type": "frame",
-              "id": "w6Rf6y",
-              "name": "Chip_必修を確認",
-              "fill": "$surface-primary",
-              "cornerRadius": 16,
-              "stroke": "#D1D5DB",
-              "strokeWidth": 1,
-              "padding": [
-                7,
-                12
-              ],
-              "children": [
-                {
-                  "type": "text",
-                  "id": "cQknM",
-                  "name": "ChipLabel_必修を確認",
-                  "fill": "$fg-primary",
-                  "content": "必修を確認",
-                  "fontFamily": "Funnel Sans",
-                  "fontSize": 12,
-                  "fontWeight": "normal"
-                }
-              ]
             },
             {
               "type": "frame",
-              "id": "e3zF0",
-              "name": "Chip_空きコマを埋めたい",
-              "fill": "$surface-primary",
-              "cornerRadius": 16,
-              "stroke": "#D1D5DB",
-              "strokeWidth": 1,
-              "padding": [
-                7,
-                12
-              ],
-              "children": [
-                {
-                  "type": "text",
-                  "id": "f8Z1yS",
-                  "name": "ChipLabel_空きコマを埋めたい",
-                  "fill": "$fg-primary",
-                  "content": "空きコマを埋めたい",
-                  "fontFamily": "Funnel Sans",
-                  "fontSize": 12,
-                  "fontWeight": "normal"
-                }
-              ]
-            },
-            {
-              "type": "frame",
-              "id": "cbqXH",
-              "name": "Chip_単位数の相談",
-              "fill": "$surface-primary",
-              "cornerRadius": 16,
-              "stroke": "#D1D5DB",
-              "strokeWidth": 1,
-              "padding": [
-                7,
-                12
-              ],
-              "children": [
-                {
-                  "type": "text",
-                  "id": "zV8eC",
-                  "name": "ChipLabel_単位数の相談",
-                  "fill": "$fg-primary",
-                  "content": "単位数の相談",
-                  "fontFamily": "Funnel Sans",
-                  "fontSize": 12,
-                  "fontWeight": "normal"
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "type": "frame",
-          "id": "Y9pJH",
-          "name": "InputBar",
-          "width": "fill_container",
-          "height": 64,
-          "fill": "$surface-primary",
-          "stroke": "$border-primary",
-          "strokeWidth": {
-            "top": 1
-          },
-          "strokeLinejoin": "round",
-          "gap": 10,
-          "padding": [
-            0,
-            16
-          ],
-          "alignItems": "center",
-          "children": [
-            {
-              "type": "frame",
-              "id": "lJC4n",
-              "name": "InputField",
+              "id": "evMbq",
+              "name": "QuickChips",
               "width": "fill_container",
-              "height": 44,
-              "fill": "#F3F4F6",
-              "stroke": "$border-primary",
-              "strokeWidth": 1,
+              "gap": 7,
               "padding": [
                 0,
-                14
+                16,
+                10,
+                16
               ],
               "alignItems": "center",
               "children": [
                 {
-                  "type": "text",
-                  "id": "onzJX",
-                  "name": "Placeholder",
-                  "fill": "#9CA3AF",
-                  "content": "メッセージを入力...",
-                  "fontFamily": "Geist",
-                  "fontSize": 14,
-                  "fontWeight": "normal"
+                  "type": "frame",
+                  "id": "FUB5Y",
+                  "name": "Chip_必修を確認",
+                  "fill": "$surface-primary",
+                  "cornerRadius": 999,
+                  "stroke": "$border-primary",
+                  "strokeWidth": 1,
+                  "padding": [
+                    7,
+                    12
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "FMMuQ",
+                      "name": "T",
+                      "fill": "$fg-primary",
+                      "content": "必修を確認",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
                 },
                 {
-                  "type": "icon",
-                  "id": "G4Jk5A",
-                  "name": "AttachIcon",
-                  "width": 18,
-                  "height": 18,
-                  "icon": "paperclip",
-                  "library": "lucide",
-                  "fill": "#9CA3AF"
+                  "type": "frame",
+                  "id": "uKFA4",
+                  "name": "Chip_空きコマを埋めたい",
+                  "fill": "$surface-primary",
+                  "cornerRadius": 999,
+                  "stroke": "$border-primary",
+                  "strokeWidth": 1,
+                  "padding": [
+                    7,
+                    12
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "WtNtd",
+                      "name": "T",
+                      "fill": "$fg-primary",
+                      "content": "空きコマを埋めたい",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "LQgpi",
+                  "name": "Chip_単位数の相談",
+                  "fill": "$surface-primary",
+                  "cornerRadius": 999,
+                  "stroke": "$border-primary",
+                  "strokeWidth": 1,
+                  "padding": [
+                    7,
+                    12
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "aoXsT",
+                      "name": "T",
+                      "fill": "$fg-primary",
+                      "content": "単位数の相談",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
                 }
               ]
             },
             {
               "type": "frame",
-              "id": "FeIlr",
-              "name": "SendBtn",
-              "width": 44,
-              "height": 44,
-              "fill": "$accent",
-              "justifyContent": "center",
-              "alignItems": "center",
-              "children": [
-                {
-                  "type": "icon",
-                  "id": "Vtji8",
-                  "name": "SendIcon",
-                  "width": 20,
-                  "height": 20,
-                  "icon": "send-horizontal",
-                  "library": "lucide",
-                  "fill": "$fg-inverse"
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "type": "frame",
-          "id": "fiHxX",
-          "name": "TabBarOuter2",
-          "width": "fill_container",
-          "height": 80,
-          "fill": "$surface-primary",
-          "stroke": "#D1D5DB",
-          "strokeWidth": {
-            "top": 1
-          },
-          "strokeLinejoin": "round",
-          "padding": [
-            0,
-            16,
-            12,
-            16
-          ],
-          "justifyContent": "center",
-          "alignItems": "end",
-          "children": [
-            {
-              "type": "frame",
-              "id": "kyHHp",
-              "name": "TabBar2",
+              "id": "ZxxaV",
+              "name": "InputBar",
               "width": "fill_container",
-              "height": 56,
-              "fill": "#FFFFFF",
-              "cornerRadius": 12,
-              "effect": {
-                "type": "shadow",
-                "shadowType": "outer",
-                "color": "#00000012",
-                "offset": {
-                  "x": 0,
-                  "y": -1
-                },
-                "blur": 8
+              "fill": "$surface-primary",
+              "stroke": "#EDEFF2",
+              "strokeWidth": {
+                "top": 1
               },
-              "padding": 6,
-              "justifyContent": "space_between",
-              "alignItems": "center",
+              "padding": [
+                10,
+                16,
+                14,
+                16
+              ],
               "children": [
                 {
                   "type": "frame",
-                  "id": "gRiNk",
-                  "name": "Tab2_時間割",
-                  "fill": {
-                    "type": "color",
-                    "color": "#FFFFFF",
-                    "enabled": false
+                  "id": "Sq1ts",
+                  "name": "AskBar",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "$surface-primary",
+                  "cornerRadius": 999,
+                  "stroke": "$border-primary",
+                  "strokeWidth": 1,
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#1A2B4E24",
+                    "offset": {
+                      "x": 0,
+                      "y": 3
+                    },
+                    "blur": 12
                   },
-                  "cornerRadius": 8,
-                  "layout": "vertical",
-                  "gap": 3,
+                  "gap": 10,
                   "padding": [
-                    6,
-                    12
+                    0,
+                    8,
+                    0,
+                    16
                   ],
-                  "justifyContent": "center",
                   "alignItems": "center",
                   "children": [
                     {
                       "type": "icon",
-                      "id": "tIjVp",
-                      "name": "TabIcon2_時間割",
-                      "width": 20,
-                      "height": 20,
-                      "icon": "calendar-days",
+                      "id": "Mkwwe",
+                      "name": "AskIcon",
+                      "width": 18,
+                      "height": 18,
+                      "icon": "sparkles",
                       "library": "lucide",
-                      "fill": "#6B7280"
+                      "fill": "$accent"
                     },
                     {
                       "type": "text",
-                      "id": "N1bwDL",
-                      "name": "TabLabel2_時間割",
-                      "fill": "#6B7280",
-                      "content": "時間割",
+                      "id": "eGxkr",
+                      "name": "AskPlaceholder",
+                      "fill": "#8A93A3",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "メッセージを入力する",
                       "fontFamily": "Funnel Sans",
-                      "fontSize": 10,
+                      "fontSize": 13,
                       "fontWeight": "normal"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "RrMUd",
-                  "name": "Tab2_シラバス",
-                  "fill": {
-                    "type": "color",
-                    "color": "#FFFFFF",
-                    "enabled": false
-                  },
-                  "cornerRadius": 8,
-                  "layout": "vertical",
-                  "gap": 3,
-                  "padding": [
-                    6,
-                    12
-                  ],
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
+                    },
                     {
                       "type": "icon",
-                      "id": "vD1EX",
-                      "name": "TabIcon2_シラバス",
-                      "width": 20,
-                      "height": 20,
-                      "icon": "book-open",
+                      "id": "J2YKP",
+                      "name": "MicIcon",
+                      "width": 17,
+                      "height": 17,
+                      "icon": "mic",
                       "library": "lucide",
-                      "fill": "#6B7280"
+                      "fill": "#8A93A3"
                     },
                     {
-                      "type": "text",
-                      "id": "j3YnDo",
-                      "name": "TabLabel2_シラバス",
-                      "fill": "#6B7280",
-                      "content": "シラバス",
-                      "fontFamily": "Funnel Sans",
-                      "fontSize": 10,
-                      "fontWeight": "normal"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "wru3u",
-                  "name": "Tab2_AIチャット",
-                  "fill": "$accent",
-                  "cornerRadius": 8,
-                  "layout": "vertical",
-                  "gap": 3,
-                  "padding": [
-                    6,
-                    12
-                  ],
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "ehtCh",
-                      "name": "TabIcon2_AIチャット",
-                      "width": 20,
-                      "height": 20,
-                      "icon": "message-circle",
-                      "library": "lucide",
-                      "fill": "#FFFFFF"
-                    },
-                    {
-                      "type": "text",
-                      "id": "QC1vR",
-                      "name": "TabLabel2_AIチャット",
-                      "fill": "#FFFFFF",
-                      "content": "AIチャット",
-                      "fontFamily": "Funnel Sans",
-                      "fontSize": 10,
-                      "fontWeight": "normal"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "aSvod",
-                  "name": "Tab2_マイデータ",
-                  "fill": {
-                    "type": "color",
-                    "color": "#FFFFFF",
-                    "enabled": false
-                  },
-                  "cornerRadius": 8,
-                  "layout": "vertical",
-                  "gap": 3,
-                  "padding": [
-                    6,
-                    12
-                  ],
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "RtM1W",
-                      "name": "TabIcon2_マイデータ",
-                      "width": 20,
-                      "height": 20,
-                      "icon": "user",
-                      "library": "lucide",
-                      "fill": "#6B7280"
-                    },
-                    {
-                      "type": "text",
-                      "id": "po01N",
-                      "name": "TabLabel2_マイデータ",
-                      "fill": "#6B7280",
-                      "content": "マイデータ",
-                      "fontFamily": "Funnel Sans",
-                      "fontSize": 10,
-                      "fontWeight": "normal"
+                      "type": "frame",
+                      "id": "ggAd8",
+                      "name": "AskAction",
+                      "width": 34,
+                      "height": 34,
+                      "fill": "$accent",
+                      "cornerRadius": 999,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "oG8N1",
+                          "name": "AskActionIcon",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "arrow-up",
+                          "library": "lucide",
+                          "fill": "$fg-inverse"
+                        }
+                      ]
                     }
                   ]
                 }
@@ -4784,7 +4604,7 @@
                 "blur": 8
               },
               "padding": 6,
-              "justifyContent": "space_between",
+              "justifyContent": "space_around",
               "alignItems": "center",
               "children": [
                 {
@@ -4871,47 +4691,6 @@
                 },
                 {
                   "type": "frame",
-                  "id": "I0edZ",
-                  "name": "Tab4_AIチャット",
-                  "fill": {
-                    "type": "color",
-                    "color": "#FFFFFF",
-                    "enabled": false
-                  },
-                  "cornerRadius": 8,
-                  "layout": "vertical",
-                  "gap": 3,
-                  "padding": [
-                    6,
-                    12
-                  ],
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "DQPEk",
-                      "name": "TabIcon4_AIチャット",
-                      "width": 20,
-                      "height": 20,
-                      "icon": "message-circle",
-                      "library": "lucide",
-                      "fill": "#6B7280"
-                    },
-                    {
-                      "type": "text",
-                      "id": "yE0DX",
-                      "name": "TabLabel4_AIチャット",
-                      "fill": "#6B7280",
-                      "content": "AIチャット",
-                      "fontFamily": "Funnel Sans",
-                      "fontSize": 10,
-                      "fontWeight": "normal"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
                   "id": "RZy7s",
                   "name": "Tab4_マイデータ",
                   "fill": "$accent",
@@ -4956,9 +4735,9 @@
     {
       "type": "frame",
       "id": "M4OPc",
-      "x": -24,
-      "y": 0,
-      "name": "CalendarPage",
+      "x": 468,
+      "y": -205,
+      "name": "CalendarPage（本体・AI導線は下段 ★AI導線マップ を参照）",
       "clip": true,
       "width": 390,
       "fill": "$surface-primary",
@@ -6520,6 +6299,1312 @@
         },
         {
           "type": "frame",
+          "id": "snrVE",
+          "name": "CourseListSection",
+          "width": "fill_container",
+          "fill": "$surface-primary",
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "Dvk3r",
+              "name": "SectionBand",
+              "width": "fill_container",
+              "height": 8,
+              "fill": "#F1F3F6",
+              "stroke": "$border-primary",
+              "strokeWidth": {
+                "top": 1,
+                "bottom": 1
+              }
+            },
+            {
+              "type": "frame",
+              "id": "fCOJi",
+              "name": "ListHeader",
+              "width": "fill_container",
+              "gap": 8,
+              "padding": [
+                13,
+                16,
+                11,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "A9kKZ",
+                  "name": "ListTitle",
+                  "fill": "$fg-primary",
+                  "content": "登録予定の科目",
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 14,
+                  "fontWeight": "bold"
+                },
+                {
+                  "type": "frame",
+                  "id": "gSs6Q",
+                  "name": "CountChip",
+                  "width": "fill_container",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "cY6b4",
+                      "name": "Chip",
+                      "fill": "$surface-gray",
+                      "cornerRadius": 999,
+                      "padding": [
+                        3,
+                        8
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "bZSuy",
+                          "name": "T",
+                          "fill": "$fg-secondary",
+                          "content": "10科目 ・ 18単位",
+                          "fontFamily": "Funnel Sans",
+                          "fontSize": 10,
+                          "fontWeight": "bold"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "w8Nspb",
+                  "name": "SortBtn",
+                  "gap": 4,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "HRykR",
+                      "name": "T",
+                      "fill": "$fg-secondary",
+                      "content": "曜日順",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 11,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "NhX1R",
+                      "name": "I",
+                      "width": 13,
+                      "height": 13,
+                      "icon": "chevron-down",
+                      "library": "lucide",
+                      "fill": "$fg-secondary"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "a54eq",
+              "name": "Item_MA101",
+              "width": "fill_container",
+              "stroke": "#EDEFF2",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "gap": 11,
+              "padding": [
+                9,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "p9ROM",
+                  "name": "TimeBadge",
+                  "width": 40,
+                  "height": 40,
+                  "fill": "#FFE8E9",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "EcNM2",
+                      "name": "Day",
+                      "fill": "$fg-secondary",
+                      "content": "月",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 9,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "sWjdO",
+                      "name": "Period",
+                      "fill": "$fg-primary",
+                      "content": "1",
+                      "lineHeight": 1.2,
+                      "fontFamily": "IBM Plex Mono",
+                      "fontSize": 15,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "W6o3R5",
+                  "name": "Texts",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 3,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "PajXH",
+                      "name": "Name",
+                      "fill": "$fg-primary",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "線形代数",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 13,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "khBqd",
+                      "name": "Meta",
+                      "fill": "#8A93A3",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "MA101 ・ 佐藤 健一 ・ 2単位",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "m5RORS",
+                  "name": "Tag",
+                  "fill": "#E60012",
+                  "cornerRadius": 999,
+                  "padding": [
+                    3,
+                    8
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "QBBnr",
+                      "name": "T",
+                      "fill": "#FFFFFF",
+                      "content": "必修",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 10,
+                      "fontWeight": "bold"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon",
+                  "id": "Dt92W",
+                  "name": "Chevron",
+                  "width": 15,
+                  "height": 15,
+                  "icon": "chevron-right",
+                  "library": "lucide",
+                  "fill": "#C7CCD4"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "JVFgk",
+              "name": "Item_CS310",
+              "width": "fill_container",
+              "stroke": "#EDEFF2",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "gap": 11,
+              "padding": [
+                9,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "W5fswO",
+                  "name": "TimeBadge",
+                  "width": 40,
+                  "height": 40,
+                  "fill": "#F5F6F8",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "ZjhtF",
+                      "name": "Day",
+                      "fill": "$fg-secondary",
+                      "content": "月",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 9,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "WRm08",
+                      "name": "Period",
+                      "fill": "$fg-primary",
+                      "content": "3",
+                      "lineHeight": 1.2,
+                      "fontFamily": "IBM Plex Mono",
+                      "fontSize": 15,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "EJcWD",
+                  "name": "Texts",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 3,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "ZyFN3",
+                      "name": "Name",
+                      "fill": "$fg-primary",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "機械学習基礎",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 13,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "stXOP",
+                      "name": "Meta",
+                      "fill": "#8A93A3",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "CS310 ・ 田中 美咲 ・ 2単位",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "pIaqR",
+                  "name": "Tag",
+                  "fill": "#F1F3F6",
+                  "cornerRadius": 999,
+                  "padding": [
+                    3,
+                    8
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "PVf8A",
+                      "name": "T",
+                      "fill": "#4B5563",
+                      "content": "選択",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 10,
+                      "fontWeight": "bold"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon",
+                  "id": "WnHDA",
+                  "name": "Chevron",
+                  "width": 15,
+                  "height": 15,
+                  "icon": "chevron-right",
+                  "library": "lucide",
+                  "fill": "#C7CCD4"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "xtupT",
+              "name": "Item_CS201",
+              "width": "fill_container",
+              "stroke": "#EDEFF2",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "gap": 11,
+              "padding": [
+                9,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "qMXSb",
+                  "name": "TimeBadge",
+                  "width": 40,
+                  "height": 40,
+                  "fill": "#EEF1F7",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "FJBgE",
+                      "name": "Day",
+                      "fill": "$fg-secondary",
+                      "content": "火",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 9,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "u5PCkB",
+                      "name": "Period",
+                      "fill": "$fg-primary",
+                      "content": "2",
+                      "lineHeight": 1.2,
+                      "fontFamily": "IBM Plex Mono",
+                      "fontSize": 15,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "N6wOKT",
+                  "name": "Texts",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 3,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "rVUIm",
+                      "name": "Name",
+                      "fill": "$fg-primary",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "アルゴリズム",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 13,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "DYlRw",
+                      "name": "Meta",
+                      "fill": "#8A93A3",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "CS201 ・ 山田 太郎 ・ 2単位",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "zRgvY",
+                  "name": "Tag",
+                  "fill": "#1A2B4E",
+                  "cornerRadius": 999,
+                  "padding": [
+                    3,
+                    8
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "TzHLX",
+                      "name": "T",
+                      "fill": "#FFFFFF",
+                      "content": "選択必修",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 10,
+                      "fontWeight": "bold"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon",
+                  "id": "bpsi6",
+                  "name": "Chevron",
+                  "width": 15,
+                  "height": 15,
+                  "icon": "chevron-right",
+                  "library": "lucide",
+                  "fill": "#C7CCD4"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "SY1uJ",
+              "name": "Item_CS420",
+              "width": "fill_container",
+              "stroke": "#EDEFF2",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "gap": 11,
+              "padding": [
+                9,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "pXm8E",
+                  "name": "TimeBadge",
+                  "width": 40,
+                  "height": 40,
+                  "fill": "#F5F6F8",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "DQ36g",
+                      "name": "Day",
+                      "fill": "$fg-secondary",
+                      "content": "火",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 9,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "n0L234",
+                      "name": "Period",
+                      "fill": "$fg-primary",
+                      "content": "4",
+                      "lineHeight": 1.2,
+                      "fontFamily": "IBM Plex Mono",
+                      "fontSize": 15,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "kHfQb",
+                  "name": "Texts",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 3,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "p10xhH",
+                      "name": "Name",
+                      "fill": "$fg-primary",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "コンピュータビジョン",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 13,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "Zzl20",
+                      "name": "Meta",
+                      "fill": "#8A93A3",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "CS420 ・ 鈴木 一郎 ・ 2単位",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "tTTNd",
+                  "name": "Tag",
+                  "fill": "#F1F3F6",
+                  "cornerRadius": 999,
+                  "padding": [
+                    3,
+                    8
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "DPltR",
+                      "name": "T",
+                      "fill": "#4B5563",
+                      "content": "選択",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 10,
+                      "fontWeight": "bold"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon",
+                  "id": "y4dkgP",
+                  "name": "Chevron",
+                  "width": 15,
+                  "height": 15,
+                  "icon": "chevron-right",
+                  "library": "lucide",
+                  "fill": "#C7CCD4"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "B9c8Q4",
+              "name": "Item_CS101",
+              "width": "fill_container",
+              "stroke": "#EDEFF2",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "gap": 11,
+              "padding": [
+                9,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "IXy7Y",
+                  "name": "TimeBadge",
+                  "width": 40,
+                  "height": 40,
+                  "fill": "#FFE8E9",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "NzOuE",
+                      "name": "Day",
+                      "fill": "$fg-secondary",
+                      "content": "水",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 9,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "ouzJT",
+                      "name": "Period",
+                      "fill": "$fg-primary",
+                      "content": "1",
+                      "lineHeight": 1.2,
+                      "fontFamily": "IBM Plex Mono",
+                      "fontSize": 15,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "c1qr8h",
+                  "name": "Texts",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 3,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "e9KblG",
+                      "name": "Name",
+                      "fill": "$fg-primary",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "情報理論",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 13,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "yws7x",
+                      "name": "Meta",
+                      "fill": "#8A93A3",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "CS101 ・ 中村 悠 ・ 2単位",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "c7WoJw",
+                  "name": "Tag",
+                  "fill": "#E60012",
+                  "cornerRadius": 999,
+                  "padding": [
+                    3,
+                    8
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "jlDaA",
+                      "name": "T",
+                      "fill": "#FFFFFF",
+                      "content": "必修",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 10,
+                      "fontWeight": "bold"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon",
+                  "id": "cM783",
+                  "name": "Chevron",
+                  "width": 15,
+                  "height": 15,
+                  "icon": "chevron-right",
+                  "library": "lucide",
+                  "fill": "#C7CCD4"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "d4FKU0",
+              "name": "Item_CS202",
+              "width": "fill_container",
+              "stroke": "#EDEFF2",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "gap": 11,
+              "padding": [
+                9,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "P0c0s",
+                  "name": "TimeBadge",
+                  "width": 40,
+                  "height": 40,
+                  "fill": "#EEF1F7",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Kj8e1",
+                      "name": "Day",
+                      "fill": "$fg-secondary",
+                      "content": "水",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 9,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "Yg8e9",
+                      "name": "Period",
+                      "fill": "$fg-primary",
+                      "content": "2",
+                      "lineHeight": 1.2,
+                      "fontFamily": "IBM Plex Mono",
+                      "fontSize": 15,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "ksKYW",
+                  "name": "Texts",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 3,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "HBjI0",
+                      "name": "Name",
+                      "fill": "$fg-primary",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "データ構造",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 13,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "yOwl8",
+                      "name": "Meta",
+                      "fill": "#8A93A3",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "CS202 ・ 山田 太郎 ・ 2単位",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "J3V5Q",
+                  "name": "Tag",
+                  "fill": "#1A2B4E",
+                  "cornerRadius": 999,
+                  "padding": [
+                    3,
+                    8
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "C85Ecl",
+                      "name": "T",
+                      "fill": "#FFFFFF",
+                      "content": "選択必修",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 10,
+                      "fontWeight": "bold"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon",
+                  "id": "J44Gr7",
+                  "name": "Chevron",
+                  "width": 15,
+                  "height": 15,
+                  "icon": "chevron-right",
+                  "library": "lucide",
+                  "fill": "#C7CCD4"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "f5EFa9",
+              "name": "Item_ST201",
+              "width": "fill_container",
+              "stroke": "#EDEFF2",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "gap": 11,
+              "padding": [
+                9,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "THSke",
+                  "name": "TimeBadge",
+                  "width": 40,
+                  "height": 40,
+                  "fill": "#EEF1F7",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "m7RcW",
+                      "name": "Day",
+                      "fill": "$fg-secondary",
+                      "content": "木",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 9,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "jaWcp",
+                      "name": "Period",
+                      "fill": "$fg-primary",
+                      "content": "2",
+                      "lineHeight": 1.2,
+                      "fontFamily": "IBM Plex Mono",
+                      "fontSize": 15,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "bK5kh",
+                  "name": "Texts",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 3,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "y6TZv",
+                      "name": "Name",
+                      "fill": "$fg-primary",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "統計学",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 13,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "voIkF",
+                      "name": "Meta",
+                      "fill": "#8A93A3",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "ST201 ・ 高橋 直子 ・ 2単位",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "e0Fcmf",
+                  "name": "Tag",
+                  "fill": "#1A2B4E",
+                  "cornerRadius": 999,
+                  "padding": [
+                    3,
+                    8
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "o76MI",
+                      "name": "T",
+                      "fill": "#FFFFFF",
+                      "content": "選択必修",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 10,
+                      "fontWeight": "bold"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon",
+                  "id": "V9M0N9",
+                  "name": "Chevron",
+                  "width": 15,
+                  "height": 15,
+                  "icon": "chevron-right",
+                  "library": "lucide",
+                  "fill": "#C7CCD4"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "WIsNK",
+              "name": "Item_GR401",
+              "width": "fill_container",
+              "stroke": "#EDEFF2",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "gap": 11,
+              "padding": [
+                9,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "yKt6F",
+                  "name": "TimeBadge",
+                  "width": 40,
+                  "height": 40,
+                  "fill": "#FFE8E9",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "audlD",
+                      "name": "Day",
+                      "fill": "$fg-secondary",
+                      "content": "木",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 9,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "yNgY9",
+                      "name": "Period",
+                      "fill": "$fg-primary",
+                      "content": "4",
+                      "lineHeight": 1.2,
+                      "fontFamily": "IBM Plex Mono",
+                      "fontSize": 15,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "t63zdr",
+                  "name": "Texts",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 3,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "S1WE3c",
+                      "name": "Name",
+                      "fill": "$fg-primary",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "卒業研究基礎",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 13,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "Pyzy6",
+                      "name": "Meta",
+                      "fill": "#8A93A3",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "GR401 ・ 指導教員 ・ 2単位",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Zi6Ka",
+                  "name": "Tag",
+                  "fill": "#E60012",
+                  "cornerRadius": 999,
+                  "padding": [
+                    3,
+                    8
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "F5lm4I",
+                      "name": "T",
+                      "fill": "#FFFFFF",
+                      "content": "必修",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 10,
+                      "fontWeight": "bold"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon",
+                  "id": "fbjkT",
+                  "name": "Chevron",
+                  "width": 15,
+                  "height": 15,
+                  "icon": "chevron-right",
+                  "library": "lucide",
+                  "fill": "#C7CCD4"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "cuLIn",
+              "name": "Item_EN211",
+              "width": "fill_container",
+              "stroke": "#EDEFF2",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "gap": 11,
+              "padding": [
+                9,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "z7tOo",
+                  "name": "TimeBadge",
+                  "width": 40,
+                  "height": 40,
+                  "fill": "#FFE8E9",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "M6QPpX",
+                      "name": "Day",
+                      "fill": "$fg-secondary",
+                      "content": "金",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 9,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "RCJ1E",
+                      "name": "Period",
+                      "fill": "$fg-primary",
+                      "content": "1",
+                      "lineHeight": 1.2,
+                      "fontFamily": "IBM Plex Mono",
+                      "fontSize": 15,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "T7HxF",
+                  "name": "Texts",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 3,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "grhBg",
+                      "name": "Name",
+                      "fill": "$fg-primary",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "英語ⅡA",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 13,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "xqqp7",
+                      "name": "Meta",
+                      "fill": "#8A93A3",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "EN211 ・ Smith, John ・ 1単位",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "WPyru",
+                  "name": "Tag",
+                  "fill": "#E60012",
+                  "cornerRadius": 999,
+                  "padding": [
+                    3,
+                    8
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "jfPrl",
+                      "name": "T",
+                      "fill": "#FFFFFF",
+                      "content": "必修",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 10,
+                      "fontWeight": "bold"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon",
+                  "id": "cDXwk",
+                  "name": "Chevron",
+                  "width": 15,
+                  "height": 15,
+                  "icon": "chevron-right",
+                  "library": "lucide",
+                  "fill": "#C7CCD4"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "s0Z6GB",
+              "name": "Item_PJ301",
+              "width": "fill_container",
+              "stroke": "#EDEFF2",
+              "gap": 11,
+              "padding": [
+                9,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "JTWEN",
+                  "name": "TimeBadge",
+                  "width": 40,
+                  "height": 40,
+                  "fill": "#F5F6F8",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "jGCSr",
+                      "name": "Day",
+                      "fill": "$fg-secondary",
+                      "content": "金",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 9,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "BaSNG",
+                      "name": "Period",
+                      "fill": "$fg-primary",
+                      "content": "3",
+                      "lineHeight": 1.2,
+                      "fontFamily": "IBM Plex Mono",
+                      "fontSize": 15,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Kz05O",
+                  "name": "Texts",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 3,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "CUkFb",
+                      "name": "Name",
+                      "fill": "$fg-primary",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "プロジェクト演習",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 13,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "text",
+                      "id": "ybzRy",
+                      "name": "Meta",
+                      "fill": "#8A93A3",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "PJ301 ・ 伊藤 剛 ・ 1単位",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "k7sva2",
+                  "name": "Tag",
+                  "fill": "#F1F3F6",
+                  "cornerRadius": 999,
+                  "padding": [
+                    3,
+                    8
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "hmsqT",
+                      "name": "T",
+                      "fill": "#4B5563",
+                      "content": "選択",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 10,
+                      "fontWeight": "bold"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon",
+                  "id": "Dq63S",
+                  "name": "Chevron",
+                  "width": 15,
+                  "height": 15,
+                  "icon": "chevron-right",
+                  "library": "lucide",
+                  "fill": "#C7CCD4"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
           "id": "Q5r0a",
           "name": "TabBarOuter",
           "width": "fill_container",
@@ -6558,7 +7643,7 @@
                 "blur": 8
               },
               "padding": 6,
-              "justifyContent": "space_between",
+              "justifyContent": "space_around",
               "alignItems": "center",
               "children": [
                 {
@@ -6641,47 +7726,6 @@
                 },
                 {
                   "type": "frame",
-                  "id": "omiqV",
-                  "name": "Tab_AIチャット",
-                  "fill": {
-                    "type": "color",
-                    "color": "#FFFFFF",
-                    "enabled": false
-                  },
-                  "cornerRadius": 8,
-                  "layout": "vertical",
-                  "gap": 3,
-                  "padding": [
-                    6,
-                    12
-                  ],
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "rKEaN",
-                      "name": "TabIcon_AIチャット",
-                      "width": 20,
-                      "height": 20,
-                      "icon": "message-circle",
-                      "library": "lucide",
-                      "fill": "#6B7280"
-                    },
-                    {
-                      "type": "text",
-                      "id": "elPc6",
-                      "name": "TabLabel_AIチャット",
-                      "fill": "#6B7280",
-                      "content": "AIチャット",
-                      "fontFamily": "Funnel Sans",
-                      "fontSize": 10,
-                      "fontWeight": "normal"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
                   "id": "fZo67",
                   "name": "Tab_マイデータ",
                   "fill": {
@@ -6730,7 +7774,7 @@
           "id": "e8HHp7",
           "layoutPosition": "absolute",
           "x": 16,
-          "y": 476,
+          "y": 1108,
           "name": "AskBar",
           "width": 358,
           "height": 48,
@@ -6748,12 +7792,12 @@
             },
             "blur": 12
           },
-          "gap": 9,
+          "gap": 10,
           "padding": [
             0,
             8,
             0,
-            14
+            16
           ],
           "alignItems": "center",
           "children": [
@@ -6810,8 +7854,8 @@
       "type": "frame",
       "id": "SYw3H",
       "x": 442,
-      "y": 1299,
-      "name": "v2 ② 科目を選択中（文脈が絞られる）",
+      "y": 1930,
+      "name": "STEP2 時間割：科目を選択中（文脈＝科目）",
       "clip": true,
       "width": 390,
       "fill": "$surface-primary",
@@ -8411,7 +9455,7 @@
                 "blur": 8
               },
               "padding": 6,
-              "justifyContent": "space_between",
+              "justifyContent": "space_around",
               "alignItems": "center",
               "children": [
                 {
@@ -8486,47 +9530,6 @@
                       "name": "TabLabel_シラバス",
                       "fill": "#6B7280",
                       "content": "シラバス",
-                      "fontFamily": "Funnel Sans",
-                      "fontSize": 10,
-                      "fontWeight": "normal"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "xl9n2",
-                  "name": "Tab_AIチャット",
-                  "fill": {
-                    "type": "color",
-                    "color": "#FFFFFF",
-                    "enabled": false
-                  },
-                  "cornerRadius": 8,
-                  "layout": "vertical",
-                  "gap": 3,
-                  "padding": [
-                    6,
-                    12
-                  ],
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "r4NmKh",
-                      "name": "TabIcon_AIチャット",
-                      "width": 20,
-                      "height": 20,
-                      "icon": "message-circle",
-                      "library": "lucide",
-                      "fill": "#6B7280"
-                    },
-                    {
-                      "type": "text",
-                      "id": "tz5pn",
-                      "name": "TabLabel_AIチャット",
-                      "fill": "#6B7280",
-                      "content": "AIチャット",
                       "fontFamily": "Funnel Sans",
                       "fontSize": 10,
                       "fontWeight": "normal"
@@ -8702,8 +9705,8 @@
       "type": "frame",
       "id": "FxvVj",
       "x": 884,
-      "y": 1299,
-      "name": "v2 ③ 空きコマを長押し",
+      "y": 1930,
+      "name": "STEP3 時間割：空きコマ長押し（文脈＝コマ）",
       "clip": true,
       "width": 390,
       "fill": "$surface-primary",
@@ -10303,7 +11306,7 @@
                 "blur": 8
               },
               "padding": 6,
-              "justifyContent": "space_between",
+              "justifyContent": "space_around",
               "alignItems": "center",
               "children": [
                 {
@@ -10378,47 +11381,6 @@
                       "name": "TabLabel_シラバス",
                       "fill": "#6B7280",
                       "content": "シラバス",
-                      "fontFamily": "Funnel Sans",
-                      "fontSize": 10,
-                      "fontWeight": "normal"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "gfLlR",
-                  "name": "Tab_AIチャット",
-                  "fill": {
-                    "type": "color",
-                    "color": "#FFFFFF",
-                    "enabled": false
-                  },
-                  "cornerRadius": 8,
-                  "layout": "vertical",
-                  "gap": 3,
-                  "padding": [
-                    6,
-                    12
-                  ],
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "O1k23e",
-                      "name": "TabIcon_AIチャット",
-                      "width": 20,
-                      "height": 20,
-                      "icon": "message-circle",
-                      "library": "lucide",
-                      "fill": "#6B7280"
-                    },
-                    {
-                      "type": "text",
-                      "id": "A6fI8D",
-                      "name": "TabLabel_AIチャット",
-                      "fill": "#6B7280",
-                      "content": "AIチャット",
                       "fontFamily": "Funnel Sans",
                       "fontSize": 10,
                       "fontWeight": "normal"
@@ -10811,8 +11773,8 @@
       "type": "frame",
       "id": "r7CAjT",
       "x": 1326,
-      "y": 1299,
-      "name": "v2 ④ シート展開（水3の文脈）",
+      "y": 1930,
+      "name": "STEP4 AIハーフシート展開（水3の文脈）",
       "clip": true,
       "width": 390,
       "fill": "$surface-primary",
@@ -12412,7 +13374,7 @@
                 "blur": 8
               },
               "padding": 6,
-              "justifyContent": "space_between",
+              "justifyContent": "space_around",
               "alignItems": "center",
               "children": [
                 {
@@ -12487,47 +13449,6 @@
                       "name": "TabLabel_シラバス",
                       "fill": "#6B7280",
                       "content": "シラバス",
-                      "fontFamily": "Funnel Sans",
-                      "fontSize": 10,
-                      "fontWeight": "normal"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "jp3Xb",
-                  "name": "Tab_AIチャット",
-                  "fill": {
-                    "type": "color",
-                    "color": "#FFFFFF",
-                    "enabled": false
-                  },
-                  "cornerRadius": 8,
-                  "layout": "vertical",
-                  "gap": 3,
-                  "padding": [
-                    6,
-                    12
-                  ],
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "seNAO",
-                      "name": "TabIcon_AIチャット",
-                      "width": 20,
-                      "height": 20,
-                      "icon": "message-circle",
-                      "library": "lucide",
-                      "fill": "#6B7280"
-                    },
-                    {
-                      "type": "text",
-                      "id": "IPh8x",
-                      "name": "TabLabel_AIチャット",
-                      "fill": "#6B7280",
-                      "content": "AIチャット",
                       "fontFamily": "Funnel Sans",
                       "fontSize": 10,
                       "fontWeight": "normal"
@@ -13204,296 +14125,12 @@
     },
     {
       "type": "frame",
-      "id": "G5qxw1",
-      "x": 0,
-      "y": 1189,
-      "name": "CalendarPage v2 — キャプション",
-      "width": 1716,
-      "gap": 52,
-      "children": [
-        {
-          "type": "frame",
-          "id": "Ydtpx",
-          "name": "Cap_①",
-          "width": 390,
-          "layout": "vertical",
-          "gap": 6,
-          "children": [
-            {
-              "type": "frame",
-              "id": "ZdYng",
-              "name": "H",
-              "width": "fill_container",
-              "gap": 8,
-              "alignItems": "center",
-              "children": [
-                {
-                  "type": "frame",
-                  "id": "iIiQx",
-                  "name": "Badge",
-                  "fill": "$accent",
-                  "cornerRadius": 999,
-                  "padding": [
-                    4,
-                    9
-                  ],
-                  "children": [
-                    {
-                      "type": "text",
-                      "id": "dSNeP",
-                      "name": "K",
-                      "fill": "$fg-inverse",
-                      "content": "①",
-                      "fontFamily": "Funnel Sans",
-                      "fontSize": 11,
-                      "fontWeight": "bold"
-                    }
-                  ]
-                },
-                {
-                  "type": "text",
-                  "id": "wtHGf",
-                  "name": "T",
-                  "fill": "$fg-primary",
-                  "textGrowth": "fixed-width",
-                  "width": "fill_container",
-                  "content": "通常（Ask Bar 常設）",
-                  "fontFamily": "Funnel Sans",
-                  "fontSize": 16,
-                  "fontWeight": "bold"
-                }
-              ]
-            },
-            {
-              "type": "text",
-              "id": "IUExs",
-              "name": "D",
-              "fill": "$fg-secondary",
-              "textGrowth": "fixed-width",
-              "width": "fill_container",
-              "content": "B の常設バー。タブバーの上に入力欄そのものを置き、プレースホルダで「今の画面を文脈にする」ことを明示する。",
-              "lineHeight": 1.5,
-              "fontFamily": "Funnel Sans",
-              "fontSize": 12,
-              "fontWeight": "normal"
-            }
-          ]
-        },
-        {
-          "type": "frame",
-          "id": "yLCaK",
-          "name": "Cap_②",
-          "width": 390,
-          "layout": "vertical",
-          "gap": 6,
-          "children": [
-            {
-              "type": "frame",
-              "id": "OSJvJ",
-              "name": "H",
-              "width": "fill_container",
-              "gap": 8,
-              "alignItems": "center",
-              "children": [
-                {
-                  "type": "frame",
-                  "id": "pAesh",
-                  "name": "Badge",
-                  "fill": "$accent",
-                  "cornerRadius": 999,
-                  "padding": [
-                    4,
-                    9
-                  ],
-                  "children": [
-                    {
-                      "type": "text",
-                      "id": "uFG2i",
-                      "name": "K",
-                      "fill": "$fg-inverse",
-                      "content": "②",
-                      "fontFamily": "Funnel Sans",
-                      "fontSize": 11,
-                      "fontWeight": "bold"
-                    }
-                  ]
-                },
-                {
-                  "type": "text",
-                  "id": "JGT0Q",
-                  "name": "T",
-                  "fill": "$fg-primary",
-                  "textGrowth": "fixed-width",
-                  "width": "fill_container",
-                  "content": "科目を選択中",
-                  "fontFamily": "Funnel Sans",
-                  "fontSize": 16,
-                  "fontWeight": "bold"
-                }
-              ]
-            },
-            {
-              "type": "text",
-              "id": "YJPgb",
-              "name": "D",
-              "fill": "$fg-secondary",
-              "textGrowth": "fixed-width",
-              "width": "fill_container",
-              "content": "D の考え方を時間割に適用。科目をタップすると文脈がその科目に絞られ、バー左に赤チップが出る。押す前に何を渡すか分かる。",
-              "lineHeight": 1.5,
-              "fontFamily": "Funnel Sans",
-              "fontSize": 12,
-              "fontWeight": "normal"
-            }
-          ]
-        },
-        {
-          "type": "frame",
-          "id": "VjJeh",
-          "name": "Cap_③",
-          "width": 390,
-          "layout": "vertical",
-          "gap": 6,
-          "children": [
-            {
-              "type": "frame",
-              "id": "Hrj7f",
-              "name": "H",
-              "width": "fill_container",
-              "gap": 8,
-              "alignItems": "center",
-              "children": [
-                {
-                  "type": "frame",
-                  "id": "m7287",
-                  "name": "Badge",
-                  "fill": "$accent",
-                  "cornerRadius": 999,
-                  "padding": [
-                    4,
-                    9
-                  ],
-                  "children": [
-                    {
-                      "type": "text",
-                      "id": "UXtGm",
-                      "name": "K",
-                      "fill": "$fg-inverse",
-                      "content": "③",
-                      "fontFamily": "Funnel Sans",
-                      "fontSize": 11,
-                      "fontWeight": "bold"
-                    }
-                  ]
-                },
-                {
-                  "type": "text",
-                  "id": "VNGgO",
-                  "name": "T",
-                  "fill": "$fg-primary",
-                  "textGrowth": "fixed-width",
-                  "width": "fill_container",
-                  "content": "空きコマを長押し",
-                  "fontFamily": "Funnel Sans",
-                  "fontSize": 16,
-                  "fontWeight": "bold"
-                }
-              ]
-            },
-            {
-              "type": "text",
-              "id": "s7mJL2",
-              "name": "D",
-              "fill": "$fg-secondary",
-              "textGrowth": "fixed-width",
-              "width": "fill_container",
-              "content": "⑥。セル長押し→その場のメニュー。「探す」「絞り込む」と並べてAIを置くので、AIが特別扱いにならず自然に選べる。",
-              "lineHeight": 1.5,
-              "fontFamily": "Funnel Sans",
-              "fontSize": 12,
-              "fontWeight": "normal"
-            }
-          ]
-        },
-        {
-          "type": "frame",
-          "id": "C9yIBV",
-          "name": "Cap_④",
-          "width": 390,
-          "layout": "vertical",
-          "gap": 6,
-          "children": [
-            {
-              "type": "frame",
-              "id": "sA6FO",
-              "name": "H",
-              "width": "fill_container",
-              "gap": 8,
-              "alignItems": "center",
-              "children": [
-                {
-                  "type": "frame",
-                  "id": "AZw1I",
-                  "name": "Badge",
-                  "fill": "$accent",
-                  "cornerRadius": 999,
-                  "padding": [
-                    4,
-                    9
-                  ],
-                  "children": [
-                    {
-                      "type": "text",
-                      "id": "gfhm3",
-                      "name": "K",
-                      "fill": "$fg-inverse",
-                      "content": "④",
-                      "fontFamily": "Funnel Sans",
-                      "fontSize": 11,
-                      "fontWeight": "bold"
-                    }
-                  ]
-                },
-                {
-                  "type": "text",
-                  "id": "Panqz",
-                  "name": "T",
-                  "fill": "$fg-primary",
-                  "textGrowth": "fixed-width",
-                  "width": "fill_container",
-                  "content": "シート展開（水3の文脈）",
-                  "fontFamily": "Funnel Sans",
-                  "fontSize": 16,
-                  "fontWeight": "bold"
-                }
-              ]
-            },
-            {
-              "type": "text",
-              "id": "JcSyy",
-              "name": "D",
-              "fill": "$fg-secondary",
-              "textGrowth": "fixed-width",
-              "width": "fill_container",
-              "content": "C のハーフシート。①②③どこから入っても同じシート。参照中チップとサジェストが入口に応じて差し替わる。",
-              "lineHeight": 1.5,
-              "fontFamily": "Funnel Sans",
-              "fontSize": 12,
-              "fontWeight": "normal"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "type": "frame",
       "id": "DojMp",
-      "x": 442,
+      "x": 910,
       "y": 0,
-      "name": "SyllabusPage",
+      "name": "SyllabusPage（本体・AIは時間割と同じ Ask Bar パターン）",
       "clip": true,
       "width": 390,
-      "height": 921,
       "fill": "$surface-primary",
       "layout": "vertical",
       "children": [
@@ -15115,7 +15752,7 @@
                 "blur": 8
               },
               "padding": 6,
-              "justifyContent": "space_between",
+              "justifyContent": "space_around",
               "alignItems": "center",
               "children": [
                 {
@@ -15205,42 +15842,6 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n1vDKA",
-                  "name": "Tab2_AIチャット",
-                  "cornerRadius": 8,
-                  "layout": "vertical",
-                  "gap": 3,
-                  "padding": [
-                    6,
-                    12
-                  ],
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "hgdj1",
-                      "name": "TabIcon2_AIチャット",
-                      "width": 20,
-                      "height": 20,
-                      "icon": "message-circle",
-                      "library": "lucide",
-                      "fill": "#6b7280"
-                    },
-                    {
-                      "type": "text",
-                      "id": "S9LfhR",
-                      "name": "TabLabel2_AIチャット",
-                      "fill": "#6b7280",
-                      "content": "AIチャット",
-                      "fontFamily": "Funnel Sans",
-                      "fontSize": 10,
-                      "fontWeight": "normal"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
                   "id": "L9F9u",
                   "name": "Tab2_マイデータ",
                   "fill": {
@@ -15300,7 +15901,7 @@
           "effect": {
             "type": "shadow",
             "shadowType": "outer",
-            "color": "#1A2B4E1F",
+            "color": "#1A2B4E24",
             "offset": {
               "x": 0,
               "y": 3
@@ -15333,9 +15934,9 @@
               "fill": "#8A93A3",
               "textGrowth": "fixed-width",
               "width": "fill_container",
-              "content": "「必修」の検索結果について聞く",
+              "content": "この検索結果について聞く",
               "fontFamily": "Funnel Sans",
-              "fontSize": 14,
+              "fontSize": 13,
               "fontWeight": "normal"
             },
             {
@@ -15369,8 +15970,8 @@
       "type": "frame",
       "id": "s1zvd",
       "x": 0,
-      "y": 1299,
-      "name": "v2 ① 通常（Ask Bar 常設）",
+      "y": 1930,
+      "name": "STEP1 時間割：通常（Ask Bar 常設）",
       "clip": true,
       "width": 390,
       "fill": "$surface-primary",
@@ -16970,7 +17571,7 @@
                 "blur": 8
               },
               "padding": 6,
-              "justifyContent": "space_between",
+              "justifyContent": "space_around",
               "alignItems": "center",
               "children": [
                 {
@@ -17045,47 +17646,6 @@
                       "name": "TabLabel_シラバス",
                       "fill": "#6B7280",
                       "content": "シラバス",
-                      "fontFamily": "Funnel Sans",
-                      "fontSize": 10,
-                      "fontWeight": "normal"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "nW4do",
-                  "name": "Tab_AIチャット",
-                  "fill": {
-                    "type": "color",
-                    "color": "#FFFFFF",
-                    "enabled": false
-                  },
-                  "cornerRadius": 8,
-                  "layout": "vertical",
-                  "gap": 3,
-                  "padding": [
-                    6,
-                    12
-                  ],
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "bLzBy",
-                      "name": "TabIcon_AIチャット",
-                      "width": 20,
-                      "height": 20,
-                      "icon": "message-circle",
-                      "library": "lucide",
-                      "fill": "#6B7280"
-                    },
-                    {
-                      "type": "text",
-                      "id": "wYff8",
-                      "name": "TabLabel_AIチャット",
-                      "fill": "#6B7280",
-                      "content": "AIチャット",
                       "fontFamily": "Funnel Sans",
                       "fontSize": 10,
                       "fontWeight": "normal"
@@ -17211,6 +17771,1326 @@
                   "icon": "arrow-up",
                   "library": "lucide",
                   "fill": "$fg-inverse"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "NMg4X",
+      "x": 0,
+      "y": 1120,
+      "name": "★ AI導線マップ（最初に読む）",
+      "width": 1484,
+      "fill": "$surface-primary",
+      "cornerRadius": 24,
+      "stroke": "$border-primary",
+      "strokeWidth": 1,
+      "effect": {
+        "type": "shadow",
+        "shadowType": "outer",
+        "color": "#1A2B4E14",
+        "offset": {
+          "x": 0,
+          "y": 4
+        },
+        "blur": 24
+      },
+      "layout": "vertical",
+      "gap": 22,
+      "padding": 32,
+      "children": [
+        {
+          "type": "frame",
+          "id": "zB0ik",
+          "name": "Header",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 8,
+          "children": [
+            {
+              "type": "text",
+              "id": "fEzvM",
+              "name": "MapTitle",
+              "fill": "$fg-primary",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "AI導線マップ ｜ 時間割 CalendarPage → AIアシスタント",
+              "fontFamily": "Funnel Sans",
+              "fontSize": 26,
+              "fontWeight": "bold"
+            },
+            {
+              "type": "text",
+              "id": "YuHjN",
+              "name": "MapLead",
+              "fill": "$fg-secondary",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "AI専用タブは廃止。タブバーは 時間割 / シラバス / マイデータ の3つのみ。AIは「画面下部に常設した Ask Bar」または「空きコマ長押しメニュー」から起動し、別ページへ遷移せず同一画面上にシートとして重なる。",
+              "lineHeight": 1.5,
+              "fontFamily": "Funnel Sans",
+              "fontSize": 14,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "C4MVK",
+          "name": "Diagram",
+          "width": 1420,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "S99pFO",
+              "name": "Entries",
+              "width": 440,
+              "layout": "vertical",
+              "gap": 10,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "byv2X",
+                  "name": "EntriesLabel",
+                  "fill": "#8A93A3",
+                  "content": "入口 ENTRY ／ どこから入っても同じシートが開く",
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 11,
+                  "fontWeight": "bold"
+                },
+                {
+                  "type": "frame",
+                  "id": "LXH9j",
+                  "name": "Entry_1",
+                  "width": "fill_container",
+                  "fill": "$surface-gray",
+                  "cornerRadius": 14,
+                  "stroke": "#EDEFF2",
+                  "strokeWidth": 1,
+                  "gap": 12,
+                  "padding": [
+                    12,
+                    14
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "kUkd2",
+                      "name": "Badge",
+                      "width": 26,
+                      "height": 26,
+                      "fill": "$accent",
+                      "cornerRadius": 999,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "HfG34",
+                          "name": "K",
+                          "fill": "$fg-inverse",
+                          "content": "1",
+                          "fontFamily": "Funnel Sans",
+                          "fontSize": 12,
+                          "fontWeight": "bold"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "SpWNU",
+                      "name": "Texts",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 3,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "RkVmH",
+                          "name": "T",
+                          "fill": "$fg-primary",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "通常 ｜ Ask Bar 常設",
+                          "fontFamily": "Funnel Sans",
+                          "fontSize": 14,
+                          "fontWeight": "bold"
+                        },
+                        {
+                          "type": "text",
+                          "id": "k5tZV7",
+                          "name": "ID",
+                          "fill": "#8A93A3",
+                          "content": "frame id: s1zvd",
+                          "fontFamily": "Inter",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "r5UV9k",
+                          "name": "Trig",
+                          "fill": "$fg-secondary",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "操作: 下部の Ask Bar をタップ ／ 文脈 = 表示中の時間割ぜんぶ",
+                          "lineHeight": 1.45,
+                          "fontFamily": "Funnel Sans",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "lOUH8",
+                  "name": "Entry_2",
+                  "width": "fill_container",
+                  "fill": "$surface-gray",
+                  "cornerRadius": 14,
+                  "stroke": "#EDEFF2",
+                  "strokeWidth": 1,
+                  "gap": 12,
+                  "padding": [
+                    12,
+                    14
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "A1dSD",
+                      "name": "Badge",
+                      "width": 26,
+                      "height": 26,
+                      "fill": "$accent",
+                      "cornerRadius": 999,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "ZFTj3",
+                          "name": "K",
+                          "fill": "$fg-inverse",
+                          "content": "2",
+                          "fontFamily": "Funnel Sans",
+                          "fontSize": 12,
+                          "fontWeight": "bold"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "vDTyh",
+                      "name": "Texts",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 3,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "HW7kB",
+                          "name": "T",
+                          "fill": "$fg-primary",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "科目を選択中 ｜ 文脈が絞られる",
+                          "fontFamily": "Funnel Sans",
+                          "fontSize": 14,
+                          "fontWeight": "bold"
+                        },
+                        {
+                          "type": "text",
+                          "id": "C9mdMz",
+                          "name": "ID",
+                          "fill": "#8A93A3",
+                          "content": "frame id: SYw3H",
+                          "fontFamily": "Inter",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "ZBz7G",
+                          "name": "Trig",
+                          "fill": "$fg-secondary",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "操作: 時間割の科目をタップ → Ask Bar をタップ ／ 文脈 = その科目",
+                          "lineHeight": 1.45,
+                          "fontFamily": "Funnel Sans",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "IbsSw",
+                  "name": "Entry_3",
+                  "width": "fill_container",
+                  "fill": "$surface-gray",
+                  "cornerRadius": 14,
+                  "stroke": "#EDEFF2",
+                  "strokeWidth": 1,
+                  "gap": 12,
+                  "padding": [
+                    12,
+                    14
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "cth4p",
+                      "name": "Badge",
+                      "width": 26,
+                      "height": 26,
+                      "fill": "$accent",
+                      "cornerRadius": 999,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "jAiOL",
+                          "name": "K",
+                          "fill": "$fg-inverse",
+                          "content": "3",
+                          "fontFamily": "Funnel Sans",
+                          "fontSize": 12,
+                          "fontWeight": "bold"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "qzfov",
+                      "name": "Texts",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 3,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "pR3km",
+                          "name": "T",
+                          "fill": "$fg-primary",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "空きコマを長押し ｜ 文脈メニュー",
+                          "fontFamily": "Funnel Sans",
+                          "fontSize": 14,
+                          "fontWeight": "bold"
+                        },
+                        {
+                          "type": "text",
+                          "id": "DyL8r",
+                          "name": "ID",
+                          "fill": "#8A93A3",
+                          "content": "frame id: FxvVj",
+                          "fontFamily": "Inter",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "fKEQZ",
+                          "name": "Trig",
+                          "fill": "$fg-secondary",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "操作: 空きセル長押し → メニューの「AIに聞く」 ／ 文脈 = そのコマ（例: 水3）",
+                          "lineHeight": 1.45,
+                          "fontFamily": "Funnel Sans",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "WJr1G",
+              "name": "Arrow_Ask Bar / メニューから起動",
+              "width": 190,
+              "layout": "vertical",
+              "gap": 8,
+              "padding": [
+                0,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "ICUzR",
+                  "name": "Top",
+                  "fill": "$accent",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Ask Bar / メニューから起動",
+                  "lineHeight": 1.4,
+                  "textAlign": "center",
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 12,
+                  "fontWeight": "bold"
+                },
+                {
+                  "type": "icon",
+                  "id": "mVqIV",
+                  "name": "ArrowIcon",
+                  "width": 52,
+                  "height": 26,
+                  "icon": "arrow-right",
+                  "library": "lucide",
+                  "fill": "$accent"
+                },
+                {
+                  "type": "text",
+                  "id": "MBZ8Y",
+                  "name": "Bottom",
+                  "fill": "#8A93A3",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "参照中チップに文脈を引き継ぐ",
+                  "lineHeight": 1.4,
+                  "textAlign": "center",
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "Kiino",
+              "name": "Stage_4",
+              "width": 300,
+              "fill": "$accent-light",
+              "cornerRadius": 16,
+              "stroke": "$accent",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 8,
+              "padding": 16,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "hhkHA",
+                  "name": "H",
+                  "width": "fill_container",
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "gvaNf",
+                      "name": "Badge",
+                      "width": 26,
+                      "height": 26,
+                      "fill": "$accent",
+                      "cornerRadius": 999,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "EEWRB",
+                          "name": "K",
+                          "fill": "$fg-inverse",
+                          "content": "4",
+                          "fontFamily": "Funnel Sans",
+                          "fontSize": 12,
+                          "fontWeight": "bold"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "zrj4r",
+                      "name": "T",
+                      "fill": "$fg-primary",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "ハーフシート展開",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 15,
+                      "fontWeight": "bold"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "NsN5R",
+                  "name": "ID",
+                  "fill": "#8A93A3",
+                  "content": "frame id: r7CAjT",
+                  "fontFamily": "Inter",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "B5JFhr",
+                  "name": "L",
+                  "fill": "$fg-secondary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "・高さ 384（画面の約6割）・下のタブバーは見えたまま",
+                  "lineHeight": 1.5,
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "LVh0B",
+                  "name": "L",
+                  "fill": "$fg-secondary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "・参照中チップ＋サジェスト3件＋入力欄",
+                  "lineHeight": 1.5,
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "MRXKr",
+                  "name": "L",
+                  "fill": "$fg-secondary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "・画面遷移ではなくオーバーレイ（背後の時間割は保持）",
+                  "lineHeight": 1.5,
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "EtXb8",
+              "name": "Arrow_入力欄に自分で追記して送信",
+              "width": 190,
+              "layout": "vertical",
+              "gap": 8,
+              "padding": [
+                0,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "hm0es",
+                  "name": "Top",
+                  "fill": "$accent",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "入力欄に自分で追記して送信",
+                  "lineHeight": 1.4,
+                  "textAlign": "center",
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 12,
+                  "fontWeight": "bold"
+                },
+                {
+                  "type": "icon",
+                  "id": "hZjZZ",
+                  "name": "ArrowIcon",
+                  "width": 52,
+                  "height": 26,
+                  "icon": "arrow-right",
+                  "library": "lucide",
+                  "fill": "$accent"
+                },
+                {
+                  "type": "text",
+                  "id": "jjM4E",
+                  "name": "Bottom",
+                  "fill": "#8A93A3",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "サジェストを選んだ場合はシート内で回答",
+                  "lineHeight": 1.4,
+                  "textAlign": "center",
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "kWlYf",
+              "name": "Stage_5",
+              "width": 300,
+              "fill": "$accent-light",
+              "cornerRadius": 16,
+              "stroke": "$accent",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 8,
+              "padding": 16,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "irvSJ",
+                  "name": "H",
+                  "width": "fill_container",
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "h4XPM",
+                      "name": "Badge",
+                      "width": 26,
+                      "height": 26,
+                      "fill": "$accent",
+                      "cornerRadius": 999,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "A3nVJ",
+                          "name": "K",
+                          "fill": "$fg-inverse",
+                          "content": "5",
+                          "fontFamily": "Funnel Sans",
+                          "fontSize": 12,
+                          "fontWeight": "bold"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "wwfIu",
+                      "name": "T",
+                      "fill": "$fg-primary",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "フルスクリーン昇格",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 15,
+                      "fontWeight": "bold"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "HquyC",
+                  "name": "ID",
+                  "fill": "#8A93A3",
+                  "content": "frame id: jjAu7",
+                  "fontFamily": "Inter",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "Xg61h",
+                  "name": "L",
+                  "fill": "$fg-secondary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "・シートが全画面に。会話が続く画面に切り替わる",
+                  "lineHeight": 1.5,
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "k2zTtT",
+                  "name": "L",
+                  "fill": "$fg-secondary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "・タブバーは非表示（これが旧 AIチャットタブの代替）",
+                  "lineHeight": 1.5,
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "f1qC1B",
+                  "name": "L",
+                  "fill": "$fg-secondary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "・ヘッダーの縮小アイコン（minimize-2）でハーフシートに戻る / 閉じる（×）で時間割に戻る",
+                  "lineHeight": 1.5,
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "RA7LO",
+          "name": "BackNote",
+          "fill": "$fg-secondary",
+          "textGrowth": "fixed-width",
+          "width": "fill_container",
+          "content": "戻り動線: 閉じる（×）で元の時間割へ（スクロール位置と選択状態は保持）／ 縮小アイコン（minimize-2）でフルスクリーンからハーフシートへ。どの段階でも「別ページへ移動した」感を出さないことが設計意図。",
+          "lineHeight": 1.5,
+          "fontFamily": "Funnel Sans",
+          "fontSize": 12,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "KruOj",
+          "name": "HowToRead",
+          "fill": "#8A93A3",
+          "textGrowth": "fixed-width",
+          "width": "fill_container",
+          "content": "読み方: このマップの真下に STEP解説（キャプション）が5枚、その下に STEP1〜STEP5 の実画面フレームが左から順に並んでいる。フレーム名の先頭が STEP 番号なので、番号順に見れば遷移が追える。シラバス画面（SyllabusPage）も同じ Ask Bar → シートのパターンで、参照中チップが科目に変わるだけ。",
+          "lineHeight": 1.5,
+          "fontFamily": "Funnel Sans",
+          "fontSize": 12,
+          "fontWeight": "normal"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "AzhxT",
+      "x": 0,
+      "y": 1725,
+      "name": "AI導線 STEP解説（キャプション）",
+      "width": 2158,
+      "gap": 52,
+      "children": [
+        {
+          "type": "frame",
+          "id": "S9VKWa",
+          "name": "Cap_STEP1",
+          "width": 390,
+          "layout": "vertical",
+          "gap": 8,
+          "children": [
+            {
+              "type": "frame",
+              "id": "EMqgX",
+              "name": "H",
+              "width": "fill_container",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "hUuSy",
+                  "name": "Badge",
+                  "fill": "$accent",
+                  "cornerRadius": 999,
+                  "padding": [
+                    4,
+                    10
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "bqL6M",
+                      "name": "K",
+                      "fill": "$fg-inverse",
+                      "content": "STEP 1",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 11,
+                      "fontWeight": "bold"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "Ho067",
+                  "name": "T",
+                  "fill": "$fg-primary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "通常（Ask Bar 常設）",
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 16,
+                  "fontWeight": "bold"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "n76f7x",
+              "name": "D",
+              "fill": "$fg-secondary",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "画面下部・タブバーの上に Ask Bar を常設。プレースホルダで「いま見ている画面を文脈にする」ことを明示する。",
+              "lineHeight": 1.5,
+              "fontFamily": "Funnel Sans",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "frame",
+              "id": "F3beo",
+              "name": "Meta",
+              "width": "fill_container",
+              "fill": "$surface-gray",
+              "cornerRadius": 10,
+              "stroke": "#EDEFF2",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 4,
+              "padding": [
+                9,
+                11
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "q6qiix",
+                  "name": "MId",
+                  "fill": "#8A93A3",
+                  "content": "frame id: s1zvd",
+                  "fontFamily": "Inter",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "vKRQi",
+                  "name": "MOp",
+                  "fill": "$fg-secondary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "操作: Ask Bar をタップ",
+                  "lineHeight": 1.45,
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "bnF9k",
+                  "name": "MNext",
+                  "fill": "$accent",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "遷移先: STEP4（別ページには行かず、同一画面にシートが重なる）",
+                  "lineHeight": 1.45,
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 11,
+                  "fontWeight": "bold"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "C1oMg",
+          "name": "Cap_STEP2",
+          "width": 390,
+          "layout": "vertical",
+          "gap": 8,
+          "children": [
+            {
+              "type": "frame",
+              "id": "mWc9U",
+              "name": "H",
+              "width": "fill_container",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "BVzKR",
+                  "name": "Badge",
+                  "fill": "$accent",
+                  "cornerRadius": 999,
+                  "padding": [
+                    4,
+                    10
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "e88SyT",
+                      "name": "K",
+                      "fill": "$fg-inverse",
+                      "content": "STEP 2",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 11,
+                      "fontWeight": "bold"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "h6HD1D",
+                  "name": "T",
+                  "fill": "$fg-primary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "科目を選択中",
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 16,
+                  "fontWeight": "bold"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "Iez5D",
+              "name": "D",
+              "fill": "$fg-secondary",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "科目をタップすると文脈がその科目に絞られ、Ask Bar 左に赤チップが出る。押す前に何を AI に渡すか分かる。",
+              "lineHeight": 1.5,
+              "fontFamily": "Funnel Sans",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "frame",
+              "id": "ll564",
+              "name": "Meta",
+              "width": "fill_container",
+              "fill": "$surface-gray",
+              "cornerRadius": 10,
+              "stroke": "#EDEFF2",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 4,
+              "padding": [
+                9,
+                11
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "ZMddv",
+                  "name": "MId",
+                  "fill": "#8A93A3",
+                  "content": "frame id: SYw3H",
+                  "fontFamily": "Inter",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "Xme2y",
+                  "name": "MOp",
+                  "fill": "$fg-secondary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "操作: 科目をタップ → Ask Bar をタップ",
+                  "lineHeight": 1.45,
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "kYcfv",
+                  "name": "MNext",
+                  "fill": "$accent",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "遷移先: STEP4（文脈 = その科目）",
+                  "lineHeight": 1.45,
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 11,
+                  "fontWeight": "bold"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "mVax3",
+          "name": "Cap_STEP3",
+          "width": 390,
+          "layout": "vertical",
+          "gap": 8,
+          "children": [
+            {
+              "type": "frame",
+              "id": "N0pwU6",
+              "name": "H",
+              "width": "fill_container",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "hHBcB",
+                  "name": "Badge",
+                  "fill": "$accent",
+                  "cornerRadius": 999,
+                  "padding": [
+                    4,
+                    10
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "asyAb",
+                      "name": "K",
+                      "fill": "$fg-inverse",
+                      "content": "STEP 3",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 11,
+                      "fontWeight": "bold"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "R3A4zU",
+                  "name": "T",
+                  "fill": "$fg-primary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "空きコマを長押し",
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 16,
+                  "fontWeight": "bold"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "lQZQR",
+              "name": "D",
+              "fill": "$fg-secondary",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "空きセル長押しでその場のメニュー。「探す」「絞り込む」と並べて AI を置くので、AI が特別扱いにならない。",
+              "lineHeight": 1.5,
+              "fontFamily": "Funnel Sans",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "frame",
+              "id": "QTHSX",
+              "name": "Meta",
+              "width": "fill_container",
+              "fill": "$surface-gray",
+              "cornerRadius": 10,
+              "stroke": "#EDEFF2",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 4,
+              "padding": [
+                9,
+                11
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "qdEjG",
+                  "name": "MId",
+                  "fill": "#8A93A3",
+                  "content": "frame id: FxvVj",
+                  "fontFamily": "Inter",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "ElLJb",
+                  "name": "MOp",
+                  "fill": "$fg-secondary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "操作: 空きセルを長押し → 「AIに聞く」",
+                  "lineHeight": 1.45,
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "yuAkG",
+                  "name": "MNext",
+                  "fill": "$accent",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "遷移先: STEP4（文脈 = そのコマ・例 水3）",
+                  "lineHeight": 1.45,
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 11,
+                  "fontWeight": "bold"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "SVeqp",
+          "name": "Cap_STEP4",
+          "width": 390,
+          "layout": "vertical",
+          "gap": 8,
+          "children": [
+            {
+              "type": "frame",
+              "id": "r3II6",
+              "name": "H",
+              "width": "fill_container",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "y2UqTm",
+                  "name": "Badge",
+                  "fill": "$accent",
+                  "cornerRadius": 999,
+                  "padding": [
+                    4,
+                    10
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "mFevI",
+                      "name": "K",
+                      "fill": "$fg-inverse",
+                      "content": "STEP 4",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 11,
+                      "fontWeight": "bold"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "JeP8j",
+                  "name": "T",
+                  "fill": "$fg-primary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "AIハーフシート展開",
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 16,
+                  "fontWeight": "bold"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "iHvbg",
+              "name": "D",
+              "fill": "$fg-secondary",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "高さ384のハーフシート。STEP1〜3 のどこから入っても同じシートで、参照中チップとサジェストだけが入口に応じて差し替わる。背後の時間割とタブバーは見えたまま。",
+              "lineHeight": 1.5,
+              "fontFamily": "Funnel Sans",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "frame",
+              "id": "zUSlR",
+              "name": "Meta",
+              "width": "fill_container",
+              "fill": "$surface-gray",
+              "cornerRadius": 10,
+              "stroke": "#EDEFF2",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 4,
+              "padding": [
+                9,
+                11
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "KkpR8",
+                  "name": "MId",
+                  "fill": "#8A93A3",
+                  "content": "frame id: r7CAjT",
+                  "fontFamily": "Inter",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "u2pY6",
+                  "name": "MOp",
+                  "fill": "$fg-secondary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "操作: サジェストをタップ／入力欄に自分で追記して送信",
+                  "lineHeight": 1.45,
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "H2ANd",
+                  "name": "MNext",
+                  "fill": "$accent",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "遷移先: サジェスト = シート内で回答 ／ 追記送信 = STEP5",
+                  "lineHeight": 1.45,
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 11,
+                  "fontWeight": "bold"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "m5Xx5",
+          "name": "Cap_STEP5",
+          "width": 390,
+          "layout": "vertical",
+          "gap": 8,
+          "children": [
+            {
+              "type": "frame",
+              "id": "KjYZa",
+              "name": "H",
+              "width": "fill_container",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "sbf7w",
+                  "name": "Badge",
+                  "fill": "$accent",
+                  "cornerRadius": 999,
+                  "padding": [
+                    4,
+                    10
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "FKhpZ",
+                      "name": "K",
+                      "fill": "$fg-inverse",
+                      "content": "STEP 5",
+                      "fontFamily": "Funnel Sans",
+                      "fontSize": 11,
+                      "fontWeight": "bold"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "F5Z3fT",
+                  "name": "T",
+                  "fill": "$fg-primary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "AIフルスクリーン（追加質問後）",
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 16,
+                  "fontWeight": "bold"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "J8s3Zw",
+              "name": "D",
+              "fill": "$fg-secondary",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "自分で質問を書いた瞬間シートが全画面に昇格し、会話が続く画面になる。旧「AIチャット」タブの役割はここが担うため、専用タブは持たない。",
+              "lineHeight": 1.5,
+              "fontFamily": "Funnel Sans",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "frame",
+              "id": "UnXlb",
+              "name": "Meta",
+              "width": "fill_container",
+              "fill": "$surface-gray",
+              "cornerRadius": 10,
+              "stroke": "#EDEFF2",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 4,
+              "padding": [
+                9,
+                11
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "H8WPR",
+                  "name": "MId",
+                  "fill": "#8A93A3",
+                  "content": "frame id: jjAu7",
+                  "fontFamily": "Inter",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "qiUsL",
+                  "name": "MOp",
+                  "fill": "$fg-secondary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "操作: ヘッダーの縮小アイコン（minimize-2）／閉じる（×）",
+                  "lineHeight": 1.45,
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "rJxB6",
+                  "name": "MNext",
+                  "fill": "$accent",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "遷移先: 縮小 → STEP4 ／ 閉じる → STEP1（元の時間割に戻る）",
+                  "lineHeight": 1.45,
+                  "fontFamily": "Funnel Sans",
+                  "fontSize": 11,
+                  "fontWeight": "bold"
                 }
               ]
             }
