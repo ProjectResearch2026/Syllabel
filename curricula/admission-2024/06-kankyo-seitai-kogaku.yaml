@@ -8,6 +8,7 @@ program:
   name_aliases: ["環境科学課程"]    # 2025年度に環境科学課程へ改称(design §4.4.2)
 admission_year: 2024
 curriculum_version: null            # 履修要項の見出しに版表記なし(§4.4.1)
+duplicate_of: null                  # 他コホートの複製ではないため null(§5.1.2)
 graduation:
   total_credits: 124
   excluded_types: ["随意"]            # 卒業要件単位に算入しない type
@@ -96,7 +97,6 @@ credit_caps:
 # 各授業の定義
 # - type: 必修 / 選択必修 / 選択 / 随意
 # - grade・term・quarters: 配当年次・学期・クォーター
-# - credits: null の場合は「単位数・開講時期はWebページ画像参照」
 courses:
   # ---- 専門基礎科目 ----
   - title: "情報基礎"

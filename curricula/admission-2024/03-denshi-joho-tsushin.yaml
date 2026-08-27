@@ -3,15 +3,17 @@
 #   https://rishu.ryukoku.ac.jp/curriculum/2024/faculty-rikou/s07/ (専攻科目・学修プログラム)
 #   http://rishu.ryukoku.ac.jp/knowledge/no5-01/ (履修登録制限単位数)
 # 構成:
-#   graduation_requirements - 卒業要件単位数・進級条件
-#   registration_limits     - 履修登録制限単位数(CAP制)
-#   courses                 - 各科目の詳細情報
+#   graduation / requirement_slots - 卒業要件の総単位数と要件枠
+#   credit_caps                    - 特定科目群の卒業要件算入上限
+#   registration_limits            - 履修登録制限単位数(CAP制)
+#   courses                        - 専攻科目(教養教育科目は 00-liberal-arts.yaml)
 program:
   code: "03"                        # 課程コード2桁。シラバスコード先頭4桁(Y003)と一致する一次識別子
   name: "電子情報通信課程"
   name_aliases: []
 admission_year: 2024
 curriculum_version: "2023年度以降入学生"      # 履修要項の見出しの版表記(§4.4.1)
+duplicate_of: null                  # 他コホートの複製ではないため null(§5.1.2)
 graduation:
   total_credits: 124
   excluded_types: ["随意"]            # 卒業要件単位に算入しない type
