@@ -44,23 +44,33 @@ interface ParseResult {
 const PASS_SCORE = 60;
 
 const GRADE_SYMBOL_STATUS: Record<string, Course["status"]> = {
-  T: "passed",   // 追試合格
-  J: "passed",   // 条件付合格
-  D: "failed",   // 不合格
-  N: "withdrawn", // 履修放棄
-  G: "withdrawn", // 欠席
+  N: "passed",    // 認定
+  G: "passed",    // 合格
+  T: "passed",    // 追試合格
+  D: "failed",    // 不合格
+  U: "failed",    // 追試不合格
+  J: "withdrawn", // 辞退
   M: "withdrawn", // 無効
+  W: "withdrawn", // 追試欠席
+  Y: "withdrawn", // 追試無効
+  K: "withdrawn", // 欠席
 };
 
-// 評価記号か数値スコアかを判定
+// 評価記号か数値スコアかを判定（N90 のような記号+数字の複合形式も対象）
 function isScore(s: string): boolean {
   const t = s.trim();
-  return t in GRADE_SYMBOL_STATUS || /^\d{1,3}$/.test(t);
+  return t in GRADE_SYMBOL_STATUS || /^\d{1,3}$/.test(t) || /^[NGDJTMUYWK]\d+$/.test(t);
 }
 
 function rawToStatus(raw: string): Course["status"] {
   const t = raw.trim();
   if (t in GRADE_SYMBOL_STATUS) return GRADE_SYMBOL_STATUS[t];
+  // 記号+数字の複合形式（例: N90、T75）
+  const combined = t.match(/^([NGDJTMUYWK])(\d+)$/);
+  if (combined) {
+    const symbol = combined[1];
+    if (symbol in GRADE_SYMBOL_STATUS) return GRADE_SYMBOL_STATUS[symbol];
+  }
   const n = parseInt(t, 10);
   if (!isNaN(n)) return n >= PASS_SCORE ? "passed" : "failed";
   return "withdrawn";
