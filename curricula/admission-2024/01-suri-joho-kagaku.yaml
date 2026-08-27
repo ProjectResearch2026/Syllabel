@@ -14,17 +14,22 @@ program:
   name: "数理・情報科学課程"
   name_aliases: []
 admission_year: 2024
-# コース区分（数学系・情報系・総合コース）
-courses_tracks:
-  - id: "math"
+tracks:                             # 課程内コース区分。値は履修要項の「専門応用科目の履修要件」別表から転記
+  - key: "math"
     name: "数学系コース"
-    notes: "選択必修：数学系18単位中13単位以上、情報系13単位中9単位以上。選択：数学系21単位中14単位以上"
-  - id: "info"
+    constraints:
+      - {slot: "applied.required_elective", track_group: "数学系", pool: 18, min: 13}
+      - {slot: "applied.elective", track_group: "数学系", pool: 21, min: 14}
+  - key: "info"
     name: "情報系コース"
-    notes: "選択必修：数学系18単位中9単位以上、情報系13単位中4単位以上。選択：情報系25単位中14単位以上"
-  - id: "sogo"
+    constraints:
+      - {slot: "applied.required_elective", track_group: "情報系", pool: 13, min: 9}
+      - {slot: "applied.elective", track_group: "情報系", pool: 25, min: 14}
+  - key: "sogo"
     name: "総合コース"
-    notes: "選択必修：22単位以上（内訳の制限なし）"
+    constraints:                      # 総合コースは両群から浅く取ることを求められる(別表 総合コース列)
+      - {slot: "applied.required_elective", track_group: "数学系", pool: 18, min: 9}
+      - {slot: "applied.required_elective", track_group: "情報系", pool: 13, min: 4}
 graduation:
   total_credits: 124
   excluded_types: ["随意"]            # 卒業要件単位に算入しない type
@@ -124,7 +129,6 @@ credit_caps:
 # 各授業の定義
 # - type: 必修 / 選択必修 / 選択 / 随意
 # - grade・term・quarters: 配当年次・学期・クォーター
-# - track: 対応コース（math=数学系, info=情報系, sogo=総合, all=全コース共通の選択必修）
 # - 注記: 専門科目の詳細（単位数・クォーター等）はWebページが画像形式のため不完全な場合あり
 courses:
   # ---- 専門基礎科目 ----
@@ -328,286 +332,273 @@ courses:
   # ---- 専門応用科目: 選択必修（数学系・情報系共通） ----
   - title: "微積分及び演習Ⅱ"
     category: "専門応用科目"
-    subcategory: "選択必修"
     type: "選択必修"
+    track_groups: ["数学系"]
     credits: 3
     grade: 1
     term: "後期"
     quarters: ["3Q", "4Q"]
-    track: ["math", "info", "sogo"]
   - title: "線形代数及び演習Ⅱ"
     category: "専門応用科目"
-    subcategory: "選択必修"
     type: "選択必修"
+    track_groups: ["数学系"]
     credits: 3
     grade: 1
     term: "後期"
     quarters: ["3Q", "4Q"]
-    track: ["math", "info", "sogo"]
   - title: "データ分析"
     category: "専門応用科目"
-    subcategory: "選択必修"
     type: "選択必修"
+    track_groups: ["数学系"]
     credits: 2
     grade: 1
     term: "後期"
     quarters: ["3Q", "4Q"]
-    track: ["math", "info", "sogo"]
   - title: "微分方程式Ⅰ"
     category: "専門応用科目"
-    subcategory: "選択必修"
     type: "選択必修"
+    track_groups: ["数学系"]
     credits: 2
     grade: 2
     term: "前期"
     quarters: ["1Q", "2Q"]
-    track: ["math", "info", "sogo"]
   - title: "確率統計Ⅰ"
     category: "専門応用科目"
-    subcategory: "選択必修"
     type: "選択必修"
+    track_groups: ["数学系"]
     credits: 2
     grade: 2
     term: "前期"
     quarters: ["1Q", "2Q"]
-    track: ["math", "info", "sogo"]
   - title: "数値計算法及び演習"
     category: "専門応用科目"
-    subcategory: "選択必修"
     type: "選択必修"
+    track_groups: ["数学系"]
     credits: 3
     grade: 2
     term: "前期"
     quarters: ["1Q", "2Q"]
-    track: ["math", "info", "sogo"]
   - title: "物理と微分方程式及び演習"
     category: "専門応用科目"
-    subcategory: "選択必修"
     type: "選択必修"
+    track_groups: ["数学系"]
     credits: 3
     grade: 2
     term: "前期"
     quarters: ["1Q", "2Q"]
-    track: ["math", "info", "sogo"]
   - title: "情報処理システムⅠ"
     category: "専門応用科目"
-    subcategory: "選択必修"
     type: "選択必修"
+    track_groups: ["情報系"]
     credits: 2
     grade: 1
     term: "後期"
     quarters: ["3Q", "4Q"]
-    track: ["math", "info", "sogo"]
   - title: "情報処理システムⅡ"
     category: "専門応用科目"
-    subcategory: "選択必修"
     type: "選択必修"
+    track_groups: ["情報系"]
     credits: 2
     grade: 2
     term: "前期"
     quarters: ["1Q", "2Q"]
-    track: ["math", "info", "sogo"]
   - title: "プログラミング及び実習Ⅱ"
     category: "専門応用科目"
-    subcategory: "選択必修"
     type: "選択必修"
+    track_groups: ["情報系"]
     credits: 2
     grade: 1
     term: "後期"
     quarters: ["3Q", "4Q"]
-    track: ["math", "info", "sogo"]
   - title: "プログラミング及び実習Ⅲ"
     category: "専門応用科目"
-    subcategory: "選択必修"
     type: "選択必修"
+    track_groups: ["情報系"]
     credits: 3
     grade: 2
     term: "前期"
     quarters: ["1Q", "2Q"]
-    track: ["math", "info", "sogo"]
   - title: "集合と論理"
     category: "専門応用科目"
-    subcategory: "選択必修"
     type: "選択必修"
+    track_groups: ["情報系"]
     credits: 2
     grade: 2
     term: "後期"
     quarters: ["3Q", "4Q"]
-    track: ["math", "info", "sogo"]
   - title: "フーリエ解析及び演習"
     category: "専門応用科目"
-    subcategory: "選択必修"
     type: "選択必修"
+    track_groups: ["情報系"]
     credits: 2
     grade: 2
     term: "後期"
     quarters: ["3Q"]
-    track: ["math", "info", "sogo"]
   # ---- 専門応用科目: 選択（数学系） ----
   - title: "微分方程式Ⅱ"
     category: "専門応用科目"
-    subcategory: "選択（数学系）"
     type: "選択"
+    track_groups: ["数学系"]
     credits: 2
     grade: 2
     term: "後期"
     quarters: ["3Q", "4Q"]
   - title: "質点系の力学"
     category: "専門応用科目"
-    subcategory: "選択（数学系）"
     type: "選択"
+    track_groups: ["数学系"]
     credits: 2
     grade: 2
     term: "後期"
     quarters: ["3Q", "4Q"]
   - title: "複素解析Ⅰ"
     category: "専門応用科目"
-    subcategory: "選択（数学系）"
     type: "選択"
+    track_groups: ["数学系"]
     credits: 1
     grade: 3
     term: "前期"
     quarters: ["1Q"]
   - title: "複素解析Ⅱ"
     category: "専門応用科目"
-    subcategory: "選択（数学系）"
     type: "選択"
+    track_groups: ["数学系"]
     credits: 1
     grade: 3
     term: "前期"
     quarters: ["2Q"]
   - title: "位相入門Ⅰ"
     category: "専門応用科目"
-    subcategory: "選択（数学系）"
     type: "選択"
+    track_groups: ["数学系"]
     credits: 1
     grade: 3
     term: "前期"
     quarters: ["1Q"]
   - title: "位相入門Ⅱ"
     category: "専門応用科目"
-    subcategory: "選択（数学系）"
     type: "選択"
+    track_groups: ["数学系"]
     credits: 1
     grade: 3
     term: "前期"
     quarters: ["2Q"]
   - title: "代数入門Ⅰ"
     category: "専門応用科目"
-    subcategory: "選択（数学系）"
     type: "選択"
+    track_groups: ["数学系"]
     credits: 1
     grade: 3
     term: "前期"
     quarters: ["1Q"]
   - title: "代数入門Ⅱ"
     category: "専門応用科目"
-    subcategory: "選択（数学系）"
     type: "選択"
+    track_groups: ["数学系"]
     credits: 1
     grade: 3
     term: "前期"
     quarters: ["2Q"]
   - title: "幾何入門"
     category: "専門応用科目"
-    subcategory: "選択（数学系）"
     type: "選択"
+    track_groups: ["数学系"]
     credits: 1
     grade: 3
     term: "前期"
     quarters: ["1Q"]
   - title: "ベクトル解析入門"
     category: "専門応用科目"
-    subcategory: "選択（数学系）"
     type: "選択"
+    track_groups: ["数学系"]
     credits: 1
     grade: 3
     term: "前期"
     quarters: ["2Q"]
   - title: "現象の数理モデルⅠ"
     category: "専門応用科目"
-    subcategory: "選択（数学系）"
     type: "選択"
+    track_groups: ["数学系"]
     credits: 1
     grade: 3
     term: "前期"
     quarters: ["1Q"]
   - title: "現象の数理モデルⅡ"
     category: "専門応用科目"
-    subcategory: "選択（数学系）"
     type: "選択"
+    track_groups: ["数学系"]
     credits: 1
     grade: 3
     term: "前期"
     quarters: ["2Q"]
   - title: "拡散現象の数理Ⅰ"
     category: "専門応用科目"
-    subcategory: "選択（数学系）"
     type: "選択"
+    track_groups: ["数学系"]
     credits: 1
     grade: 3
     term: "前期"
     quarters: ["1Q"]
   - title: "拡散現象の数理Ⅱ"
     category: "専門応用科目"
-    subcategory: "選択（数学系）"
     type: "選択"
+    track_groups: ["数学系"]
     credits: 1
     grade: 3
     term: "前期"
     quarters: ["2Q"]
   - title: "応用幾何"
     category: "専門応用科目"
-    subcategory: "選択（数学系）"
     type: "選択"
+    track_groups: ["数学系"]
     credits: 1
     grade: 3
     term: "後期"
     quarters: ["3Q"]
   - title: "波動現象の数理Ⅰ"
     category: "専門応用科目"
-    subcategory: "選択（数学系）"
     type: "選択"
+    track_groups: ["数学系"]
     credits: 1
     grade: 3
     term: "後期"
     quarters: ["3Q"]
   - title: "波動現象の数理Ⅱ"
     category: "専門応用科目"
-    subcategory: "選択（数学系）"
     type: "選択"
+    track_groups: ["数学系"]
     credits: 1
     grade: 3
     term: "後期"
     quarters: ["4Q"]
   - title: "確率統計Ⅱ"
     category: "専門応用科目"
-    subcategory: "選択（数学系）"
     type: "選択"
+    track_groups: ["数学系"]
     credits: 1
     grade: 3
     term: "後期"
     quarters: ["3Q"]
   - title: "確率統計Ⅲ"
     category: "専門応用科目"
-    subcategory: "選択（数学系）"
     type: "選択"
+    track_groups: ["数学系"]
     credits: 1
     grade: 3
     term: "後期"
     quarters: ["4Q"]
   - title: "シミュレーション及び演習"
     category: "専門応用科目"
-    subcategory: "選択（数学系）"
     type: "選択"
+    track_groups: ["情報系"]
     credits: 2
     grade: 2
     term: "後期"
     quarters: ["4Q"]
   - title: "確率モデル及び演習"
     category: "専門応用科目"
-    subcategory: "選択（数学系）"
     type: "選択"
+    track_groups: ["情報系"]
     credits: 2
     grade: 3
     term: "後期"
@@ -615,112 +606,112 @@ courses:
   # ---- 専門応用科目: 選択（情報系） ----
   - title: "アルゴリズム及び演習Ⅰ"
     category: "専門応用科目"
-    subcategory: "選択（情報系）"
     type: "選択"
+    track_groups: ["情報系"]
     credits: 2
     grade: 2
     term: "後期"
     quarters: ["3Q"]
   - title: "アルゴリズム及び演習Ⅱ"
     category: "専門応用科目"
-    subcategory: "選択（情報系）"
     type: "選択"
+    track_groups: ["情報系"]
     credits: 2
     grade: 2
     term: "後期"
     quarters: ["4Q"]
   - title: "多変量解析及び演習"
     category: "専門応用科目"
-    subcategory: "選択（情報系）"
     type: "選択"
+    track_groups: ["情報系"]
     credits: 3
     grade: 2
     term: "後期"
     quarters: ["3Q", "4Q"]
   - title: "機械学習Ⅰ"
     category: "専門応用科目"
-    subcategory: "選択（情報系）"
     type: "選択"
+    track_groups: ["情報系"]
     credits: 1
     grade: 3
     term: "前期"
     quarters: ["1Q"]
   - title: "機械学習Ⅱ"
     category: "専門応用科目"
-    subcategory: "選択（情報系）"
     type: "選択"
+    track_groups: ["情報系"]
     credits: 1
     grade: 3
     term: "前期"
     quarters: ["2Q"]
   - title: "オブジェクト指向及び演習"
     category: "専門応用科目"
-    subcategory: "選択（情報系）"
     type: "選択"
+    track_groups: ["情報系"]
     credits: 2
     grade: 3
     term: "前期"
     quarters: ["1Q"]
   - title: "グラフィックス及び演習"
     category: "専門応用科目"
-    subcategory: "選択（情報系）"
     type: "選択"
+    track_groups: ["情報系"]
     credits: 2
     grade: 3
     term: "前期"
     quarters: ["2Q"]
   - title: "データ構造とアルゴリズムⅠ"
     category: "専門応用科目"
-    subcategory: "選択（情報系）"
     type: "選択"
+    track_groups: ["情報系"]
     credits: 1
     grade: 3
     term: "前期"
     quarters: ["1Q"]
   - title: "データ構造とアルゴリズムⅡ"
     category: "専門応用科目"
-    subcategory: "選択（情報系）"
     type: "選択"
+    track_groups: ["情報系"]
     credits: 1
     grade: 3
     term: "前期"
     quarters: ["2Q"]
   - title: "ネットワーク及び演習"
     category: "専門応用科目"
-    subcategory: "選択（情報系）"
     type: "選択"
+    track_groups: ["情報系"]
     credits: 2
     grade: 3
     term: "後期"
     quarters: ["3Q"]
   - title: "言語と計算Ⅰ"
     category: "専門応用科目"
-    subcategory: "選択（情報系）"
     type: "選択"
+    track_groups: ["情報系"]
     credits: 1
     grade: 3
     term: "後期"
     quarters: ["3Q"]
   - title: "言語と計算Ⅱ"
     category: "専門応用科目"
-    subcategory: "選択（情報系）"
     type: "選択"
+    track_groups: ["情報系"]
     credits: 1
     grade: 3
     term: "後期"
     quarters: ["4Q"]
   - title: "最適化の数理Ⅰ"
     category: "専門応用科目"
-    subcategory: "選択（情報系）"
     type: "選択"
+    track_groups: ["情報系"]
     credits: 1
     grade: 3
     term: "後期"
     quarters: ["3Q"]
   - title: "最適化の数理Ⅱ"
     category: "専門応用科目"
-    subcategory: "選択（情報系）"
     type: "選択"
+    track_groups: ["情報系"]
     credits: 1
     grade: 3
     term: "後期"
