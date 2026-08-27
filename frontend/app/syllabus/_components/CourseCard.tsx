@@ -1,8 +1,21 @@
 import Link from "next/link";
 import { User, Award, Clock } from "lucide-react";
 import type { SyllabusListItem } from "@/lib/syllabus-api";
+import type { TagType } from "./SyllabusTagList";
 
-export default function CourseCard({ course }: { course: SyllabusListItem }) {
+const TAG_STYLES: Record<NonNullable<TagType>, string> = {
+  必修: "bg-[#FEF2F2] text-[#DC2626] border-[#FECACA]",
+  選択: "bg-[#EFF6FF] text-[#2563EB] border-[#BFDBFE]",
+  既修得済み: "bg-[#F0FDF4] text-[#16A34A] border-[#BBF7D0]",
+};
+
+export default function CourseCard({
+  course,
+  tag,
+}: {
+  course: SyllabusListItem;
+  tag?: TagType;
+}) {
   const grade =
     course.grade_min === course.grade_max
       ? `${course.grade_min}年次`
@@ -21,9 +34,18 @@ export default function CourseCard({ course }: { course: SyllabusListItem }) {
           <span className="text-[11px] font-bold text-[#4B5563] font-mono">
             {course.syllabus_code}
           </span>
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#1A2B4E] shrink-0">
-            {course.term}
-          </span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {tag && (
+              <span
+                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${TAG_STYLES[tag]}`}
+              >
+                {tag}
+              </span>
+            )}
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#1A2B4E]">
+              {course.term}
+            </span>
+          </div>
         </div>
 
         <p className="text-sm font-semibold text-[#1A2B4E] truncate group-hover:text-[#E60012] transition-colors">

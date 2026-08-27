@@ -2,10 +2,12 @@ import CreditBar from "./_components/CreditBar";
 import TimetablePanel from "./_components/TimetablePanel";
 import ChatPanel from "./_components/ChatPanel";
 import MobileProposalPage from "./_components/MobileProposalPage";
+import ProposalLoader from "./_components/ProposalLoader";
 
 export default function ProposalPage() {
   return (
     <>
+      <ProposalLoader />
       <div className="md:hidden">
         <MobileProposalPage />
       </div>

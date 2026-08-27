@@ -1,6 +1,23 @@
-import { DAYS, PERIODS, TIMETABLE, CELL_STYLES } from "@/lib/timetable";
+"use client";
+
+import { DAYS, PERIODS, CELL_STYLES, type Timetable } from "@/lib/timetable";
+import { useProposalStore } from "@/lib/proposal";
+import type { ProposedCourse } from "@/lib/chatApi";
+
+function coursesToTimetable(courses: ProposedCourse[]): Timetable {
+  const timetable: Timetable = {};
+  for (const course of courses) {
+    if (!timetable[course.period]) timetable[course.period] = {};
+    timetable[course.period][course.day] = { name: course.name, type: course.type };
+  }
+  return timetable;
+}
 
 export default function TimetablePanel() {
+  const { status, courses } = useProposalStore();
+  const timetable = status === "done" ? coursesToTimetable(courses) : {};
+  const isLoading = status === "loading";
+
   return (
     <div className="flex-1 flex flex-col bg-[#F8F9FA] px-5 py-4 min-w-0">
       <div className="flex-1 bg-white rounded-lg border border-[#D1D5DB] overflow-hidden flex flex-col">
@@ -25,14 +42,14 @@ export default function TimetablePanel() {
               <span className="text-[#9CA3AF] text-[9px]">限</span>
             </div>
             {DAYS.map((d) => {
-              const cell = TIMETABLE[p]?.[d] ?? null;
+              const cell = timetable[p]?.[d] ?? null;
               const style = cell?.type ? CELL_STYLES[cell.type] : null;
               return (
                 <div
                   key={d}
                   className={`flex-1 border-r border-[#D1D5DB] last:border-r-0 flex flex-col justify-center gap-1 p-2 ${
                     style ? style.bg : "bg-white"
-                  }`}
+                  } ${isLoading ? "animate-pulse" : ""}`}
                 >
                   {cell && style && (
                     <>

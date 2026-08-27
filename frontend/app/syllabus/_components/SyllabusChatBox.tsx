@@ -1,34 +1,85 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Sparkles, Send } from "lucide-react";
+import { useStudentStore } from "@/lib/student";
+import { streamCourseChat } from "@/lib/chatApi";
 
-type Message = { role: "user" | "assistant"; content: string };
+type Message = { role: "user" | "assistant"; content: string; streaming?: boolean };
 
 export default function SyllabusChatBox({
+  code,
   title,
   placeholder,
   initialMessage,
 }: {
+  code?: string;
   title: string;
   placeholder: string;
   initialMessage: string;
 }) {
+  const profile = useStudentStore((s) => s.profile);
   const [messages, setMessages] = useState<Message[]>([
     { role: "assistant", content: initialMessage },
   ]);
   const [input, setInput] = useState("");
+  const [streaming, setStreaming] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
-  const handleSend = () => {
+  const handleSend = useCallback(async () => {
     const text = input.trim();
-    if (!text) return;
+    if (!text || streaming) return;
+    setInput("");
+
+    const history = messages
+      .filter((m) => !m.streaming)
+      .map((m) => ({ role: m.role, content: m.content }));
+
     setMessages((prev) => [
       ...prev,
       { role: "user", content: text },
-      { role: "assistant", content: "（AI応答はバックエンド実装後に有効になります）" },
+      { role: "assistant", content: "", streaming: true },
     ]);
-    setInput("");
-  };
+
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setStreaming(true);
+
+    try {
+      let accumulated = "";
+      await streamCourseChat(
+        code ?? "__syllabus__",
+        { profile, history, message: text },
+        (delta) => {
+          accumulated += delta;
+          setMessages((prev) =>
+            prev.map((m, i) =>
+              i === prev.length - 1 ? { ...m, content: accumulated } : m,
+            ),
+          );
+        },
+        ctrl.signal,
+      );
+    } catch (err) {
+      if ((err as Error).name !== "AbortError") {
+        setMessages((prev) =>
+          prev.map((m, i) =>
+            i === prev.length - 1
+              ? { ...m, content: "申し訳ありません。応答の取得に失敗しました。" }
+              : m,
+          ),
+        );
+      }
+    } finally {
+      setMessages((prev) =>
+        prev.map((m, i) =>
+          i === prev.length - 1 ? { ...m, streaming: false } : m,
+        ),
+      );
+      setStreaming(false);
+      abortRef.current = null;
+    }
+  }, [code, input, messages, profile, streaming]);
 
   return (
     <div className="bg-white border border-[#D1D5DB] rounded-lg overflow-hidden">
@@ -48,7 +99,7 @@ export default function SyllabusChatBox({
                   : "bg-white border-[#D1D5DB] text-[#1A2B4E] rounded-tl-sm"
               }`}
             >
-              {m.content}
+              {m.content || (m.streaming ? <span className="animate-pulse">▌</span> : "")}
             </div>
           </div>
         ))}
@@ -60,11 +111,12 @@ export default function SyllabusChatBox({
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
           placeholder={placeholder}
-          className="flex-1 h-10 bg-[#F8F9FA] border border-[#D1D5DB] rounded-full px-3.5 text-[13px] text-[#1A2B4E] placeholder-[#9CA3AF] focus:outline-none focus:border-[#1A2B4E] transition-colors"
+          disabled={streaming}
+          className="flex-1 h-10 bg-[#F8F9FA] border border-[#D1D5DB] rounded-full px-3.5 text-[13px] text-[#1A2B4E] placeholder-[#9CA3AF] focus:outline-none focus:border-[#1A2B4E] transition-colors disabled:opacity-60"
         />
         <button
           onClick={handleSend}
-          disabled={!input.trim()}
+          disabled={!input.trim() || streaming}
           className="w-10 h-10 flex items-center justify-center rounded-full bg-[#E60012] disabled:opacity-40 hover:bg-[#b7000c] transition-colors shrink-0"
         >
           <Send size={16} className="text-white" />

@@ -1,11 +1,10 @@
 "use client";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useTransition } from "react";
 import { Search, Sparkles } from "lucide-react";
+import { useSyllabusUIStore } from "@/lib/syllabusUI";
 
-// 履修要項タグ(必修/選択/既修得済み)による絞り込みは今後対応予定。
-// 現時点ではビジュアル上のプレースホルダーとして表示する。
 const TAG_CHIPS = ["すべて", "必修", "選択", "既修得済み"] as const;
 
 export default function SyllabusTopBar() {
@@ -13,7 +12,7 @@ export default function SyllabusTopBar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
-  const [activeChip, setActiveChip] = useState<string>("すべて");
+  const { activeTag, setActiveTag } = useSyllabusUIStore();
 
   const q = searchParams.get("q") ?? "";
 
@@ -47,11 +46,11 @@ export default function SyllabusTopBar() {
       {/* Filter chips */}
       <div className="flex items-center gap-2 shrink-0">
         {TAG_CHIPS.map((chip) => {
-          const active = activeChip === chip;
+          const active = activeTag === chip;
           return (
             <button
               key={chip}
-              onClick={() => setActiveChip(chip)}
+              onClick={() => setActiveTag(chip)}
               className={`rounded-full px-3.5 py-1.5 text-xs whitespace-nowrap transition-colors ${
                 active
                   ? "bg-[#1A2B4E] text-white font-semibold"

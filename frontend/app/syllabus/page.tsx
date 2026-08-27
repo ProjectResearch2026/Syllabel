@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { ArrowUpDown } from "lucide-react";
 import { searchSyllabi, getMasters } from "@/lib/syllabus-api";
-import CourseCard from "./_components/CourseCard";
+import SyllabusTagList from "./_components/SyllabusTagList";
 import SyllabusTopBar from "./_components/SyllabusTopBar";
 import SyllabusFilters from "./_components/SyllabusFilters";
 import SyllabusChatBox from "./_components/SyllabusChatBox";
@@ -69,16 +69,8 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
             </div>
           </div>
 
-          {/* Card grid */}
-          {data.results.length === 0 ? (
-            <p className="text-sm text-[#6B7280] text-center py-16">該当する科目がありません</p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {data.results.map((c) => (
-                <CourseCard key={`${c.syllabus_code}-${c.year}`} course={c} />
-              ))}
-            </div>
-          )}
+          {/* Card grid (タグフィルタリングはクライアント側で処理) */}
+          <SyllabusTagList results={data.results} />
 
           <Suspense>
             <SyllabusPagination total={data.count} limit={LIMIT} offset={offset} />
