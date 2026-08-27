@@ -26,13 +26,13 @@ interface PdfjsTextItem {
   height: number;
 }
 
-interface TextItem {
+export interface TextItem {
   str: string;
   x: number;
   y: number;
 }
 
-interface ParseResult {
+export interface ParseResult {
   profile: StudentProfile;
   warnings: string[];
 }
@@ -44,26 +44,83 @@ interface ParseResult {
 const PASS_SCORE = 60;
 
 const GRADE_SYMBOL_STATUS: Record<string, Course["status"]> = {
-  T: "passed",   // 追試合格
-  J: "passed",   // 条件付合格
-  D: "failed",   // 不合格
-  N: "withdrawn", // 履修放棄
-  G: "withdrawn", // 欠席
+  N: "passed",    // 認定
+  G: "passed",    // 合格
+  T: "passed",    // 追試合格
+  D: "failed",    // 不合格
+  U: "failed",    // 追試不合格
+  J: "withdrawn", // 辞退
   M: "withdrawn", // 無効
+  W: "withdrawn", // 追試欠席
+  Y: "withdrawn", // 追試無効
+  K: "withdrawn", // 欠席
 };
 
-// 評価記号か数値スコアかを判定
-function isScore(s: string): boolean {
-  const t = s.trim();
-  return t in GRADE_SYMBOL_STATUS || /^\d{1,3}$/.test(t);
+/**
+ * 評価列の許容幅（px）。
+ * 記号付きの評価は数字のみの行より上（y が約 6〜7 小さい位置）に描画されるため、
+ * 「評価」ラベルの y から ±6 では記号を取りこぼす。
+ *   例: 数字のみ y=274 / "T" y=268 + "65" y=277
+ */
+const EVAL_BAND = 12;
+
+const GRADE_SYMBOLS = "NGDJTMUYWK";
+
+/** "N 80" のような記号と数字の間の空白を除去して正規化する */
+function normalizeScore(s: string): string {
+  return s.replace(/\s+/g, "");
 }
 
+// 評価記号か数値スコアかを判定（"N90" / "N 80" のような記号+数字の複合形式も対象）
+function isScore(s: string): boolean {
+  const t = normalizeScore(s);
+  return (
+    t in GRADE_SYMBOL_STATUS ||
+    /^\d{1,3}$/.test(t) ||
+    new RegExp(`^[${GRADE_SYMBOLS}]\\d+$`).test(t)
+  );
+}
+
+/**
+ * 点数を伴う場合に、記号ではなく点数で合否を判定する記号。
+ * 成績表の凡例では T は「追試」であって「追試合格」ではないため、
+ * "T55" のように点数が付くときはその点数で判定する。
+ */
+const SCORE_DECIDES_SYMBOLS = new Set(["T"]);
+
 function rawToStatus(raw: string): Course["status"] {
-  const t = raw.trim();
+  const t = normalizeScore(raw);
   if (t in GRADE_SYMBOL_STATUS) return GRADE_SYMBOL_STATUS[t];
+  // 記号+数字の複合形式（例: N90、T75）
+  const combined = t.match(new RegExp(`^([${GRADE_SYMBOLS}])(\\d+)$`));
+  if (combined) {
+    const [, symbol, score] = combined;
+    if (!SCORE_DECIDES_SYMBOLS.has(symbol)) return GRADE_SYMBOL_STATUS[symbol];
+    return parseInt(score, 10) >= PASS_SCORE ? "passed" : "failed";
+  }
   const n = parseInt(t, 10);
   if (!isNaN(n)) return n >= PASS_SCORE ? "passed" : "failed";
   return "withdrawn";
+}
+
+/**
+ * 評価列で同一科目（同 x）に属する複数トークンを1つの評価文字列にまとめる。
+ * 記号と点数が別アイテムに分かれている場合（"T" + "65" → "T65"）に対応する。
+ * "#" のような評価記号でないマーカーは捨てる。
+ */
+function combineEvalTokens(tokens: TextItem[]): string | null {
+  const parts = tokens
+    .slice()
+    .sort((a, b) => a.y - b.y)
+    .map((it) => normalizeScore(it.str))
+    .filter(isScore);
+  if (parts.length === 0) return null;
+  if (parts.length === 1) return parts[0];
+  // 記号のみのトークンと数字のみのトークンが分離しているケースを結合
+  const symbol = parts.find((t) => t in GRADE_SYMBOL_STATUS);
+  const numeric = parts.find((t) => /^\d{1,3}$/.test(t));
+  if (symbol && numeric) return symbol + numeric;
+  return parts[0];
 }
 
 // ---------------------------------------------------------------------------
@@ -209,9 +266,17 @@ function parseSection(
   const nameItems = itemsAtY(items, courseNameY, 6);
   if (nameItems.length === 0) return [];
 
-  // 評価行 (y ≈ evaluationY) のスコア items
-  const evalItems = itemsAtY(items, evaluationY, 6).filter((it) =>
-    isScore(it.str),
+  // 評価行 (y ≈ evaluationY) の items。
+  // 記号は数字より上にずれて描画されるため EVAL_BAND の幅で拾うが、
+  // 広げすぎると直上の最終学期行を評価と誤認するので、その手前で打ち切る。
+  const lastTermY = [...yearTermMap.keys()]
+    .filter((k) => k < evaluationY)
+    .reduce((max, k) => Math.max(max, k), -Infinity);
+  const bandUp = Number.isFinite(lastTermY)
+    ? Math.min(EVAL_BAND, Math.max(4, evaluationY - lastTermY - 3))
+    : EVAL_BAND;
+  const evalItems = items.filter(
+    (it) => it.y >= evaluationY - bandUp && it.y <= evaluationY + EVAL_BAND,
   );
 
   // 単位行: courseNameY と evaluationY の間で、多数の単純数字が並ぶ行を探す
@@ -259,38 +324,46 @@ function parseSection(
     // 単位数（x が近い単位行の item）
     const creditIt = creditItems.find((ci) => Math.abs(ci.x - x) <= 6);
     const rawCredit = creditIt?.str ?? "";
-    // "2 100" のような複合 token を考慮
-    const creditMatch = rawCredit.match(/^(\d{1,2})/);
+    // "2 100" / "2 T65" のように単位セルと直下の年度セルが1トークンに
+    // 結合されることがある。前半が単位、後半がその学期の成績。
+    const creditMatch = rawCredit.match(/^(\d{1,2})(?:\s+(\S+))?$/);
     const credits = creditMatch ? parseInt(creditMatch[1], 10) : 0;
     if (credits === 0 || credits > 8) continue;
+    const mergedTermScore =
+      creditMatch?.[2] && isScore(creditMatch[2]) ? creditMatch[2] : null;
 
-    // 評価スコア（x が近い評価行の item）
-    const evalIt = evalItems.find((ei) => Math.abs(ei.x - x) <= 6);
-    if (!evalIt) continue;
+    // 評価スコア（x が近い評価行の items をまとめる）
+    const rawScore = combineEvalTokens(
+      evalItems.filter((ei) => Math.abs(ei.x - x) <= 6),
+    );
+    if (!rawScore) continue;
 
-    const rawScore = evalIt.str;
     const status = rawToStatus(rawScore);
 
     // 年度・学期: 単位行より上(y大)、評価行より下(y小)の範囲でスコアを探す
-    // 単位行(creditY)の数字が isScore をパスするため、creditY+5 以上に限定する
-    const scoreInTermRange = items
-      .filter(
-        (it) =>
-          Math.abs(it.x - x) <= 6 &&
-          it.y > creditY + 5 &&
-          it.y < evaluationY - 5 &&
-          isScore(it.str),
-      )
-      .sort((a, b) => a.y - b.y)[0]; // y 昇順（最も早い年度）
+    // - 単位行(creditY)の数字が isScore をパスするため creditY+5 以上に限定
+    // - 評価バンドに食い込むと記号(例: y=268 の "T")を年度と誤認するため除外
+    const termScoreY = mergedTermScore
+      ? // 結合トークンの場合、成績セルは単位行の直下にある
+        creditY
+      : items
+          .filter(
+            (it) =>
+              Math.abs(it.x - x) <= 6 &&
+              it.y > creditY + 5 &&
+              it.y < evaluationY - bandUp &&
+              isScore(it.str),
+          )
+          .sort((a, b) => a.y - b.y)[0]?.y; // y 昇順（最も早い年度）
 
     let year = reportYear;
     let term: CourseTerm = "前期";
 
-    if (scoreInTermRange) {
+    if (termScoreY !== undefined) {
       // yearTermMap から最も近い year/term を探す
       let minDist = Infinity;
       for (const [ky, kv] of yearTermMap) {
-        const d = Math.abs(ky - scoreInTermRange.y);
+        const d = Math.abs(ky - termScoreY);
         if (d < minDist) {
           minDist = d;
           year = kv.year;
@@ -320,15 +393,32 @@ function extractMeta(items: TextItem[]): {
   const programMatch = fullText.match(/(知能情報メディア|電子情報通信|機械工学・ロボティクス|応用化学|数理・情報科学|生命科学)課程/);
   const program = programMatch ? programMatch[0] : null;
 
-  // 成績表の年度（"2025年度" など）
-  const reportYearMatch = fullText.match(/(\d{4})年度/);
-  const reportYear = reportYearMatch ? parseInt(reportYearMatch[1], 10) : new Date().getFullYear();
+  // 成績表の年度。ヘッダーでは "2025"(y=24) と "年度"(y=42) が別アイテムで、
+  // 抽出順も隣接しないため、文字列マッチではなく座標で対応付ける。
+  // 帳票左端(x<60)の "年度" ラベルの直上にある4桁数字がその年度。
+  const yearLabel = items.find((it) => it.str === "年度" && it.x < 60);
+  const reportYearItem = yearLabel
+    ? items
+        .filter(
+          (it) =>
+            /^\d{4}$/.test(it.str) &&
+            Math.abs(it.x - yearLabel.x) <= 6 &&
+            it.y < yearLabel.y,
+        )
+        .sort((a, b) => b.y - a.y)[0]
+    : undefined;
+  const reportYear = reportYearItem
+    ? parseInt(reportYearItem.str, 10)
+    : new Date().getFullYear();
 
-  // 学籍番号から入学年度を推定（Y240159 → 2024年度入学）
-  const idMatch = fullText.match(/[YyＹ](\d{2})\d+/);
+  // 入学年度は履修グリッド左端の年度列の最小値から求める。
+  // （学籍番号は個人情報保護の設計方針により抽出しない）
+  const gridYears = items
+    .filter((it) => /^\d{4}$/.test(it.str) && it.x >= 60 && it.x <= 75)
+    .map((it) => parseInt(it.str, 10));
   let grade: StudentProfile["grade"] = null;
-  if (idMatch) {
-    const admissionYear = 2000 + parseInt(idMatch[1], 10);
+  if (gridYears.length > 0) {
+    const admissionYear = Math.min(...gridYears);
     const raw = reportYear - admissionYear + 1;
     if (raw >= 1 && raw <= 4) grade = raw as 1 | 2 | 3 | 4;
   }
@@ -341,8 +431,6 @@ function extractMeta(items: TextItem[]): {
 // ---------------------------------------------------------------------------
 
 export async function parseGradeReport(file: File): Promise<ParseResult> {
-  const warnings: string[] = [];
-
   const pdfjsLib: PdfjsLib = await import("pdfjs-dist");
   pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
     "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -350,11 +438,14 @@ export async function parseGradeReport(file: File): Promise<ParseResult> {
   ).toString();
 
   const arrayBuffer = await file.arrayBuffer();
-  const pdfDoc = await pdfjsLib
-    .getDocument({ data: arrayBuffer })
-    .promise;
+  const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
-  const items = await extractItems(pdfDoc);
+  return parseItems(await extractItems(pdfDoc));
+}
+
+/** 抽出済みテキストアイテムから成績を解析する（PDF 読み込みから独立、テスト可能） */
+export function parseItems(items: TextItem[]): ParseResult {
+  const warnings: string[] = [];
 
   const { grade, program, reportYear } = extractMeta(items);
   if (!program) warnings.push("課程名を読み取れませんでした");
