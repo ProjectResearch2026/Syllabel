@@ -5,11 +5,10 @@ import { Send } from "lucide-react";
 import { DAYS, PERIODS, CELL_STYLES, type Timetable } from "@/lib/timetable";
 import { useStudentStore } from "@/lib/student";
 import { useProposalStore } from "@/lib/proposal";
+import { useGraduationCredits } from "@/lib/curricula";
 import { streamProposalChat } from "@/lib/chatApi";
 import type { ProposedCourse } from "@/lib/chatApi";
 import type { ChatMessage } from "@/lib/chat";
-
-const GRADUATION_CREDITS = 124;
 
 function coursesToTimetable(courses: ProposedCourse[]): Timetable {
   const timetable: Timetable = {};
@@ -23,6 +22,7 @@ function coursesToTimetable(courses: ProposedCourse[]): Timetable {
 export default function MobileProposalPage() {
   const profile = useStudentStore((s) => s.profile);
   const { status, courses, totalCredits, message: proposalMessage } = useProposalStore();
+  const graduationCredits = useGraduationCredits(profile);
 
   const earnedCredits = profile
     ? profile.completedCourses
@@ -36,7 +36,7 @@ export default function MobileProposalPage() {
     earnedCredits != null
       ? Math.max(
           0,
-          GRADUATION_CREDITS - earnedCredits - (currentCredits ?? 0),
+          graduationCredits - earnedCredits - (currentCredits ?? 0),
         )
       : null;
 

@@ -3,8 +3,7 @@
 import { Calendar } from "lucide-react";
 import { useStudentStore } from "@/lib/student";
 import { useProposalStore } from "@/lib/proposal";
-
-const GRADUATION_CREDITS = 124;
+import { useGraduationCredits } from "@/lib/curricula";
 
 function currentSemesterLabel(): string {
   const now = new Date();
@@ -17,6 +16,7 @@ function currentSemesterLabel(): string {
 export default function CreditBar() {
   const profile = useStudentStore((s) => s.profile);
   const { status, totalCredits } = useProposalStore();
+  const graduationCredits = useGraduationCredits(profile);
 
   const completedCredits = profile
     ? profile.completedCourses
@@ -28,7 +28,7 @@ export default function CreditBar() {
 
   const remainingCredits =
     completedCredits != null
-      ? Math.max(0, GRADUATION_CREDITS - completedCredits - (currentCredits ?? 0))
+      ? Math.max(0, graduationCredits - completedCredits - (currentCredits ?? 0))
       : null;
 
   const items = [

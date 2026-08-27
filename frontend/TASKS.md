@@ -54,8 +54,8 @@
 
 ### 低優先度 / 将来対応
 
-- [ ] **履修提案API接続の完全化**
-  - `GET /api/curricula` を用いた「卒業残り単位」の正確な算出（現在は 124 - 取得済み - 今期登録 の簡易計算）
+- [x] **履修提案API接続の完全化（卒業単位算出）**
+  - `GET /api/curricula` を用いた「卒業残り単位」の正確な算出を実装済み — `lib/curricula.ts` の `useGraduationCredits` フック。curricula API が返すコース単位数の合計を卒業必要単位数として使用し、失敗時は 124 にフォールバック。`CreditBar.tsx` / `MobileProposalPage.tsx` で利用
   - バックエンドの `/api/proposal` レスポンス形式が確定したら `streamProposal` の `courses` / `total_credits` パース処理を調整
 
 ---
