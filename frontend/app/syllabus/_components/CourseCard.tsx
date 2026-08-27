@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { User, Award, Clock } from "lucide-react";
+import { User, Award, Clock, ArrowUpRight } from "lucide-react";
 import type { SyllabusListItem } from "@/lib/syllabus-api";
 import type { TagType } from "./SyllabusTagList";
 
 const TAG_STYLES: Record<NonNullable<TagType>, string> = {
-  必修: "bg-[#FEF2F2] text-[#DC2626] border-[#FECACA]",
-  選択: "bg-[#EFF6FF] text-[#2563EB] border-[#BFDBFE]",
-  既修得済み: "bg-[#F0FDF4] text-[#16A34A] border-[#BBF7D0]",
+  必修: "bg-[#FFF1F2] text-[#BE123C] border-[#FECDD3]",
+  選択: "bg-[#F0F9FF] text-[#0369A1] border-[#BAE6FD]",
+  既修得済み: "bg-[#F0FDF4] text-[#15803D] border-[#BBF7D0]",
 };
 
 export default function CourseCard({
@@ -24,52 +24,55 @@ export default function CourseCard({
   return (
     <Link
       href={`/syllabus/${course.syllabus_code}`}
-      className="flex bg-white border border-[#D1D5DB] rounded-lg overflow-hidden hover:shadow-md transition-shadow group"
+      className="group flex min-h-[172px] flex-col justify-between rounded-xl border border-[#D9DEE7] bg-white p-4 shadow-[0_2px_8px_rgba(26,43,78,0.04)] transition-all hover:-translate-y-0.5 hover:border-[#9AA8BC] hover:shadow-[0_8px_20px_rgba(26,43,78,0.10)]"
     >
-      {/* Accent bar */}
-      <div className="w-1 self-stretch shrink-0 bg-[#1A2B4E]" />
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <span className="font-mono text-[11px] font-bold tracking-[0.04em] text-[#667085]">
+          {course.syllabus_code}
+        </span>
+        <ArrowUpRight
+          size={17}
+          strokeWidth={1.8}
+          aria-hidden="true"
+          className="shrink-0 text-[#98A2B3] transition-colors group-hover:text-[#E60012]"
+        />
+      </div>
 
-      <div className="flex flex-col gap-1.5 px-3.5 py-3 flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[11px] font-bold text-[#4B5563] font-mono">
-            {course.syllabus_code}
-          </span>
-          <div className="flex items-center gap-1.5 shrink-0">
-            {tag && (
-              <span
-                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${TAG_STYLES[tag]}`}
-              >
-                {tag}
-              </span>
-            )}
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#1A2B4E]">
-              {course.term}
+      <div className="mt-3 min-w-0">
+        <div className="mb-2 flex flex-wrap items-center gap-1.5">
+          {tag && (
+            <span
+              className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold ${TAG_STYLES[tag]}`}
+            >
+              {tag}
             </span>
-          </div>
+          )}
+          <span className="rounded-md bg-[#F2F4F7] px-2 py-0.5 text-[10px] font-semibold text-[#475467]">
+            {course.term}
+          </span>
         </div>
 
-        <p className="text-sm font-semibold text-[#1A2B4E] truncate group-hover:text-[#E60012] transition-colors">
+        <p className="line-clamp-2 text-[15px] font-bold leading-6 text-[#1A2B4E] transition-colors group-hover:text-[#C1121F]">
           {course.course_title}
           {course.subtitle && (
-            <span className="text-xs font-normal text-[#6B7280] ml-1">({course.subtitle})</span>
+            <span className="ml-1 text-xs font-normal text-[#667085]">({course.subtitle})</span>
           )}
         </p>
+      </div>
 
-        <div className="flex items-center gap-3 text-xs text-[#4B5563] flex-wrap">
-          <span className="flex items-center gap-1">
-            <Award size={13} className="text-[#9CA3AF]" />
-            {course.credits}単位
-          </span>
-          <span className="flex items-center gap-1">
-            <Clock size={13} className="text-[#9CA3AF]" />
-            {course.day_of_week}
-            {course.period}限
-          </span>
-          <span className="flex items-center gap-1">
-            <User size={13} className="text-[#9CA3AF]" />
-            {course.campus} / {grade}
-          </span>
-        </div>
+      <div className="mt-4 grid grid-cols-3 divide-x divide-[#EAECF0] border-t border-[#EAECF0] pt-3 text-[11px] text-[#667085]">
+        <span className="flex items-center gap-1 pr-2">
+          <Award size={13} className="shrink-0 text-[#98A2B3]" />
+          {course.credits}単位
+        </span>
+        <span className="flex items-center gap-1 px-2">
+          <Clock size={13} className="shrink-0 text-[#98A2B3]" />
+          {course.day_of_week}{course.period}限
+        </span>
+        <span className="flex min-w-0 items-center gap-1 pl-2">
+          <User size={13} className="shrink-0 text-[#98A2B3]" />
+          <span className="truncate">{course.campus} / {grade}</span>
+        </span>
       </div>
     </Link>
   );
