@@ -9,6 +9,7 @@ import {
   Search,
   Users,
 } from "lucide-react";
+import { motion } from "motion/react";
 import type { AiSuggestion } from "@/lib/ai";
 
 const ICONS = {
@@ -38,14 +39,17 @@ export default function AiSuggestList({
   return (
     <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-4 pb-2.5">
       <p className="text-[11px] font-bold text-fg-muted">{label}</p>
-      {items.map((item) => {
+      {items.map((item, i) => {
         const Icon = ICONS[item.icon];
         return (
-          <button
+          <motion.button
             key={item.title}
             type="button"
             disabled={disabled}
             onClick={() => onPick(item)}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.18, delay: i * 0.055, ease: [0.25, 0.1, 0.25, 1] }}
             className="flex items-center gap-2.5 rounded-xl bg-surface-gray px-3 py-2.5 text-left transition-opacity active:opacity-70 disabled:opacity-50"
           >
             <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-surface-primary">
@@ -56,7 +60,7 @@ export default function AiSuggestList({
               <span className="text-[11px] text-fg-secondary">{item.sub}</span>
             </span>
             <ChevronRight size={15} className="shrink-0 text-[#b6bcc7]" />
-          </button>
+          </motion.button>
         );
       })}
     </div>

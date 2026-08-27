@@ -2,7 +2,10 @@
 
 import { ChevronDown, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { motion } from "motion/react";
 import { CELL_STYLES, toCourseList, type Timetable } from "@/lib/timetable";
+
+const MotionLink = motion.create(Link);
 
 /**
  * 登録予定の科目リスト（ui-design_phone.pen CalendarPage CourseListSection）。
@@ -32,7 +35,7 @@ export default function CourseListSection({ timetable }: { timetable: Timetable 
         </span>
       </div>
 
-      {rows.map(({ day, period, course }) => {
+      {rows.map(({ day, period, course }, index) => {
         const style = CELL_STYLES[course.type];
         const meta = [course.code, course.teacher, course.credits && `${course.credits}単位`]
           .filter(Boolean)
@@ -58,17 +61,27 @@ export default function CourseListSection({ timetable }: { timetable: Timetable 
           </>
         );
 
-        const className =
+        const itemClass =
           "flex items-center gap-[11px] border-b border-border-subtle px-4 py-[9px] last:border-b-0 active:bg-surface-gray";
+        const anim = {
+          initial: { opacity: 0, x: -8 },
+          animate: { opacity: 1, x: 0 },
+          transition: { duration: 0.18, delay: index * 0.04, ease: [0.25, 0.1, 0.25, 1] as const },
+        };
 
         return course.code ? (
-          <Link key={`${day}${period}`} href={`/syllabus/${course.code}`} className={className}>
+          <MotionLink
+            key={`${day}${period}`}
+            href={`/syllabus/${course.code}`}
+            className={itemClass}
+            {...anim}
+          >
             {row}
-          </Link>
+          </MotionLink>
         ) : (
-          <div key={`${day}${period}`} className={className}>
+          <motion.div key={`${day}${period}`} className={itemClass} {...anim}>
             {row}
-          </div>
+          </motion.div>
         );
       })}
     </section>

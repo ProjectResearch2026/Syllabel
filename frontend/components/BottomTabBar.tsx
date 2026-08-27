@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CalendarDays, BookOpen, User } from "lucide-react";
+import { motion } from "motion/react";
 import { useAiStore } from "@/lib/ai";
 
 /*
@@ -33,13 +34,18 @@ export default function BottomTabBar() {
             <Link
               key={href}
               href={href}
-              className={`flex flex-col items-center justify-center gap-[3px] rounded-lg px-3 py-1.5 transition-colors ${
-                active ? "bg-accent" : ""
-              }`}
+              className="relative flex flex-col items-center justify-center gap-[3px] rounded-lg px-3 py-1.5"
             >
-              <Icon size={20} className={active ? "text-fg-inverse" : "text-[#6b7280]"} />
+              {active && (
+                <motion.span
+                  layoutId="tab-active"
+                  className="absolute inset-0 rounded-lg bg-accent"
+                  transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
+                />
+              )}
+              <Icon size={20} className={`relative z-10 ${active ? "text-fg-inverse" : "text-[#6b7280]"}`} />
               <span
-                className={`text-[10px] leading-none ${
+                className={`relative z-10 text-[10px] leading-none ${
                   active ? "text-fg-inverse" : "text-[#6b7280]"
                 }`}
               >

@@ -1,7 +1,8 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "motion/react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -152,9 +153,16 @@ export default function MobileImportFlow() {
 
       <StepBar current={step} />
 
+      <AnimatePresence mode="wait" initial={false}>
       {/* ── Step 0: アップロード ── */}
       {step === 0 && (
-        <>
+        <motion.div
+          key="step0"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+        >
           <div className="flex items-start gap-2.5 px-4 py-3 bg-[#F8F9FA] border-l-[3px] border-[#E60012]">
             <ShieldCheck size={18} className="text-[#E60012] shrink-0 mt-px" />
             <div className="flex flex-col gap-0.5">
@@ -235,19 +243,28 @@ export default function MobileImportFlow() {
                   <ChevronDown size={15} className="text-[#1A2B4E]" />
                 )}
               </button>
-              {demoOpen && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#D1D5DB] rounded-lg shadow-md overflow-hidden z-10">
-                  {DUMMY_PROFILES.map((p, i) => (
-                    <button
-                      key={p.label}
-                      onClick={() => handleDemoLoad(i)}
-                      className="w-full h-12 px-4 flex items-center text-left active:bg-[#EEF1F8] transition-colors border-b border-[#E5E7EB] last:border-b-0"
-                    >
-                      <span className="text-sm text-[#1A2B4E]">{p.label}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
+              <AnimatePresence>
+                {demoOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6, scaleY: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scaleY: 1 }}
+                    exit={{ opacity: 0, y: -4, scaleY: 0.97 }}
+                    transition={{ duration: 0.16, ease: [0.25, 0.1, 0.25, 1] }}
+                    style={{ originY: "top" }}
+                    className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#D1D5DB] rounded-lg shadow-md overflow-hidden z-10"
+                  >
+                    {DUMMY_PROFILES.map((p, i) => (
+                      <button
+                        key={p.label}
+                        onClick={() => handleDemoLoad(i)}
+                        className="w-full h-12 px-4 flex items-center text-left active:bg-[#EEF1F8] transition-colors border-b border-[#E5E7EB] last:border-b-0"
+                      >
+                        <span className="text-sm text-[#1A2B4E]">{p.label}</span>
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <h2 className="text-[15px] font-bold text-[#1A2B4E] mt-1">インポート方法</h2>
@@ -267,12 +284,19 @@ export default function MobileImportFlow() {
               </div>
             ))}
           </div>
-        </>
+        </motion.div>
       )}
 
       {/* ── Step 1: 確認 ── */}
       {step === 1 && (
-        <div className="flex flex-col gap-5 p-5">
+        <motion.div
+          key="step1"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+          className="flex flex-col gap-5 p-5"
+        >
           <h2 className="text-[15px] font-bold text-[#1A2B4E]">取り込み内容の確認</h2>
 
           <div className="rounded-lg border border-[#D1D5DB] overflow-hidden">
@@ -357,16 +381,28 @@ export default function MobileImportFlow() {
           >
             <span className="text-sm text-[#4B5563]">キャンセル</span>
           </button>
-        </div>
+        </motion.div>
       )}
 
       {/* ── Step 2: 完了 ── */}
       {step === 2 && (
-        <div className="flex flex-col">
+        <motion.div
+          key="step2"
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.22, ease: [0.25, 0.1, 0.25, 1] }}
+          className="flex flex-col"
+        >
           <div className="flex flex-col items-center gap-4 px-6 pt-12 pb-8">
-            <div className="w-20 h-20 rounded-full bg-[#EEF0F5] flex items-center justify-center">
+            <motion.div
+              className="w-20 h-20 rounded-full bg-[#EEF0F5] flex items-center justify-center"
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", damping: 16, stiffness: 260, delay: 0.1 }}
+            >
               <CircleCheck size={40} className="text-[#E60012]" />
-            </div>
+            </motion.div>
             <h2 className="text-[22px] font-bold text-[#1A2B4E]">インポート完了！</h2>
             <p className="text-sm text-[#4B5563] text-center leading-relaxed">
               成績データが正常に取り込まれました
@@ -422,8 +458,9 @@ export default function MobileImportFlow() {
               <ChevronRight size={18} className="text-[#9CA3AF] shrink-0" />
             </button>
           </div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }

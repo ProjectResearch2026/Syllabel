@@ -1,6 +1,7 @@
 "use client";
 
 import { BookOpen, ChevronRight, Search, Sparkles, Timer } from "lucide-react";
+import { motion } from "motion/react";
 
 const POPOVER_WIDTH = 252;
 const MARGIN = 16;
@@ -42,10 +43,13 @@ export default function SlotPopover({
   return (
     <div className="fixed inset-0 z-50 md:hidden">
       {/* スクリム。タブバーは覆わない */}
-      <button
+      <motion.button
         type="button"
         aria-label="閉じる"
         onClick={onClose}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.15 }}
         className="absolute inset-x-0 bottom-20 top-0 bg-scrim-menu"
       />
 
@@ -62,7 +66,10 @@ export default function SlotPopover({
         <span className="text-[11px] font-bold text-fg-muted">空きコマ</span>
       </div>
 
-      <div
+      <motion.div
+        initial={{ opacity: 0, scale: 0.92, y: -6 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: "spring", damping: 28, stiffness: 400, mass: 0.6 }}
         className="absolute overflow-hidden rounded-[14px] bg-surface-primary shadow-popover"
         style={{ top: rect.top + rect.height + GAP, left, width: POPOVER_WIDTH }}
         role="menu"
@@ -109,7 +116,7 @@ export default function SlotPopover({
           </span>
           <ChevronRight size={14} className="shrink-0 text-accent" />
         </button>
-      </div>
+      </motion.div>
     </div>
   );
 }

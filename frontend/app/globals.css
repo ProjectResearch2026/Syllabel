@@ -73,21 +73,3 @@ body {
   scrollbar-gutter: stable;
 }
 
-/* ハーフシート → フルスクリーン昇格のトランジション（AI導線 STEP4→STEP5） */
-@keyframes ai-sheet-in {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
-}
-
-@keyframes ai-scrim-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
