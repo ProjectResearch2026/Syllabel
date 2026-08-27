@@ -22,6 +22,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useStudentStore, type StudentProfile } from "@/lib/student";
+import { TIMETABLE_CONTEXT, useAiStore } from "@/lib/ai";
 import { DUMMY_PROFILES } from "@/lib/dummy/profiles";
 import ManualInputForm from "./ManualInputForm";
 
@@ -75,6 +76,7 @@ type ParseState =
 
 export default function MobileImportFlow() {
   const router = useRouter();
+  const openHalf = useAiStore((s) => s.openHalf);
   const setProfile = useStudentStore((s) => s.setProfile);
 
   const [step, setStep] = useState(0);
@@ -389,7 +391,11 @@ export default function MobileImportFlow() {
             <h2 className="text-[15px] font-bold text-[#1A2B4E]">次のステップ</h2>
 
             <button
-              onClick={() => router.push("/chat")}
+              onClick={() => {
+                // AI専用ページは持たないため、時間割へ戻ってその画面上にシートを開く
+                openHalf(TIMETABLE_CONTEXT);
+                router.push("/");
+              }}
               className="w-full flex items-center gap-3 px-4 py-3.5 rounded-lg bg-[#E60012] text-left"
             >
               <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
