@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:8000/api";
+const API_BASE = "/api";
 
 export type SyllabusListItem = {
   syllabus_code: string;
@@ -89,6 +89,19 @@ export type SearchParams = {
   offset?: number;
 };
 
+export type CurriculaCourse = {
+  title: string;
+  type: "必修" | "選択必修" | "選択" | "随意";
+  credits: number;
+  syllabus_code?: string;
+};
+
+export type CurriculaData = {
+  program_code: string;
+  admission_year: number;
+  courses: CurriculaCourse[];
+};
+
 export async function searchSyllabi(params: SearchParams): Promise<SyllabusListResponse> {
   const qs = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => {
@@ -108,6 +121,18 @@ export async function getSyllabus(code: string): Promise<SyllabusDetail> {
 
 export async function getMasters(): Promise<Masters> {
   const res = await fetch(`${API_BASE}/masters`, { next: { revalidate: 3600 } });
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchCurricula(
+  programCode: string,
+  admissionYear: number,
+): Promise<CurriculaData> {
+  const res = await fetch(
+    `${API_BASE}/curricula/${encodeURIComponent(programCode)}/${admissionYear}`,
+    { cache: "no-store" },
+  );
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   return res.json();
 }

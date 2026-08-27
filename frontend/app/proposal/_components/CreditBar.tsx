@@ -2,6 +2,9 @@
 
 import { Calendar } from "lucide-react";
 import { useStudentStore } from "@/lib/student";
+import { useProposalStore } from "@/lib/proposal";
+
+const GRADUATION_CREDITS = 124;
 
 function currentSemesterLabel(): string {
   const now = new Date();
@@ -13,12 +16,20 @@ function currentSemesterLabel(): string {
 
 export default function CreditBar() {
   const profile = useStudentStore((s) => s.profile);
+  const { status, totalCredits } = useProposalStore();
 
   const completedCredits = profile
     ? profile.completedCourses
         .filter((c) => c.status === "passed")
         .reduce((sum, c) => sum + c.credits, 0)
     : null;
+
+  const currentCredits = status === "done" ? totalCredits : null;
+
+  const remainingCredits =
+    completedCredits != null
+      ? Math.max(0, GRADUATION_CREDITS - completedCredits - (currentCredits ?? 0))
+      : null;
 
   const items = [
     {
@@ -27,14 +38,12 @@ export default function CreditBar() {
       color: "text-[#1A2B4E]",
     },
     {
-      // 履修提案API接続後に動的値に置き換える
-      val: "—",
+      val: currentCredits !== null ? String(currentCredits) : "—",
       label: "今期登録単位",
       color: "text-[#E60012]",
     },
     {
-      // GET /api/curricula で卒業要件取得後に算出する
-      val: "—",
+      val: remainingCredits !== null ? String(remainingCredits) : "—",
       label: "卒業残り単位",
       color: "text-[#5F6B7A]",
     },

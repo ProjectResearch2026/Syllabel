@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useState, useTransition, useEffect } from "react";
 import {
   Search,
   SlidersHorizontal,
@@ -11,12 +11,28 @@ import {
   User,
   Timer,
 } from "lucide-react";
-import type { SyllabusListItem, Masters } from "@/lib/syllabus-api";
+import type { SyllabusListItem, Masters, CurriculaData } from "@/lib/syllabus-api";
+import { fetchCurricula } from "@/lib/syllabus-api";
+import { useStudentStore } from "@/lib/student";
 import SyllabusPagination from "./SyllabusPagination";
+import type { TagType } from "./SyllabusTagList";
 
-const TAG_CHIPS = ["すべて", "必修", "選択必修", "自由選択"] as const;
+const TAG_CHIPS = ["すべて", "必修", "選択", "既修得済み"] as const;
 const DAYS = ["月", "火", "水", "木", "金", "土"];
 const LIMIT = 30;
+
+const TAG_STYLES: Record<NonNullable<TagType>, string> = {
+  必修: "bg-[#FEF2F2] text-[#DC2626]",
+  選択: "bg-[#EFF6FF] text-[#2563EB]",
+  既修得済み: "bg-[#F0FDF4] text-[#16A34A]",
+};
+
+function getAdmissionYear(grade: number): number {
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const academicYear = month >= 4 ? now.getFullYear() : now.getFullYear() - 1;
+  return academicYear - grade + 1;
+}
 
 type Props = {
   results: SyllabusListItem[];
@@ -39,6 +55,50 @@ export default function MobileSyllabusPage({
   const [, startTransition] = useTransition();
   const [activeChip, setActiveChip] = useState<string>("すべて");
   const [filterOpen, setFilterOpen] = useState(false);
+  const [curricula, setCurricula] = useState<CurriculaData | null>(null);
+  const profile = useStudentStore((s) => s.profile);
+
+  useEffect(() => {
+    if (!profile?.program || !profile?.grade) return;
+    const admissionYear = getAdmissionYear(profile.grade);
+    fetchCurricula(profile.program, admissionYear)
+      .then(setCurricula)
+      .catch(() => {});
+  }, [profile]);
+
+  const passedCodes = new Set(
+    (profile?.completedCourses ?? [])
+      .filter((c) => c.status === "passed" && c.code)
+      .map((c) => c.code as string),
+  );
+  const passedTitles = new Set(
+    (profile?.completedCourses ?? [])
+      .filter((c) => c.status === "passed")
+      .map((c) => c.title),
+  );
+
+  const tagMap = new Map<string, TagType>();
+  if (curricula) {
+    for (const course of curricula.courses) {
+      if (!course.syllabus_code) continue;
+      if (passedCodes.has(course.syllabus_code) || passedTitles.has(course.title)) {
+        tagMap.set(course.syllabus_code, "既修得済み");
+      } else if (course.type === "必修") {
+        tagMap.set(course.syllabus_code, "必修");
+      } else if (course.type === "選択必修" || course.type === "選択") {
+        tagMap.set(course.syllabus_code, "選択");
+      }
+    }
+  }
+
+  const filteredResults = results.filter((c) => {
+    if (activeChip === "すべて") return true;
+    const tag = tagMap.get(c.syllabus_code);
+    if (activeChip === "必修") return tag === "必修";
+    if (activeChip === "選択") return tag === "選択";
+    if (activeChip === "既修得済み") return tag === "既修得済み";
+    return true;
+  });
 
   const q = searchParams.get("q") ?? "";
 
@@ -186,7 +246,7 @@ export default function MobileSyllabusPage({
 
       {/* Results header */}
       <div className="flex items-center justify-between px-4 pt-2.5 pb-1.5 bg-white">
-        <span className="text-[13px] text-[#4B5563]">{count.toLocaleString()}件の科目</span>
+        <span className="text-[13px] text-[#4B5563]">{filteredResults.length.toLocaleString()}件の科目</span>
         <div className="flex items-center gap-1 text-[13px] text-[#1A2B4E]">
           <span>配当年次順</span>
           <ChevronDown size={14} />
@@ -194,15 +254,16 @@ export default function MobileSyllabusPage({
       </div>
 
       {/* Course list */}
-      {results.length === 0 ? (
+      {filteredResults.length === 0 ? (
         <p className="text-sm text-[#6B7280] text-center py-16">該当する科目がありません</p>
       ) : (
         <div className="flex flex-col">
-          {results.map((c) => {
+          {filteredResults.map((c) => {
             const grade =
               c.grade_min === c.grade_max
                 ? `${c.grade_min}年次`
                 : `${c.grade_min}〜${c.grade_max}年次`;
+            const tag = tagMap.get(c.syllabus_code) ?? null;
             return (
               <Link
                 key={`${c.syllabus_code}-${c.year}`}
@@ -235,6 +296,13 @@ export default function MobileSyllabusPage({
                 {/* Bottom */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 flex-wrap">
+                    {tag && (
+                      <span
+                        className={`px-2 py-[3px] rounded text-[11px] font-semibold ${TAG_STYLES[tag]}`}
+                      >
+                        {tag}
+                      </span>
+                    )}
                     <span className="flex items-center gap-1 px-2 py-[3px] rounded bg-[#EFF6FF] text-[11px] text-[#3B82F6]">
                       <Timer size={11} />
                       {c.day_of_week}曜{c.period}限

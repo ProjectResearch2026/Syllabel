@@ -1,46 +1,119 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { Sparkles, Send } from "lucide-react";
 import { useChatStore } from "@/lib/chat";
-
-const INIT_MESSAGE_ID = "proposal-init-1";
+import { useStudentStore } from "@/lib/student";
+import { useProposalStore } from "@/lib/proposal";
+import { streamProposalChat } from "@/lib/chatApi";
 
 export default function ChatPanel() {
   const { proposalMessages, setProposalMessages, addProposalMessage } = useChatStore();
+  const profile = useStudentStore((s) => s.profile);
+  const { status, message: proposalMessage } = useProposalStore();
   const [input, setInput] = useState("");
+  const [streaming, setStreaming] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const seq = useRef(0);
 
+  // 提案が完了したらその説明を初期メッセージとして設定
   useEffect(() => {
-    if (proposalMessages.length === 0) {
+    if (status === "done" && proposalMessages.length === 0) {
       const now = new Date();
       const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
       setProposalMessages([
         {
-          id: INIT_MESSAGE_ID,
+          id: "proposal-init-1",
           role: "assistant",
           content:
-            "卒業要件から逆算し、今期は必修6科目＋選択2科目を提案しました。コマ重複はありません。ご質問があればお気軽にどうぞ。",
+            proposalMessage ||
+            "卒業要件から逆算し、今期の履修を提案しました。コマ重複はありません。ご質問があればお気軽にどうぞ。",
           time,
         },
       ]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [status]);
+
+  // 提案生成中の表示
+  useEffect(() => {
+    if (status === "loading" && proposalMessages.length === 0) {
+      const now = new Date();
+      const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
+      setProposalMessages([
+        {
+          id: "proposal-loading",
+          role: "assistant",
+          content: "",
+          time,
+          streaming: true,
+        },
+      ]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [proposalMessages]);
 
-  const handleSend = () => {
+  const handleSend = useCallback(async () => {
     const text = input.trim();
-    if (!text) return;
+    if (!text || streaming) return;
+    setInput("");
+
     const now = new Date();
     const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
-    addProposalMessage({ id: String(Date.now()), role: "user", content: text, time });
-    addProposalMessage({ id: String(Date.now() + 1), role: "assistant", content: "（AI応答はバックエンド実装後に有効になります）", time });
-    setInput("");
-  };
+    const base = seq.current;
+    seq.current += 2;
+    const assistantId = `proposal-a${base + 1}`;
+
+    const history = proposalMessages
+      .filter((m) => !m.streaming)
+      .map((m) => ({ role: m.role, content: m.content }));
+
+    addProposalMessage({ id: `proposal-u${base}`, role: "user", content: text, time });
+    addProposalMessage({ id: assistantId, role: "assistant", content: "", time, streaming: true });
+
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setStreaming(true);
+
+    try {
+      let accumulated = "";
+      await streamProposalChat(
+        { profile, history, message: text },
+        (delta) => {
+          accumulated += delta;
+          useChatStore.setState((state) => ({
+            proposalMessages: state.proposalMessages.map((m) =>
+              m.id === assistantId ? { ...m, content: accumulated } : m,
+            ),
+          }));
+        },
+        ctrl.signal,
+      );
+    } catch (err) {
+      if ((err as Error).name !== "AbortError") {
+        useChatStore.setState((state) => ({
+          proposalMessages: state.proposalMessages.map((m) =>
+            m.id === assistantId
+              ? { ...m, content: "申し訳ありません。応答の取得に失敗しました。" }
+              : m,
+          ),
+        }));
+      }
+    } finally {
+      useChatStore.setState((state) => ({
+        proposalMessages: state.proposalMessages.map((m) =>
+          m.id === assistantId ? { ...m, streaming: false } : m,
+        ),
+      }));
+      setStreaming(false);
+      abortRef.current = null;
+    }
+  }, [input, streaming, profile, proposalMessages, addProposalMessage]);
 
   return (
     <div className="w-[360px] shrink-0 flex flex-col border-l border-[#D1D5DB] bg-white">
@@ -66,7 +139,7 @@ export default function ChatPanel() {
                   : "bg-white border-[#D1D5DB] text-[#1A2B4E] rounded-tl-sm"
               }`}
             >
-              {msg.content}
+              {msg.content || (msg.streaming ? <span className="animate-pulse">▌</span> : "")}
             </div>
           </div>
         ))}
@@ -81,11 +154,12 @@ export default function ChatPanel() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
           placeholder="提案について質問する…"
-          className="flex-1 h-10 bg-[#F8F9FA] border border-[#D1D5DB] rounded-full px-3.5 text-[13px] text-[#1A2B4E] placeholder-[#9CA3AF] focus:outline-none focus:border-[#1A2B4E] transition-colors"
+          disabled={streaming || status === "loading"}
+          className="flex-1 h-10 bg-[#F8F9FA] border border-[#D1D5DB] rounded-full px-3.5 text-[13px] text-[#1A2B4E] placeholder-[#9CA3AF] focus:outline-none focus:border-[#1A2B4E] transition-colors disabled:opacity-60"
         />
         <button
           onClick={handleSend}
-          disabled={!input.trim()}
+          disabled={!input.trim() || streaming || status === "loading"}
           className="w-10 h-10 flex items-center justify-center rounded-full bg-[#E60012] disabled:opacity-40 transition-opacity hover:bg-[#b7000c] shrink-0"
         >
           <Send size={18} className="text-white" />
