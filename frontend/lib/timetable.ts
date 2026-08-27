@@ -1,4 +1,4 @@
-export const DAYS = ["月", "火", "水", "木", "金"] as const;
+export const DAYS = ["月", "火", "水", "木", "金", "土"] as const;
 export const PERIODS = [1, 2, 3, 4, 5] as const;
 
 export type Day = (typeof DAYS)[number];

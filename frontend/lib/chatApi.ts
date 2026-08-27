@@ -10,7 +10,7 @@ type ChatRequest = {
 export type ProposedCourse = {
   code: string;
   name: string;
-  day: "月" | "火" | "水" | "木" | "金";
+  day: "月" | "火" | "水" | "木" | "金" | "土";
   period: 1 | 2 | 3 | 4 | 5;
   // 選択必修（selective）は ui-design_phone.pen の時間割セルが出し分ける区分
   type: "required" | "selective" | "elective";
