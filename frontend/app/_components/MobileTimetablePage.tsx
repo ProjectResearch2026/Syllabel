@@ -3,13 +3,26 @@
 import Link from "next/link";
 import { Bell, FileUp } from "lucide-react";
 import { useStudentStore } from "@/lib/student";
+import { useProposalStore } from "@/lib/proposal";
+import { CELL_STYLES, type Timetable } from "@/lib/timetable";
+import type { ProposedCourse } from "@/lib/chatApi";
 
 const GRADUATION_CREDITS = 124;
 const DAYS = ["月", "火", "水", "木", "金"] as const;
 const PERIODS = [1, 2, 3, 4, 5] as const;
 
+function coursesToTimetable(courses: ProposedCourse[]): Timetable {
+  const timetable: Timetable = {};
+  for (const course of courses) {
+    if (!timetable[course.period]) timetable[course.period] = {};
+    timetable[course.period][course.day] = { name: course.name, type: course.type };
+  }
+  return timetable;
+}
+
 export default function MobileTimetablePage() {
   const profile = useStudentStore((s) => s.profile);
+  const { status: proposalStatus, courses } = useProposalStore();
 
   if (!profile) {
     return (
@@ -80,7 +93,7 @@ export default function MobileTimetablePage() {
         ))}
       </div>
 
-      {/* Timetable — 提案前は空グリッド */}
+      {/* Timetable */}
       <div className="flex flex-col">
         {/* DayHeader */}
         <div className="flex h-8 bg-[#F8F9FA] border-b border-[#D1D5DB]">
@@ -92,17 +105,41 @@ export default function MobileTimetablePage() {
           ))}
         </div>
 
-        {PERIODS.map((p) => (
-          <div key={p} className="flex h-[72px] border-b border-[#D1D5DB]">
-            <div className="w-7 shrink-0 bg-[#F9FAFB] border-r border-[#D1D5DB] flex flex-col items-center justify-center">
-              <span className="text-[#1A2B4E] text-[13px] font-bold font-mono leading-none">{p}</span>
-              <span className="text-[#4B5563] text-[9px]">限</span>
+        {(() => {
+          const timetable = proposalStatus === "done" ? coursesToTimetable(courses) : {};
+          const isLoading = proposalStatus === "loading";
+          return PERIODS.map((p) => (
+            <div key={p} className="flex h-[72px] border-b border-[#D1D5DB]">
+              <div className="w-7 shrink-0 bg-[#F9FAFB] border-r border-[#D1D5DB] flex flex-col items-center justify-center">
+                <span className="text-[#1A2B4E] text-[13px] font-bold font-mono leading-none">{p}</span>
+                <span className="text-[#4B5563] text-[9px]">限</span>
+              </div>
+              {DAYS.map((d) => {
+                const cell = timetable[p]?.[d] ?? null;
+                const style = cell?.type ? CELL_STYLES[cell.type] : null;
+                return (
+                  <div
+                    key={d}
+                    className={`flex-1 border-r border-[#D1D5DB] last:border-r-0 flex flex-col justify-center gap-0.5 px-1 ${
+                      style ? style.bg : "bg-white"
+                    } ${isLoading ? "animate-pulse" : ""}`}
+                  >
+                    {cell && style && (
+                      <>
+                        <span className="text-[#1A2B4E] text-[9px] font-semibold leading-tight line-clamp-2">
+                          {cell.name}
+                        </span>
+                        <span className={`inline-block self-start px-1 py-px rounded-sm text-white text-[8px] ${style.tag}`}>
+                          {style.label}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-            {DAYS.map((d) => (
-              <div key={d} className="flex-1 border-r border-[#D1D5DB] bg-white" />
-            ))}
-          </div>
-        ))}
+          ));
+        })()}
       </div>
 
       {/* 提案へのCTA */}

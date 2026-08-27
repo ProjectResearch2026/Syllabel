@@ -40,14 +40,17 @@
 - [x] **エラー・ローディング状態（シラバス検索・詳細）**
   - `app/syllabus/error.tsx` / `loading.tsx` — 検索一覧のエラーUI・スケルトン実装済み
   - `app/syllabus/[code]/error.tsx` / `loading.tsx` — 詳細ページのエラーUI・スケルトン実装済み
-- [~] **モバイル版トップページ** — `app/_components/MobileTimetablePage.tsx`
-  - プロファイル未取得時の空ステート・`/import` への導線は実装済み
-  - `StudentProfile` との接続（学年・課程・クレジット表示）は実装済み
-  - **時間割グリッドは常に空セル** — 提案API接続まで未対応（コメント `{/* 提案前は空グリッド */}`）
-
 ---
 
 ## 未着手 / 要対応
+
+### すぐ着手できる（実装コスト小）
+
+- [x] **モバイル版時間割グリッドへの提案結果反映** — `app/_components/MobileTimetablePage.tsx`
+  - `useProposalStore` 接続済み。提案結果を `coursesToTimetable` で変換してセルに描画。ロード中は `animate-pulse`
+
+- [x] **`/chat` ContextBanner のストア接続** — `app/chat/_components/ContextBanner.tsx`
+  - `useStudentStore` / `useProposalStore` から実値を取得して表示。プロファイル未取得時は案内文言に切り替え済み
 
 ### 低優先度 / 将来対応
 
@@ -65,3 +68,4 @@
 - design.md §8 の正規ルート: `/`・`/proposal`・`/syllabus`・`/syllabus/[code]`・`/privacy`
 - `lib/chat.ts` の `courseMessages` フィールドは design.md §5.2.2 では `syllabusPerCourse` として定義されているが、実装名が異なる（機能は同等）
 - SSE は `fetch` + `ReadableStream` 方式で実装済み。`lib/chatApi.ts` の `readSSE` 共通ヘルパー経由で全チャット系エンドポイントに対応
+- `coursesToTimetable` ヘルパーが `MobileProposalPage.tsx` / `TimetablePanel.tsx` に重複定義。共通化の余地あり（低優先）
