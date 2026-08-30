@@ -17,7 +17,7 @@ requirement_slots:
   - key: "liberal.buddhism"
     credits: 4
     accepts: {subcategory: "「仏教の思想」科目", type: "必修"}
-  - key: "liberal.language.english"
+  - key: "liberal.language.required"
     credits: 6
     accepts: {subcategory: "必修外国語科目"}
     overflow_to: "liberal.elective"           # 履修要項 注記A

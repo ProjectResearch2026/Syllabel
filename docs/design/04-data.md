@@ -121,7 +121,7 @@ courses:                            # 専攻科目のみ。教養教育科目は
 | key | 単位 | `overflow_to` | 定義元 |
 |---|---:|---|---|
 | `liberal.buddhism` | 4 | — | 教養 |
-| `liberal.language.english` | 6 | `liberal.elective` | 教養 |
+| `liberal.language.required` | 6 | `liberal.elective` | 教養 |
 | `liberal.general.humanities` | 2 | `liberal.elective` | 教養 |
 | `liberal.general.social` | 2 | `liberal.elective` | 教養 |
 | `liberal.general.sports` | 2 | — | 教養 |
@@ -152,7 +152,7 @@ requirement_slots:                  # liberal.* スロットの唯一の定義�
   - key: "liberal.buddhism"
     credits: 4
     accepts: {subcategory: "「仏教の思想」科目", type: "必修"}
-  - key: "liberal.language.english"
+  - key: "liberal.language.required"
     credits: 6
     accepts: {subcategory: "必修外国語科目"}
     overflow_to: "liberal.elective"           # 履修要項 注記A
