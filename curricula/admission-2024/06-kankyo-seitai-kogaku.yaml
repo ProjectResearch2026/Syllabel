@@ -1,0 +1,775 @@
+# 環境生態工学課程 2024年度入学 履修要項データ
+# 出典:
+#   https://rishu.ryukoku.ac.jp/curriculum/2024/faculty-rikou/s05/ (専攻科目・学修プログラム)
+#   http://rishu.ryukoku.ac.jp/knowledge/no5-01/ (履修登録制限単位数)
+program:
+  code: "06"                        # 課程コード2桁。シラバスコード先頭4桁(Y006)と一致する一次識別子
+  name: "環境生態工学課程"
+  name_aliases: ["環境科学課程"]    # 2025年度に環境科学課程へ改称(design §4.4.2)
+admission_year: 2024
+curriculum_version: null            # 履修要項の見出しに版表記なし(§4.4.1)
+duplicate_of: null                  # 他コホートの複製ではないため null(§5.1.2)
+graduation:
+  total_credits: 124
+  excluded_types: ["随意"]            # 卒業要件単位に算入しない type
+
+# 専攻科目・フリーゾーンの要件枠。liberal.* は共通ファイルが持つ(design §5.1.2)
+# 合計 96 + 教養 28 = 124 単位。検算はマージ後に行う(§4.4.3)
+requirement_slots:
+  - key: "basic.required"
+    credits: 19
+    accepts: {category: "専門基礎科目", type: "必修"}
+  - key: "basic.required_elective"
+    credits: 4
+    accepts: {category: "専門基礎科目", type: "選択必修"}
+    overflow_to: "basic.elective"
+  - key: "basic.elective"
+    credits: 5
+    accepts: {category: "専門基礎科目", type: "選択"}
+    overflow_to: "free.faculty"           # 注記B
+  - key: "applied.required"
+    credits: 18
+    accepts: {category: "専門応用科目", type: "必修"}
+  - key: "applied.elective"
+    credits: 36
+    accepts: {category: "専門応用科目", type: "選択"}
+    overflow_to: "free.faculty"
+  - key: "related"
+    credits: 0
+    accepts: {category: "専門関連科目"}
+    overflow_to: "free.faculty"           # 注記D 他課程ファイルから導出(§4.4.3)
+  - key: "free.faculty"
+    credits: 10
+    accepts: {category: ["専門基礎科目", "専門応用科目", "専門関連科目"]}
+    overflow_to: "free.all"           # 注記E 教養教育科目は不可
+  - key: "free.all"
+    credits: 4
+    accepts: {category: "any"}
+    # 注記F 区分を問わない
+
+prerequisites:                      # 先修要件(専攻科目)
+  - course_title: "特別研究"
+    grade: 4
+    term: "通年"
+    conditions: "卒業要件総修得単位数100単位以上"
+
+grade_up_requirements:              # 進級要件
+  - to_grade: 2
+    conditions: null
+  - to_grade: 3
+    conditions: null
+  - to_grade: 4
+    conditions: null
+
+# 履修登録制限単位数(CAP制)の定義
+registration_limits:
+  by_semester:
+    - semesters: [1, 2, 3, 4]   # 1・2年次
+      max_credits_per_semester: 22
+    - semesters: [5, 6]         # 3年次
+      max_credits_per_semester: 24
+    - semesters: [7, 8]         # 4年次
+      max_credits_per_year: 48
+      notes: "4年次は学期ごとの上限ではなく、通年（7・8セメスター合計）で48単位が上限"
+  notes: |
+    通年科目の単位数は第1学期（前期）と第2学期（後期）で2分割して計算する。
+    クォーター型科目の単位数は1Q・2Qを前期に、3Q・4Qを後期に算入する。
+    随意科目（教職課程・博物館学芸員課程など）、サマーセッション科目、「海外英語研修」、
+    大学コンソーシアム京都の単位互換科目、放送大学科目は制限単位数に含まれない。
+  gpa_exception: "前学期までの累積GPA3.5以上の学生は、申請により各学期2単位まで制限を拡大できる（毎学期初めの履修登録期間に先端理工学部教務課へ申請）"
+# 特定科目群の卒業要件算入上限。超過分は overflow_to 先に計上し、null はどこにも計上しない(§5.1.5)
+# 出典: 履修要項2024年度版 s05「設置科目（専門基礎科目・専門応用科目）」の注記
+credit_caps:
+  - titles:
+      - "先端理工キャリア実習Ⅰ"
+      - "先端理工インターンシップⅠ"
+      - "先端理工キャリア実習Ⅱ"
+      - "先端理工インターンシップⅡ"
+      - "キャリア実習・実習指導"
+    max_credits: 2
+    overflow_to: null
+  - titles:
+      - "プロジェクトリサーチⅠ"
+      - "プロジェクトリサーチⅡ"
+    max_credits: 2
+    overflow_to: null
+
+# 各授業の定義
+# - type: 必修 / 選択必修 / 選択 / 随意
+# - grade・term・quarters: 配当年次・学期・クォーター
+courses:
+  # ---- 専門基礎科目 ----
+  - title: "情報基礎"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 1
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "フレッシャーズセミナー"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 1
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "キャリア実習・実習指導"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 1
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "理工学のすすめ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 1
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+    notes: "1年次のみ"
+  - title: "化学概論"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 1
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "環境生態工学概論"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 1
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "環境寄席"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 1
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "数学概論"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 1
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "生態学概論Ⅰ"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 1
+    grade: 1
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "生態学概論Ⅱ"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 1
+    grade: 1
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "地域環境概論A"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 1
+    grade: 1
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "地域環境概論B"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 1
+    grade: 1
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "地球環境概論A"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 1
+    grade: 1
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "地球環境概論B"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 1
+    grade: 1
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "生物学概論"
+    category: "専門基礎科目"
+    type: "選択必修"
+    credits: 2
+    grade: 1
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "地学概論"
+    category: "専門基礎科目"
+    type: "選択必修"
+    credits: 2
+    grade: 1
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "物理学概論"
+    category: "専門基礎科目"
+    type: "選択必修"
+    credits: 2
+    grade: 1
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "進化学"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 1
+    grade: 1
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "大気環境科学"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 1
+    grade: 1
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "SDGs概論"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 1
+    grade: 1
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "里山の生態学"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 1
+    grade: 1
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "生物資源利用"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 1
+    grade: 1
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "水環境科学"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 1
+    grade: 1
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "生物学実験"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 1
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "地学実験"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 1
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "環境実習ⅠA"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 1
+    grade: 1
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "ASEANグローバルプログラム"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "デザインシンキング"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "クラウドコンピューティング演習"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "グローバル人材育成プログラム"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "プロジェクトリサーチⅠ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "プロジェクトリサーチⅡ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "先端理工キャリア実習Ⅰ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "先端理工インターンシップⅠ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "先端理工キャリア実習Ⅱ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "先端理工インターンシップⅡ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  # ---- 専門応用科目 ----
+  - title: "化学実験"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 2
+    grade: 2
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "物理実験"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "環境分析化学実験"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "環境実習ⅡA"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "個体群生態学"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "自然の浄化機構"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 1
+    grade: 2
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "化学工学Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "化学工学Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "環境移動現象論"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "環境経済学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "環境計測学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "環境社会学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "環境政策論"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "環境調査"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "環境微生物学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "環境倫理学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "気象学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "資源管理学及び演習"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "資源循環論"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "社会調査法及び演習"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "森林生態学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "水域生態学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "水理学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "数理生態学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "製図学及び演習"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "生理生態学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "先端技術"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "測量学及び演習"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "データサイエンス及び演習"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "土壌地質学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "土木工学Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "土木工学Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "燃焼工学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "廃棄物管理学Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "廃棄物管理学Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "保全生態学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "水処理工学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "廃棄物・大気環境施設実験"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "水環境施設実験"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "環境実習ⅢA"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "生態系生態学"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "応用生態学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "環境アセスメントA"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "環境アセスメントB"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "環境毒性学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "空気調和工学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "群集生態学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "景観生態学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "下水道工学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "水道工学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "数値計算法基礎及び演習"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "地理情報学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "排ガス処理工学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "廃棄物処理施設設計"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "微生物生態学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "水処理施設設計"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "セミナーⅠ"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 2
+    grade: 3
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "セミナーⅡ"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 2
+    grade: 4
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "セミナーⅢ"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 2
+    grade: 4
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "特別研究"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 6
+    grade: 4
+    term: "通年"
+    notes: "先修：卒業要件総修得単位数100単位以上"

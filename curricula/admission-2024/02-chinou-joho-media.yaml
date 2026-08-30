@@ -1,0 +1,493 @@
+# 知能情報メディア課程 2024年度入学 履修要項データ
+# 出典:
+#   https://rishu.ryukoku.ac.jp/curriculum/2024/faculty-rikou/s05/ (専攻科目・学修プログラム)
+#   http://rishu.ryukoku.ac.jp/knowledge/no5-01/ (履修登録制限単位数)
+# 構成:
+#   graduation / requirement_slots - 卒業要件の総単位数と要件枠
+#   credit_caps                    - 特定科目群の卒業要件算入上限
+#   registration_limits            - 履修登録制限単位数(CAP制)
+#   courses                        - 専攻科目(教養教育科目は 00-liberal-arts.yaml)
+program:
+  code: "02"                        # 課程コード2桁。シラバスコード先頭4桁(Y002)と一致する一次識別子
+  name: "知能情報メディア課程"
+  name_aliases: []
+admission_year: 2024
+curriculum_version: "2020年度以降入学生"      # 履修要項の見出しの版表記(§4.4.1)
+duplicate_of: null                  # 他コホートの複製ではないため null(§5.1.2)
+graduation:
+  total_credits: 124
+  excluded_types: ["随意"]            # 卒業要件単位に算入しない type
+
+# 専攻科目・フリーゾーンの要件枠。liberal.* は共通ファイルが持つ(design §5.1.2)
+# 合計 96 + 教養 28 = 124 単位。検算はマージ後に行う(§4.4.3)
+requirement_slots:
+  - key: "basic.required"
+    credits: 28
+    accepts: {category: "専門基礎科目", type: "必修"}
+  - key: "basic.elective"
+    credits: 10
+    accepts: {category: "専門基礎科目", type: "選択"}
+    overflow_to: "free.faculty"           # 注記B
+  - key: "applied.required"
+    credits: 18
+    accepts: {category: "専門応用科目", type: "必修"}
+  - key: "applied.elective"
+    credits: 22
+    accepts: {category: "専門応用科目", type: "選択"}
+    overflow_to: "free.faculty"
+  - key: "related"
+    credits: 0
+    accepts: {category: "専門関連科目"}
+    overflow_to: "free.faculty"           # 注記D 他課程ファイルから導出(§4.4.3)
+  - key: "free.faculty"
+    credits: 10
+    accepts: {category: ["専門基礎科目", "専門応用科目", "専門関連科目"]}
+    overflow_to: "free.all"           # 注記E 教養教育科目は不可
+  - key: "free.all"
+    credits: 8
+    accepts: {category: "any"}
+    # 注記F 区分を問わない
+
+prerequisites:                      # 先修要件(専攻科目)
+  - course_title: "知能情報メディアセミナー"
+    grade: 3
+    term: "後期"
+    conditions: "3年前期終了時点で卒業要件総修得単位数80単位以上、かつ専門基礎科目（必修）の修得単位数20単位以上"
+
+grade_up_requirements:              # 進級要件
+  - to_grade: 2
+    conditions: null
+  - to_grade: 3
+    conditions: null
+  - to_grade: 4
+    conditions: "「知能情報メディアセミナー」を単位修得していること"
+
+# 履修登録制限単位数(CAP制)の定義
+registration_limits:
+  by_semester:
+    - semesters: [1, 2, 3, 4]   # 1・2年次
+      max_credits_per_semester: 22
+    - semesters: [5, 6]         # 3年次
+      max_credits_per_semester: 24
+    - semesters: [7, 8]         # 4年次
+      max_credits_per_year: 48
+      notes: "4年次は学期ごとの上限ではなく、通年（7・8セメスター合計）で48単位が上限"
+  notes: |
+    通年科目の単位数は第1学期（前期）と第2学期（後期）で2分割して計算する。
+    クォーター型科目の単位数は1Q・2Qを前期に、3Q・4Qを後期に算入する。
+    随意科目（教職課程・博物館学芸員課程など）、サマーセッション科目、「海外英語研修」、
+    大学コンソーシアム京都の単位互換科目、放送大学科目は制限単位数に含まれない。
+  gpa_exception: "前学期までの累積GPA3.5以上の学生は、申請により各学期2単位まで制限を拡大できる（毎学期初めの履修登録期間に先端理工学部教務課へ申請）"
+# 特定科目群の卒業要件算入上限。超過分は overflow_to 先に計上し、null はどこにも計上しない(§5.1.5)
+# 出典: 履修要項2024年度版 s05「設置科目（専門基礎科目・専門応用科目）」の注記
+credit_caps:
+  - titles:
+      - "キャリア実習・実習指導"
+      - "プロジェクトリサーチⅠ"
+      - "プロジェクトリサーチⅡ"
+      - "先端理工キャリア実習Ⅰ"
+      - "先端理工インターンシップⅠ"
+      - "先端理工キャリア実習Ⅱ"
+      - "先端理工インターンシップⅡ"
+    max_credits: 2
+    overflow_to: null
+
+# 各授業の定義
+# - type: 必修 / 選択必修 / 選択 / 随意
+# - grade・term・quarters: 配当年次・学期・クォーター。クォーター完結科目は ["1Q"] のように1要素、
+#   セメスター科目は ["1Q", "2Q"](前期) / ["3Q", "4Q"](後期) のように2クォーターにまたがる
+# - シラバスコードは持たない。開講年度ファイル(offerings/<年度>/)が科目名で結合する(design §5.1.1)
+courses:
+  # ---- 専門基礎科目 ----
+  - title: "情報基礎"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 1
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "フレッシャーズセミナー"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 1
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "理工学のすすめ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 1
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "デザインシンキング"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "キャリア実習・実習指導"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 1
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "ASEANグローバルプログラム"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "グローバル人材育成プログラム"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "プロジェクトリサーチⅠ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "プロジェクトリサーチⅡ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "先端理工キャリア実習Ⅰ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "先端理工インターンシップⅠ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "先端理工キャリア実習Ⅱ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "先端理工インターンシップⅡ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "微分積分・演習"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 4
+    grade: 1
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "線形代数・演習"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 4
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "確率・統計"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 1
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "情報数学基礎"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 1
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "メディア処理基礎"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 1
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "ネットワーク基礎"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 1
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "プログラミング基礎演習Ⅰ"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 1
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "プログラミング基礎演習Ⅱ"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 1
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "ソフトウェア基礎"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 1
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "ハードウェア基礎"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "データ構造とアルゴリズム・演習"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 4
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "情報システム基礎"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "ディジタル信号処理"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "仮想メディアシステム"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "情報とセキュリティ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "システムソフトウェア"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "データベース"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "知的財産概論"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 1
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "情報学概論"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "人間工学概論"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "情報と職業"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "サ集"
+  - title: "クラウドコンピューティング演習"
+    category: "専門基礎科目"
+    type: "随意"
+    credits: 2
+    grade: 2
+    term: "後期"
+    quarters: ["4Q"]
+    notes: "随意科目のため卒業要件単位に算入されない。履修登録制限単位数(CAP)の対象外"
+  # ---- 専門応用科目 ----
+  - title: "ヒューマンコンピュータインタラクション"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "多様なプログラミング言語"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "コンピュータビジョン"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "知能情報メディア演習"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 4
+    grade: 2
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "音声・音響メディア処理論"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "環境としての情報技術"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "ニューロとAI"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "言語メディア処理論"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "CGとVR"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "データインテリジェンス"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "ネットワーク構成論"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "実践プログラミング・演習"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "科学技術計算・演習"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "画像メディア処理論"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "ソフトウェア開発法"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 2
+    grade: 3
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "応用アルゴリズム"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "ネットワークシステム・演習"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 4
+    grade: 3
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "コラボレーション演習"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 4
+    grade: 3
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "知能情報メディアセミナー"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 2
+    grade: 3
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+    notes: "履修には3年前期終了時点で卒業要件総修得単位数80単位以上、かつ専門基礎科目（必修）の修得単位数20単位以上が必要。4年次への進級要件"
+  - title: "科学技術英語"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 2
+    grade: 4
+    term: "通年"
+  - title: "特別研究"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 6
+    grade: 4
+    term: "通年"

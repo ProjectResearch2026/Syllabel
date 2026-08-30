@@ -1,4 +1,4 @@
-# 履修登録支援AIチャットボット 設計書(v0.9)— §5 データ設計
+# 履修登録支援AIチャットボット 設計書(v0.9.1)— §5 データ設計
 
 > 本ファイルは [`docs/design.md`](../design.md) の一部である。§番号は設計書全体で通し番号であり、他ファイルの節を `§X.Y` の形で参照する。全ファイルの対応表は [design.md](../design.md) の「0.3 本書の構成」を参照。
 
@@ -29,7 +29,6 @@ program:
   code: "01"                        # 課程コード2桁(§4.4.2)。課程の一次識別子
   name: "数理・情報科学課程"
   name_aliases: []                  # 任意。改称前後の名称・履修要項側の表記ゆれ
-  degree: "学士(理学)"
 admission_year: 2024                # この課程ファイルが属するコホート。ディレクトリ名と一致させる
 curriculum_version: "2020年度以降入学生"   # 任意。履修要項の見出しの版表記をそのまま記録する(§4.4.1)
 duplicate_of: null                  # 任意。他コホートのファイルの複製である場合、その curricula/ 起点パス(§5.1.5)
@@ -108,7 +107,7 @@ courses:                            # 専攻科目のみ。教養教育科目は
     track_groups: ["数学系"]        # 任意。tracks[].constraints が参照する科目群。通常1要素
     credits: 3
     grade: 1                        # 配当年次(§5.1.5)
-    term: "後期"                    # 前期 / 後期 / 通年
+    term: "後期"                    # 前期 / 後期 / 通年 / サ集
     quarters: ["3Q", "4Q"]          # §5.1.5
     notes: "..."                    # 任意
 ```
@@ -122,7 +121,7 @@ courses:                            # 専攻科目のみ。教養教育科目は
 | key | 単位 | `overflow_to` | 定義元 |
 |---|---:|---|---|
 | `liberal.buddhism` | 4 | — | 教養 |
-| `liberal.language.english` | 6 | `liberal.elective` | 教養 |
+| `liberal.language.required` | 6 | `liberal.elective` | 教養 |
 | `liberal.general.humanities` | 2 | `liberal.elective` | 教養 |
 | `liberal.general.social` | 2 | `liberal.elective` | 教養 |
 | `liberal.general.sports` | 2 | — | 教養 |
@@ -153,7 +152,7 @@ requirement_slots:                  # liberal.* スロットの唯一の定義�
   - key: "liberal.buddhism"
     credits: 4
     accepts: {subcategory: "「仏教の思想」科目", type: "必修"}
-  - key: "liberal.language.english"
+  - key: "liberal.language.required"
     credits: 6
     accepts: {subcategory: "必修外国語科目"}
     overflow_to: "liberal.elective"           # 履修要項 注記A
@@ -263,7 +262,8 @@ unresolved: []                      # どちらとも確定できなかった科
 
 - **`grade`(配当年次)** は「この年次**から**履修可能」を意味する。特定年次に限る等の例外は `notes` に記す。
 - **`type`** は {必修, 選択必修, 選択, 随意} の4値。`随意` は卒業要件単位に算入されない(多くは CAP 対象外。詳細は各科目の `notes` に従う)。
-- **`term` と `quarters`** は整合する: `前期` ⇔ `quarters ⊆ {1Q, 2Q}`、`後期` ⇔ `quarters ⊆ {3Q, 4Q}`、`通年` ⇔ `quarters` を持たない。設置科目一覧画像では、単一クォーター科目はセル中央・セメスター科目は2クォーター境界上・通年科目は前期|後期境界上のマークで表される。
+- **`term`** は {前期, 後期, 通年, サ集} の4値。`サ集` はサマーセッション集中開講(履修登録制限単位数の対象外。§5.1.2 `registration_limits.notes`)を表す。
+- **`term` と `quarters`** は整合する: `前期` ⇔ `quarters ⊆ {1Q, 2Q}`、`後期` ⇔ `quarters ⊆ {3Q, 4Q}`、`通年` ⇔ `quarters` を持たない、`サ集` ⇔ `quarters` を持たない。設置科目一覧画像では、単一クォーター科目はセル中央・セメスター科目は2クォーター境界上・通年科目は前期|後期境界上のマークで表される。
 - **`credits`** は全科目必須とする。
 - **`category`** は `教養教育科目` / `専門基礎科目` / `専門応用科目` / `専門関連科目` の4値。ただし `専門関連科目` は転記せず、ロード時に他課程ファイルから導出した科目に付与される値であり、YAML に直接書くことはない(§4.4.1)。
 - **`subcategory`(教養教育科目)** は次の8値。履修要項の公式区分は「「仏教の思想」科目 / 言語科目 / 教養科目」の3区分で、人文科学系〜スポーツ科学系は「教養科目」の下位にあたるが、**「教養科目全体で○単位」という要件が履修要項に存在しない**ため中間層は設けずフラットに保持する。専攻科目は `subcategory` を持たない。
