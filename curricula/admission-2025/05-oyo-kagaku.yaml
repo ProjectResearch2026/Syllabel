@@ -1,0 +1,105 @@
+# 応用化学課程 2025年度入学 履修要項データ
+# 出典:
+#   https://rishu.ryukoku.ac.jp/curriculum/2025/faculty-rikou/s04/ (専攻科目・学修プログラム)
+#   http://rishu.ryukoku.ac.jp/knowledge/no5-01/ (履修登録制限単位数)
+# 2024年度入学版との差分(2025年度版 s04 の科目ナンバリング表・本文・卒業要件表を比較):
+#   - 2024年度版との差分は、特別研究の先修要件に7科目の修得条件が加わった点(下記 prerequisites に反映済み)
+#   - 設置科目表が画像のため、単位数・配当年次・クォーターの変更は未確認
+program:
+  code: "05"                        # 課程コード2桁。シラバスコード先頭4桁(Y005)と一致する一次識別子
+  name: "応用化学課程"
+  name_aliases: []
+admission_year: 2025
+curriculum_version: "2025年度以降入学生"      # 履修要項の見出しの版表記(§4.4.1)
+duplicate_of: null                  # 他コホートの複製ではないため null(§5.1.2)
+graduation:
+  total_credits: 124
+  excluded_types: ["随意"]            # 卒業要件単位に算入しない type
+
+# 専攻科目・フリーゾーンの要件枠。liberal.* は共通ファイルが持つ(design §5.1.2)
+# 合計 96 + 教養 28 = 124 単位。検算はマージ後に行う(§4.4.3)
+requirement_slots:
+  - key: "basic.required"
+    credits: 42
+    accepts: {category: "専門基礎科目", type: "必修"}
+  - key: "basic.elective"
+    credits: 0
+    accepts: {category: "専門基礎科目", type: "選択"}
+    overflow_to: "free.faculty"           # 注記B
+  - key: "applied.required"
+    credits: 16
+    accepts: {category: "専門応用科目", type: "必修"}
+  - key: "applied.elective"
+    credits: 26
+    accepts: {category: "専門応用科目", type: "選択"}
+    overflow_to: "free.faculty"
+  - key: "related"
+    credits: 0
+    accepts: {category: "専門関連科目"}
+    overflow_to: "free.faculty"           # 注記D 他課程ファイルから導出(§4.4.3)
+  - key: "free.faculty"
+    credits: 12
+    accepts: {category: ["専門基礎科目", "専門応用科目", "専門関連科目"]}
+    overflow_to: "free.all"           # 注記E 教養教育科目は不可
+  - key: "free.all"
+    credits: 0
+    accepts: {category: "any"}
+    # 注記F 区分を問わない
+    notes: "この課程にはオールフリーゾーンの枠がない(履修要項で確認済)ため0単位。00-liberal-arts.yaml の liberal.elective.overflow_to 先を解決するために枠だけ置いている。教養選択の12単位を超えた分は卒業要件に算入されない"
+
+prerequisites:                      # 先修要件(専攻科目)
+  - course_title: "特別研究"
+    grade: 4
+    term: "通年"
+    conditions: "卒業要件総修得単位数100単位以上。かつ、物理基礎実験、化学基礎実験、物理化学実験、機器分析化学実験、化学合成実験、科学技術英語、研究デザイン演習を単位修得していること"
+
+grade_up_requirements:              # 進級要件
+  - to_grade: 2
+    conditions: null
+  - to_grade: 3
+    conditions: null
+  - to_grade: 4
+    conditions: null
+
+# 履修登録制限単位数(CAP制)の定義
+registration_limits:
+  by_semester:
+    - semesters: [1, 2, 3, 4]   # 1・2年次
+      max_credits_per_semester: 22
+    - semesters: [5, 6]         # 3年次
+      max_credits_per_semester: 24
+    - semesters: [7, 8]         # 4年次
+      max_credits_per_year: 48
+      notes: "4年次は学期ごとの上限ではなく、通年（7・8セメスター合計）で48単位が上限"
+  notes: |
+    通年科目の単位数は第1学期（前期）と第2学期（後期）で2分割して計算する。
+    クォーター型科目の単位数は1Q・2Qを前期に、3Q・4Qを後期に算入する。
+    随意科目（教職課程・博物館学芸員課程など）、サマーセッション科目、「海外英語研修」、
+    大学コンソーシアム京都の単位互換科目、放送大学科目は制限単位数に含まれない。
+  gpa_exception: "前学期までの累積GPA3.5以上の学生は、申請により各学期2単位まで制限を拡大できる（毎学期初めの履修登録期間に先端理工学部教務課へ申請）"
+# 特定科目群の卒業要件算入上限。超過分は overflow_to 先に計上し、null はどこにも計上しない(§5.1.5)
+# 出典: 履修要項2024年度版 s05「設置科目（専門基礎科目・専門応用科目）」の注記
+credit_caps:
+  - titles:
+      - "キャリア実習・実習指導"
+      - "ASEANグローバルプログラム"
+      - "プロジェクトリサーチⅠ"
+      - "プロジェクトリサーチⅡ"
+      - "グローバル人材育成プログラム"
+      - "先端理工キャリア実習Ⅰ"
+      - "先端理工インターンシップⅠ"
+      - "先端理工キャリア実習Ⅱ"
+      - "先端理工インターンシップⅡ"
+    max_credits: 4
+    overflow_to: null
+
+
+# 各授業の定義
+# - type: 必修 / 選択必修 / 選択 / 随意
+# - grade・term・quarters: 配当年次・学期・クォーター
+# - シラバスコードは持たない。開講年度ファイル(offerings/<年度>/)が科目名で結合する(design §5.1.1)
+#
+# ★未転記★ 2025年度版の設置科目表は画像(PNG)で提供されており HTML から取得できない。
+#   出典 https://rishu.ryukoku.ac.jp/curriculum/2025/faculty-rikou/s04/ の各課程「設置科目」節。
+#   画像を読み取って転記するまで空のままとする。
+courses: []
