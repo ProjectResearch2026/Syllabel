@@ -312,7 +312,6 @@ courses:
     grade: 3
     term: "前期"
     quarters: ["1Q"]
-    notes: "先修：卒業要件総修得単位数52単位以上"
   - title: "セミナーⅠ"
     category: "専門応用科目"
     type: "必修"
@@ -320,7 +319,6 @@ courses:
     grade: 3
     term: "後期"
     quarters: ["3Q", "4Q"]
-    notes: "先修：前年度終了時点で卒業要件総修得単位数52単位以上"
   - title: "セミナーⅡ"
     category: "専門応用科目"
     type: "必修"
@@ -328,7 +326,6 @@ courses:
     grade: 4
     term: "前期"
     quarters: ["1Q", "2Q"]
-    notes: "先修：卒業要件総修得76単位以上かつ専門応用科目37単位以上"
   - title: "特別研究Ⅰ"
     category: "専門応用科目"
     type: "必修"
@@ -336,7 +333,6 @@ courses:
     grade: 4
     term: "前期"
     quarters: ["1Q", "2Q"]
-    notes: "先修：卒業要件総修得76単位以上かつ専門応用科目37単位以上"
   - title: "特別研究Ⅱ"
     category: "専門応用科目"
     type: "必修"
@@ -344,7 +340,6 @@ courses:
     grade: 4
     term: "後期"
     quarters: ["3Q", "4Q"]
-    notes: "先修：「特別研究Ⅰ」および「セミナーⅡ」修得済"
   # ---- 専門応用科目: 選択必修（数学系・情報系共通） ----
   - title: "微積分及び演習Ⅱ"
     category: "専門応用科目"

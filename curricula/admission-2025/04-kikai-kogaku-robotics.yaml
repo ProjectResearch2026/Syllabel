@@ -562,7 +562,6 @@ courses:
     grade: 3
     term: "後期"
     quarters: ["3Q", "4Q"]
-    notes: "先修：3年前期終了時点で卒業要件総修得80単位以上かつ必修科目31単位以上。4年次進級要件"
   - title: "機械要素"
     category: "専門応用科目"
     type: "必修"
@@ -709,4 +708,3 @@ courses:
     credits: 6
     grade: 4
     term: "通年"
-    notes: "先修：卒業要件100単位以上"

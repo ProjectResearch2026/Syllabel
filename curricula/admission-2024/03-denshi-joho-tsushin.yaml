@@ -469,7 +469,6 @@ courses:
     grade: 2
     term: "前期"
     quarters: ["1Q", "2Q"]
-    notes: "先修：卒業要件24単位以上"
   - title: "電子情報通信実験Ⅱ"
     category: "専門基礎科目"
     type: "必修"
@@ -477,7 +476,6 @@ courses:
     grade: 2
     term: "後期"
     quarters: ["3Q", "4Q"]
-    notes: "先修：卒業要件36単位以上"
   - title: "電子物性"
     category: "専門応用科目"
     type: "選択必修"
@@ -725,7 +723,7 @@ courses:
     grade: 3
     term: "後期"
     quarters: ["3Q", "4Q"]
-    notes: "先修：研究室配属済み。「特別研究」と同時履修不可"
+    notes: "「特別研究」と同時履修不可"
   - title: "応用セミナー"
     category: "専門応用科目"
     type: "必修"
@@ -733,7 +731,6 @@ courses:
     grade: 3
     term: "後期"
     quarters: ["3Q", "4Q"]
-    notes: "先修：研究室配属済み。研究室配属要件：卒業要件62単位以上"
   - title: "科学技術英語"
     category: "専門応用科目"
     type: "必修"
@@ -741,11 +738,10 @@ courses:
     grade: 4
     term: "前期"
     quarters: ["1Q", "2Q"]
-    notes: "先修：卒業要件100単位以上"
   - title: "特別研究"
     category: "専門応用科目"
     type: "必修"
     credits: 6
     grade: 4
     term: "通年"
-    notes: "先修：卒業要件100単位以上。「専門基礎研究」と同時履修不可"
+    notes: "「専門基礎研究」と同時履修不可"
