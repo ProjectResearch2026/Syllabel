@@ -13,12 +13,14 @@ class ChatMessage(BaseModel):
     role: Literal["user", "assistant"]
     content: str
 
+
 class ChatRequest(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
     message: str
     history: list[ChatMessage] = []
     profile: StudentProfile | None = None
+
 
 class ProposalChatRequest(ChatRequest):
     """提案チャットのリクエスト。design.md §7.3。"""
