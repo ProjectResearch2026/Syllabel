@@ -5,11 +5,15 @@ import json
 
 import httpx
 from fastapi import APIRouter, HTTPException
+from pydantic_ai import AgentRunResultEvent, AgentStreamEvent
 from pydantic_ai.messages import (
     ModelMessage,
     ModelRequest,
     ModelResponse,
+    PartDeltaEvent,
+    PartStartEvent,
     TextPart,
+    TextPartDelta,
     UserPromptPart,
 )
 
@@ -54,23 +58,51 @@ def _build_prompt(message: str, profile: StudentProfile | None) -> str:
     return "【学生情報】\n" + "\n".join(facts) + "\n\n【質問】\n" + message
 
 
+def _event_text(event: AgentStreamEvent | AgentRunResultEvent) -> str:
+    """ストリームイベントから本文テキストだけを取り出す。
+
+    本文の先頭チャンクは PartStartEvent 側に乗り、続きが PartDeltaEvent で届くため両方拾う。
+    思考(ThinkingPart)とツール呼び出し(ToolCallPart)はクライアントに流さない。
+    """
+    if isinstance(event, PartStartEvent) and isinstance(event.part, TextPart):
+        return event.part.content
+    if isinstance(event, PartDeltaEvent) and isinstance(event.delta, TextPartDelta):
+        return event.delta.content_delta
+    return ""
+
+
 def _stream_response(
     prompt: str,
     history: list[ModelMessage],
     instructions: str | None = None,
 ):
-    """エージェントの応答を SSE ストリームとして返す。2つのチャットルートで共有する。"""
+    """エージェントの応答を SSE ストリームとして返す。2つのチャットルートで共有する。
+
+    run_stream() は output_type に合致する最初の出力で実行グラフを打ち切るため、
+    ツール呼び出しの直前に空白だけの TextPart を出すモデル(Qwen3.6 + reasoning パーサ)では
+    ツールが一度も実行されなかった。run_stream_events() で最後までイベントを消費する。
+    """
     agent = build_chat_agent()
 
     async def gen():
         try:
-            async with agent.run_stream(
+            started = False
+            async with agent.run_stream_events(
                 prompt,
                 message_history=history,
                 instructions=instructions,
-            ) as result:
-                async for delta in result.stream_text(delta=True, debounce_by=None):
-                    yield format_sse({"delta": delta})
+            ) as events:
+                async for event in events:
+                    text = _event_text(event)
+                    if not started:
+                        # 本文が始まるまでの空白のみの出力は捨てる
+                        text = text.lstrip()
+                        if not text:
+                            continue
+                        started = True
+                    elif not text:
+                        continue
+                    yield format_sse({"delta": text})
         except asyncio.CancelledError:
             raise
         except Exception:  # noqa: BLE001 - SSE開始後は例外を投げられないため全て捕捉する
