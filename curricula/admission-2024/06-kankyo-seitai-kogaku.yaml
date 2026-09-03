@@ -113,6 +113,7 @@ courses:
     grade: 1
     term: "前期"
     quarters: ["1Q", "2Q"]
+    notes: "配当年次に必ず履修登録。不合格でも再履修不要"
   - title: "キャリア実習・実習指導"
     category: "専門基礎科目"
     type: "選択"
@@ -127,7 +128,7 @@ courses:
     grade: 1
     term: "後期"
     quarters: ["3Q", "4Q"]
-    notes: "1年次のみ"
+    notes: "履修可能年次: 1年次のみ。配当年次に必ず履修登録。不合格でも再履修不可"
   - title: "化学概論"
     category: "専門基礎科目"
     type: "必修"
