@@ -205,7 +205,7 @@ offerings/
   - `term` と `quarters` の整合(§5.1.5)
   - `kikan: true` の科目が `type: "選択必修"` であること(§5.1.5)
   - `constraints[].slot` および `constraints[].track_group` の参照先が存在すること(前者は `requirement_slots`、後者は `courses[].track_groups`)
-  - `prerequisites[].course_title` の参照先が同一ファイルの `courses[].title` に存在すること(§5.1.5)
+  - `prerequisites[].title` および `all_of` / `any_of` に列挙した科目名が同一ファイルの `courses[].title` に存在すること(§5.1.5)
   - `by_semester` の各要素が `max_credits_per_semester` と `max_credits_per_year` のどちらか一方のみを持つこと
   - 課程ファイル・教養教育科目ファイルの `admission_year` が、そのファイルが置かれているディレクトリ名の年度と一致すること
   - 各 `admission-<年度>/` ディレクトリに `00-liberal-arts.yaml` がちょうど1つ存在すること
