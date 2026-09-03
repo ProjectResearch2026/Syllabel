@@ -1,4 +1,4 @@
-# 履修登録支援AIチャットボット 設計書(v0.9.1)— §4 コンポーネント設計
+# 履修登録支援AIチャットボット 設計書(v0.9.3)— §4 コンポーネント設計
 
 > 本ファイルは [`docs/design.md`](../design.md) の一部である。§番号は設計書全体で通し番号であり、他ファイルの節を `§X.Y` の形で参照する。全ファイルの対応表は [design.md](../design.md) の「0.3 本書の構成」を参照。
 
@@ -203,6 +203,7 @@ offerings/
   - `term` と `quarters` の整合(§5.1.5)
   - `kikan: true` の科目が `type: "選択必修"` であること(§5.1.5)
   - `constraints[].slot` および `constraints[].track_group` の参照先が存在すること(前者は `requirement_slots`、後者は `courses[].track_groups`)
+  - `prerequisites[].course_title` の参照先が同一ファイルの `courses[].title` に存在すること(§5.1.5)
   - `by_semester` の各要素が `max_credits_per_semester` と `max_credits_per_year` のどちらか一方のみを持つこと
   - 課程ファイル・教養教育科目ファイルの `admission_year` が、そのファイルが置かれているディレクトリ名の年度と一致すること
   - 各 `admission-<年度>/` ディレクトリに `00-liberal-arts.yaml` がちょうど1つ存在すること
