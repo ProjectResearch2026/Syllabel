@@ -7,18 +7,15 @@ from pydantic_ai import Agent
 from app.agents import build_model
 from app.agents.tools import get_syllabus, search_syllabi
 
-_SYSTEM_PROMPT = (
-    "あなたは龍谷大学の履修登録を支援するAIアシスタントです。\n"
-    "学生のシラバスに関する質問に日本語で答えてください。\n"
-    "必要に応じてツールを使ってシラバス情報を検索・参照してください。"
-)
-
 
 @lru_cache
 def build_chat_agent() -> Agent:
-    """シラバスチャットエージェントを生成する。build_model()(05)と同じ遅延初期化パターン。"""
-    agent: Agent[None, str] = Agent(build_model(), system_prompt=_SYSTEM_PROMPT)
+    """シラバスチャットエージェントを生成する。build_model()(05)と同じ遅延初期化パターン。
 
+    役割定義は呼び出し側が instructions として毎リクエスト渡す(app/api/chat_syllabus.py)。
+    """
+    agent: Agent[None, str] = Agent(build_model())
+    
     @agent.tool_plain
     async def tool_search_syllabi(
         q: str | None = None,
