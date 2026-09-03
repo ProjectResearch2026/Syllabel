@@ -15,7 +15,7 @@ def build_chat_agent() -> Agent:
     役割定義は呼び出し側が instructions として毎リクエスト渡す(app/api/chat_syllabus.py)。
     """
     agent: Agent[None, str] = Agent(build_model())
-    
+
     @agent.tool_plain
     async def tool_search_syllabi(
         q: str | None = None,
