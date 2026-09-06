@@ -23,6 +23,8 @@ BASE_URL = os.environ.get("SMOKE_BASE_URL", "http://localhost:8000")
 READ_TIMEOUT = float(os.environ.get("SMOKE_READ_TIMEOUT", "900"))
 # 本文が始まるまでの待ち時間を知らせる間隔
 HEARTBEAT = 30.0
+# backend の起動を待つ上限。compose の up 直後は listen まで数秒かかる
+STARTUP_WAIT = 60.0
 RULE = "-" * 60
 
 
@@ -102,10 +104,37 @@ async def stream(client: httpx.AsyncClient, path: str, message: str) -> None:
     )
 
 
+async def _wait_for_server(client: httpx.AsyncClient) -> bool:
+    """backend が listen するまで待つ。
+
+    `docker compose up -d` の直後は uvicorn の起動が間に合わず接続できない。
+    以前は ASGITransport でアプリを直接叩いていたため待つ必要が無かった。
+    """
+    deadline = time.monotonic() + STARTUP_WAIT
+    notified = False
+    while True:
+        try:
+            resp = await client.get("/healthz", timeout=5.0)
+            if resp.status_code == 200:
+                return True
+        except httpx.ConnectError:
+            pass
+        if time.monotonic() >= deadline:
+            print(f"[接続失敗] {BASE_URL} に繋がらない。backend が起動しているか確認する")
+            print("  docker compose ps / docker compose logs --tail 30 backend")
+            return False
+        if not notified:
+            print(f"{BASE_URL} の起動を待っています…")
+            notified = True
+        await asyncio.sleep(1.0)
+
+
 async def main() -> None:
     code = sys.argv[1] if len(sys.argv) > 1 else None
     timeout = httpx.Timeout(READ_TIMEOUT, connect=5.0)
     async with httpx.AsyncClient(base_url=BASE_URL, timeout=timeout) as client:
+        if not await _wait_for_server(client):
+            return
         await stream(client, "/api/chat/syllabus", "情報基礎という科目について教えて")
         if code:
             await stream(client, f"/api/chat/syllabus/{code}", "この講義の到達目標を1文で教えて")
