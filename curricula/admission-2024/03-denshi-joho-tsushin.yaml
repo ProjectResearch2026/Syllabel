@@ -57,30 +57,27 @@ requirement_slots:
     # 注記F 区分を問わない
     notes: "この課程にはオールフリーゾーンの枠がない(履修要項で確認済)ため0単位。00-liberal-arts.yaml の liberal.elective.overflow_to 先を解決するために枠だけ置いている。教養選択の12単位を超えた分は卒業要件に算入されない"
 
-prerequisites:                      # 先修要件(専攻科目)
-  - course_title: "電子情報通信実験Ⅰ"
-    grade: 2
-    term: "前期"
-    conditions: "卒業要件総修得単位数24単位以上"
-  - course_title: "電子情報通信実験Ⅱ"
-    grade: 2
-    term: "後期"
-    conditions: "卒業要件総修得単位数36単位以上"
-  - course_title: "応用セミナー"
-    grade: 3
-    term: "後期"
-    conditions: "研究室に配属されていること。研究室配属要件：配属時点で卒業要件総修得単位数62単位以上"
-  - course_title: "専門基礎研究"
-    grade: 3
-    term: "後期"
-    conditions: "研究室に配属されていること"
-  - course_title: "科学技術英語"
-    grade: 4
-    term: "前期"
-    conditions: "卒業要件総修得単位数100単位以上"
-  - course_title: "特別研究"
-    grade: 4
-    conditions: "卒業要件総修得単位数100単位以上"
+prerequisites:                      # 先修制(専攻科目)。履修要項「（2）先修制（専攻科目）」の表から転記
+  - title: "電子情報通信実験Ⅰ"
+    min_credits:
+      - {credits: 24}
+    notes: "卒業要件総修得単位数が24単位以上であること。"
+  - title: "電子情報通信実験Ⅱ"
+    min_credits:
+      - {credits: 36}
+    notes: "卒業要件総修得単位数が36単位以上であること。"
+  - title: "応用セミナー"
+    notes: "研究室に配属されていること。"
+  - title: "専門基礎研究"
+    notes: "研究室に配属されていること。"
+  - title: "科学技術英語"
+    min_credits:
+      - {credits: 100}
+    notes: "卒業要件総修得単位数が100単位以上であること。"
+  - title: "特別研究"
+    min_credits:
+      - {credits: 100}
+    notes: "卒業要件総修得単位数が100単位以上であること。"
 
 grade_up_requirements:              # 進級要件
   - to_grade: 2

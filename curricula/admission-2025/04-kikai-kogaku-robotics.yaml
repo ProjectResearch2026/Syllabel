@@ -57,11 +57,13 @@ requirement_slots:
     # 注記F 区分を問わない
     notes: "この課程にはオールフリーゾーンの枠がない(履修要項で確認済)ため0単位。00-liberal-arts.yaml の liberal.elective.overflow_to 先を解決するために枠だけ置いている。教養選択の12単位を超えた分は卒業要件に算入されない"
 
-prerequisites:                      # 先修要件(専攻科目)
-  - course_title: "セミナー"
-    grade: 3
-    term: "後期"
-    conditions: "3年前期終了時点で卒業要件総修得単位数80単位以上、かつ必修科目修得単位数31単位以上"
+prerequisites:                      # 先修制(専攻科目)。履修要項「（2）先修制（専攻科目）」の表から転記
+  - title: "セミナー"
+    as_of: {grade: 3, term: "前期"}
+    min_credits:
+      - {credits: 80}
+      - {accepts: {category: ["専門基礎科目", "専門応用科目"], type: "必修"}, credits: 31}
+    notes: "3年前期の終了時点で、卒業要件総修得単位数80単位以上、かつ必修科目修得単位数31単位以上であること。※9月の成績表配付までに成績確定する科目を含む。"
 
 grade_up_requirements:              # 進級要件
   - to_grade: 2

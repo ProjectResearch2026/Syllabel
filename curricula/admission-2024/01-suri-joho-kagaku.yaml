@@ -68,28 +68,29 @@ requirement_slots:
     accepts: {category: "any"}
     # 注記F 区分を問わない
 
-prerequisites:                      # 先修要件(専攻科目)
-  - course_title: "数理情報演習"
-    grade: 3
-    term: "前期"
-    quarters: ["1Q"]
-    conditions: "卒業要件総修得単位数52単位以上"
-  - course_title: "セミナーⅠ"
-    grade: 3
-    term: "後期"
-    conditions: "前年度終了時点で卒業要件総修得単位数52単位以上"
-  - course_title: "セミナーⅡ"
-    grade: 4
-    term: "前期"
-    conditions: "卒業要件総修得76単位以上、かつ専門応用科目37単位以上"
-  - course_title: "特別研究Ⅰ"
-    grade: 4
-    term: "前期"
-    conditions: "卒業要件総修得76単位以上、かつ専門応用科目37単位以上"
-  - course_title: "特別研究Ⅱ"
-    grade: 4
-    term: "後期"
-    conditions: "「特別研究Ⅰ」および「セミナーⅡ」を修得していること"
+prerequisites:                      # 先修制(専攻科目)。履修要項「（2）先修制（専攻科目）」の表から転記
+  - title: "数理情報演習"
+    min_credits:
+      - {credits: 52}
+    notes: "卒業要件総修得単位数52単位以上であること。"
+  - title: "セミナーⅠ"
+    as_of: {grade: 2, term: "後期"}
+    min_credits:
+      - {credits: 52}
+    notes: "履修の前年度終了時点で卒業要件総修得単位数52単位以上であること。"
+  - title: "セミナーⅡ"
+    min_credits:
+      - {credits: 76}
+      - {accepts: {category: "専門応用科目"}, credits: 37}
+    notes: "卒業要件総修得単位数76単位以上、かつ専門応用科目の修得単位数37単位以上であること。"
+  - title: "特別研究Ⅰ"
+    min_credits:
+      - {credits: 76}
+      - {accepts: {category: "専門応用科目"}, credits: 37}
+    notes: "卒業要件総修得単位数76単位以上、かつ専門応用科目の修得単位数37単位以上であること。"
+  - title: "特別研究Ⅱ"
+    all_of: ["特別研究Ⅰ", "セミナーⅡ"]
+    notes: "「特別研究Ⅰ」および「セミナーⅡ」を修得していること。"
 
 grade_up_requirements:              # 進級要件
   - to_grade: 2

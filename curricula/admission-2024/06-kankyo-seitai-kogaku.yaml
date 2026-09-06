@@ -47,11 +47,11 @@ requirement_slots:
     accepts: {category: "any"}
     # 注記F 区分を問わない
 
-prerequisites:                      # 先修要件(専攻科目)
-  - course_title: "特別研究"
-    grade: 4
-    term: "通年"
-    conditions: "卒業要件総修得単位数100単位以上"
+prerequisites:                      # 先修制(専攻科目)。履修要項「（2）先修制（専攻科目）」の表から転記
+  - title: "特別研究"
+    min_credits:
+      - {credits: 100}
+    notes: "卒業要件総修得単位数が100単位以上あること。"
 
 grade_up_requirements:              # 進級要件
   - to_grade: 2

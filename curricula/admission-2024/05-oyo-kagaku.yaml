@@ -44,11 +44,11 @@ requirement_slots:
     # 注記F 区分を問わない
     notes: "この課程にはオールフリーゾーンの枠がない(履修要項で確認済)ため0単位。00-liberal-arts.yaml の liberal.elective.overflow_to 先を解決するために枠だけ置いている。教養選択の12単位を超えた分は卒業要件に算入されない"
 
-prerequisites:                      # 先修要件(専攻科目)
-  - course_title: "特別研究"
-    grade: 4
-    term: "通年"
-    conditions: "卒業要件総修得単位数100単位以上"
+prerequisites:                      # 先修制(専攻科目)。履修要項「（2）先修制（専攻科目）」の表から転記
+  - title: "特別研究"
+    min_credits:
+      - {credits: 100}
+    notes: "卒業要件総修得単位数が100単位以上あること。"
 
 grade_up_requirements:              # 進級要件
   - to_grade: 2

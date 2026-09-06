@@ -53,11 +53,13 @@ requirement_slots:
     accepts: {category: "any"}
     # 注記F 区分を問わない
 
-prerequisites:                      # 先修要件(専攻科目)
-  - course_title: "知能情報メディアセミナー"
-    grade: 3
-    term: "後期"
-    conditions: "3年前期終了時点で卒業要件総修得単位数80単位以上、かつ専門基礎科目（必修）の修得単位数20単位以上"
+prerequisites:                      # 先修制(専攻科目)。履修要項「（2）先修制（専攻科目）」の表から転記
+  - title: "知能情報メディアセミナー"
+    as_of: {grade: 3, term: "前期"}
+    min_credits:
+      - {credits: 80}
+      - {accepts: {category: "専門基礎科目", type: "必修"}, credits: 20}
+    notes: "3年前期の終了時点で、卒業要件総修得単位数80単位以上、かつ専門基礎科目（必修）の修得単位数20単位以上であること。※9月の成績表配付までに成績確定する科目を含む。"
 
 grade_up_requirements:              # 進級要件
   - to_grade: 2
