@@ -5,7 +5,7 @@ from functools import lru_cache
 from pydantic_ai import Agent
 
 from app.agents import build_model
-from app.agents.tools import get_syllabus, search_syllabi
+from app.agents.tools import get_syllabus, search_syllabi_for_agent
 
 
 @lru_cache
@@ -28,8 +28,12 @@ def build_chat_agent() -> Agent:
         grade: int | None = None,
         limit: int = 10,
     ) -> dict:
-        """シラバスを検索する。キーワード・学部・課程・学期・曜日・時限・教員名・学年で絞り込める。"""
-        return await search_syllabi(
+        """シラバスを検索する。キーワード・学部・課程・学期・曜日・時限・教員名・学年で絞り込める。
+
+        results の各要素が1クラスに対応し、担当教員(instructors)と開講コマの原文
+        (term_schedule_raw)を含む。same_title_classes は同名科目のクラス数。
+        """
+        return await search_syllabi_for_agent(
             q=q,
             faculty=faculty,
             program=program,

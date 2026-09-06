@@ -53,7 +53,7 @@ async def test_chat_agent_calls_search_tool(monkeypatch):
         called["kwargs"] = kwargs
         return {"count": 1, "limit": 10, "offset": 0, "results": [{"syllabus_code": "B12345", "course_title": "情報基礎"}]}
 
-    monkeypatch.setattr("app.agents.chat_agent.search_syllabi", fake_search_syllabi)
+    monkeypatch.setattr("app.agents.chat_agent.search_syllabi_for_agent", fake_search_syllabi)
     build_chat_agent.cache_clear()
 
     agent = build_chat_agent()
