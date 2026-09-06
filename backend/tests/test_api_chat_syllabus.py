@@ -3,6 +3,7 @@
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import httpx
 import pytest
@@ -121,6 +122,75 @@ def test_build_prompt_excludes_completed_courses():
     )
     prompt = mod._build_prompt("月曜3限は?", profile)
     assert "極秘科目" not in prompt
+
+
+# ---------------------------------------------------------------------------
+# システムプロンプト(issue #62)
+# ---------------------------------------------------------------------------
+
+# 回答内容そのものは LLM 依存で非決定的なため、ここで確かめるのは
+# 「原典を逸脱させないための規則がプロンプトに載り、両ルートでモデルに渡ること」まで。
+# 捏造が実際に消えたかは実機スモーク(scripts/smoke_chat_syllabus.py)で確認する。
+
+
+@pytest.mark.parametrize(
+    "rule",
+    [
+        "ツールが返した内容だけを根拠にする",  # 対応案1
+        "推測であることを明示",  # 対応案2
+        "必修",  # 対応案3
+        "複数のクラス",  # 対応案4
+    ],
+)
+def test_syllabus_prompt_states_grounding_rules(rule: str):
+    """issue #62 の対応案1〜4に当たる規則がプロンプトに含まれること。"""
+    assert rule in mod._SYLLABUS_PROMPT
+
+
+def test_syllabus_prompt_matches_design_doc():
+    """設計書 §7.4.1 に転記したプロンプトが実体と一致すること。
+
+    プロンプトは設計書に本文ごと載せている(design.md §7.4.1)。片方だけ直すと
+    設計書が嘘になるため、コードブロックの中身を照合する。
+    """
+    doc = Path(__file__).parents[2] / "docs" / "design" / "05-interfaces.md"
+    if not doc.exists():  # 設計書を含まない配布物では検査しない
+        pytest.skip("設計書が無い")
+
+    body = doc.read_text(encoding="utf-8").split("#### 7.4.1 システムプロンプト", 1)[1]
+    quoted = body.split("```", 2)[1].strip("\n")
+
+    assert quoted == mod._SYLLABUS_PROMPT
+
+
+def test_syllabus_prompt_reaches_model(spy_stream):
+    """/api/chat/syllabus でプロンプトが instructions として渡ること。"""
+    agent = build_chat_agent()
+    with agent.override(model=TestModel(call_tools=[], custom_output_text=OUTPUT_TEXT)):
+        resp = client.post(
+            "/api/chat/syllabus", json={"message": "情報基礎とは?", "history": []}
+        )
+
+    assert resp.status_code == 200
+    assert mod._SYLLABUS_PROMPT in spy_stream["instructions"]
+
+
+def test_syllabus_prompt_reaches_model_by_code(monkeypatch, spy_stream):
+    """講義単位ルートでも、講義詳細の前段にプロンプトが残ること。"""
+
+    async def mock_get(code: str) -> dict:
+        return SYLLABUS_DETAIL
+
+    monkeypatch.setattr(mod, "get_syllabus", mock_get)
+
+    agent = build_chat_agent()
+    with agent.override(model=TestModel(call_tools=[], custom_output_text=OUTPUT_TEXT)):
+        resp = client.post(
+            "/api/chat/syllabus/B12345", json={"message": "この講義は?", "history": []}
+        )
+
+    assert resp.status_code == 200
+    assert mod._SYLLABUS_PROMPT in spy_stream["instructions"]
 
 
 # ---------------------------------------------------------------------------
