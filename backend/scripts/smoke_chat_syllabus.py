@@ -16,10 +16,13 @@ import time
 import httpx
 
 BASE_URL = os.environ.get("SMOKE_BASE_URL", "http://localhost:8000")
-# トークン間の無通信がこれを超えたら打ち切る。思考の長いモデルを考え長めに取る
-READ_TIMEOUT = float(os.environ.get("SMOKE_READ_TIMEOUT", "300"))
+# トークン間の無通信がこれを超えたら打ち切る。
+# 全体チャットはツール呼び出しのループを回すため、モデル呼び出しが複数回入る。
+# その間は思考もツール呼び出しもクライアントに流れず無通信になる。実測で
+# 1回の呼び出しに100秒超かかることがあり、300秒では足りなかった。
+READ_TIMEOUT = float(os.environ.get("SMOKE_READ_TIMEOUT", "900"))
 # 本文が始まるまでの待ち時間を知らせる間隔
-HEARTBEAT = 15.0
+HEARTBEAT = 30.0
 RULE = "-" * 60
 
 
