@@ -260,7 +260,7 @@ def test_chat_syllabus_runs_tool_after_blank_text(monkeypatch):
         called["kwargs"] = kwargs
         return {"items": [SYLLABUS_DETAIL]}
 
-    monkeypatch.setattr(chat_agent_mod, "search_syllabi_for_agent", fake_search_syllabi)
+    monkeypatch.setattr(chat_agent_mod, "search_syllabi", fake_search_syllabi)
 
     async def stream_fn(
         messages: list[ModelMessage], info: AgentInfo
