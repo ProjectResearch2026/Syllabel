@@ -1,4 +1,4 @@
-# 履修登録支援AIチャットボット 設計書(v0.9.4)— §4 コンポーネント設計
+# 履修登録支援AIチャットボット 設計書(v0.9.5)— §4 コンポーネント設計
 
 > 本ファイルは [`docs/design.md`](../design.md) の一部である。§番号は設計書全体で通し番号であり、他ファイルの節を `§X.Y` の形で参照する。全ファイルの対応表は [design.md](../design.md) の「0.3 本書の構成」を参照。
 
@@ -75,6 +75,7 @@ backend/
 │   ├── schemas/               # Pydantic スキーマ
 │   │   ├── student.py
 │   │   ├── curriculum.py
+│   │   ├── offering.py
 │   │   └── proposal.py
 │   ├── curricula/             # 履修要項データのロード
 │   │   ├── loader.py          # YAML 読み込みとバリデーション
@@ -198,7 +199,7 @@ offerings/
 
 - backend 起動時に `curricula/**/*.yaml` と `offerings/<運用対象年度>/**/*.yaml` を読み込み、Pydantic スキーマ(§5.1)で型付けしてメモリ上に保持する
 - 課程ファイルは以下の順にマージし、課程ごとに1つの完全なオブジェクトを組み立てる。**参照はすべて同一の `admission-<年度>/` ディレクトリ内で閉じ、他の入学年度のファイルを読まない**:
-  1. 同一ディレクトリの `00-liberal-arts.yaml` の `requirement_slots` / `credit_caps` / `courses` を取り込む(教養教育科目の要件枠と設置科目はこのファイルが唯一の定義元。§4.4.1)。このとき `not_available_to_programs` に当該課程の `program.code` を含む科目は取り込まない(§5.1.5)
+  1. 同一ディレクトリの `00-liberal-arts.yaml` の `requirement_slots` / `credit_caps` / `courses` / `prerequisites` を取り込む(教養教育科目の要件枠と設置科目はこのファイルが唯一の定義元。§4.4.1)。このとき `not_available_to_programs` に当該課程の `program.code` を含む科目は取り込まない(§5.1.5)。`prerequisites` は課程ファイルと教養教育科目ファイルの双方が同じ形で持つ先修制の規定であり(§5.1.5)、いずれも規則レイヤとして充足判定(§4.4.5)に用いるため、課程ファイル由来のものと合わせて1つのリストに保持する
   2. 同一ディレクトリの他課程ファイルの `courses` を `category: "専門関連科目"` として取り込む(§4.4.1)。取り込んだ科目は `related` / `free.faculty` スロットの判定にのみ用い、当該課程の設置科目としては扱わない
 - 起動時にスキーマバリデーションを実行し、不正があれば起動失敗(転記ミスを早期に検出)。型検査に加えて以下の整合性を検証する:
   - `type` が {必修, 選択必修, 選択, 随意} のいずれかであること。`category` / `subcategory` が §5.1.5 の列挙値のいずれかであること
