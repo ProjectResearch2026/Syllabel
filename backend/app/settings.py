@@ -1,4 +1,6 @@
 from functools import lru_cache
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,6 +17,14 @@ class Settings(BaseSettings):
 
     # 外部呼び出しのタイムアウト(秒)
     http_timeout: float = 30.0
+
+    # 履修要項データ層 — design.md §4.4.2 / §4.4.3
+    # 既定はリポジトリ直下のディレクトリを backend/ から相対で指す。コンテナでは
+    # docker-compose.yml が読み取り専用マウント先(/curricula・/offerings)を渡す
+    curricula_dir: Path = Path("../curricula")
+    offerings_dir: Path = Path("../offerings")
+    # backend が参照する開講年度。過去年度は読まない(§4.4.3 / §4.4.4)
+    offering_year: int = 2026
 
 
 @lru_cache
