@@ -8,6 +8,15 @@ services:
       - syllabus-clean-net
     ports:
       - "127.0.0.1:8000:8000"
+    volumes:
+      # 履修要項データはイメージに焼かず読み取り専用でマウントする(design.md §4.4.3 / §4.4.4)。
+      # build context が ./backend のため COPY できず、マウントなら YAML の更新に再ビルドが要らない
+      - ./curricula:/curricula:ro
+      - ./offerings:/offerings:ro
+    environment:
+      CURRICULA_DIR: /curricula
+      OFFERINGS_DIR: /offerings
+      OFFERING_YEAR: "2026"        # 参照する開講年度。過去年度は読まない(§4.4.3)
     depends_on:
       vllm:
         condition: service_healthy   # モデルロード完了を待ってから起動
