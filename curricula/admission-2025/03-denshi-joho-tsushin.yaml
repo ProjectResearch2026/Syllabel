@@ -466,7 +466,6 @@ courses:
     credits: 4
     grade: 3
     term: "通年"
-  # ---- 専門応用科目 ----
   - title: "電子情報通信実験Ⅰ"
     category: "専門基礎科目"
     type: "必修"
@@ -481,6 +480,7 @@ courses:
     grade: 2
     term: "後期"
     quarters: ["3Q", "4Q"]
+  # ---- 専門応用科目 ----
   - title: "電子物性"
     category: "専門応用科目"
     type: "選択必修"
