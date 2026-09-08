@@ -47,11 +47,11 @@ requirement_slots:
     accepts: {category: "any"}
     # 注記F 区分を問わない
 
-prerequisites:                      # 先修要件(専攻科目)
-  - course_title: "特別研究"
-    grade: 4
-    term: "通年"
-    conditions: "卒業要件総修得単位数100単位以上"
+prerequisites:                      # 先修制(専攻科目)。履修要項「（2）先修制（専攻科目）」の表から転記
+  - title: "特別研究"
+    min_credits:
+      - {credits: 100}
+    notes: "卒業要件総修得単位数が100単位以上あること。"
 
 grade_up_requirements:              # 進級要件
   - to_grade: 2
@@ -113,6 +113,7 @@ courses:
     grade: 1
     term: "前期"
     quarters: ["1Q", "2Q"]
+    notes: "配当年次に必ず履修登録。不合格でも再履修不要"
   - title: "キャリア実習・実習指導"
     category: "専門基礎科目"
     type: "選択"
@@ -127,7 +128,7 @@ courses:
     grade: 1
     term: "後期"
     quarters: ["3Q", "4Q"]
-    notes: "1年次のみ"
+    notes: "履修可能年次: 1年次のみ。配当年次に必ず履修登録。不合格でも再履修不可"
   - title: "化学概論"
     category: "専門基礎科目"
     type: "必修"
@@ -219,48 +220,6 @@ courses:
     grade: 1
     term: "後期"
     quarters: ["3Q", "4Q"]
-  - title: "進化学"
-    category: "専門基礎科目"
-    type: "必修"
-    credits: 1
-    grade: 1
-    term: "後期"
-    quarters: ["4Q"]
-  - title: "大気環境科学"
-    category: "専門基礎科目"
-    type: "必修"
-    credits: 1
-    grade: 1
-    term: "後期"
-    quarters: ["4Q"]
-  - title: "SDGs概論"
-    category: "専門基礎科目"
-    type: "選択"
-    credits: 1
-    grade: 1
-    term: "後期"
-    quarters: ["3Q"]
-  - title: "里山の生態学"
-    category: "専門基礎科目"
-    type: "選択"
-    credits: 1
-    grade: 1
-    term: "前期"
-    quarters: ["2Q"]
-  - title: "生物資源利用"
-    category: "専門基礎科目"
-    type: "選択"
-    credits: 1
-    grade: 1
-    term: "後期"
-    quarters: ["3Q"]
-  - title: "水環境科学"
-    category: "専門基礎科目"
-    type: "選択"
-    credits: 1
-    grade: 1
-    term: "前期"
-    quarters: ["2Q"]
   - title: "生物学実験"
     category: "専門基礎科目"
     type: "選択"
@@ -352,21 +311,63 @@ courses:
     grade: 3
     term: "前期"
     quarters: ["1Q", "2Q"]
-  # ---- 専門応用科目 ----
   - title: "化学実験"
-    category: "専門応用科目"
+    category: "専門基礎科目"
     type: "必修"
     credits: 2
     grade: 2
     term: "後期"
     quarters: ["3Q", "4Q"]
   - title: "物理実験"
-    category: "専門応用科目"
+    category: "専門基礎科目"
     type: "選択"
     credits: 2
     grade: 2
     term: "前期"
     quarters: ["1Q", "2Q"]
+  # ---- 専門応用科目 ----
+  - title: "進化学"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 1
+    grade: 1
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "大気環境科学"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 1
+    grade: 1
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "SDGs概論"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 1
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "里山の生態学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 1
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "生物資源利用"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 1
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "水環境科学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 1
+    term: "前期"
+    quarters: ["2Q"]
   - title: "環境分析化学実験"
     category: "専門応用科目"
     type: "必修"
@@ -772,4 +773,3 @@ courses:
     credits: 6
     grade: 4
     term: "通年"
-    notes: "先修：卒業要件総修得単位数100単位以上"

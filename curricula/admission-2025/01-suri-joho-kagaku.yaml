@@ -1,0 +1,730 @@
+# 数理・情報科学課程 2025年度入学 履修要項データ
+# 出典:
+#   https://rishu.ryukoku.ac.jp/curriculum/2025/faculty-rikou/s04/ (専攻科目・学修プログラム)
+#   http://rishu.ryukoku.ac.jp/knowledge/no5-01/ (履修登録制限単位数)
+# 構成:
+#   graduation / requirement_slots - 卒業要件の総単位数と要件枠
+#   credit_caps                    - 特定科目群の卒業要件算入上限
+#   registration_limits            - 履修登録制限単位数(CAP制)
+#   courses                        - 専攻科目(教養教育科目は 00-liberal-arts.yaml)
+# 2024年度入学版との差分(2025年度版 s04 の科目ナンバリング表・本文・卒業要件表を比較):
+#   - 2024年度版との差分は科目ナンバリング表・本文・卒業要件表の範囲では検出されなかった
+#   - ただし設置科目表が画像のため、単位数・配当年次・クォーターの変更は未確認
+#   - tracks の pool/min は2025年度版の別表から取り直すこと
+#   - 「理工学のすすめ」の「1年次のみ履修可能」の制限が撤廃された(2025年度版の設置科目表から
+#     当該記述が削除。1年次で不合格の場合も次年次以降に再履修可能であることを教務課に確認済み)
+program:
+  code: "01"                        # 課程コード2桁。シラバスコード先頭4桁(Y001)と一致する一次識別子
+  name: "数理・情報科学課程"
+  name_aliases: []
+admission_year: 2025
+curriculum_version: "2020年度以降入学生"      # 履修要項の見出しの版表記(§4.4.1)
+duplicate_of: null                  # 他コホートの複製ではないため null(§5.1.2)
+tracks:                             # 課程内コース区分。値は履修要項の「専門応用科目の履修要件」別表から転記
+  - key: "math"
+    name: "数学系コース"
+    constraints:
+      - {slot: "applied.required_elective", track_group: "数学系", pool: 18, min: 13}
+      - {slot: "applied.elective", track_group: "数学系", pool: 21, min: 14}
+  - key: "info"
+    name: "情報系コース"
+    constraints:
+      - {slot: "applied.required_elective", track_group: "情報系", pool: 13, min: 9}
+      - {slot: "applied.elective", track_group: "情報系", pool: 25, min: 14}
+  - key: "sogo"
+    name: "総合コース"
+    constraints:                      # 総合コースは両群から浅く取ることを求められる(別表 総合コース列)
+      - {slot: "applied.required_elective", track_group: "数学系", pool: 18, min: 9}
+      - {slot: "applied.required_elective", track_group: "情報系", pool: 13, min: 4}
+graduation:
+  total_credits: 124
+  excluded_types: ["随意"]            # 卒業要件単位に算入しない type
+
+# 専攻科目・フリーゾーンの要件枠。liberal.* は共通ファイルが持つ(design §5.1.2)
+# 合計 96 + 教養 28 = 124 単位。検算はマージ後に行う(§4.4.3)
+requirement_slots:
+  - key: "basic.required"
+    credits: 9
+    accepts: {category: "専門基礎科目", type: "必修"}
+  - key: "basic.elective"
+    credits: 0
+    accepts: {category: "専門基礎科目", type: "選択"}
+    overflow_to: "free.faculty"           # 注記B
+  - key: "applied.required"
+    credits: 18
+    accepts: {category: "専門応用科目", type: "必修"}
+  - key: "applied.required_elective"
+    credits: 22
+    accepts: {category: "専門応用科目", type: "選択必修"}
+    overflow_to: "applied.elective"           # 注記C
+  - key: "applied.elective"
+    credits: 31
+    accepts: {category: "専門応用科目", type: "選択"}
+    overflow_to: "free.faculty"
+  - key: "related"
+    credits: 0
+    accepts: {category: "専門関連科目"}
+    overflow_to: "free.faculty"           # 注記D 他課程ファイルから導出(§4.4.3)
+  - key: "free.faculty"
+    credits: 6
+    accepts: {category: ["専門基礎科目", "専門応用科目", "専門関連科目"]}
+    overflow_to: "free.all"           # 注記E 教養教育科目は不可
+  - key: "free.all"
+    credits: 10
+    accepts: {category: "any"}
+    # 注記F 区分を問わない
+
+prerequisites:                      # 先修制(専攻科目)。履修要項「（2）先修制（専攻科目）」の表から転記
+  - title: "数理情報演習"
+    min_credits:
+      - {credits: 52}
+    notes: "卒業要件総修得単位数52単位以上であること。"
+  - title: "セミナーⅠ"
+    as_of: {grade: 2, term: "後期"}
+    min_credits:
+      - {credits: 52}
+    notes: "履修の前年度終了時点で卒業要件総修得単位数52単位以上であること。"
+  - title: "セミナーⅡ"
+    min_credits:
+      - {credits: 76}
+      - {accepts: {category: "専門応用科目"}, credits: 37}
+    notes: "卒業要件総修得単位数76単位以上、かつ専門応用科目の修得単位数37単位以上であること。"
+  - title: "特別研究Ⅰ"
+    min_credits:
+      - {credits: 76}
+      - {accepts: {category: "専門応用科目"}, credits: 37}
+    notes: "卒業要件総修得単位数76単位以上、かつ専門応用科目の修得単位数37単位以上であること。"
+  - title: "特別研究Ⅱ"
+    all_of: ["特別研究Ⅰ", "セミナーⅡ"]
+    notes: "「特別研究Ⅰ」および「セミナーⅡ」を修得していること。"
+
+grade_up_requirements:              # 進級要件
+  - to_grade: 2
+    conditions: null
+  - to_grade: 3
+    conditions: null
+  - to_grade: 4
+    conditions: null
+
+# 履修登録制限単位数(CAP制)の定義
+registration_limits:
+  by_semester:
+    - semesters: [1, 2, 3, 4]
+      max_credits_per_semester: 22
+    - semesters: [5, 6]
+      max_credits_per_semester: 24
+    - semesters: [7, 8]
+      max_credits_per_year: 48
+      notes: "4年次は通年（7・8セメスター合計）で48単位が上限"
+  notes: |
+    通年科目の単位数は第1学期（前期）と第2学期（後期）で2分割して計算する。
+    クォーター型科目の単位数は1Q・2Qを前期に、3Q・4Qを後期に算入する。
+    随意科目（教職課程・博物館学芸員課程など）、サマーセッション科目、「海外英語研修」、
+    大学コンソーシアム京都の単位互換科目、放送大学科目は制限単位数に含まれない。
+  gpa_exception: "前学期までの累積GPA3.5以上の学生は、申請により各学期2単位まで制限を拡大できる（毎学期初めの履修登録期間に先端理工学部教務課へ申請）"
+# 特定科目群の卒業要件算入上限。超過分は overflow_to 先に計上し、null はどこにも計上しない(§5.1.5)
+# 出典: 履修要項2024年度版 s05「設置科目（専門基礎科目・専門応用科目）」の注記
+credit_caps:
+  - titles:
+      - "キャリア実習・実習指導"
+      - "先端理工キャリア実習Ⅰ"
+      - "先端理工インターンシップⅠ"
+      - "先端理工キャリア実習Ⅱ"
+      - "先端理工インターンシップⅡ"
+    max_credits: 2
+    overflow_to: null
+  - titles:
+      - "プロジェクトリサーチⅠ"
+      - "プロジェクトリサーチⅡ"
+    max_credits: 2
+    overflow_to: null
+
+# 各授業の定義
+# - type: 必修 / 選択必修 / 選択 / 随意
+# - grade・term・quarters: 配当年次・学期・クォーター
+# - シラバスコードは持たない。開講年度ファイル(offerings/<年度>/)が科目名で結合する(design §5.1.1)
+#
+# 2025年度ページ(/curriculum/2025/faculty-rikou/s04/)が参照する設置科目表の画像は、
+# 2024年度版と同一URL(2024/11/fac_sci_img11.png / 2024/11/fac_sci_img12.png)である。
+# 差し替えではなく同じファイルを指しているため、設置科目表に変更はない。
+courses:
+  # ---- 専門基礎科目 ----
+  - title: "情報基礎"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 1
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "フレッシャーズセミナー"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 1
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+    notes: "配当年次に必ず履修登録。不合格でも再履修不要"
+  - title: "キャリア実習・実習指導"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 1
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "理工学のすすめ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 1
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+    notes: "履修可能年次: 1年次以降。配当年次に必ず履修登録。不合格の場合でも以降年次で再履修可能"
+  - title: "デザインシンキング"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "ASEANグローバルプログラム"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "グローバル人材育成プログラム"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "プロジェクトリサーチⅠ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "プロジェクトリサーチⅡ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "先端理工キャリア実習Ⅰ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "先端理工インターンシップⅠ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "先端理工キャリア実習Ⅱ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "先端理工インターンシップⅡ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "微積分及び演習Ⅰ"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 3
+    grade: 1
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "線形代数及び演習Ⅰ"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 3
+    grade: 1
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "プログラミング及び実習Ⅰ"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 1
+    grade: 1
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "数理情報基礎演習A"
+    category: "専門基礎科目"
+    type: "随意"
+    credits: 2
+    grade: 1
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "数理情報基礎演習B"
+    category: "専門基礎科目"
+    type: "随意"
+    credits: 2
+    grade: 1
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "情報と職業"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "クラウドコンピューティング演習"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "後期"
+    quarters: ["4Q"]
+  # ---- 専門応用科目: 必修 ----
+  - title: "プロジェクト演習"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "数理・情報科学の学びと社会"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "数理情報演習"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "セミナーⅠ"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 4
+    grade: 3
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "セミナーⅡ"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 2
+    grade: 4
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "特別研究Ⅰ"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 2
+    grade: 4
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "特別研究Ⅱ"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 6
+    grade: 4
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  # ---- 専門応用科目: 選択必修（数学系・情報系共通） ----
+  - title: "微積分及び演習Ⅱ"
+    category: "専門応用科目"
+    type: "選択必修"
+    track_groups: ["数学系"]
+    credits: 3
+    grade: 1
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "線形代数及び演習Ⅱ"
+    category: "専門応用科目"
+    type: "選択必修"
+    track_groups: ["数学系"]
+    credits: 3
+    grade: 1
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "データ分析"
+    category: "専門応用科目"
+    type: "選択必修"
+    track_groups: ["数学系"]
+    credits: 2
+    grade: 1
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "微分方程式Ⅰ"
+    category: "専門応用科目"
+    type: "選択必修"
+    track_groups: ["数学系"]
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "確率統計Ⅰ"
+    category: "専門応用科目"
+    type: "選択必修"
+    track_groups: ["数学系"]
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "数値計算法及び演習"
+    category: "専門応用科目"
+    type: "選択必修"
+    track_groups: ["数学系"]
+    credits: 3
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "物理と微分方程式及び演習"
+    category: "専門応用科目"
+    type: "選択必修"
+    track_groups: ["数学系"]
+    credits: 3
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "情報処理システムⅠ"
+    category: "専門応用科目"
+    type: "選択必修"
+    track_groups: ["情報系"]
+    credits: 2
+    grade: 1
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "情報処理システムⅡ"
+    category: "専門応用科目"
+    type: "選択必修"
+    track_groups: ["情報系"]
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "プログラミング及び実習Ⅱ"
+    category: "専門応用科目"
+    type: "選択必修"
+    track_groups: ["情報系"]
+    credits: 2
+    grade: 1
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "プログラミング及び実習Ⅲ"
+    category: "専門応用科目"
+    type: "選択必修"
+    track_groups: ["情報系"]
+    credits: 3
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "集合と論理"
+    category: "専門応用科目"
+    type: "選択必修"
+    track_groups: ["情報系"]
+    credits: 2
+    grade: 2
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "フーリエ解析及び演習"
+    category: "専門応用科目"
+    type: "選択必修"
+    track_groups: ["情報系"]
+    credits: 2
+    grade: 2
+    term: "後期"
+    quarters: ["3Q"]
+  # ---- 専門応用科目: 選択（数学系） ----
+  - title: "微分方程式Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["数学系"]
+    credits: 2
+    grade: 2
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "質点系の力学"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["数学系"]
+    credits: 2
+    grade: 2
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "複素解析Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["数学系"]
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "複素解析Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["数学系"]
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "位相入門Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["数学系"]
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "位相入門Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["数学系"]
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "代数入門Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["数学系"]
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "代数入門Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["数学系"]
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "幾何入門"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["数学系"]
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "ベクトル解析入門"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["数学系"]
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "現象の数理モデルⅠ"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["数学系"]
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "現象の数理モデルⅡ"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["数学系"]
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "拡散現象の数理Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["数学系"]
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "拡散現象の数理Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["数学系"]
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "応用幾何"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["数学系"]
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "波動現象の数理Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["数学系"]
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "波動現象の数理Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["数学系"]
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "確率統計Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["数学系"]
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "確率統計Ⅲ"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["数学系"]
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "シミュレーション及び演習"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["情報系"]
+    credits: 2
+    grade: 2
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "確率モデル及び演習"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["情報系"]
+    credits: 2
+    grade: 3
+    term: "後期"
+    quarters: ["4Q"]
+  # ---- 専門応用科目: 選択（情報系） ----
+  - title: "アルゴリズム及び演習Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["情報系"]
+    credits: 2
+    grade: 2
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "アルゴリズム及び演習Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["情報系"]
+    credits: 2
+    grade: 2
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "多変量解析及び演習"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["情報系"]
+    credits: 3
+    grade: 2
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "機械学習Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["情報系"]
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "機械学習Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["情報系"]
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "オブジェクト指向及び演習"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["情報系"]
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "グラフィックス及び演習"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["情報系"]
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "データ構造とアルゴリズムⅠ"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["情報系"]
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "データ構造とアルゴリズムⅡ"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["情報系"]
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "ネットワーク及び演習"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["情報系"]
+    credits: 2
+    grade: 3
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "言語と計算Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["情報系"]
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "言語と計算Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["情報系"]
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "最適化の数理Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["情報系"]
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "最適化の数理Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    track_groups: ["情報系"]
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["4Q"]
