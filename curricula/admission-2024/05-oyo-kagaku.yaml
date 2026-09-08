@@ -293,62 +293,6 @@ courses:
     grade: 2
     term: "前期"
     quarters: ["1Q", "2Q"]
-  - title: "アドバンスト数学Ⅰ"
-    category: "専門応用科目"
-    type: "選択"
-    credits: 1
-    grade: 2
-    term: "前期"
-    quarters: ["1Q"]
-  - title: "アドバンスト数学Ⅱ"
-    category: "専門応用科目"
-    type: "選択"
-    credits: 1
-    grade: 2
-    term: "前期"
-    quarters: ["2Q"]
-  - title: "アドバンスト数学Ⅲ"
-    category: "専門応用科目"
-    type: "選択"
-    credits: 1
-    grade: 2
-    term: "後期"
-    quarters: ["3Q"]
-  - title: "アドバンスト数学Ⅳ"
-    category: "専門応用科目"
-    type: "選択"
-    credits: 1
-    grade: 2
-    term: "後期"
-    quarters: ["4Q"]
-  - title: "アドバンスト物理Ⅰ"
-    category: "専門応用科目"
-    type: "選択"
-    credits: 1
-    grade: 2
-    term: "前期"
-    quarters: ["1Q"]
-  - title: "アドバンスト物理Ⅱ"
-    category: "専門応用科目"
-    type: "選択"
-    credits: 1
-    grade: 2
-    term: "前期"
-    quarters: ["2Q"]
-  - title: "アドバンスト物理Ⅲ"
-    category: "専門応用科目"
-    type: "選択"
-    credits: 1
-    grade: 2
-    term: "後期"
-    quarters: ["3Q"]
-  - title: "アドバンスト物理Ⅳ"
-    category: "専門応用科目"
-    type: "選択"
-    credits: 1
-    grade: 2
-    term: "後期"
-    quarters: ["4Q"]
   - title: "ASEANグローバルプログラム"
     category: "専門基礎科目"
     type: "選択"
@@ -420,7 +364,77 @@ courses:
     grade: 3
     term: "前期"
     quarters: ["1Q", "2Q"]
+  - title: "化学の英語"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "化学合成実験"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
   # ---- 専門応用科目 ----
+  - title: "アドバンスト数学Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "アドバンスト数学Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "アドバンスト数学Ⅲ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "アドバンスト数学Ⅳ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "アドバンスト物理Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "アドバンスト物理Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "アドバンスト物理Ⅲ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "アドバンスト物理Ⅳ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["4Q"]
   - title: "電気化学Ⅰ"
     category: "専門応用科目"
     type: "選択"
@@ -526,13 +540,6 @@ courses:
     grade: 2
     term: "後期"
     quarters: ["3Q", "4Q"]
-  - title: "化学の英語"
-    category: "専門基礎科目"
-    type: "必修"
-    credits: 2
-    grade: 3
-    term: "前期"
-    quarters: ["1Q"]
   - title: "科学技術英語"
     category: "専門応用科目"
     type: "必修"
@@ -540,13 +547,6 @@ courses:
     grade: 3
     term: "後期"
     quarters: ["3Q", "4Q"]
-  - title: "化学合成実験"
-    category: "専門基礎科目"
-    type: "必修"
-    credits: 2
-    grade: 3
-    term: "前期"
-    quarters: ["1Q"]
   - title: "アドバンスト電気化学"
     category: "専門応用科目"
     type: "選択"
