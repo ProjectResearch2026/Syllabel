@@ -5,6 +5,7 @@ from fastapi import FastAPI
 
 from app.api.chat_syllabus import router as chat_syllabus_router
 from app.api.curricula import router as curricula_router
+from app.api.proposal import router as proposal_router
 from app.api.syllabus import router as syllabus_router
 from app.curricula.loader import get_curricula
 
@@ -30,6 +31,7 @@ app = FastAPI(lifespan=lifespan)
 app.include_router(syllabus_router)
 app.include_router(chat_syllabus_router)
 app.include_router(curricula_router)
+app.include_router(proposal_router)
 
 @app.get("/healthz")
 def healthz():
