@@ -1,4 +1,9 @@
-"""`GET /api/curricula/{program_code}/{admission_year}`。design.md §6.1。
+"""履修要項の参照と卒業要件の充足判定。design.md §6.1。
+
+`GET /api/curricula/{program_code}/{admission_year}` と
+`POST /api/requirements` の2本を持つ(§4.2.1 のファイルツリー)。
+
+## `GET /api/curricula/{program_code}/{admission_year}`
 
 検索画面のタグ表示(§8)と卒業残り単位の表示(§4.4.5)が必要とする**科目レイヤ**
 だけを返す。`requirement_slots` / `credit_caps` / `tracks` / `prerequisites` /
@@ -18,6 +23,13 @@ backend は次の3点を解決済みの状態で返し、履修要項の構造�
 - `own`。他課程の `type: 必修` はその課程の学生にとっての必修であり、
   区別せずに表示すると誤ったタグになる
 
+## `POST /api/requirements`
+
+要件枠ごとの修得済み単位・不足単位を返す。判定規則(規則レイヤ)をクライアントへ
+渡さないための口であり、判定そのものは `app/curricula/requirements.py` の純関数が
+担う(§4.4.5)。既修得科目を本文で受けるため `POST` とし、受け取った学生プロファイルは
+永続化もログ記録もしない(§4.2.3)。
+
 レスポンスは camelCase(`to_camel`)。`curricula/` の YAML は snake_case のまま
 扱う規約(§5.1.5)であり、変換はこのレスポンスモデル側の責務である。
 """
@@ -30,6 +42,7 @@ from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
 from app.curricula.loader import LoadedCurriculum, get_curricula
+from app.curricula.requirements import RequirementsError, UncountedReason, judge
 from app.schemas.curriculum import (
     Category,
     CourseType,
@@ -37,6 +50,7 @@ from app.schemas.curriculum import (
     Subcategory,
     Term,
 )
+from app.schemas.student import StudentProfile
 from app.settings import get_settings
 
 router = APIRouter(prefix="/api", tags=["curricula"])
@@ -216,3 +230,127 @@ def get_curriculum(
         media_type="application/json",
         headers=headers,
     )
+
+
+# --- POST /api/requirements(§4.4.5 / §6.1) ---
+#
+# 既修得科目を本文で受けるため `GET` ではなく `POST` とする(成績情報を URL や
+# アクセスログに残さないため。§4.4.5)。判定そのものは `app/curricula/requirements.py`
+# の純関数が担い、本モジュールは (課程コード, 入学年度) の解決と JSON の形だけを
+# 受け持つ。受け取った学生プロファイルは永続化もログ記録もしない(§4.2.3)。
+
+
+class RequirementsRequest(_CamelModel):
+    """`POST /api/requirements` のリクエスト(§6.1)。
+
+    課程コードは `profile.program` から採る。frontend は `GET /api/curricula` の
+    パスにも同じ値を用いており(§5.2.1 の `program` は課程コード)、本文に
+    重ねて持たせると両者が食い違ったときの解釈が定まらない。入学年度は
+    プロファイルに無いため別に受け取る(クライアントは学年から算出する)。
+    """
+
+    profile: StudentProfile
+    admission_year: int
+    track: str | None = None
+
+
+class AssignedCourseOut(_CamelModel):
+    """要件枠に計上した科目1件。カスケードで分かれた分は枠ごとに現れる。"""
+
+    title: str
+    credits: float
+
+
+class SlotStatusOut(_CamelModel):
+    """要件枠1つの充足状況。`shortfall` が不足単位(§4.4.5)。"""
+
+    key: str
+    required: int
+    earned: float
+    shortfall: float
+    notes: str | None = None
+    courses: list[AssignedCourseOut]
+
+
+class TrackConstraintStatusOut(_CamelModel):
+    """コース別下限1件の充足状況(§5.1.5 `tracks[].constraints`)。"""
+
+    slot: str
+    track_group: str
+    pool: int
+    required: int
+    earned: float
+    shortfall: float
+
+
+class UncountedCourseOut(_CamelModel):
+    """卒業要件単位に算入しなかった科目(またはその一部)と理由。"""
+
+    title: str
+    credits: float
+    reason: UncountedReason
+
+
+class TrackInfoOut(_CamelModel):
+    """選択できるコース。`track` を指定しなかったクライアントへの案内。"""
+
+    key: str
+    name: str
+
+
+class RequirementsResponse(_CamelModel):
+    """`POST /api/requirements` のレスポンス(§6.1)。"""
+
+    program_code: str
+    admission_year: int
+    total_credits: int
+    earned_credits: float
+    remaining_credits: float
+    satisfied: bool
+    slots: list[SlotStatusOut]
+    track: str | None = None
+    track_constraints: list[TrackConstraintStatusOut]
+    available_tracks: list[TrackInfoOut]
+    uncounted: list[UncountedCourseOut]
+
+
+@router.post(
+    "/requirements",
+    response_model=RequirementsResponse,
+    response_model_by_alias=True,
+)
+def post_requirements(request: RequirementsRequest, response: Response) -> RequirementsResponse:
+    """要件枠ごとの修得済み単位・不足単位を返す(§4.4.5 / §6.1)。
+
+    未知の (課程コード, 入学年度) は 404、`profile.program` が空の場合と
+    未知のコースを指定した場合は 400。
+    """
+    program_code = request.profile.program
+    if not program_code:
+        raise HTTPException(
+            status_code=400,
+            detail="profile.program に課程コードが必要です",
+        )
+
+    loaded = get_curricula().get((program_code, request.admission_year))
+    if loaded is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"履修要項がありません: 課程コード {program_code} / "
+                f"{request.admission_year}年度入学"
+            ),
+        )
+
+    try:
+        result = judge(
+            loaded.curriculum,
+            request.profile.completed_courses,
+            track=request.track,
+        )
+    except RequirementsError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # 成績情報を含むため、ブラウザにも中間経路にも残させない(§4.2.3)
+    response.headers["Cache-Control"] = "no-store"
+    return RequirementsResponse.model_validate(result.model_dump())
