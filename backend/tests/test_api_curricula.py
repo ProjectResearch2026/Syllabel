@@ -12,8 +12,8 @@ import yaml
 from fastapi.testclient import TestClient
 
 import app.api.curricula as curricula_api
-from app.main import app
 from app.curricula.loader import get_curricula
+from app.main import app
 from app.settings import get_settings
 
 client = TestClient(app)
