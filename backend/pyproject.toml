@@ -10,3 +10,12 @@ dependencies = [
     "pyyaml>=6.0",
     "pydantic-settings>=2.0",
 ]
+
+# テスト用の依存。`uv pip install -e ".[dev]"` で入る
+# pytest-asyncio は tests/test_tools.py・tests/test_chat_agent.py の
+# `@pytest.mark.asyncio` に要る(既定の strict モードで動くため設定は持たない)
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+]
