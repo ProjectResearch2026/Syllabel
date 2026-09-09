@@ -268,6 +268,31 @@ def test_build_proposal_agent_is_cached():
     assert build_proposal_agent() is build_proposal_agent()
 
 
+def test_model_settings_disable_thinking():
+    """思考(reasoning)を切る設定を持つこと。
+
+    実機(DGX Spark + Qwen3.6-27B-FP8)では、思考を有効にすると900秒経っても
+    `final_result` に到達しなかった(2026-09-09 計測)。`enable_thinking: false` は
+    vLLM のチャットテンプレート引数であり、`extra_body` で素通しする。
+    """
+    settings = build_proposal_agent().model_settings
+    assert settings["extra_body"] == {
+        "chat_template_kwargs": {"enable_thinking": False}
+    }
+
+
+def test_model_settings_bound_the_response():
+    """出力の打ち切りと待ち時間に上限を置くこと。
+
+    `max_tokens` が小さいと構造化出力が途中で切れ、検証に落ちて作り直し
+    (`OUTPUT_RETRIES`)が走り、所要時間が倍以上になる。
+    """
+    settings = build_proposal_agent().model_settings
+    assert settings["max_tokens"] >= 4000
+    assert settings["timeout"] > 0
+
+
+
 def _proposal_response(messages, info: AgentInfo) -> ModelResponse:
     """構造化出力ツールを1回だけ呼ぶモデル。"""
     return ModelResponse(
@@ -324,6 +349,24 @@ async def test_agent_has_no_tools():
     assert seen["function_tools"] == []
     # 役割定義は instructions として毎回渡る
     assert "時間割" in seen["instructions"]
+@pytest.mark.asyncio
+async def test_model_settings_reach_the_model():
+    """`MODEL_SETTINGS` が実際にモデル呼び出しまで届くこと。"""
+    seen: dict = {}
+
+    def capture(messages, info: AgentInfo) -> ModelResponse:
+        seen["model_settings"] = info.model_settings
+        return _proposal_response(messages, info)
+
+    agent = build_proposal_agent()
+    with agent.override(model=FunctionModel(capture)):
+        await agent.run("提案して")
+
+    assert seen["model_settings"]["extra_body"] == {
+        "chat_template_kwargs": {"enable_thinking": False}
+    }
+    assert seen["model_settings"]["max_tokens"] >= 4000
+
 
 
 @pytest.mark.asyncio
