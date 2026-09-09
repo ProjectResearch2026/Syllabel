@@ -126,9 +126,15 @@ def _line(course: dict) -> str:
     )
 
 
-def _named(snapshot: dict) -> list[dict]:
-    """snapshot のうち、科目名まで届いている科目。"""
-    return [c for c in (snapshot.get("courses") or []) if c.get("title")]
+def _settled(snapshot: dict) -> list[dict]:
+    """snapshot のうち、値が届き終えた科目。
+
+    snapshot には完成した値だけが順に載る(§7.2)。科目名が届いた時点で出すと、
+    曜日・時限がまだ届いていない科目まで「未定」と書いてしまい、モデルがコマを
+    埋められなかったのか単に途中なのかが読めない。スキーマの最後のフィールドで
+    ある `reason` が載った時点をその科目の完成とみなす。
+    """
+    return [c for c in (snapshot.get("courses") or []) if c.get("reason")]
 
 
 def _grid(courses: list[dict]) -> str:
@@ -172,7 +178,7 @@ async def stream(client: httpx.AsyncClient, preferences: str | None) -> None:
     """SSE を受け、途中経過と確定版を表示する。
 
     snapshot は値が1つ完成するたびに届き、全文を出すと読めないため、
-    **新しく科目名が確定した行だけ**を出す。逐次描画が成立しているか
+    **新しく確定した科目の行だけ**を出す。逐次描画が成立しているか
     (確定を待たずに時間割が埋まっていくか)はこれで見る。
     """
     print(f"=== POST {BASE_URL}/api/proposal ===")
@@ -204,10 +210,10 @@ async def stream(client: httpx.AsyncClient, preferences: str | None) -> None:
                 if "snapshot" in payload:
                     state["started"] = True
                     snapshots += 1
-                    named = _named(payload["snapshot"])
-                    for course in named[shown:]:
+                    settled = _settled(payload["snapshot"])
+                    for course in settled[shown:]:
                         print(f"  + {_line(course)}", flush=True)
-                    shown = len(named)
+                    shown = len(settled)
                 elif "result" in payload:
                     result = payload["result"]
                 elif "error" in payload:
