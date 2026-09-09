@@ -31,10 +31,10 @@
 
 | ホスト | 稼働させるもの |
 |---|---|
-| GW 機(アドバイザー教員研究室) | gateway(nginx。TLS 終端と振り分け)、frontend(Next.js) |
+| 公開 VM(アドバイザー教員研究室の Web サーバ上) | gateway(Caddy。振り分け)、frontend(Next.js)。TLS 終端は VM の外側、教員側の管理範囲 |
 | DGX Spark(学内) | backend(FastAPI + PydanticAI)、vllm、api-clean・postgres-clean(既存のシラバスバックエンド。無変更で利用) |
 
-学生のブラウザは gateway だけにアクセスし、`/` は frontend、`/api/*` は backend へ振り分けられる。シラバス情報は backend が api-clean を中継して返し、api-clean 自体は公開しない。
+学生のブラウザは gateway だけにアクセスし、`/pr-2026` と `/pr-2026/*` は frontend、`/pr-2026/api/*` は backend へ振り分けられる(公開パスは `/pr-2026` 配下のサブパス)。シラバス情報は backend が api-clean を中継して返し、api-clean 自体は公開しない。
 
 ## リポジトリ構成
 
@@ -86,7 +86,7 @@ npm install
 npm run dev                        # http://localhost:3000/pr-2026
 ```
 
-`next.config.ts` の `basePath` によりサブパス配信になっている。backend への呼び出しは `/api/*`(絶対パス)で行うため、開発時は同一オリジンで backend へ届く経路を用意する必要がある。
+`next.config.ts` の `basePath` によりサブパス配信になっている。`basePath` は `fetch()` のパスには前置されないため、**backend への呼び出しは公開パスの `/pr-2026/api/*` を明示的に含める**(設計§3.5.2、§6.1)。開発時は同一オリジンで backend へ届く経路を用意する必要がある。
 
 ### 実機スモーク
 
@@ -113,7 +113,7 @@ docker compose exec backend python -m scripts.smoke_proposal
 | frontend | 全画面と backend との接続を実装済み |
 | 履修要項データ | 2024・2025年度入学の6課程 + 教養教育科目を作成済み。2026年度入学分は転記中 |
 | 開講年度データ | 2026年度分を作成済み。生成スクリプト(`scripts/build_offerings.py`)は未実装 |
-| インフラ | GW 機・gateway・CI は未整備。backend の 8000 は現状 loopback バインド |
+| インフラ | frontend は学外から HTTPS で到達できる。**GW から backend へ到達する経路が無く**(DGX の 8000 は loopback バインド)、`/pr-2026/api/*` を要する機能は動作しない。CI は未整備 |
 
 ## 開発ルール
 
