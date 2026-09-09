@@ -31,6 +31,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 
 from pydantic_ai import Agent
+from pydantic_ai.models.openai import OpenAIChatModelSettings
 
 from app.agents import build_model
 from app.agents.tools import search_syllabi
@@ -52,6 +53,29 @@ logger = logging.getLogger(__name__)
 # 検証エラーをモデルへ返して作り直させる回数(§7.2)。pydantic-ai 2 系では
 # `Agent(output_retries=...)` が `retries={"output": ...}` に統合されている
 OUTPUT_RETRIES = 2
+
+# 実機計測(2026-09-09 / DGX Spark + Qwen3.6-27B-FP8)に基づく推論の設定。
+#
+# **思考(reasoning)を切る。** 思考を有効にすると、候補科目 643行・約39,000トークンの
+# プロンプトに対して600トークン生成しても本文へ到達せず、900秒待っても提案が出なかった
+# (vLLM 側は 7.3 tokens/s で生成を続けており、停止ではなく思考の継続だった)。
+# `enable_thinking: false` を渡すと `final_result` の生成が即座に始まる。提案は
+# 【候補科目】からの選択と転記が主で、必要な判断材料は backend が事前に揃えている(§7.2)
+# ため、長い思考を要する課題ではない。
+#
+# **`max_tokens` は出力が途中で切れない大きさにする。** 途中で切れると構造化出力の検証に
+# 落ち、`OUTPUT_RETRIES` の作り直しが走って所要時間が倍以上になる。CAP(各学期22単位)
+# いっぱいの11科目でおよそ1,900トークンであり、2倍の余裕を見る。
+#
+# **`timeout` を置く。** 上限に達したときに無言で待たせず、502 相当で返せるようにする。
+#
+# なお生成は約7.3 tokens/s であり、**所要時間は出力トークン数でほぼ決まる**
+# (プロンプト39,000トークンのプリフィルは約20秒)。
+MODEL_SETTINGS = OpenAIChatModelSettings(
+    extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+    max_tokens=4000,
+    timeout=900.0,
+)
 
 # api-clean の `GET /syllabi` を一括取得するときの1ページあたりの件数と、辿るページ数の
 # 上限。候補科目は多い課程・学年で 1,000 コード規模になるため1件ずつ引かず(§7.2)、
@@ -84,7 +108,7 @@ _INSTRUCTIONS = (
     "7. 【希望条件】がある場合はそれを尊重する。"
     "卒業要件と両立しない希望は、summary でその旨を説明する。\n"
     "8. reason には、その科目を勧める理由(どの要件枠を埋めるか、"
-    "希望条件のどれに合うか)を1文で書く。\n"
+    "希望条件のどれに合うか)を40字以内の1文で書く。\n"
     "9. summary には提案全体の方針と履修上の注意点を2〜4文で書く。"
     "先修要件・進級要件・抽選科目など確認が要る点があれば触れる。"
 )
@@ -100,12 +124,14 @@ def build_proposal_agent() -> Agent[None, TimetableProposal]:
 
     ツールは登録しない(§7.2)。役割定義は毎リクエストで変わらないため
     `instructions` に固定で持たせ、学生ごとの事実は `run()` のプロンプトで渡す。
+    推論の設定は `MODEL_SETTINGS` を参照(思考を切る理由と実機の計測値)。
     """
     return Agent(
         build_model(),
         output_type=TimetableProposal,
         retries={"output": OUTPUT_RETRIES},
         instructions=_INSTRUCTIONS,
+        model_settings=MODEL_SETTINGS,
     )
 
 
