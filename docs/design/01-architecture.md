@@ -1,4 +1,4 @@
-# 履修登録支援AIチャットボット 設計書(v0.9.6)— §1 システム全体構成 / §2 技術スタック
+# 履修登録支援AIチャットボット 設計書(v0.9.7)— §1 システム全体構成 / §2 技術スタック
 
 > 本ファイルは [`docs/design.md`](../design.md) の一部である。§番号は設計書全体で通し番号であり、他ファイルの節を `§X.Y` の形で参照する。全ファイルの対応表は [design.md](../design.md) の「0.3 本書の構成」を参照。
 
@@ -93,15 +93,18 @@ flowchart TB
 | Webフレームワーク(フロント) | Next.js(App Router) | |
 | Webフレームワーク(バックエンド) | FastAPI | |
 | ASGI サーバ | Uvicorn | |
-| UIライブラリ | Tailwind CSS + shadcn/ui | |
+| UIライブラリ | Tailwind CSS | 画面部品は自前実装 |
+| アイコン・アニメーション | lucide-react、motion | |
 | クライアント状態管理 | Zustand | 永続化機能はオフ(要件§5.2) |
-| サーバ通信 | TanStack Query | |
+| サーバ通信 | `fetch`(SSE は `ReadableStream` を自前で読む) | |
 | PDF解析 | pdfjs-dist(PDF.js) | クライアント側で実行 |
 | LLMオーケストレーション | PydanticAI | 構造化出力・ツール呼び出し |
 | LLM推論サーバ | vLLM | OpenAI 互換 API を提供 |
 | ストリーミング | SSE(Server-Sent Events) | vLLM のストリーミングをそのまま中継 |
 | 履修要項データ管理 | YAML + Git 管理 | アプリ起動時にメモリへロード |
 | コンテナ | Docker、docker compose | |
+
+当初は UI 部品に shadcn/ui、サーバ状態のキャッシュに TanStack Query を挙げていたが、いずれも導入していない。画面は8本(§8)で、サーバから取る読み取り専用データはシラバス(検索結果・詳細・値マスタ)と履修要項に限られ、`fetch` と Zustand で足りている。チャット・履修提案は SSE であり、いずれにせよキャッシュライブラリの管轄外である。導入するのは、同じ問い合わせを複数の画面が共有し再取得の制御が要るようになった時点とする。
 
 ### 2.1 LLMモデル
 

@@ -1,4 +1,4 @@
-# 履修登録支援AIチャットボット 設計書(v0.9.6)— §5 データ設計
+# 履修登録支援AIチャットボット 設計書(v0.9.7)— §5 データ設計
 
 > 本ファイルは [`docs/design.md`](../design.md) の一部である。§番号は設計書全体で通し番号であり、他ファイルの節を `§X.Y` の形で参照する。全ファイルの対応表は [design.md](../design.md) の「0.3 本書の構成」を参照。
 
@@ -339,16 +339,49 @@ type StudentProfile = {
 #### 5.2.2 対話履歴(Zustand `chat.ts`)
 
 ```typescript
-type Message = {
+type ChatMessage = {
   id: string
   role: "user" | "assistant"
   content: string
-  timestamp: number
+  time: string
+  proposals?: ProposedCourse[]   // 提案チャットが返した候補科目(§5.3)
+  streaming?: boolean            // SSE 受信中(§6.1.1)
 }
 
 type ChatState = {
-  proposalMessages: Message[]
-  syllabusMessages: Message[]
-  syllabusPerCourse: Record<string, Message[]>  // 講義ページ単位
+  assistantMessages: ChatMessage[]      // 画面をまたぐ AI シート
+  proposalMessages: ChatMessage[]
+  syllabusMessages: ChatMessage[]
+  courseMessages: Record<string, ChatMessage[]>  // 講義ページ単位。キーはシラバスコード
 }
 ```
+
+対話は4系統に分けて保持する。系統をまたいで履歴が混ざると、リクエストに載せる `history`(§6.1)が別の話題のものになるためである。`assistantMessages` は画面下部の入力欄からいつでも開ける AI シートの履歴で、当初の設計にはなかったが、シラバス検索・履修提案のどちらの画面からも質問できる導線を置いたため独立した系統とした。
+
+`streaming` は SSE 受信中のメッセージに立てる印であり、`done`(§6.1.1)を受け取った時点で下ろす。
+
+### 5.3 履修提案の出力スキーマ
+
+履修提案(§7.2)は、PydanticAI の構造化出力として次の形で受け取る(実体は `app/schemas/proposal.py`)。JSON は camelCase で出入りする。
+
+```python
+class ProposedCourse:
+    syllabus_code: str | None    # 特定できた場合のみ。不明なら null
+    title: str
+    day: Literal["月", "火", "水", "木", "金"] | None
+    period: int | None           # 時限(1〜5)
+    term: str | None             # 開講学期(前期 / 後期 / 通年 / 1Q など)
+    credits: float | None
+    category: str | None         # 履修区分(必修 / 選択必修 / 選択)
+    reason: str                  # この科目を勧める理由。1文(§7.2.1 規則8)
+
+class TimetableProposal:
+    courses: list[ProposedCourse]
+    total_credits: float | None
+    summary: str                 # 提案全体の方針と履修上の注意点(§7.2.1 規則9)
+```
+
+- **必須は `title` / `reason` / `courses` / `summary` の4つに絞る。** 残りを省略可能にするのは、集中講義のように曜日・時限が定まらない科目と、開講情報を突合できなかった科目を、値の捏造ではなく null として表せるようにするためである。各フィールドの説明文はそのままモデルへの指示になるため、「不明なら null」を明記する
+- **`TimetableProposal` はコマの重複を検証で拒否する。** (曜日, 時限, 学期)が同じ科目を2つ以上含む提案は検証に落ち、pydantic-ai が検証エラーをモデルへ返して作り直させる(§7.2.1)。曜日または時限が null の科目はこの検査の対象外とする
+- **単位数は `float` とする。** 0.5 単位の科目が存在するため(§5.1.5 の `credits`、§5.2.1 の `Course.credits` と揃える)
+
