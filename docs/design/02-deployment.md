@@ -1,4 +1,4 @@
-# 履修登録支援AIチャットボット 設計書(v0.9.6)— §3 デプロイ構成
+# 履修登録支援AIチャットボット 設計書(v0.9.7)— §3 デプロイ構成
 
 > 本ファイルは [`docs/design.md`](../design.md) の一部である。§番号は設計書全体で通し番号であり、他ファイルの節を `§X.Y` の形で参照する。全ファイルの対応表は [design.md](../design.md) の「0.3 本書の構成」を参照。
 
@@ -27,6 +27,8 @@ frontend が GW 機、backend / vllm が DGX Spark と別ホストに分かれ�
 |---|---|---|
 | `docker-compose.gw.yml` | GW 機 | gateway、frontend |
 | `docker-compose.dgx.yml` | DGX Spark | backend、vllm |
+
+**現時点でリポジトリにあるのは DGX Spark 側の1ファイル(`docker-compose.yml`)だけである。** GW 機が未設置(§13)で gateway / frontend を動かす先が無いため、`docker-compose.gw.yml` は GW 機の構築に合わせて作る。既存の `docker-compose.yml` が定義するのは backend と vllm であり、上表の `docker-compose.dgx.yml` にあたる。2ファイルに分ける時点で改名する。frontend のイメージ定義は `frontend/Containerfile` にあるため、`docker-compose.gw.yml` を書く時点で `build.dockerfile` で指す(docker compose が既定で探すのは `Dockerfile` である)。
 
 サービス間通信は以下のネットワークで成立する:
 
@@ -68,7 +70,7 @@ services:
   backend:
     build: ./backend
     ports:
-      - "8000:8000"                  # GW 機から到達させるため公開(§3.4)
+      - "127.0.0.1:8000:8000"        # 現状は loopback バインド。GW 機からの中継開始時に公開へ戻す(§3.4)
     networks:
       - app-net
       - syllabus-clean-net
@@ -160,6 +162,8 @@ backend の 8000 は**ファイアウォールで送信元を GW 機に限定す
 
 限定は DGX Spark のホスト側ファイアウォールで行い、`DOCKER-USER` チェーンに記述する(理由と注意点は§3.5.3と同じ)。DGX Spark 自身から出た通信はこのチェーンを通らないため制限を受けず、ホスト上での動作確認は従来どおり行える。
 
+**現状、backend の 8000 は `127.0.0.1` にバインドしている。** GW 機が未設置で、DGX Spark のホスト外から backend へ到達する必要がまだないためである。ホスト外に出さないあいだはファイアウォールの設定漏れで学内に開く余地がなく、ホスト上での動作確認とスモーク(§12.3)は従来どおり行える。GW 機からの中継を始める時点で公開バインドに戻し、同時に `DOCKER-USER` で送信元を GW 機に限定する。
+
 GW 機側で外部に開けるのは gateway の 80 / 443 のみとする。frontend(3000)はホスト公開せず、gateway からコンテナネットワーク経由でのみ到達できるようにする。
 
 公開入口は GW 機のゲートウェイに限定する。学外(自宅等)からのアクセスも RINS へのファイアウォール制限解除申請により許可する。一方、学生データの処理は DGX 上で完結させ学外クラウドへ送信しない(要件§3.1)。
@@ -171,7 +175,8 @@ GW 機側で外部に開けるのは gateway の 80 / 443 のみとする。fron
 #### 3.5.1 GW 機の役割
 
 - nginx を構築し、HTTPS を終端する。`/` を同一ホスト上の frontend、`/api/*` を DGX Spark の backend へリバースプロキシする(§1.2)。
-- SSE(ストリーミング)を中継できるよう、該当パスではバッファリングを無効化する(`proxy_buffering off` 等)。
+- SSE(ストリーミング)を中継できるよう、該当パスではバッファリングを無効化する(`proxy_buffering off` 等)。backend も `X-Accel-Buffering: no` を返す(§6.1.2)。
+- **現状、frontend は `/pr-2026/` 配下のサブパス配信を前提にビルドしている**(`frontend/next.config.ts` の `basePath`)。上記「`/` を frontend へ」と食い違うため、公開 URL の構造を決める際(§13)にどちらへ寄せるかを確定する。なお backend への呼び出しはブラウザから見た絶対パス `/api/*` で行われ `basePath` の影響を受けないため、`/api/*` の振り分けは現状のままでよい。
 - リクエスト/レスポンスのボディはログに記録しない(要件§5.5。詳細は§9)。
 - frontend(Next.js)を同居させる。GW 機が担うのは公開入口と画面配信までであり、履修提案ロジック・LLM 推論・シラバス参照はすべて DGX Spark 側で行う。
 
