@@ -1,4 +1,4 @@
-# 履修登録支援AIチャットボット 設計書(v0.9.5)— §4 コンポーネント設計
+# 履修登録支援AIチャットボット 設計書(v0.9.9)— §4 コンポーネント設計
 
 > 本ファイルは [`docs/design.md`](../design.md) の一部である。§番号は設計書全体で通し番号であり、他ファイルの節を `§X.Y` の形で参照する。全ファイルの対応表は [design.md](../design.md) の「0.3 本書の構成」を参照。
 
@@ -12,34 +12,40 @@
 
 ```
 frontend/
-├── app/                       # Next.js App Router
-│   ├── page.tsx               # / 学生情報入力
-│   ├── proposal/page.tsx      # /proposal 履修提案
+├── app/                          # Next.js App Router
+│   ├── page.tsx                  # / 学生情報入力
+│   ├── import/page.tsx           # /import 成績表の取り込み・手入力(§8)
+│   ├── proposal/page.tsx         # /proposal 履修提案
 │   ├── syllabus/
-│   │   ├── page.tsx           # /syllabus 一覧・検索
-│   │   └── [code]/page.tsx    # /syllabus/[code] 講義詳細
-│   ├── privacy/page.tsx       # /privacy プライバシーポリシー
+│   │   ├── page.tsx              # /syllabus 一覧・検索
+│   │   └── [code]/page.tsx       # /syllabus/[code] 講義詳細
+│   ├── chat/page.tsx             # /chat シラバス全体チャット(§8)
+│   ├── mydata/page.tsx           # /mydata 取り込んだプロファイルの確認・編集(§8)
+│   ├── privacy/page.tsx          # /privacy プライバシーポリシー
+│   ├── _components/              # 画面をまたぐ部品(時間割グリッド・同意モーダル等)
 │   └── layout.tsx
-├── components/
-│   ├── ui/                    # shadcn/ui で生成された部品
-│   └── ...
+├── components/                   # Header / BottomTabBar / ai(AI シートと入力欄)
 ├── lib/
-│   ├── pdf/                   # PDF解析
-│   │   └── parseGradeReport.ts
-│   ├── api/                   # backend との通信
-│   └── streaming/             # SSE処理
-├── stores/                    # Zustand
-│   ├── student.ts             # 学生プロファイル
-│   └── chat.ts                # 対話履歴
+│   ├── student.ts                # Zustand 学生プロファイル
+│   ├── chat.ts                   # Zustand 対話履歴
+│   ├── proposal.ts               # Zustand 履修提案の受信状態
+│   ├── syllabusUI.ts             # Zustand 検索画面の絞り込み状態
+│   ├── chatApi.ts                # backend との通信と SSE の読み取り(readSSE)
+│   ├── syllabus-api.ts           # /api/syllabi・/api/masters の呼び出し
+│   ├── curricula.ts              # /api/curricula の呼び出しと卒業残り単位の算出(§4.4.5)
+│   ├── pdf/parseGradeReport.ts   # PDF解析
+│   └── dummy/profiles.ts         # 展示用ダミープロファイル(§11)
 └── package.json
 ```
 
+各ルートの配下にはその画面専用の `_components/` を置き、画面をまたいで使う部品だけを `app/_components/` と `components/` に上げる。
+
 #### 4.1.2 状態管理
 
-- Zustand store 2本: 学生プロファイル(`student.ts`)、対話履歴(`chat.ts`)
-- どちらも **永続化機能を意図的にオフ** にする(要件§5.2)。ページリロード・タブクローズで完全消失
-- リセット機能(要件§4.8)は両 store の `reset()` を呼ぶだけで実現
-- サーバから取得するデータ(シラバス検索結果、履修要項データ等)は TanStack Query でキャッシュ管理
+- Zustand store 4本: 学生プロファイル(`lib/student.ts`)、対話履歴(`lib/chat.ts`)、履修提案の受信状態(`lib/proposal.ts`)、検索画面の絞り込み状態(`lib/syllabusUI.ts`)。後の2本は当初想定していなかったもので、提案の SSE 受信状態(§6.1.1)と検索画面の絞り込みがいずれも画面をまたいで共有されるため store に置いた
+- すべて **永続化機能を意図的にオフ** にする(要件§5.2)。`persist` ミドルウェアを使わないことで担保し、ページリロード・タブクローズで完全消失する
+- リセット機能(要件§4.8)は `clearProfile()` と対話履歴の `clearAll()` を呼ぶだけで実現
+- サーバから取得するデータ(シラバス検索結果、履修要項データ等)は各画面の `fetch` で取る。キャッシュライブラリは導入していない(§2)
 
 #### 4.1.3 PDF解析(クライアント側)
 
@@ -61,32 +67,39 @@ frontend/
 ```
 backend/
 ├── app/
-│   ├── main.py                # FastAPI app entry
+│   ├── main.py                # FastAPI app entry。起動時に履修要項をロードする(§4.4.3)
 │   ├── api/                   # ルーティング
 │   │   ├── proposal.py        # 履修提案
-│   │   ├── chat_proposal.py   # 提案チャット
-│   │   ├── chat_syllabus.py   # シラバスチャット
+│   │   ├── chat_proposal.py   # 提案チャット【未実装】
+│   │   ├── chat_syllabus.py   # シラバスチャット(全体・講義単位)
 │   │   ├── curricula.py       # 履修要項参照(タグ表示用)・要件充足判定
-│   │   └── syllabus.py        # シラバス検索・詳細・値マスタ(api-clean 中継 JSON)
+│   │   ├── syllabus.py        # シラバス検索・詳細・値マスタ(api-clean 中継 JSON)
+│   │   └── sse.py             # SSE の書式とレスポンス生成(§6.1.1)
 │   ├── agents/                # PydanticAI エージェント定義
-│   │   ├── proposal_agent.py
-│   │   ├── chat_agent.py
-│   │   └── tools.py           # シラバスAPI呼び出し等
+│   │   ├── __init__.py        # vllm を叩くモデルの生成(`build_model`。§6.3)
+│   │   ├── proposal_agent.py  # 履修提案。プロンプトの組み立てを含む(§7.2.1)
+│   │   ├── chat_agent.py      # シラバスチャット。ツールを登録する
+│   │   └── tools.py           # api-clean の呼び出し(§6.2)
 │   ├── schemas/               # Pydantic スキーマ
-│   │   ├── student.py
-│   │   ├── curriculum.py
-│   │   ├── offering.py
-│   │   └── proposal.py
+│   │   ├── student.py         # 学生プロファイル(§5.2.1)
+│   │   ├── chat.py            # チャットのリクエスト(§6.1)
+│   │   ├── curriculum.py      # 課程ファイル・教養教育科目ファイル(§5.1.2、§5.1.3)
+│   │   ├── offering.py        # 開講年度ファイル(§5.1.4)
+│   │   └── proposal.py        # 履修提案の構造化出力(§5.3)
 │   ├── curricula/             # 履修要項データのロード
 │   │   ├── loader.py          # YAML 読み込みとバリデーション
 │   │   ├── merge.py           # 教養教育科目ファイル・他課程ファイルのマージ(§4.4.3)
 │   │   └── requirements.py    # 卒業要件の充足判定(§4.4.5)
 │   └── settings.py
 ├── scripts/
-│   └── build_offerings.py     # api-clean と名寄せして offerings/<開講年度>/ を生成(§5.1.4)
+│   ├── build_offerings.py     # 【未実装】api-clean と名寄せして offerings/<開講年度>/ を生成(§5.1.4)
+│   └── smoke_*.py             # 実機(vllm / api-clean)相手の疎通スモーク。pytest の対象外(§12.3)
+├── tests/                     # pytest。モデルはモックし、実機を呼ばない(§12.3)
 ├── pyproject.toml
 └── Dockerfile
 ```
+
+【未実装】と記した2つは設計上の配置先であり、ファイルはまだ無い。`chat_proposal.py` は §7.3、`build_offerings.py` は §5.1.4 が求めるものである。
 
 #### 4.2.2 役割
 
@@ -106,6 +119,7 @@ backend/
 - `--model /models`(暫定モデル Qwen3.6-27B-FP8 を事前DLしたローカルパスを指す。リポジトリ名は起動時に使わない)。FP8(e4m3)量子化済み、約 31GB
 - このモデルは**ビジョンエンコーダ付き(画像/動画対応)**だが、本プロジェクトはテキスト用途のため **`--language-model-only`** を付け、ビジョンを無効化してメモリを KV cache に回す
 - **`--reasoning-parser qwen3`** を指定(思考(reasoning)モデルのため必須。無いと思考トークンが本文に混ざり、PydanticAI の構造化出力が壊れる)
+- 思考を**出させるかどうかはサーバ側では固定しない**。上記のパーサは思考と本文を分離するためのものであり、思考の有無はリクエストごとに `chat_template_kwargs.enable_thinking` で決める。履修提案は思考を切り、チャット系は既定のまま有効とする(理由と実機計測は §6.3.1)
 - tool calling は **`--enable-auto-tool-choice` + `--tool-call-parser qwen3_coder`** で対応(公式モデルカード指定。`hermes` ではこのモデルの出力書式と合わず、ツール呼び出しがエラーにならず**サイレントに無視される**。`--tool-call-parser` 自体がないと vLLM は起動時にエラーで停止する)
 - **`--served-model-name qwen3.6-27b-fp8`** を指定し、§6.3 の `OpenAIChatModel('qwen3.6-27b-fp8', ...)` と一致させる(不一致だと 404)
 - `--max-model-len 131072`(既定 262,144 はメモリ過大。公式は思考能力維持のため最低 128K の確保を推奨。OOM 時はさらに削減)
@@ -120,7 +134,7 @@ backend/
 
 - 龍谷大学公式サイトから閲覧できる履修要項を、**手動で YAML 形式に転記**する
 - 出典ページの設置科目一覧・卒業要件表は画像形式で提供されるが、これらも転記対象とする(単位数・配当年次・開講クォーター・科目区分・区分別要件単位数)。画像にのみ掲載される科目(キャリア実習系・職業指導など)も記載する
-- **対象は先端理工学部6課程 × 2024・2025・2026年度入学の3コホートとする。** 2026年度時点で1〜3年次にあたる。4年次(2023年度以前の入学生)を対象外とするのは、履修要項サイトで参照できるのが2024・2025・2026年度入学生版の3種のみであるため。2024年度入学分は6課程作成済みで、2025・2026年度入学分は未着手。第1フェーズで利用するのは知能情報メディア課程分のみで、他課程分は第2フェーズ以降に向けた先行整備という位置づけ
+- **対象は先端理工学部6課程 × 2024・2025・2026年度入学の3コホートとする。** 2026年度時点で1〜3年次にあたる。4年次(2023年度以前の入学生)を対象外とするのは、履修要項サイトで参照できるのが2024・2025・2026年度入学生版の3種のみであるため。2024・2025年度入学分は6課程と教養教育科目を作成済みで、2026年度入学分は転記中である(2026-09-09 時点)。第1フェーズで利用するのは知能情報メディア課程分のみで、他課程分は第2フェーズ以降に向けた先行整備という位置づけ
 - 学修プログラムは構造が複雑なため現時点では転記しない。第2フェーズで扱いを確定した上でスキーマ・データに追加する
 - 転記担当者がドラフトを作成 → Pull Request → アドバイザー教員のレビュー・承認(要件§8末尾)
 - 第2フェーズ以降で他学年・他学部に対象を広げる際は、同じ手順で対象範囲のファイルを追加する
@@ -205,7 +219,7 @@ offerings/
      - **他課程どうしで同名の科目は全レコードを保持し、出典の課程コードで区別する。** 属性が食い違う場合にマージ時点で単位数を決め打ちする根拠がないため(課程01の「特別研究」は他5課程から導出され、応用化学課程のみ10単位・他は6単位)。どの出典を採るかの判断は充足判定(§4.4.5)の側に委ねる。この重複が後述の `courses[].title` 重複検査の対象外である理由でもある
 - 起動時にスキーマバリデーションを実行し、不正があれば起動失敗(転記ミスを早期に検出)。型検査に加えて以下の整合性を検証する:
   - `type` が {必修, 選択必修, 選択, 随意} のいずれかであること。`category` / `subcategory` が §5.1.5 の列挙値のいずれかであること
-  - `term` と `quarters` の整合(§5.1.5)
+  - `term` と `quarters` の整合(§5.1.5)。`quarters` は任意であり、教養教育科目は `前期` / `後期` でも持たない(クォーター制の対象外。§5.1.3)。持つ場合のみ `前期` ⇔ `{1Q, 2Q}` / `後期` ⇔ `{3Q, 4Q}` を検査し、`通年` / `サ集` は持たないことを検査する
   - `kikan: true` の科目が `type: "選択必修"` であること(§5.1.5)
   - `constraints[].slot` および `constraints[].track_group` の参照先が存在すること(前者は `requirement_slots`、後者は `courses[].track_groups`)
   - `prerequisites[].title` および `all_of` / `any_of` に列挙した科目名が同一ファイルの `courses[].title` に存在すること(§5.1.5)
