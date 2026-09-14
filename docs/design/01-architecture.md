@@ -1,4 +1,4 @@
-# 履修登録支援AIチャットボット 設計書(v0.9.13)— §1 システム全体構成 / §2 技術スタック
+# 履修登録支援AIチャットボット 設計書(v0.9.14)— §1 システム全体構成 / §2 技術スタック
 
 > 本ファイルは [`docs/design.md`](../design.md) の一部である。§番号は設計書全体で通し番号であり、他ファイルの節を `§X.Y` の形で参照する。全ファイルの対応表は [design.md](../design.md) の「0.3 本書の構成」を参照。
 
@@ -18,24 +18,23 @@
 | api-clean | シラバス情報提供 API | FastAPI | シラバスバックエンド(§1.1.1) |
 | postgres-clean | シラバス DB | PostgreSQL | シラバスバックエンド(§1.1.1) |
 
-これらに加え、公開 VM 上に補助的なコンテナを2つ新規に構築する。いずれもサービスの機能そのものではなく、入口と経路を成立させるためのものである。
+これらに加え、公開入口として gateway を新規に構築する。
 
 | 要素 | 役割 | 実装 | リポジトリ |
 |---|---|---|---|
 | gateway | 公開する唯一の入口(学外からのアクセスも受ける)。リクエストを**同一 VM 上の** frontend と backend へ振り分ける | 公開 VM 上の **Caddy** | 本リポジトリ(設定のみ) |
-| ssh-tunnel | DGX Spark 上の api-clean へ SSH ローカルフォワードを張り、**Podman ネットワーク上に `api-clean` という別名で見せる**。backend はこれを同一ホストの api-clean と同じ宛先で呼ぶ | 公開 VM 上の **OpenSSH クライアント**(§3.4.4) | 本リポジトリ(新規) |
 
 さらに、本プロジェクトが管理しない外部要素を1つ経由する。
 
 | 要素 | 役割 | 管理 |
 |---|---|---|
-| トークンゲートウェイ | 発行されたトークンを検証し、ローカル LLM へ中継する OpenAI 互換のゲートウェイ。**backend はこれを経由して vllm を呼ぶ** | アドバイザー教員(学内。**プロンプトと応答を100日間記録する**。要件§5.2・§5.5) |
+| トークンゲートウェイ | 発行されたトークンを検証し、DGX Spark 上のサービスへ中継する。**backend はこれを経由して vllm と api-clean の双方を呼ぶ** | アドバイザー教員(学内。**vllm 向けはプロンプトと応答を100日間記録する**。要件§5.2・§5.5) |
 
-これら7要素を2つのホストに分けて配置する。GW 側は、教員側が管理するホストと、その上に払い出されたゲスト VM の2層になる(§3.1)。
+これら6要素を2つのホストに分けて配置する。GW 側は、教員側が管理するホストと、その上に払い出されたゲスト VM の2層になる(§3.1)。
 
 | ホスト | 設置場所 | 稼働させる要素 |
 |---|---|---|
-| **公開 VM**(GW ホスト上の libvirt ゲスト) | アドバイザー教員研究室 | gateway、frontend、**backend**、ssh-tunnel |
+| **公開 VM**(GW ホスト上の libvirt ゲスト) | アドバイザー教員研究室 | gateway、frontend、**backend** |
 | **DGX Spark** | 学内 | **vllm、api-clean、postgres-clean** |
 
 **公開 VM には本プロジェクトが新規開発した要素を置き、他の担当が運用する資産(シラバスバックエンド)と LLM 推論は DGX Spark に置く。** backend を公開 VM に置く理由は §3.4.2、シラバスデータ層を DGX Spark に置く理由は §3.4.4 による。
@@ -44,10 +43,10 @@
 
 | # | 区間 | 経路 | 節 |
 |---|---|---|---|
-| ★1 | backend → vllm | 公開入口コンテナ → トークンゲートウェイ → socat 中継 → vllm。HTTPS + Bearer トークン | §3.4.3 |
-| ★2 | backend → api-clean | **公開 VM から張る SSH ローカルフォワード**。DGX Spark 側の loopback へ転送する | §3.4.4 |
+| ★1 | backend → vllm | 公開入口コンテナ → トークンゲートウェイ → vllm。HTTPS + Bearer トークン | §3.4.3 |
+| ★2 | backend → api-clean | 公開入口コンテナ → トークンゲートウェイ → api-clean。HTTPS + Bearer トークン | §3.4.4 |
 
-**いずれも DGX Spark にホスト外向けの待受を新設しない。** ★1 は教員側が既に運用している中継を使い、★2 は公開 VM 側から張るトンネルであって DGX Spark は SSH(22)以外の口を開けない。公開するホストを GW 側1台に限ることで、不特定多数の学生からアクセスされるポートを DGX Spark 自身に開けずに済む。DGX Spark は本プロジェクト以外の用途にも使われているため、外部公開の範囲を GW 側に閉じ込める意味もある。**DGX Spark 上の vllm と api-clean はいずれもホストの loopback にバインドする**(§3.4.1、§3.4.4)。
+**2本は同じ機構である。** いずれも教員側のトークンゲートウェイを経由し、backend から見れば「base_url とトークンを環境変数で与えて HTTP で叩く」という同一の形になる。**本プロジェクトが DGX Spark に固有のものを置くことはなく、プロジェクト終了時に剥がすものが残らない**(§3.4.2)。公開するホストを GW 側1台に限ることで、不特定多数の学生からアクセスされるポートを DGX Spark 自身に開けずに済む。DGX Spark は本プロジェクト以外の用途にも使われているため、外部公開の範囲を GW 側に閉じ込める意味もある。**DGX Spark 上の vllm と api-clean はいずれもホストの loopback にバインドする**(§3.4、§3.4.4)。
 
 学生のデータを処理する一連の機能(PDF 解析はブラウザ、提案・チャットは backend、推論は vllm)は**学内で完結する**。frontend は静的な画面配信とブラウザ内処理のためのコードを配るのみで、成績データを受け取らない。gateway も通信を中継するのみでデータの処理・保存・記録を行わない(要件§3.1、§5.5)。**一方、backend → vllm の経路にあるトークンゲートウェイは、プロンプトと応答を100日間記録する。** これは本プロジェクトの管理外であり、記録される内容を最小にする方針を §9 に置く。
 
@@ -78,12 +77,11 @@ flowchart TB
 
     subgraph GWH["GW ホスト(アドバイザー教員研究室・教員側管理)"]
       Edge["公開入口(Incus コンテナ)<br/>Caddy :443 TLS終端"]
-      TokenGW["トークンゲートウェイ(別VM)<br/>OpenAI互換・トークン検証<br/>★プロンプトと応答を100日記録"]
+      TokenGW["トークンゲートウェイ(別VM)<br/>トークン検証<br/>★vllm 向けは<br/>プロンプトと応答を100日記録"]
       subgraph VM["公開 VM(本プロジェクト・root 権限なし)"]
         Gateway["gateway<br/>Caddy :8080(振り分け)"]
         Frontend["frontend<br/>Next.js :3000"]
         Backend["backend<br/>FastAPI + PydanticAI"]
-        Tunnel["ssh-tunnel<br/>SSHローカルフォワード<br/>(別名 api-clean:5000)"]
       end
     end
 
@@ -98,11 +96,10 @@ flowchart TB
     Gateway -->|"HTTP<br/>/pr-2026, /pr-2026/* を VM 内で配信"| Frontend
     Gateway -->|"HTTP / SSE<br/>/pr-2026/api/* を /api/* に直して VM 内で中継"| Backend
     Frontend -.->|"HTTP<br/>サーバ側描画時(§6.1)"| Backend
-    Backend -->|"HTTPS + Bearer トークン<br/>★1 入口コンテナ経由(§6.3)"| Edge
-    Edge -->|"/spark/qwen/* を中継"| TokenGW
-    TokenGW -->|"HTTP<br/>教員側の中継(§3.4.1)"| VLLM
-    Backend -->|"HTTP<br/>★2 Podman ネットワーク内"| Tunnel
-    Tunnel -->|"SSH :22 → 127.0.0.1:5050<br/>ローカルフォワード(§3.4.4)"| APIClean
+    Backend -->|"HTTPS + Bearer トークン<br/>★1 / ★2 入口コンテナ経由(§6.3)"| Edge
+    Edge -->|"/spark/* を中継"| TokenGW
+    TokenGW -->|"HTTP<br/>★1 教員側の中継(§3.4.1)"| VLLM
+    TokenGW -->|"HTTP<br/>★2 許可パスのみ(§3.4.4)"| APIClean
     APIClean --> PG
 ```
 
@@ -115,7 +112,7 @@ flowchart TB
 要件§5.4のデータフロー図を各コンポーネントの責務に基づいて具体化する。ブラウザから backend への通信(下記2以降)はすべてゲートウェイを経由する。ゲートウェイは振り分けのみを担い、リクエスト/レスポンスの内容を保存・記録しない。
 
 1. 学生がブラウザで成績表PDFを選択 → frontend 内の PDF.js でテキスト抽出 → ブラウザのメモリ(Zustand store)に学生プロファイルとして保持
-2. 履修提案要求 → backend が学生プロファイル + 履修要項データ + **SSH トンネル越しに api-clean から取得した開講情報**を組み立て、**トークンゲートウェイ経由で** vllm に推論依頼 → PydanticAI が構造化出力(時間割形式)を強制
+2. 履修提案要求 → backend が学生プロファイル + 履修要項データ + **api-clean から取得した開講情報**を組み立て、**トークンゲートウェイ経由で** vllm に推論依頼 → PydanticAI が構造化出力(時間割形式)を強制
 3. 提案表示後のチャット → backend が会話履歴 + 必要に応じて api-clean を tool calling で参照しつつ、vllm から応答を生成 → SSE で frontend へストリーミング
 4. シラバスチャット → 同様に tool calling で api-clean を呼びながら、vllm から応答を生成
 
@@ -142,7 +139,6 @@ flowchart TB
 | ストリーミング | SSE(Server-Sent Events) | vLLM のストリーミングをそのまま中継 |
 | 履修要項データ管理 | YAML + Git 管理 | アプリ起動時にメモリへロード |
 | コンテナ | DGX Spark は Docker + docker compose、公開 VM は rootless Podman | ホストで基盤もアーキテクチャ(arm64 / x86_64)も異なる(§3.2) |
-| ホスト間トンネル | OpenSSH のローカルフォワード | backend → api-clean の区間。公開 VM 側から張る(§3.4.4) |
 
 **UI 部品ライブラリ(shadcn/ui 等)とサーバ状態のキャッシュ(TanStack Query 等)は採用しない。** 画面は8本(§8)で、サーバから取る読み取り専用データはシラバス(検索結果・詳細・値マスタ)と履修要項に限られ、`fetch` と Zustand で足りる。チャット・履修提案は SSE であり、いずれにせよキャッシュライブラリの管轄外である。採用するのは、同じ問い合わせを複数の画面が共有し再取得の制御が要るようになった時点とする。
 
