@@ -23,5 +23,19 @@ def test_env_override(monkeypatch):
     assert Settings().api_clean_base_url == "http://localhost:5050"
 
 
+def test_llm_api_key_default():
+    """未設定なら "EMPTY"(認証なしの vllm を直接叩く開発環境向け。design.md §6.3)。
+
+    実運用の .env には本物のトークンが入るため、既定値の確認では .env を読ませない。
+    """
+    assert Settings(_env_file=None).llm_api_key == "EMPTY"
+
+
+def test_llm_api_key_env_override(monkeypatch):
+    """LLM_API_KEY がそのまま api_key になる(Authorization: Bearer として送られる)。"""
+    monkeypatch.setenv("LLM_API_KEY", "gw-token-for-test")
+    assert Settings().llm_api_key == "gw-token-for-test"
+
+
 def test_get_settings_is_cached():
     assert get_settings() is get_settings()

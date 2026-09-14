@@ -70,8 +70,9 @@ uvicorn app.main:app --reload      # 開発サーバ(http://localhost:8000)
 
 | 環境変数 | 既定 | 用途 |
 |---|---|---|
-| `VLLM_BASE_URL` | `http://vllm:8000/v1` | vllm(OpenAI 互換)の宛先 |
-| `LLM_MODEL_ID` | `qwen3.6-27b-fp8` | vllm の `--served-model-name` と一致させる(不一致で 404) |
+| `VLLM_BASE_URL` | `http://vllm:8000/v1` | LLM(OpenAI 互換)の宛先。トークンゲートウェイ経由の場合はその URL(設計§3.4.3) |
+| `LLM_MODEL_ID` | `qwen3.6-27b-fp8` | 接続先が返すモデル ID と一致させる(不一致で 404) |
+| `LLM_API_KEY` | `EMPTY` | ゲートウェイが要求するトークン。`Authorization: Bearer <値>` として送られる(設計§6.3)。認証なしの vllm を直接叩くときは既定のまま |
 | `API_CLEAN_BASE_URL` | `http://api-clean:5000` | 既存シラバス API の宛先 |
 | `CURRICULA_DIR` / `OFFERINGS_DIR` | `../curricula` / `../offerings` | 履修要項データの場所 |
 | `OFFERING_YEAR` | `2026` | 参照する開講年度。過去年度は読まない |

@@ -7,10 +7,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    # vllm (OpenAI 互換) — design.md §6.3 / §4.3
-    # llm_model_id は vllm の --served-model-name と一致必須(不一致で404)
+    # vllm (OpenAI 互換) — design.md §6.3 / §3.4.3
+    # llm_model_id は接続先が返すモデル ID と一致必須(不一致で404)
+    # vllm_base_url にはトークンゲートウェイの base_url を与える場合がある(§3.4.3)
     vllm_base_url: str = "http://vllm:8000/v1"
     llm_model_id: str = "qwen3.6-27b-fp8"
+    # ゲートウェイが要求するトークン。Authorization: Bearer <値> として送られる(§6.3)。
+    # 既定の "EMPTY" は認証なしの vllm を直接叩く開発環境向けのダミー値
+    # (OpenAI クライアントは非空の api_key を要求するため空にはできない)
+    llm_api_key: str = "EMPTY"
 
     # api-clean — design.md §6.2 / §3.4
     api_clean_base_url: str = "http://api-clean:5000"
