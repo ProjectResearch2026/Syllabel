@@ -1080,7 +1080,7 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-  - title: "グローバル・シチズンシップＡ （公共性・コミュニティ）"
+  - title: "グローバル・シチズンシップＡ（公共性・コミュニティ）"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
     type: "選択必修"
@@ -1091,7 +1091,7 @@ courses:
     grade: 2
     term: "後期"
     notes: "科目群欄: 学部等提供／アドバンスト。政策学部提供科目"
-  - title: "グローバル・シチズンシップＢ （民主主義）"
+  - title: "グローバル・シチズンシップＢ（民主主義）"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
     type: "選択必修"
@@ -1102,7 +1102,7 @@ courses:
     grade: 2
     term: "後期"
     notes: "科目群欄: 学部等提供／アドバンスト。政策学部提供科目"
-  - title: "グローバル・シチズンシップＣ （平和構築）"
+  - title: "グローバル・シチズンシップＣ（平和構築）"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
     type: "選択必修"
@@ -1113,7 +1113,7 @@ courses:
     grade: 2
     term: "後期"
     notes: "科目群欄: 学部等提供／アドバンスト。政策学部提供科目"
-  - title: "グローバル・シチズンシップＤ （人間の安全保障）"
+  - title: "グローバル・シチズンシップＤ（人間の安全保障）"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
     type: "選択必修"
@@ -1526,7 +1526,7 @@ courses:
     grade: 1
     term: "前期"
     notes: "ボランティア・NPO活動センター提供科目"
-  - title: "仏教美術入門Ａ（◇1）"
+  - title: "仏教美術入門Ａ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
     type: "選択"
@@ -1536,7 +1536,7 @@ courses:
     grade: 2
     term: "前期"
     notes: "文学部提供科目"
-  - title: "仏教美術入門Ｂ（◇1）"
+  - title: "仏教美術入門Ｂ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
     type: "選択"
@@ -1685,7 +1685,7 @@ courses:
     grade: 1
     term: "後期"
     notes: "経済学部提供科目"
-  - title: "地域産業活性化プロジェクトⅠ （京の老舗と不易流行）"
+  - title: "地域産業活性化プロジェクトⅠ（京の老舗と不易流行）"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
     type: "選択"
@@ -1694,7 +1694,7 @@ courses:
     grade: 2
     term: "前期"
     notes: "経済学部提供科目"
-  - title: "地域産業活性化プロジェクトⅡ （京の老舗と不易流行）"
+  - title: "地域産業活性化プロジェクトⅡ（京の老舗と不易流行）"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
     type: "選択"
