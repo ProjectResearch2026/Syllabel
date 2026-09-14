@@ -70,6 +70,8 @@
 ### 1.2 アーキテクチャ図
 
 ```mermaid
+%% エッジラベルは必ず "..." で囲む。丸括弧を裸で書くと GitHub 上で
+%% parse エラー(Unable to render rich display)になる。
 flowchart TB
     Browser["学生のブラウザ<br/>(PDF解析 + 状態保持)"]
 
@@ -86,20 +88,20 @@ flowchart TB
 
     subgraph DGX["DGX Spark(学内)"]
       VLLM["vllm<br/>Qwen3.6-27B-FP8"]
-      APIClean["api-clean<br/>FastAPI(既存)"]
-      PG["postgres-clean<br/>PostgreSQL(既存)"]
+      APIClean["api-clean<br/>FastAPI(シラバスBE)"]
+      PG["postgres-clean<br/>PostgreSQL(シラバスBE)"]
     end
 
-    Browser -->|HTTPS| Edge
-    Edge -->|HTTP| Gateway
-    Gateway -->|HTTP<br/>/pr-2026, /pr-2026/* を VM 内で配信| Frontend
-    Gateway -->|HTTP / SSE<br/>/pr-2026/api/* を /api/* に直して VM 内で中継| Backend
-    Frontend -.->|HTTP<br/>サーバ側描画時(§6.1)| Backend
-    Backend -->|HTTPS + Bearer トークン<br/>入口コンテナ経由(§6.3)| Edge
-    Edge -->|/spark/qwen/* を中継| TokenGW
-    TokenGW -->|HTTP<br/>教員側の中継(§3.4.1)| VLLM
-    Backend -->|HTTP<br/>★2 Podman ネットワーク内| Tunnel
-    Tunnel -->|SSH :22 → 127.0.0.1:5050<br/>ローカルフォワード(§3.4.4)| APIClean
+    Browser -->|"HTTPS"| Edge
+    Edge -->|"HTTP"| Gateway
+    Gateway -->|"HTTP<br/>/pr-2026, /pr-2026/* を VM 内で配信"| Frontend
+    Gateway -->|"HTTP / SSE<br/>/pr-2026/api/* を /api/* に直して VM 内で中継"| Backend
+    Frontend -.->|"HTTP<br/>サーバ側描画時(§6.1)"| Backend
+    Backend -->|"HTTPS + Bearer トークン<br/>★1 入口コンテナ経由(§6.3)"| Edge
+    Edge -->|"/spark/qwen/* を中継"| TokenGW
+    TokenGW -->|"HTTP<br/>教員側の中継(§3.4.1)"| VLLM
+    Backend -->|"HTTP<br/>★2 Podman ネットワーク内"| Tunnel
+    Tunnel -->|"SSH :22 → 127.0.0.1:5050<br/>ローカルフォワード(§3.4.4)"| APIClean
     APIClean --> PG
 ```
 
