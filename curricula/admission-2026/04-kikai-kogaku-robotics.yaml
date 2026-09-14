@@ -105,7 +105,7 @@ courses:                            # 「7. 設置科目」の HTML テーブル
     grade: 1
     term: "前期"
     quarters: ["2Q"]
-  - title: "数学・物理学演習I"
+  - title: "数学・物理学演習 I"
     category: "専門基礎科目"
     type: "必修"
     credits: 1
@@ -119,7 +119,7 @@ courses:                            # 「7. 設置科目」の HTML テーブル
     grade: 1
     term: "後期"
     quarters: ["3Q", "4Q"]
-  - title: "数学・物理学演習II"
+  - title: "数学・物理学演習 II"
     category: "専門基礎科目"
     type: "必修"
     credits: 1

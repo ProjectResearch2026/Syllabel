@@ -466,6 +466,7 @@ courses:                            # 「7. 設置科目」の HTML テーブル
     credits: 6
     grade: 4
     term: "通年"
+    notes: "「専門基礎研究」と同時履修不可"
   - title: "電子物性"
     category: "専門応用科目"
     type: "選択必修"
@@ -557,6 +558,7 @@ courses:                            # 「7. 設置科目」の HTML テーブル
     grade: 3
     term: "後期"
     quarters: ["3Q", "4Q"]
+    notes: "「特別研究」と同時履修不可"
   - title: "電子材料"
     category: "専門応用科目"
     type: "選択"

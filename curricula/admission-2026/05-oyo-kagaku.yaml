@@ -650,7 +650,7 @@ courses:                            # 「7. 設置科目」の HTML テーブル
     grade: 3
     term: "前期"
     quarters: ["1Q"]
-  - title: "バイオミメティックス生物に倣ったものづくり"
+  - title: "バイオミメティックス　生物に倣ったものづくり"
     category: "専門応用科目"
     type: "選択"
     credits: 1
