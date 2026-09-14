@@ -1,31 +1,15 @@
-# 本プロジェクトのサービス定義(design.md §3.2)。
-# 検証時は `docker compose up -d vllm` で vllm だけ起動する。
+# DGX Spark 上のサービス定義(design.md §3.2.2)。
+# 本ファイルが定義するのは vllm のみ。backend は公開 VM 側に置くため
+# ここでは定義しない(§3.2.1)。起動は `docker compose up -d vllm`。
 services:
-  backend:
-    build: ./backend
-    networks:
-      - app-net
-      - syllabus-clean-net
-    ports:
-      - "127.0.0.1:8000:8000"
-    volumes:
-      # 履修要項データはイメージに焼かず読み取り専用でマウントする(design.md §4.4.3 / §4.4.4)。
-      # build context が ./backend のため COPY できず、マウントなら YAML の更新に再ビルドが要らない
-      - ./curricula:/curricula:ro
-      - ./offerings:/offerings:ro
-    environment:
-      CURRICULA_DIR: /curricula
-      OFFERINGS_DIR: /offerings
-      OFFERING_YEAR: "2026"        # 参照する開講年度。過去年度は読まない(§4.4.3)
-    depends_on:
-      vllm:
-        condition: service_healthy   # モデルロード完了を待ってから起動
-
   vllm:
     image: vllm/vllm-openai:latest   # vLLM >= 0.19.0 が必須(Qwen3.6対応)。DGX 上の現行は 0.20.0
     networks: [app-net]
     ports:
-      - "127.0.0.1:8001:8000"        # デバッグ用のみ。全公開を避け 127.0.0.1 バインド
+      # 全公開を避け 127.0.0.1 バインド。**この公開は外せない**: DGX の
+      # socat-qwen36.service がこのポートへ転送し、教員側のトークンゲートウェイの
+      # qwen upstream になっている(§3.4.1、§3.4.3)
+      - "127.0.0.1:8001:8000"
     ipc: host                        # vLLM のマルチプロセス共有メモリ用
     volumes:
       - /srv/qwen3.6/models/Qwen3.6-27B-FP8:/models:ro   # 事前DL済みモデルを読み取り専用で渡す
@@ -61,6 +45,3 @@ services:
 
 networks:
   app-net:
-  syllabus-clean-net:
-    external: true
-    name: syllabus_backend_syllabus-clean-net
