@@ -1,4 +1,4 @@
-# 履修登録支援AIチャットボット 設計書(v0.9.11)— §1 システム全体構成 / §2 技術スタック
+# 履修登録支援AIチャットボット 設計書(v0.9.12)— §1 システム全体構成 / §2 技術スタック
 
 > 本ファイルは [`docs/design.md`](../design.md) の一部である。§番号は設計書全体で通し番号であり、他ファイルの節を `§X.Y` の形で参照する。全ファイルの対応表は [design.md](../design.md) の「0.3 本書の構成」を参照。
 
@@ -8,22 +8,36 @@
 
 ### 1.1 構成要素
 
-サービスは以下の5つのコンテナで構成する。frontend / backend / vllm の3つを本プロジェクトで新規開発し、api-clean / postgres-clean は既存のシラバスバックエンドをそのまま利用する。
+サービスは以下の5つのコンテナで構成する。frontend / backend / vllm の3つを本プロジェクトのリポジトリで新規開発し、api-clean / postgres-clean はシラバスバックエンドのものを使う。
 
-| 要素 | 役割 | 実装 | 新規/既存 |
+| 要素 | 役割 | 実装 | リポジトリ |
 |---|---|---|---|
-| frontend | 学生が触れる Web UI | Next.js(React + TypeScript) | 新規 |
-| backend | フロントと LLM/シラバスAPI を仲介し、履修提案ロジックを担う | FastAPI(Python)+ PydanticAI | 新規 |
-| vllm | ローカル LLM 推論サーバ | vLLM、Qwen3.6-27B-FP8 | 新規 |
-| api-clean | シラバス情報提供 API | FastAPI(既存) | 既存・無変更 |
-| postgres-clean | シラバス DB | PostgreSQL(既存) | 既存・無変更 |
+| frontend | 学生が触れる Web UI | Next.js(React + TypeScript) | 本リポジトリ(新規開発) |
+| backend | フロントと LLM/シラバスAPI を仲介し、履修提案ロジックを担う | FastAPI(Python)+ PydanticAI | 本リポジトリ(新規開発) |
+| vllm | ローカル LLM 推論サーバ | vLLM、Qwen3.6-27B-FP8 | 既製品(設定のみ) |
+| api-clean | シラバス情報提供 API | FastAPI | シラバスバックエンド(§1.1.1) |
+| postgres-clean | シラバス DB | PostgreSQL | シラバスバックエンド(§1.1.1) |
+
+#### 1.1.1 シラバスバックエンドの位置づけ
+
+**api-clean / postgres-clean は「手を加えていない外部システム」ではない。** 実体は同一組織のフォーク [ProjectResearch2026/syllabus_backend](https://github.com/ProjectResearch2026/syllabus_backend) であり、上流 [RyukokuDX/syllabus_backend](https://github.com/RyukokuDX/syllabus_backend) に対して、本プロジェクトの必要に応じたデータ投入と改修が継続している。
+
+| 変更 | 内容 | 時期 |
+|---|---|---|
+| ローダの修正 | `Y000001010`/2025 の欠損復元、講義計画の取りこぼし、年度間の表記ゆれの修正 | 2026-09-06 |
+| 2026年度データの追加 | Web シラバス検索ページ由来の CSV を上流から取り込み | 2026-09-07 |
+| **課程紐付けの解消** | 2026年度で 0 件だった `syllabus_course_program` を 2,871 件(939科目)投入。**`GET /syllabi/{code}` の `programs` が 2026年度でも返るようになった** | 2026-09-07 |
+
+**したがって、本サービスの機能はシラバスバックエンド側の改修に依存する。** 現に残っている依存は §13 に置く(科目区分 `syllabus_attribute` が空であること、`note` の書式が不定であること)。
+
+**改修は本リポジトリでは行わない。** 実装は当該リポジトリ側で行い、本書は利用者としての前提と、依存している未解決事項を記すに留める。両者の責任分界は §3.5.3 による。
 
 これらに加え、公開 VM 上に補助的なコンテナを2つ新規に構築する。いずれもサービスの機能そのものではなく、入口と経路を成立させるためのものである。
 
-| 要素 | 役割 | 実装 | 新規/既存 |
+| 要素 | 役割 | 実装 | リポジトリ |
 |---|---|---|---|
-| gateway | 公開する唯一の入口(学外からのアクセスも受ける)。リクエストを**同一 VM 上の** frontend と backend へ振り分ける | 公開 VM 上の **Caddy** | 新規 |
-| ssh-tunnel | DGX Spark 上の api-clean へ SSH ローカルフォワードを張り、**Podman ネットワーク上に `api-clean` という別名で見せる**。backend はこれを同一ホストの api-clean と同じ宛先で呼ぶ | 公開 VM 上の **OpenSSH クライアント**(§3.4.4) | 新規 |
+| gateway | 公開する唯一の入口(学外からのアクセスも受ける)。リクエストを**同一 VM 上の** frontend と backend へ振り分ける | 公開 VM 上の **Caddy** | 本リポジトリ(設定のみ) |
+| ssh-tunnel | DGX Spark 上の api-clean へ SSH ローカルフォワードを張り、**Podman ネットワーク上に `api-clean` という別名で見せる**。backend はこれを同一ホストの api-clean と同じ宛先で呼ぶ | 公開 VM 上の **OpenSSH クライアント**(§3.4.4) | 本リポジトリ(新規) |
 
 さらに、本プロジェクトが管理しない外部要素を1つ経由する。
 
@@ -85,7 +99,7 @@ flowchart TB
     Edge -->|/spark/qwen/* を中継| TokenGW
     TokenGW -->|HTTP<br/>教員側の中継(§3.4.1)| VLLM
     Backend -->|HTTP<br/>★2 Podman ネットワーク内| Tunnel
-    Tunnel -->|SSH :22<br/>ローカルフォワード(§3.4.4)| APIClean
+    Tunnel -->|SSH :22 → 127.0.0.1:5050<br/>ローカルフォワード(§3.4.4)| APIClean
     APIClean --> PG
 ```
 
