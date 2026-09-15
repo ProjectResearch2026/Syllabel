@@ -3,15 +3,9 @@
 import { useState } from "react";
 import { ChevronLeft, Plus, Trash2 } from "lucide-react";
 import type { StudentProfile, Course, CourseTerm } from "@/lib/student";
-
-const PROGRAMS = [
-  "知能情報メディア課程",
-  "電子情報通信課程",
-  "機械工学・ロボティクス課程",
-  "応用化学課程",
-  "数理・情報科学課程",
-  "生命科学課程",
-];
+// 課程の正本は `curricula/admission-<年度>/` の課程ファイル（design.md §4.4.2）。
+// 履修要項を引けない課程名を選ばせないため、一覧はそこから引く
+import { PROGRAM_NAMES as PROGRAMS } from "@/lib/programs";
 
 const TERMS: CourseTerm[] = ["前期", "後期", "通年", "1Q", "2Q", "3Q", "4Q", "サ集"];
 const CREDIT_OPTIONS = [1, 2, 3, 4, 6, 8];

@@ -2,22 +2,12 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Send } from "lucide-react";
-import { DAYS, PERIODS, CELL_STYLES, type Timetable } from "@/lib/timetable";
+import { DAYS, PERIODS, CELL_STYLES, coursesToTimetable } from "@/lib/timetable";
 import { useStudentStore } from "@/lib/student";
 import { useProposalStore } from "@/lib/proposal";
 import { useGraduationCredits } from "@/lib/curricula";
 import { streamProposalChat } from "@/lib/chatApi";
-import type { ProposedCourse } from "@/lib/chatApi";
 import type { ChatMessage } from "@/lib/chat";
-
-function coursesToTimetable(courses: ProposedCourse[]): Timetable {
-  const timetable: Timetable = {};
-  for (const course of courses) {
-    if (!timetable[course.period]) timetable[course.period] = {};
-    timetable[course.period][course.day] = { name: course.name, type: course.type };
-  }
-  return timetable;
-}
 
 export default function MobileProposalPage() {
   const profile = useStudentStore((s) => s.profile);
@@ -151,7 +141,8 @@ export default function MobileProposalPage() {
     }
   }, [input, messages, profile, streaming]);
 
-  const timetable = status === "done" ? coursesToTimetable(courses) : {};
+  // 生成中に届く snapshot も描く（逐次描画。design.md §6.1.1 / §7.2）
+  const timetable = coursesToTimetable(courses);
 
   return (
     <div className="flex flex-col h-[calc(100dvh-96px)] bg-[#F8F9FA]">
