@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { User, Award, Clock, ArrowUpRight } from "lucide-react";
 import type { SyllabusListItem } from "@/lib/syllabus-api";
-import type { TagType } from "./SyllabusTagList";
+import type { TagType } from "@/lib/syllabusUI";
 
 const TAG_STYLES: Record<NonNullable<TagType>, string> = {
   必修: "bg-[#FFF1F2] text-[#BE123C] border-[#FECDD3]",

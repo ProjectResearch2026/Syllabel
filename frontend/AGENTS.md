@@ -26,9 +26,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 | TypeScript | ^5 | 言語 |
 | Tailwind CSS | ^4 | スタイリング |
 | Zustand | — | クライアント状態管理(永続化オフ) |
-| TanStack Query | — | サーバーデータのキャッシュ管理 |
 | pdfjs-dist | — | 成績表PDFのクライアント側解析 |
-| shadcn/ui | — | UIコンポーネント |
 | lucide-react | ^1.23.0 | アイコン |
 
 ## ディレクトリ構成
@@ -50,8 +48,11 @@ frontend/
 │   ├── Header.tsx
 │   └── BottomTabBar.tsx
 ├── lib/                            # ユーティリティ・API通信
-│   ├── syllabus-api.ts             # バックエンドAPIクライアント
-│   ├── syllabus.ts
+│   ├── api_base.ts                 # backend の宛先解決(§6.1)
+│   ├── syllabus-api.ts             # 読み取り専用APIクライアント(JSON)
+│   ├── chatApi.ts                  # SSEクライアント(チャット・履修提案)
+│   ├── programs.ts                 # 課程名→課程コード・入学年度の算出(§4.4.2)
+│   ├── syllabusUI.ts               # 検索画面の状態とタグ突合
 │   └── timetable.ts
 └── package.json
 ```
@@ -87,11 +88,22 @@ Zustand store を2本使用する。**どちらも永続化機能は意図的に
 - `student.ts` — 学生プロファイル(学年・課程・既修得科目)
 - `chat.ts` — 対話履歴(提案チャット・シラバスチャット)
 
-サーバーから取得するデータ(シラバス検索結果など)は TanStack Query でキャッシュ管理する。
+サーバーから取得するデータ(シラバス検索結果など)はキャッシュライブラリを入れず、サーバコンポーネントの `fetch` と `GET /api/curricula` の ETag(design.md §6.1.2)に委ねる。
 
 ## バックエンドとの通信
 
-フロントエンドはバックエンド(`/api/*`)のみと通信する。**既存シラバスバックエンド(`api-clean`)を直接呼ぶことはできない**(ゲートウェイが `/api/*` のみ backend へ振り分けるため)。
+フロントエンドはバックエンドのみと通信する。**既存シラバスバックエンド(`api-clean`)を直接呼ぶことはできない**(公開されておらず、backend が中継する)。
+
+**公開パスは `/pr-2026/api/*` であり `/api/*` ではない。** `next.config.ts` の `basePath` はページとアセットの生成先しか変えず `fetch()` のパスには前置されないため、呼び出し先に `/pr-2026` を自分で含める(design.md §3.5.2、§6.1)。
+
+宛先の解決は `lib/api_base.ts` の `apiBase()` に集約する。**直接URLを書かない。**
+
+| 呼び出し元 | 宛先 |
+|---|---|
+| ブラウザ(クライアントコンポーネント) | ゲートウェイと同一オリジンの `/pr-2026/api/...`(相対パス) |
+| サーバ側描画(RSC / `page.tsx` の `async` 関数) | backend のオリジンを直に引く(`BACKEND_ORIGIN`)。ゲートウェイを経由しないため `/pr-2026` は付かない |
+
+`lib/syllabus-api.ts` は双方から import されるため、宛先をモジュール読み込み時に固定してはならない。
 
 | エンドポイント | 形式 | 用途 |
 |---|---|---|
@@ -104,9 +116,20 @@ Zustand store を2本使用する。**どちらも永続化機能は意図的に
 | `GET /api/masters` | JSON | 検索絞り込み用マスタ |
 | `GET /api/curricula/{program}/{year}` | JSON | 履修要項データ |
 
-SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 React state に反映する。
+SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 React state に反映する。書式は `data: <JSON>` の1行1イベントで、イベント名は design.md §6.1.1 に従う(`lib/chatApi.ts`)。
+
+| 用途 | イベント |
+|---|---|
+| チャット系(`/api/chat/*`) | `{"delta": "..."}` / `{"error": "..."}` / `{"done": true}` |
+| 履修提案(`/api/proposal`) | `{"snapshot": {...}}` / `{"result": {...}}` に加えて `error` / `done` |
 
 チャット系リクエストには**学生プロファイルと対話履歴を毎回含める**(サーバー側で永続化しないため)。
+
+履修提案の科目スキーマは design.md §5.3 に従う(`syllabusCode` / `title` / `day` / `period` / `term` / `credits` / `category` / `reason`)。必須は `title` と `reason` だけで、**集中講義の曜日・時限や特定できないシラバスコードは null** で来る。
+
+## 課程コードの解決
+
+履修要項を引くキーは **(課程コード, 入学年度)** である(design.md §4.4.2)。`StudentProfile.program` に入るのは**課程名**なので、`GET /api/curricula` と `POST /api/proposal` を呼ぶ前に `lib/programs.ts` の `programCodeOf()` でコードに直す。入学年度も同モジュールの `getAdmissionYear()` で学年から算出する。課程一覧の正本は `curricula/admission-<年度>/` の課程ファイルである。
 
 ## プライバシー設計上の制約
 
@@ -124,6 +147,11 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 1. `GET /api/syllabi` の検索結果
 2. `GET /api/curricula/{program}/{year}` の履修要項データ
 3. Zustand `student.ts` の学生プロファイル
+
+突合ロジックは `lib/syllabusUI.ts` の `buildTagMap()` に集約する。注意点が2つある。
+
+- **`syllabusCodes` は配列である。** 1科目に複数のクラスが対応するため、すべてのコードに同じタグを付ける
+- **`own` が false の科目は他課程から導出した専門関連科目である。** その `type: 必修` は当該課程の学生の必修ではないため、必修タグを付けない
 
 ## PDF解析
 

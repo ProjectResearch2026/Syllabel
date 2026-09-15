@@ -2,37 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useStudentStore } from "@/lib/student";
-import { useSyllabusUIStore } from "@/lib/syllabusUI";
+import { useSyllabusUIStore, buildTagMap, type TagType } from "@/lib/syllabusUI";
+import { getAdmissionYear, programCodeOf } from "@/lib/programs";
 import { fetchCurricula, type SyllabusListItem, type CurriculaData } from "@/lib/syllabus-api";
 import CourseCard from "./CourseCard";
-
-export type TagType = "必修" | "選択" | "既修得済み" | null;
-
-function getAdmissionYear(grade: number): number {
-  const now = new Date();
-  const month = now.getMonth() + 1;
-  const academicYear = month >= 4 ? now.getFullYear() : now.getFullYear() - 1;
-  return academicYear - grade + 1;
-}
-
-function buildTagMap(
-  curricula: CurriculaData,
-  passedCodes: Set<string>,
-  passedTitles: Set<string>,
-): Map<string, TagType> {
-  const map = new Map<string, TagType>();
-  for (const course of curricula.courses) {
-    if (!course.syllabus_code) continue;
-    if (passedCodes.has(course.syllabus_code) || passedTitles.has(course.title)) {
-      map.set(course.syllabus_code, "既修得済み");
-    } else if (course.type === "必修") {
-      map.set(course.syllabus_code, "必修");
-    } else if (course.type === "選択必修" || course.type === "選択") {
-      map.set(course.syllabus_code, "選択");
-    }
-  }
-  return map;
-}
 
 export default function SyllabusTagList({ results }: { results: SyllabusListItem[] }) {
   const profile = useStudentStore((s) => s.profile);
@@ -40,9 +13,11 @@ export default function SyllabusTagList({ results }: { results: SyllabusListItem
   const [curricula, setCurricula] = useState<CurriculaData | null>(null);
 
   useEffect(() => {
-    if (!profile?.program || !profile?.grade) return;
-    const admissionYear = getAdmissionYear(profile.grade);
-    fetchCurricula(profile.program, admissionYear)
+    // 履修要項を引くキーは (課程コード, 入学年度)。プロファイルの `program` は
+    // 課程名なのでコードに解決する（design.md §4.4.2）
+    const programCode = programCodeOf(profile?.program);
+    if (!programCode || !profile?.grade) return;
+    fetchCurricula(programCode, getAdmissionYear(profile.grade))
       .then(setCurricula)
       .catch(() => {
         // curricula 未取得でもタグなしで動作継続

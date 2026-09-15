@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ChevronDown, Plus } from "lucide-react";
-import { CELL_STYLES } from "@/lib/timetable";
+import { CELL_STYLES, categoryToCourseType } from "@/lib/timetable";
 import type { ProposedCourse } from "@/lib/chatApi";
 
 const VISIBLE = 2;
@@ -25,24 +25,34 @@ export default function AiProposalCard({
   return (
     <div className="w-[308px] overflow-hidden rounded-[14px] border border-border-primary bg-surface-primary">
       {shown.map((course) => {
-        const style = CELL_STYLES[course.type] ?? CELL_STYLES.elective;
+        const style = CELL_STYLES[categoryToCourseType(course.category)];
+        // 曜日・時限は集中講義などで null になる（design.md §5.3）
+        const slot = course.day && course.period != null;
         return (
           <div
-            key={`${course.code}-${course.day}${course.period}`}
+            key={`${course.syllabusCode ?? course.title}-${course.day ?? ""}${course.period ?? ""}`}
             className="flex items-center gap-2.5 border-b border-border-subtle px-3 py-2.5"
           >
             <span
               className={`flex size-9 shrink-0 flex-col items-center justify-center rounded-[10px] ${style.badge}`}
             >
-              <span className="text-[9px] font-bold text-fg-secondary">{course.day}</span>
-              <span className="font-mono text-[14px] font-bold leading-[1.2] text-fg-primary">
-                {course.period}
-              </span>
+              {slot ? (
+                <>
+                  <span className="text-[9px] font-bold text-fg-secondary">{course.day}</span>
+                  <span className="font-mono text-[14px] font-bold leading-[1.2] text-fg-primary">
+                    {course.period}
+                  </span>
+                </>
+              ) : (
+                <span className="text-[9px] font-bold text-fg-secondary">集中</span>
+              )}
             </span>
             <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
-              <span className="truncate text-[13px] font-bold text-fg-primary">{course.name}</span>
+              <span className="truncate text-[13px] font-bold text-fg-primary">{course.title}</span>
               <span className="truncate text-[10px] text-fg-muted">
-                {[course.code, `${course.credits}単位`].filter(Boolean).join(" ・ ")}
+                {[course.syllabusCode, course.credits != null && `${course.credits}単位`]
+                  .filter(Boolean)
+                  .join(" ・ ")}
               </span>
             </span>
             <span
@@ -53,7 +63,7 @@ export default function AiProposalCard({
             <button
               type="button"
               onClick={() => onAdd?.(course)}
-              aria-label={`${course.name}を時間割に追加`}
+              aria-label={`${course.title}を時間割に追加`}
               className="grid size-7 shrink-0 place-items-center rounded-full bg-accent active:opacity-80"
             >
               <Plus size={14} className="text-fg-inverse" />

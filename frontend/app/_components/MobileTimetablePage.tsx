@@ -82,7 +82,8 @@ export default function MobileTimetablePage() {
   const nendo = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
   const semester = now.getMonth() < 9 ? "前期" : "後期";
 
-  const timetable = proposalStatus === "done" ? coursesToTimetable(courses) : {};
+  // 生成中に届く snapshot も描く（逐次描画。design.md §6.1.1 / §7.2）
+  const timetable = coursesToTimetable(courses);
 
   const goSyllabus = (target: SlotTarget, openFilters: boolean) => {
     const params = new URLSearchParams({ day: target.day, period: String(target.period) });

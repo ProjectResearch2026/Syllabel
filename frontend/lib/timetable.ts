@@ -78,18 +78,40 @@ export function toCourseList(
   return rows;
 }
 
-/** 提案結果（ProposedCourse[]）を時間割の形に組み替える */
+/**
+ * 履修区分（design.md §5.3 の `category`）を時間割セルの表示区分に対応づける。
+ * 区分が不明（null）な科目は選択として描く。
+ */
+export function categoryToCourseType(category: string | null | undefined): CourseType {
+  if (category === "必修") return "required";
+  if (category === "選択必修") return "selective";
+  return "elective";
+}
+
+/**
+ * 提案結果（ProposedCourse[]）を時間割の形に組み替える。design.md §5.3。
+ *
+ * 曜日・時限が null の科目（集中講義・未定）はグリッドに置けないため除く。
+ */
 export function coursesToTimetable(
-  courses: { name: string; day: string; period: number; type: CourseType; code?: string; credits?: number }[],
+  courses: {
+    title: string;
+    day: string | null;
+    period: number | null;
+    category: string | null;
+    syllabusCode: string | null;
+    credits: number | null;
+  }[],
 ): Timetable {
   const timetable: Timetable = {};
   for (const course of courses) {
+    if (!course.day || course.period == null) continue;
     if (!timetable[course.period]) timetable[course.period] = {};
     timetable[course.period][course.day] = {
-      name: course.name,
-      type: course.type,
-      code: course.code,
-      credits: course.credits,
+      name: course.title,
+      type: categoryToCourseType(course.category),
+      code: course.syllabusCode ?? undefined,
+      credits: course.credits ?? undefined,
     };
   }
   return timetable;
