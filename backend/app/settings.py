@@ -17,8 +17,14 @@ class Settings(BaseSettings):
     # (OpenAI クライアントは非空の api_key を要求するため空にはできない)
     llm_api_key: str = "EMPTY"
 
-    # api-clean — design.md §6.2 / §3.4
+    # api-clean — design.md §6.2 / §3.4.4
+    # トークンゲートウェイ経由の場合はその URL を与える。ゲートは
+    # GET /syllabi・/syllabi/{code}・/masters だけを通し、POST /sql を拒否する
     api_clean_base_url: str = "http://api-clean:5000"
+    # ゲートウェイが要求するトークン。Authorization: Bearer <値> として送られる。
+    # 既定の空文字は認証なしの api-clean を直接叩く開発環境向けで、このときは
+    # ヘッダ自体を付けない(§6.2)
+    api_clean_api_key: str = ""
 
     # 外部呼び出しのタイムアウト(秒)
     http_timeout: float = 30.0

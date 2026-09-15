@@ -7,11 +7,22 @@ from app.settings import get_settings
 
 @lru_cache
 def _get_client() -> httpx.AsyncClient:
-    """モジュールスコープで共有する httpx.AsyncClient を返す。design.md §6.2。"""
+    """モジュールスコープで共有する httpx.AsyncClient を返す。design.md §6.2。
+
+    トークンゲートウェイ経由で api-clean を引くときは Bearer トークンを付ける
+    (§3.4.4)。api-clean を直接叩く開発環境ではトークンが無いため、ヘッダ自体を
+    付けない(api-clean は無認証で、余計なヘッダを送る理由がない)。
+    """
     s = get_settings()
+    headers = (
+        {"Authorization": f"Bearer {s.api_clean_api_key}"}
+        if s.api_clean_api_key
+        else {}
+    )
     return httpx.AsyncClient(
         base_url=s.api_clean_base_url,
         timeout=s.http_timeout,
+        headers=headers,
     )
 
 
