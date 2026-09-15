@@ -117,7 +117,7 @@ podman exec -it pr2026-backend python -m scripts.smoke_api_clean
 
 履修提案は1回に4〜5分かかる。応答時間は出力トークン数でほぼ決まる(設計§7.2)。
 
-## 実装状況(2026-09-09)
+## 実装状況(2026-09-15)
 
 | 領域 | 状況 |
 |---|---|
@@ -128,7 +128,7 @@ podman exec -it pr2026-backend python -m scripts.smoke_api_clean
 | frontend | 全画面を実装済み。backend との接続は設計§6.1 の宛先・SSE 書式・スキーマに準拠(`lib/api_base.ts` / `lib/chatApi.ts` / `lib/syllabus-api.ts`) |
 | 履修要項データ | 2024・2025年度入学の6課程 + 教養教育科目を作成済み。2026年度入学分は転記中 |
 | 開講年度データ | 2026年度分を作成済み。生成スクリプト(`scripts/build_offerings.py`)は未実装 |
-| インフラ | frontend は学外から HTTPS で到達できる。**GW から backend へ到達する経路が無く**(DGX の 8000 は loopback バインド)、`/pr-2026/api/*` を要する機能は動作しない。CI は未整備 |
+| インフラ | frontend は学外から HTTPS で到達できる。**`/pr-2026/api/*` も公開 URL で疎通済み**(学生ブラウザ → 入口 Caddy → gateway → backend → トークンゲートウェイ → api-clean。設計§3.4.4)。frontend コンテナには `BACKEND_ORIGIN` を環境ファイルで渡す(設計§3.2.1)。CI は未整備 |
 
 ## 開発ルール
 
