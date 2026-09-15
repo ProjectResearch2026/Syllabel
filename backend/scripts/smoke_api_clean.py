@@ -1,5 +1,8 @@
 """実 api-clean への疎通スモーク。使い方: python -m scripts.smoke_api_clean
-   API_CLEAN_BASE_URL で接続先上書き可(既定は http://api-clean:5000)。"""
+
+API_CLEAN_BASE_URL で接続先を上書きできる(既定は http://api-clean:5000)。
+トークンゲートウェイ経由で引く場合は API_CLEAN_API_KEY も与える(設計§3.4.4)。
+"""
 import asyncio
 import json
 

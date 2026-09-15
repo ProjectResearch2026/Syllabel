@@ -26,6 +26,34 @@ def _patch_client(monkeypatch, handler):
 
 
 # ---------------------------------------------------------------------------
+# _get_client — トークンゲートウェイ向けの Authorization ヘッダ(design.md §3.4.4)
+# ---------------------------------------------------------------------------
+
+def test_get_client_without_api_key(monkeypatch):
+    """API_CLEAN_API_KEY が空なら Authorization を付けない。
+
+    api-clean を直接叩く開発環境の経路。無認証の相手に余計なヘッダを送らない。
+    """
+    monkeypatch.setenv("API_CLEAN_API_KEY", "")
+    tools_module.get_settings.cache_clear()
+    try:
+        assert "authorization" not in tools_module._get_client().headers
+    finally:
+        tools_module.get_settings.cache_clear()
+
+
+def test_get_client_with_api_key(monkeypatch):
+    """API_CLEAN_API_KEY があれば Bearer として付く(ゲートウェイ経由の経路)。"""
+    monkeypatch.setenv("API_CLEAN_API_KEY", "syllabus-gw-token-for-test")
+    tools_module.get_settings.cache_clear()
+    try:
+        headers = tools_module._get_client().headers
+        assert headers["authorization"] == "Bearer syllabus-gw-token-for-test"
+    finally:
+        tools_module.get_settings.cache_clear()
+
+
+# ---------------------------------------------------------------------------
 # search_syllabi
 # ---------------------------------------------------------------------------
 

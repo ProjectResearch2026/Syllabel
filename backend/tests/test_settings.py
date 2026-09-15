@@ -37,5 +37,19 @@ def test_llm_api_key_env_override(monkeypatch):
     assert Settings().llm_api_key == "gw-token-for-test"
 
 
+def test_api_clean_api_key_default():
+    """未設定なら空文字(認証なしの api-clean を直接叩く開発環境向け。design.md §6.2)。
+
+    空のときは Authorization ヘッダ自体を付けない(app/agents/tools.py)。
+    """
+    assert Settings(_env_file=None).api_clean_api_key == ""
+
+
+def test_api_clean_api_key_env_override(monkeypatch):
+    """API_CLEAN_API_KEY がそのままトークンになる(Bearer として送られる)。"""
+    monkeypatch.setenv("API_CLEAN_API_KEY", "syllabus-gw-token-for-test")
+    assert Settings().api_clean_api_key == "syllabus-gw-token-for-test"
+
+
 def test_get_settings_is_cached():
     assert get_settings() is get_settings()
