@@ -88,7 +88,13 @@ npm install
 npm run dev                        # http://localhost:3000/pr-2026
 ```
 
-`next.config.ts` の `basePath` によりサブパス配信になっている。`basePath` は `fetch()` のパスには前置されないため、**backend への呼び出しは公開パスの `/pr-2026/api/*` を明示的に含める**(設計§3.5.2、§6.1)。開発時は同一オリジンで backend へ届く経路を用意する必要がある。
+`next.config.ts` の `basePath` によりサブパス配信になっている。`basePath` は `fetch()` のパスには前置されないため、**backend への呼び出しは公開パスの `/pr-2026/api/*` を明示的に含める**(設計§3.5.2、§6.1)。宛先の解決は `lib/api_base.ts` の `apiBase()` に集約してあり、ブラウザからは同一オリジンの `/pr-2026/api`、サーバ側描画(RSC)からは backend のオリジンを直に引く。
+
+| 環境変数 | 既定 | 用途 |
+|---|---|---|
+| `BACKEND_ORIGIN` | 開発時 `http://localhost:8000` / 本番 `http://pr2026-backend:8000` | サーバ側描画から引く backend のオリジン。公開 VM では Quadlet の環境ファイルで与える(設計§3.2.1)。**渡さないと既定にフォールバックする** |
+
+開発時はゲートウェイが居ないため、ブラウザからの `/pr-2026/api/*` は `next.config.ts` の `rewrites()` が `BACKEND_ORIGIN` へ中継する(本番ではゲートウェイが振り分けるため無効)。上の backend 開発サーバを立てておけば、そのまま疎通する。
 
 ### 実機スモーク
 
@@ -119,7 +125,7 @@ podman exec -it pr2026-backend python -m scripts.smoke_api_clean
 | backend / チャット | `POST /api/chat/syllabus`・`/api/chat/syllabus/{code}` 実装済み。**`POST /api/chat/proposal` は未実装** |
 | backend / 履修要項 | YAML スキーマ・ロード・マージ・要件充足判定、`GET /api/curricula/{program_code}/{admission_year}`・`POST /api/requirements` 実装済み |
 | backend / 履修提案 | `POST /api/proposal` 実装済み(SSE で逐次配信)。実機で提案の生成を確認済み |
-| frontend | 全画面と backend との接続を実装済み |
+| frontend | 全画面を実装済み。backend との接続は設計§6.1 の宛先・SSE 書式・スキーマに準拠(`lib/api_base.ts` / `lib/chatApi.ts` / `lib/syllabus-api.ts`) |
 | 履修要項データ | 2024・2025年度入学の6課程 + 教養教育科目を作成済み。2026年度入学分は転記中 |
 | 開講年度データ | 2026年度分を作成済み。生成スクリプト(`scripts/build_offerings.py`)は未実装 |
 | インフラ | frontend は学外から HTTPS で到達できる。**GW から backend へ到達する経路が無く**(DGX の 8000 は loopback バインド)、`/pr-2026/api/*` を要する機能は動作しない。CI は未整備 |

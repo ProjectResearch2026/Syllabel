@@ -1,21 +1,12 @@
 "use client";
 
-import { DAYS, PERIODS, CELL_STYLES, type Timetable } from "@/lib/timetable";
+import { DAYS, PERIODS, CELL_STYLES, coursesToTimetable } from "@/lib/timetable";
 import { useProposalStore } from "@/lib/proposal";
-import type { ProposedCourse } from "@/lib/chatApi";
-
-function coursesToTimetable(courses: ProposedCourse[]): Timetable {
-  const timetable: Timetable = {};
-  for (const course of courses) {
-    if (!timetable[course.period]) timetable[course.period] = {};
-    timetable[course.period][course.day] = { name: course.name, type: course.type };
-  }
-  return timetable;
-}
 
 export default function TimetablePanel() {
   const { status, courses } = useProposalStore();
-  const timetable = status === "done" ? coursesToTimetable(courses) : {};
+  // 生成中に届く snapshot も描く（逐次描画。design.md §6.1.1 / §7.2）
+  const timetable = coursesToTimetable(courses);
   const isLoading = status === "loading";
 
   return (

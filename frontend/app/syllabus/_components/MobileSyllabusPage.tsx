@@ -18,7 +18,8 @@ import { useStudentStore } from "@/lib/student";
 import { SYLLABUS_CONTEXT, useAiStore } from "@/lib/ai";
 import AskBar from "@/components/ai/AskBar";
 import SyllabusPagination from "./SyllabusPagination";
-import type { TagType } from "./SyllabusTagList";
+import { buildTagMap, type TagType } from "@/lib/syllabusUI";
+import { getAdmissionYear, programCodeOf } from "@/lib/programs";
 
 const TAG_CHIPS = ["すべて", "必修", "選択", "既修得済み"] as const;
 const DAYS = ["月", "火", "水", "木", "金", "土"];
@@ -29,13 +30,6 @@ const TAG_STYLES: Record<NonNullable<TagType>, string> = {
   選択: "bg-[#EFF6FF] text-[#2563EB]",
   既修得済み: "bg-[#F0FDF4] text-[#16A34A]",
 };
-
-function getAdmissionYear(grade: number): number {
-  const now = new Date();
-  const month = now.getMonth() + 1;
-  const academicYear = month >= 4 ? now.getFullYear() : now.getFullYear() - 1;
-  return academicYear - grade + 1;
-}
 
 type Props = {
   results: SyllabusListItem[];
@@ -67,9 +61,11 @@ export default function MobileSyllabusPage({
   useEffect(() => () => setSelection(null), [setSelection]);
 
   useEffect(() => {
-    if (!profile?.program || !profile?.grade) return;
-    const admissionYear = getAdmissionYear(profile.grade);
-    fetchCurricula(profile.program, admissionYear)
+    // 履修要項を引くキーは (課程コード, 入学年度)。プロファイルの `program` は
+    // 課程名なのでコードに解決する（design.md §4.4.2）
+    const programCode = programCodeOf(profile?.program);
+    if (!programCode || !profile?.grade) return;
+    fetchCurricula(programCode, getAdmissionYear(profile.grade))
       .then(setCurricula)
       .catch(() => {});
   }, [profile]);
@@ -85,19 +81,9 @@ export default function MobileSyllabusPage({
       .map((c) => c.title),
   );
 
-  const tagMap = new Map<string, TagType>();
-  if (curricula) {
-    for (const course of curricula.courses) {
-      if (!course.syllabus_code) continue;
-      if (passedCodes.has(course.syllabus_code) || passedTitles.has(course.title)) {
-        tagMap.set(course.syllabus_code, "既修得済み");
-      } else if (course.type === "必修") {
-        tagMap.set(course.syllabus_code, "必修");
-      } else if (course.type === "選択必修" || course.type === "選択") {
-        tagMap.set(course.syllabus_code, "選択");
-      }
-    }
-  }
+  const tagMap = curricula
+    ? buildTagMap(curricula, passedCodes, passedTitles)
+    : new Map<string, TagType>();
 
   const filteredResults = results.filter((c) => {
     if (activeChip === "すべて") return true;

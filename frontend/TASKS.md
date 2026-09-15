@@ -1,6 +1,6 @@
 # フロントエンド タスクリスト
 
-最終更新: 2026-08-27
+最終更新: 2026-09-15
 
 ---
 
@@ -55,17 +55,26 @@
 ### 低優先度 / 将来対応
 
 - [x] **履修提案API接続の完全化（卒業単位算出）**
-  - `GET /api/curricula` を用いた「卒業残り単位」の正確な算出を実装済み — `lib/curricula.ts` の `useGraduationCredits` フック。curricula API が返すコース単位数の合計を卒業必要単位数として使用し、失敗時は 124 にフォールバック。`CreditBar.tsx` / `MobileProposalPage.tsx` で利用
-  - バックエンドの `/api/proposal` レスポンス形式が確定したら `streamProposal` の `courses` / `total_credits` パース処理を調整
+  - `GET /api/curricula` を用いた「卒業残り単位」の算出を実装済み — `lib/curricula.ts` の `useGraduationCredits` フック。backend が返す `graduation.totalCredits` を使い、失敗時は 124 にフォールバック。`CreditBar.tsx` / `MobileProposalPage.tsx` で利用
+  - **設置科目の単位数の総和は卒業必要単位数ではない**（design.md §6.1）。`courses` から合計してはならない
+
+---
+
+## 未対応（backend 側）
+
+- [ ] **`POST /api/chat/proposal` が backend に未実装** — design.md §6.1 の表にはあるが、ルートが入るまで 404 を返す。frontend 側（`lib/chatApi.ts` の `streamProposalChat`、`ChatPanel.tsx` / `MobileProposalPage.tsx`）は接続済み
+- [ ] **`GET /api/syllabi` 系の上流障害が 500 になる** — `backend/app/api/syllabus.py` は `httpx.HTTPStatusError` だけを捕捉しており、接続失敗（`httpx.RequestError`）が素通りする。design.md §6.1 / §3.4.4 の規定は 502
 
 ---
 
 ## メモ
 
-- バックエンドとの通信はすべて `/api/*` 経由（ゲートウェイが振り分け）— design.md §1.2
+- バックエンドとの通信は **`/pr-2026/api/*`** 経由（ゲートウェイが `/pr-2026` を剥がして backend へ振り分け）— design.md §3.5.2、§6.1。`basePath` は `fetch()` のパスに前置されないため、宛先は `lib/api_base.ts` の `apiBase()` で解決する
 - `persist` ミドルウェア使用禁止（プライバシー要件）— design.md §9
 - PDFファイル自体をサーバーへ送信しない — 解析はクライアント完結
 - design.md §8 の正規ルート: `/`・`/proposal`・`/syllabus`・`/syllabus/[code]`・`/privacy`
 - `lib/chat.ts` の `courseMessages` フィールドは design.md §5.2.2 では `syllabusPerCourse` として定義されているが、実装名が異なる（機能は同等）
 - SSE は `fetch` + `ReadableStream` 方式で実装済み。`lib/chatApi.ts` の `readSSE` 共通ヘルパー経由で全チャット系エンドポイントに対応
-- `coursesToTimetable` ヘルパーが `MobileProposalPage.tsx` / `TimetablePanel.tsx` に重複定義。共通化の余地あり（低優先）
+- `coursesToTimetable` は `lib/timetable.ts` に一本化済み（`MobileProposalPage.tsx` / `TimetablePanel.tsx` / `MobileTimetablePage.tsx` から共用）
+- 検索結果のタグ突合は `lib/syllabusUI.ts` の `buildTagMap()` に一本化済み（`SyllabusTagList.tsx` / `MobileSyllabusPage.tsx` から共用）
+- 履修要項を引くキーは (課程コード, 入学年度)。プロファイルの `program` は課程名なので `lib/programs.ts` でコードに解決する — design.md §4.4.2

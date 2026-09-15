@@ -1,5 +1,18 @@
 import type { StudentProfile } from "@/lib/student";
 import type { ChatMessage } from "@/lib/chat";
+import { apiBase } from "@/lib/api_base";
+
+/**
+ * SSE を返す backend エンドポイントのクライアント。design.md §6.1 / §6.1.1。
+ *
+ * 書式は `data: <JSON>` の1行1イベントで、イベントの種類は用途で2系統に分かれる。
+ *
+ * - チャット系(`/api/chat/*`): `{"delta": "..."}` / `{"error": "..."}` / `{"done": true}`
+ * - 履修提案(`/api/proposal`): `{"snapshot": {...}}` / `{"result": {...}}` に加えて
+ *   チャット系と同じ `error` / `done`
+ *
+ * リクエストには学生プロファイルと対話履歴を毎回含める(サーバ側で永続化しないため)。
+ */
 
 type ChatRequest = {
   profile: StudentProfile | null;
@@ -7,30 +20,64 @@ type ChatRequest = {
   message: string;
 };
 
+/**
+ * 提案する1科目。design.md §5.3(`backend/app/schemas/proposal.py`)。
+ *
+ * 必須は `title` と `reason` だけである。集中講義のように曜日・時限が定まらない
+ * 科目と、開講情報を突合できなかった科目を、値の捏造ではなく null で表すため。
+ */
 export type ProposedCourse = {
-  code: string;
-  name: string;
-  day: "月" | "火" | "水" | "木" | "金" | "土";
-  period: 1 | 2 | 3 | 4 | 5;
-  // 選択必修（selective）は ui-design_phone.pen の時間割セルが出し分ける区分
-  type: "required" | "selective" | "elective";
-  credits: number;
+  /** シラバスコード。api-clean で特定できた場合のみ */
+  syllabusCode: string | null;
+  title: string;
+  day: "月" | "火" | "水" | "木" | "金" | null;
+  /** 時限(1〜5) */
+  period: number | null;
+  /** 開講学期(前期 / 後期 / 通年 / 1Q など) */
+  term: string | null;
+  credits: number | null;
+  /** 履修区分(必修 / 選択必修 / 選択) */
+  category: string | null;
+  /** この科目を勧める理由。1文 */
+  reason: string;
 };
 
+/** 時間割提案全体。design.md §5.3。 */
+export type TimetableProposal = {
+  courses: ProposedCourse[];
+  totalCredits: number | null;
+  summary: string;
+};
+
+/**
+ * `POST /api/proposal` のリクエスト。`backend/app/api/proposal.py` の `ProposalRequest`。
+ *
+ * 課程コードと入学年度を `studentProfile` とは別に送る。履修要項を引くキーは
+ * (課程コード, 入学年度)だが、`StudentProfile.program` に入るのは課程名であり
+ * 識別子に使えず、入学年度はプロファイルに無いためである(§4.4.2、`lib/programs.ts`)。
+ */
 type ProposalRequest = {
-  profile: StudentProfile;
-  preferences?: { maxCredits?: number };
+  studentProfile: StudentProfile;
+  programCode: string;
+  admissionYear: number;
+  /** 希望条件。自由記述 */
+  preferences?: string | null;
 };
 
-// 共通SSEストリーム処理
+type SseEvent = Record<string, unknown>;
+
+/**
+ * `data: <JSON>` の1行1イベントを読み、各イベントを `onEvent` に渡す(§6.1.1)。
+ *
+ * backend は1イベントを `data: {...}\n\n` として一度に書くため、改行で区切れた行は
+ * JSON として完結している。行が途中で切れている場合は次のチャンクと連結する。
+ */
 async function readSSE(
   url: string,
   body: unknown,
-  onChunk: (delta: string) => void,
+  onEvent: (event: SseEvent) => void,
   signal?: AbortSignal,
-  // 構造化された候補科目を含むチャンクが来た場合に呼ぶ（AIシートの提案カード用）
-  onCourses?: (courses: ProposedCourse[]) => void,
-): Promise<string> {
+): Promise<void> {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -44,9 +91,8 @@ async function readSSE(
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
-  let full = "";
 
-  while (true) {
+  for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
@@ -55,119 +101,114 @@ async function readSSE(
     for (const line of lines) {
       if (!line.startsWith("data:")) continue;
       const raw = line.slice(5).trim();
-      if (raw === "[DONE]") break;
+      if (!raw) continue;
+      let parsed: unknown;
       try {
-        const parsed: {
-          text?: string;
-          content?: string;
-          courses?: ProposedCourse[];
-        } = JSON.parse(raw);
-        const delta = parsed.text ?? parsed.content ?? "";
-        if (delta) {
-          full += delta;
-          onChunk(delta);
-        }
-        if (parsed.courses && onCourses) onCourses(parsed.courses);
+        parsed = JSON.parse(raw);
       } catch {
-        // ignore malformed chunks
+        continue; // 壊れたイベントは捨てる
       }
+      if (parsed && typeof parsed === "object") onEvent(parsed as SseEvent);
     }
   }
+}
 
+/**
+ * チャット系SSEの共通処理(§6.1.1)。`delta` を連結して全文を返す。
+ *
+ * `error` は表示用の文言だけを載せたイベントで、SSE を開いた後の失敗を伝える
+ * (状態コードでは返せないため)。呼び出し側が catch できるよう例外にする。
+ */
+async function streamChat(
+  path: string,
+  body: ChatRequest,
+  onDelta: (delta: string) => void,
+  signal?: AbortSignal,
+): Promise<string> {
+  let full = "";
+  const failure: { message?: string } = {};
+
+  await readSSE(
+    `${apiBase()}${path}`,
+    body,
+    (event) => {
+      if (typeof event.delta === "string") {
+        full += event.delta;
+        onDelta(event.delta);
+      } else if (typeof event.error === "string") {
+        failure.message = event.error;
+      }
+    },
+    signal,
+  );
+
+  if (failure.message) throw new Error(failure.message);
   return full;
 }
 
-/**
- * POST /api/chat/syllabus/{code} のSSEストリームを受信し、
- * chunkごとに onChunk を呼び出す。完了時に全文を返す。
- */
-export async function streamCourseChat(
+/** `POST /api/chat/syllabus/{code}`(講義単位チャット)のSSEを受信する。 */
+export function streamCourseChat(
   code: string,
   body: ChatRequest,
-  onChunk: (delta: string) => void,
+  onDelta: (delta: string) => void,
   signal?: AbortSignal,
 ): Promise<string> {
-  return readSSE(`/api/chat/syllabus/${encodeURIComponent(code)}`, body, onChunk, signal);
+  return streamChat(`/chat/syllabus/${encodeURIComponent(code)}`, body, onDelta, signal);
 }
 
-/**
- * POST /api/chat/syllabus のSSEストリームを受信する（シラバス全体チャット）。
- */
-export async function streamSyllabusChat(
+/** `POST /api/chat/syllabus`(シラバス全体チャット)のSSEを受信する。 */
+export function streamSyllabusChat(
   body: ChatRequest,
-  onChunk: (delta: string) => void,
+  onDelta: (delta: string) => void,
   signal?: AbortSignal,
 ): Promise<string> {
-  return readSSE("/api/chat/syllabus", body, onChunk, signal);
+  return streamChat("/chat/syllabus", body, onDelta, signal);
 }
 
 /**
- * POST /api/chat/proposal のSSEストリームを受信する（提案チャット）。
+ * `POST /api/chat/proposal`(履修提案チャット)のSSEを受信する。
+ *
+ * **backend 側は未実装であり、ルートが入るまで 404 を返す**(§6.1)。
  */
-export async function streamProposalChat(
+export function streamProposalChat(
   body: ChatRequest,
-  onChunk: (delta: string) => void,
+  onDelta: (delta: string) => void,
   signal?: AbortSignal,
-  onCourses?: (courses: ProposedCourse[]) => void,
 ): Promise<string> {
-  return readSSE("/api/chat/proposal", body, onChunk, signal, onCourses);
+  return streamChat("/chat/proposal", body, onDelta, signal);
 }
 
 /**
- * POST /api/proposal のSSEストリームを受信する（履修提案生成）。
- * テキストチャンクは onText に渡し、完了時に構造化データを返す。
+ * `POST /api/proposal`(履修提案の生成)のSSEを受信する(§6.1.1)。
+ *
+ * `snapshot` は組み立て途中の提案で生成中に何度も流れ、`onSnapshot` に渡す
+ * (時間割表を逐次描画するため。§7.2)。`result` は検証を通った確定版で1度だけ
+ * 流れ、これを戻り値にする。両者はキーの構成が同じで、`snapshot` では未到達の
+ * フィールドが null になるだけである。
  */
 export async function streamProposal(
   body: ProposalRequest,
-  onText: (delta: string) => void,
+  onSnapshot: (proposal: TimetableProposal) => void,
   signal?: AbortSignal,
-): Promise<{ message: string; courses: ProposedCourse[]; totalCredits: number }> {
-  const res = await fetch("/api/proposal", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    signal,
-  });
+): Promise<TimetableProposal> {
+  const state: { result?: TimetableProposal; error?: string } = {};
 
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
-  if (!res.body) throw new Error("No response body");
-
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let fullText = "";
-  let courses: ProposedCourse[] = [];
-  let totalCredits = 0;
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-    for (const line of lines) {
-      if (!line.startsWith("data:")) continue;
-      const raw = line.slice(5).trim();
-      if (raw === "[DONE]") break;
-      try {
-        const parsed: {
-          text?: string;
-          content?: string;
-          courses?: ProposedCourse[];
-          total_credits?: number;
-        } = JSON.parse(raw);
-        const delta = parsed.text ?? parsed.content ?? "";
-        if (delta) {
-          fullText += delta;
-          onText(delta);
-        }
-        if (parsed.courses) courses = parsed.courses;
-        if (parsed.total_credits != null) totalCredits = parsed.total_credits;
-      } catch {
-        // ignore malformed chunks
+  await readSSE(
+    `${apiBase()}/proposal`,
+    body,
+    (event) => {
+      if (event.snapshot && typeof event.snapshot === "object") {
+        onSnapshot(event.snapshot as TimetableProposal);
+      } else if (event.result && typeof event.result === "object") {
+        state.result = event.result as TimetableProposal;
+      } else if (typeof event.error === "string") {
+        state.error = event.error;
       }
-    }
-  }
+    },
+    signal,
+  );
 
-  return { message: fullText, courses, totalCredits };
+  if (state.error) throw new Error(state.error);
+  if (!state.result) throw new Error("提案が完成しませんでした");
+  return state.result;
 }

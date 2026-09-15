@@ -16,6 +16,7 @@
  */
 
 import type { Course, CourseTerm, StudentProfile } from "@/lib/student";
+import { PROGRAM_NAME_PATTERN } from "@/lib/programs";
 
 type PdfjsLib = typeof import("pdfjs-dist");
 
@@ -389,8 +390,9 @@ function extractMeta(items: TextItem[]): {
 } {
   const fullText = items.map((it) => it.str).join(" ");
 
-  // 課程名
-  const programMatch = fullText.match(/(知能情報メディア|電子情報通信|機械工学・ロボティクス|応用化学|数理・情報科学|生命科学)課程/);
+  // 課程名。一覧の正本は `curricula/admission-<年度>/`（design.md §4.4.2）であり、
+  // 旧称（環境生態工学課程）も拾う
+  const programMatch = fullText.match(PROGRAM_NAME_PATTERN);
   const program = programMatch ? programMatch[0] : null;
 
   // 成績表の年度。ヘッダーでは "2025"(y=24) と "年度"(y=42) が別アイテムで、
