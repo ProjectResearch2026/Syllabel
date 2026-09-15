@@ -45,7 +45,7 @@ curricula/            履修要項(入学年度 × 課程)の YAML。手動転�
 offerings/            開講年度ごとの「科目名 → シラバスコード」
 docs/                 要件定義書・設計書・各種ルール
 ui-ux/                画面デザイン
-docker-compose.yml    DGX Spark 側(backend + vllm)
+docker-compose.yml    DGX Spark 側(vllm のみ。backend は公開 VM に置く。設計§3.2.2)
 ```
 
 `curricula/` と `offerings/` を分けているのは、**入学年度で決まって変わらないデータ(卒業要件・科目区分・設置科目)と、開講年度ごとに変わるデータ(シラバスコード)を混ぜないため**である(設計§4.4.1)。両者は科目名で結合する。
@@ -94,12 +94,19 @@ npm run dev                        # http://localhost:3000/pr-2026
 
 vllm・api-clean を相手にした疎通確認は `backend/scripts/smoke_*.py` を手で実行する(pytest の対象外。設計§12.3)。
 
+接続先は環境変数で与える(上表)。**backend は compose に無い**ため、コンテナ越しに
+実行する場合は公開 VM の rootless Podman を使う(docker は入っていない。設計§3.2)。
+
 ```bash
-docker compose up -d
-docker compose exec backend python -m scripts.smoke_vllm
-docker compose exec backend python -m scripts.smoke_api_clean
-docker compose exec backend python -m scripts.smoke_chat_syllabus <講義コード>
-docker compose exec backend python -m scripts.smoke_proposal
+# 手元で直接動かす(backend/ を cwd に、接続先は環境変数か backend/.env で与える)
+cd backend
+python -m scripts.smoke_vllm
+python -m scripts.smoke_api_clean
+python -m scripts.smoke_chat_syllabus <講義コード>
+python -m scripts.smoke_proposal
+
+# 公開 VM の backend コンテナ内で動かす
+podman exec -it pr2026-backend python -m scripts.smoke_api_clean
 ```
 
 履修提案は1回に4〜5分かかる。応答時間は出力トークン数でほぼ決まる(設計§7.2)。
