@@ -1,103 +1,250 @@
 import { create } from "zustand";
-import type { CurriculaData } from "@/lib/syllabus-api";
+import type { Category, CourseType, CurriculaData } from "@/lib/syllabus-api";
 import { canRegister, type CourseTarget } from "@/lib/eligibility";
 
+/** 区分の絞り込みで「絞らない」を表す値。 */
+export const ALL_CATEGORIES = "すべて";
+/** 履修区分・状態の絞り込みで「絞らない」を表す値。 */
+export const ALL_TAGS = "すべて";
+
+/**
+ * 絞り込みの選択肢。**PC・モバイルで同じものを使うため、ここに1つだけ置く。**
+ *
+ * 履修区分と状態はチップに、区分はセレクトに出す(§8)。チップに7値を並べると
+ * 1行に収まらないため、軸で分けている。
+ */
+export const TAG_CHIPS = [ALL_TAGS, "必修", "選択必修", "選択", "随意", "既修得済み"] as const;
+export const CATEGORY_CHOICES = [
+  ALL_CATEGORIES,
+  "教養教育",
+  "専門基礎",
+  "専門応用",
+  "専門関連",
+] as const;
+
 type SyllabusUIStore = {
+  /** 履修区分または状態での絞り込み(`必修` / `選択必修` / `選択` / `随意` / `既修得済み`) */
   activeTag: string;
   setActiveTag: (tag: string) => void;
+  /** 区分での絞り込み(`教養教育` / `専門基礎` / `専門応用` / `専門関連`) */
+  activeCategory: string;
+  setActiveCategory: (category: string) => void;
 };
 
+/**
+ * 検索画面の絞り込み状態。design.md §8。
+ *
+ * **URL のクエリに持たない。** 区分・履修区分は履修要項と学生プロファイルの突合から
+ * 決まる値であり(§6.1)、api-clean に投げる検索条件ではないため、サーバ側描画の
+ * 入力にはならない。PC・モバイルで同じ状態を共有し、画面遷移をまたいで保つ。
+ */
 export const useSyllabusUIStore = create<SyllabusUIStore>((set) => ({
-  activeTag: "すべて",
+  activeTag: ALL_TAGS,
   setActiveTag: (tag) => set({ activeTag: tag }),
+  activeCategory: ALL_CATEGORIES,
+  setActiveCategory: (category) => set({ activeCategory: category }),
 }));
 
-/** 検索結果のカードに付すタグ。design.md §8。 */
-export type TagType = "必修" | "選択" | "既修得済み" | null;
+/**
+ * 検索結果のカードに付すタグ。design.md §8。
+ *
+ * **3つの軸に分ける。** 卒業要件の枠は (区分 × 履修区分) で決まっており
+ * (`basic.required` = 専門基礎科目 × 必修、`applied.elective` = 専門応用科目 × 選択、…)、
+ * 1つの軸に潰すとその対応が消える。学生が「この科目がどの枠を埋めるのか」を
+ * 読み取れるようにするため、履修要項の構造をそのまま出す。
+ *
+ * | 軸 | 値 |
+ * |---|---|
+ * | 状態 | `既修得済み` |
+ * | 区分 | `教養教育` / `専門基礎` / `専門応用` / `専門関連` |
+ * | 履修区分 | `必修` / `選択必修` / `選択` / `随意` |
+ */
+export type CourseCategoryTag = "教養教育" | "専門基礎" | "専門応用" | "専門関連";
+export type RequirementTag = "必修" | "選択必修" | "選択" | "随意";
+
+/** 履修区分または状態。絞り込みのチップが取る値でもある。 */
+export type TagType = RequirementTag | "既修得済み" | null;
+
+/** 1つのシラバスコードに付すタグ一式。すべて null / false ならタグなし。 */
+export type CourseTags = {
+  /** 単位を修得済みか */
+  completed: boolean;
+  /** 区分 */
+  category: CourseCategoryTag | null;
+  /**
+   * 履修区分。**既修得済みのときと専門関連科目のときは null になる**
+   * (`resolveTags()` の規則を参照)
+   */
+  requirement: RequirementTag | null;
+};
+
+/** タグが1つも無い状態。 */
+export const NO_TAGS: CourseTags = { completed: false, category: null, requirement: null };
+
+/** 履修要項の区分名(`専門基礎科目`)をタグの表記(`専門基礎`)にする。 */
+const CATEGORY_LABEL: Record<Category, CourseCategoryTag> = {
+  教養教育科目: "教養教育",
+  専門基礎科目: "専門基礎",
+  専門応用科目: "専門応用",
+  専門関連科目: "専門関連",
+};
+
+/** タグの候補。`resolveTags()` が履修可否を掛けて最終の `CourseTags` にする。 */
+type TagCandidate = {
+  completed: boolean;
+  category: Category;
+  type: CourseType;
+  own: boolean;
+};
 
 /**
  * 検索結果に付すタグの**候補**を、履修要項（`GET /api/curricula`）と学生プロファイルを
  * 突き合わせて作る。design.md §6.1 / §8。
  *
  * 突合はシラバスコードによる結合を第一とする。1科目に複数のクラスが対応し得る
- * ため `syllabusCodes` は配列であり、そのすべてを同じタグに対応づける。コードを
+ * ため `syllabusCodes` は配列であり、そのすべてを同じ候補に対応づける。コードを
  * 持たない科目（当年度不開講・名寄せ未解決）はタグ付けの対象外となる（§5.1.4）。
  *
  * **ここで出るのは候補であって最終のタグではない。** 履修要項は「科目」の単位で
  * 書かれており、**その学生がその開講クラスを履修できるか**を持たない。可否の判定は
- * シラバス側の対象課程で行い、`resolveTag()` が最後に掛ける（`lib/eligibility.ts`）。
+ * シラバス側の対象課程で行い、`resolveTags()` が最後に掛ける（`lib/eligibility.ts`）。
  *
- * **`own` が false の科目には候補を出さない。** 他課程ファイルから導出した専門関連
- * 科目であり（§4.4.1）、その `type` は**導出元の課程にとっての**区分であって、
- * 閲覧している学生にとっての区分ではない。実際「プログラミング及び実習Ⅱ」
- * (Y001009010) は数理・情報科学課程の専攻科目で、シラバス上の対象課程も同課程のみ
- * だが、知能情報メディア課程の履修要項には専門関連科目として `選択必修` で載る。
- *
- * ただし**既修得済みだけは `own` を問わず付ける**。修得済みかどうかは学生の
- * 成績の事実であり、科目がどの課程の設置かに左右されない。
+ * **同じコードが複数の科目レコードから来たときは先に現れたものを採る。** backend は
+ * マージ後の `courses` を「当該課程の設置科目 → 教養教育科目 → 他課程から導出した
+ * 専門関連科目（課程コード順）」の順で返すため（§4.4.3）、先頭優先は
+ * 「自課程の設置科目を優先し、次いで課程コードの小さい出典を採る」になり、
+ * backend 側の科目索引（`requirements.py` の `_course_index()`）と同じ順序になる。
+ * ただし**修得済みか否かはレコードをまたいで OR で採る**。修得は学生の成績の事実で
+ * あり、どのレコードから見ているかに左右されない。
  */
 export function buildTagMap(
   curricula: CurriculaData,
   passedCodes: Set<string>,
   passedTitles: Set<string>,
-): Map<string, TagType> {
-  const map = new Map<string, TagType>();
-
-  // 同じコードが複数の科目レコードから来ることがあるため、強いタグを優先する
-  const rank = (tag: NonNullable<TagType>) =>
-    tag === "既修得済み" ? 3 : tag === "必修" ? 2 : 1;
-  const put = (code: string, tag: NonNullable<TagType>) => {
-    const current = map.get(code);
-    if (!current || rank(tag) > rank(current)) map.set(code, tag);
-  };
+): Map<string, TagCandidate> {
+  const map = new Map<string, TagCandidate>();
 
   for (const course of curricula.courses) {
     const passedByTitle = passedTitles.has(course.title);
     for (const code of course.syllabusCodes) {
-      if (passedByTitle || passedCodes.has(code)) {
-        put(code, "既修得済み");
-      } else if (!course.own) {
-        // 他課程の設置科目。当該課程の学生にとっての区分ではない
+      const completed = passedByTitle || passedCodes.has(code);
+      const current = map.get(code);
+      if (current) {
+        // 区分・履修区分は先頭優先、修得済みだけは OR
+        if (completed) current.completed = true;
         continue;
-      } else if (course.type === "必修") {
-        put(code, "必修");
-      } else if (course.type === "選択必修" || course.type === "選択") {
-        put(code, "選択");
       }
+      map.set(code, {
+        completed,
+        category: course.category,
+        type: course.type,
+        own: course.own,
+      });
     }
   }
   return map;
 }
 
 /**
- * 候補のタグに履修可否を掛けて、実際に出すタグを決める。design.md §6.1。
+ * 候補に履修可否を掛けて、実際に出すタグを決める。design.md §6.1.3 / §8。
  *
- * **履修できないクラスにはタグを出さない。** 2026年度開講・2024年度入学の
- * 知能情報メディア課程では、検索結果に現れる 430 コードのうち 126 コードが
- * 「履修要項では必修だが、その学生は履修登録できないクラス」であった
- * （クラス指定のある教養教育科目10科目。仏教の思想A/B・英語総合1(A)〜4・
- * スポーツ技術学A/B）。判定の根拠は `lib/eligibility.ts` に書いてある。
+ * **履修できないクラスにはタグを出さない。** 判定の根拠と規則は
+ * `lib/eligibility.ts` に書いてある。
  *
- * 例外が2つある。
+ * | 状況 | 出すタグ |
+ * |---|---|
+ * | 履修不可 | なし |
+ * | 履修可 × 既修得済み | `既修得済み` + 区分 |
+ * | 履修可 × 未修得 × 自課程の設置科目 | 区分 + 履修区分 |
+ * | 履修可 × 未修得 × 他課程の設置科目 | `専門関連` のみ |
+ * | 履修要項に無い | なし |
  *
- * - **既修得済みは可否を問わず出す。** 単位を修得した事実であり、そのクラスを
- *   これから履修できるかとは無関係である
- * - **対象課程が分からないときはタグを出さない。** 一覧は表示中のぶんだけ
- *   シラバス詳細を引いて対象課程を得ており（§6.2）、その取得が失敗したコードでは
- *   可否が判定できない。**履修可否の正本は対象課程である**という原則に従い、
- *   判定できないものについては何も主張しない（可否不明のまま「必修」と出すのは、
- *   まさに今回直した誤りと同じことになる）
+ * 履修区分を出さない場合が2つある。
+ *
+ * - **既修得済みのとき。** 履修区分は「これから履修する必要があるか」を示す情報で
+ *   あり、単位を修得した科目では意味を持たない。バッジも2つに収まる
+ * - **他課程の設置科目（`own` が false）のとき。** その `type` は**導出元の課程に
+ *   とっての**区分であって、閲覧している学生にとっての区分ではない。
+ *   例えば「アルゴリズム及び演習Ⅰ」(Y001019010) は数理・情報科学課程の専攻科目だが
+ *   全6課程に開かれており、知能情報メディア課程の学生も履修できる。この学生に
+ *   とっての区分は**専門関連科目**であり、`related` → `free.faculty` の要件枠に
+ *   計上される（§4.4.3）。導出元での `選択必修` をそのまま出してはならない
+ *
+ * **既修得済みは履修可否を問わず出す。** 単位を修得した事実であり、そのクラスを
+ * これから履修できるかとは無関係である。
+ *
+ * **対象課程が分からないときはタグを出さない。** 一覧は表示中のぶんだけシラバス詳細を
+ * 引いて対象課程を得ており（§6.2）、その取得が失敗したコードでは可否が判定できない。
+ * **履修可否の正本は対象課程である**という原則に従い、判定できないものについては
+ * 何も主張しない。
  *
  * @param target 当該コードの対象課程・対象学部。取得できなければ `undefined`
  * @param programName 学生プロファイルの課程名（`StudentProfile.program`）
  */
-export function resolveTag(
-  candidate: TagType,
+export function resolveTags(
+  candidate: TagCandidate | undefined,
   target: CourseTarget | undefined,
   programName: string | null | undefined,
-): TagType {
-  if (candidate === null) return null;
-  if (candidate === "既修得済み") return candidate;
-  if (!target) return null;
-  return canRegister(target, programName) ? candidate : null;
+): CourseTags {
+  if (!candidate) return NO_TAGS;
+
+  const category = CATEGORY_LABEL[candidate.category] ?? null;
+
+  if (candidate.completed) return { completed: true, category, requirement: null };
+  if (!target || !canRegister(target, programName)) return NO_TAGS;
+  // 他課程の設置科目。この学生にとっての区分は専門関連科目であり、履修区分は持たない
+  if (!candidate.own) return { completed: false, category: "専門関連", requirement: null };
+
+  return { completed: false, category, requirement: candidate.type };
+}
+
+/** タグが1つでも付いているか。 */
+export function hasTags(tags: CourseTags): boolean {
+  return tags.completed || tags.category !== null || tags.requirement !== null;
+}
+
+/**
+ * 絞り込みに一致するか。design.md §8。
+ *
+ * 2つの軸は AND で効く。`既修得済み` は履修区分ではなく状態の軸だが、
+ * 学生の探し方（「もう取った科目を除きたい」）に沿うため同じチップの並びに置く。
+ */
+export function matchesFilter(
+  tags: CourseTags,
+  activeTag: string,
+  activeCategory: string,
+): boolean {
+  if (activeCategory !== ALL_CATEGORIES && tags.category !== activeCategory) return false;
+  if (activeTag === ALL_TAGS) return true;
+  if (activeTag === "既修得済み") return tags.completed;
+  return tags.requirement === activeTag;
+}
+
+/** タグでの絞り込みが効いているか。 */
+export function isFiltering(activeTag: string, activeCategory: string): boolean {
+  return activeTag !== ALL_TAGS || activeCategory !== ALL_CATEGORIES;
+}
+
+/**
+ * タグの絞り込みが**いま表示しているページの中でしか効かない**ことを伝える文。
+ * design.md §8。
+ *
+ * タグは履修要項と学生プロファイルの突合で決まる値であり、api-clean に投げる検索
+ * 条件にはできない(学生データをサーバへ出さない。要件§5)。したがって絞り込みは
+ * 取得済みのページに対してしか効かず、**総ヒット数と表示件数が食い違う**。
+ *
+ * 軸を増やしたことでこの食い違いが目立つようになった。`選択必修` や `随意` は
+ * 該当科目が少なく、キーワード無しの1ページ目では0件になることが多い。
+ * 「該当する科目がありません」だけを出すと、**全体に1件も無いかのように読めてしまう**
+ * ため、範囲を明示する。
+ *
+ * **文言をここに置くのは、一覧(PC)とモバイルで揃えるためである。**
+ *
+ * @param shown このページで取得した件数
+ * @param matched 絞り込みに一致した件数
+ */
+export function filterScopeNote(shown: number, matched: number): string {
+  return matched === 0
+    ? `いま表示している${shown}件の中に該当する科目はありません。キーワードや曜日で範囲を変えると見つかることがあります`
+    : `いま表示している${shown}件のうち${matched}件`;
 }

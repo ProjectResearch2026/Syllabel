@@ -2,20 +2,20 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useStudentStore } from "@/lib/student";
-import { buildTagMap, resolveTag, type TagType } from "@/lib/syllabusUI";
+import { buildTagMap, resolveTags, NO_TAGS, type CourseTags } from "@/lib/syllabusUI";
 import { getAdmissionYear, programCodeOf } from "@/lib/programs";
 import { fetchCurricula, type CurriculaData } from "@/lib/syllabus-api";
 import type { CourseTarget } from "@/lib/eligibility";
 
-/** `syllabus_code` と対象課程から、その学生にとってのタグを決める関数。 */
-export type TagResolver = (code: string, target: CourseTarget | undefined) => TagType;
+/** `syllabus_code` と対象課程から、その学生にとってのタグ一式を決める関数。 */
+export type TagResolver = (code: string, target: CourseTarget | undefined) => CourseTags;
 
 /**
- * タグ(必修 / 選択 / 既修得済み)を決める関数を返す。design.md §6.1。
+ * タグ(状態 / 区分 / 履修区分の3軸)を決める関数を返す。design.md §6.1 / §8。
  *
  * タグは2つの突合でできている。
  *
- * 1. **履修要項との突合** — `syllabus_code` → 必修 / 選択 / 既修得済みの候補。
+ * 1. **履修要項との突合** — `syllabus_code` → 区分・履修区分・修得済みかの候補。
  *    学生プロファイル(`student.ts`)と `GET /api/curricula` から作る
  * 2. **履修可否の判定** — シラバス側の対象課程で、その学生がそのクラスを
  *    履修登録できるかを判定し、できないものは候補を落とす
@@ -25,7 +25,7 @@ export type TagResolver = (code: string, target: CourseTarget | undefined) => Ta
  * 一覧(PC・モバイル)と講義詳細で同じ結果でなければならない(§8.1)のと同じ理由で、
  * 判定はここに1つだけ置く。
  *
- * プロファイルが無い・履修要項が引けない場合は常に null を返し、呼び出し側は
+ * プロファイルが無い・履修要項が引けない場合は常に `NO_TAGS` を返し、呼び出し側は
  * タグ無しで描く。
  */
 export function useTagMap(): TagResolver {
@@ -59,7 +59,7 @@ export function useTagMap(): TagResolver {
   const curricula = loaded && loaded.key === key ? loaded.data : null;
 
   const candidates = useMemo(() => {
-    if (!curricula) return new Map<string, TagType>();
+    if (!curricula) return null;
     const completed = profile?.completedCourses ?? [];
     const passedCodes = new Set(
       completed.filter((c) => c.status === "passed" && c.code).map((c) => c.code as string),
@@ -73,7 +73,8 @@ export function useTagMap(): TagResolver {
   const programName = profile?.program ?? null;
 
   return useCallback(
-    (code, target) => resolveTag(candidates.get(code) ?? null, target, programName),
+    (code, target) =>
+      candidates ? resolveTags(candidates.get(code), target, programName) : NO_TAGS,
     [candidates, programName],
   );
 }
