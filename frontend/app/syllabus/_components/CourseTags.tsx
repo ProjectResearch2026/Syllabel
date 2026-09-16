@@ -47,7 +47,7 @@ export default function CourseTags({
 
   return (
     <>
-      {tags.completed && <span className={`${base} ${COMPLETED_STYLE}`}>既修得済み</span>}
+      {tags.completed && <span className={`${base} ${COMPLETED_STYLE}`}>修得済み</span>}
       {tags.category && <span className={`${base} ${CATEGORY_STYLE}`}>{tags.category}</span>}
       {tags.requirement && (
         <span className={`${base} ${REQUIREMENT_STYLES[tags.requirement]}`}>
