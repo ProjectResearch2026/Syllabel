@@ -3,7 +3,7 @@ import { ArrowUpDown } from "lucide-react";
 import {
   searchCourses,
   getMasters,
-  fetchInstructorMap,
+  fetchCardMetaMap,
   OFFERING_YEAR,
   FACULTY,
 } from "@/lib/syllabus-api";
@@ -39,8 +39,9 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
     getMasters(),
   ]);
 
-  // 一覧には担当教員が入っていないため、このページ分だけ詳細から補う(§6.2)
-  const instructors = await fetchInstructorMap(data.results.map((c) => c.syllabus_code));
+  // 一覧には担当教員も対象課程も入っていないため、このページ分だけ詳細から補う。
+  // 教員名の表示(§6.2)とタグの履修可否判定(§6.1)が同じ取得を使う
+  const cardMeta = await fetchCardMetaMap(data.results.map((c) => c.syllabus_code));
 
   return (
     <div className="flex flex-col flex-1 min-w-0">
@@ -54,7 +55,7 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
             offset={offset}
             masters={masters}
             matchedBy={data.matchedBy}
-            instructors={instructors}
+            cardMeta={cardMeta}
           />
         </Suspense>
       </div>
@@ -108,7 +109,7 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
           </div>
 
           {/* Card grid (タグフィルタリングはクライアント側で処理) */}
-          <SyllabusTagList results={data.results} instructors={instructors} />
+          <SyllabusTagList results={data.results} cardMeta={cardMeta} />
 
           <Suspense>
             <SyllabusPagination
