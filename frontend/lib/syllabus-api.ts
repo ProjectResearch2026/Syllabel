@@ -296,6 +296,9 @@ async function mapWithLimit<T, R>(
  * 引き直しは**空振りしたときだけ**行う。姓のみ(`山田`)や全角区切りの
  * フルネーム(`山田　太郎`)は入力どおりの1回で当たるため、そちらは従来どおり
  * リクエスト1回で済む。
+ *
+ * **引き直しのどれかが失敗したら例外をそのまま投げる。** 取れた分だけ返すと、
+ * 当たるはずだった語が落ちたときに「見つからない」という誤った答えになる。
  */
 async function fetchAllByInstructor(
   rest: Omit<SearchParams, "q" | "instructor" | "limit" | "offset">,

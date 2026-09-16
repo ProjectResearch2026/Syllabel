@@ -1,7 +1,10 @@
+import asyncio
 from functools import lru_cache
+from typing import Any
 
 import httpx
 
+from app.agents.instructor_name import instructor_queries
 from app.settings import get_settings
 
 
@@ -91,6 +94,71 @@ async def search_syllabi(
     resp = await _get_client().get("/syllabi", params=params)
     resp.raise_for_status()
     return resp.json()
+
+
+#: 表記の揺れを埋めるために引き直す教員名の、同時実行数。
+#: 経路にトークンゲートウェイが挟まるため同時リクエストは控えめにする(§3.4.3)。
+_INSTRUCTOR_QUERY_CONCURRENCY = 3
+
+
+async def search_syllabi_by_instructor(instructor: str, **params: Any) -> dict:
+    """教員名でシラバスを検索する。表記の揺れを埋めて引き直す。design.md §6.1 / §6.2。
+
+    **api-clean の `instructor` は登録された表記のままの部分一致であり、姓名の
+    区切りの揺れを吸収しない。** 教員名は全角スペース区切りで登録されているため、
+    `search_syllabi(instructor=...)` をそのまま使うと「山田 太郎」(半角)も
+    「山田太郎」(区切りなし)も0件になる。入力どおりの語で空振りしたときは、
+    区切りを書き換えた語で引き直して束ねる(`app/agents/instructor_name.py`)。
+
+    引き直しは**空振りしたときだけ**行う。姓のみ(`山田`)や全角区切りの
+    フルネーム(`山田　太郎`)は入力どおりの1回で当たるため、リクエストは
+    従来と同じ1回で済む。
+
+    **引き直しのどれかが失敗したら例外をそのまま送出する。** 取れた分だけ返すと、
+    当たるはずだった語が落ちたときに「見つからない」という誤った答えになる。
+
+    Args:
+        instructor: 担当教員名。空白だけのときは教員名の条件なしで引く
+        **params: `search_syllabi()` に渡すその他の条件(`instructor` 以外)
+
+    Returns:
+        `search_syllabi()` と同じ形。引き直したときは `results` を
+        シラバスコードで畳んだうえで、`count` をその件数に直して返す
+        (api-clean の `count` は総ヒット数ではなくそのページの件数である)。
+    """
+    queries = instructor_queries(instructor)
+    if not queries:
+        return await search_syllabi(**params)
+
+    first = await search_syllabi(instructor=queries[0], **params)
+    if first.get("results") or len(queries) == 1:
+        return first
+
+    semaphore = asyncio.Semaphore(_INSTRUCTOR_QUERY_CONCURRENCY)
+
+    async def fetch(query: str) -> dict:
+        async with semaphore:
+            return await search_syllabi(instructor=query, **params)
+
+    rounds = await asyncio.gather(*(fetch(query) for query in queries[1:]))
+
+    # 書き換えた語は同じ教員に当たり得る(登録表記が科目ごとに違う場合)ため畳む
+    merged: list[dict] = []
+    seen: set[str] = set()
+    for payload in rounds:
+        for row in payload.get("results") or []:
+            code = row.get("syllabus_code")
+            if code is not None:
+                if code in seen:
+                    continue
+                seen.add(code)
+            merged.append(row)
+
+    # 束ねた結果が `limit` を超えないようにする(引き直しは語の数だけ結果を増やす)
+    limit = params.get("limit")
+    if limit is not None:
+        merged = merged[:limit]
+    return {**first, "count": len(merged), "results": merged}
 
 
 async def get_syllabus(code: str) -> dict:

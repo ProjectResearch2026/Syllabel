@@ -3,7 +3,12 @@ import pytest
 import httpx
 
 from app.agents import tools as tools_module
-from app.agents.tools import search_syllabi, get_syllabus, get_masters
+from app.agents.tools import (
+    search_syllabi,
+    search_syllabi_by_instructor,
+    get_syllabus,
+    get_masters,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -106,6 +111,155 @@ async def test_search_syllabi_none_params_omitted(monkeypatch):
     assert "q" in captured["params"]
     assert "program" not in captured["params"]
     assert "campus" not in captured["params"]
+
+
+# ---------------------------------------------------------------------------
+# search_syllabi_by_instructor — 教員名の表記ゆれ(design.md §6.1 / §6.2)
+# ---------------------------------------------------------------------------
+
+FULL_WIDTH = "\u3000"
+
+#: 教員名が全角スペース区切りでのみ登録されている api-clean を模したデータ
+_ROWS = [
+    {"syllabus_code": "A1", "instructor": f"山田{FULL_WIDTH}太郎"},
+    {"syllabus_code": "A2", "instructor": f"山田{FULL_WIDTH}太郎"},
+    {"syllabus_code": "B1", "instructor": f"山田{FULL_WIDTH}花子"},
+]
+
+
+def _instructor_handler(captured: list):
+    """`instructor` の部分一致だけを効かせるハンドラ。引いた語を captured に積む。"""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        params = dict(request.url.params)
+        instructor = params.get("instructor")
+        captured.append(instructor)
+        rows = [r for r in _ROWS if instructor and instructor in r["instructor"]]
+        limit = int(params["limit"]) if "limit" in params else None
+        return httpx.Response(
+            200,
+            json={"count": len(rows), "limit": limit or 20, "offset": 0, "results": rows[:limit]},
+        )
+
+    return handler
+
+
+@pytest.mark.asyncio
+async def test_by_instructor_full_width_hits_in_one_request(monkeypatch):
+    """全角区切りのフルネームは1リクエストで当たる(従来と同じコスト)。"""
+    captured: list = []
+    _patch_client(monkeypatch, _instructor_handler(captured))
+
+    result = await search_syllabi_by_instructor(f"山田{FULL_WIDTH}太郎")
+
+    assert [r["syllabus_code"] for r in result["results"]] == ["A1", "A2"]
+    assert captured == [f"山田{FULL_WIDTH}太郎"]
+
+
+@pytest.mark.asyncio
+async def test_by_instructor_half_width_space(monkeypatch):
+    """半角スペースのフルネームでも当たる(全角へ書き換えて引き直す)。"""
+    captured: list = []
+    _patch_client(monkeypatch, _instructor_handler(captured))
+
+    result = await search_syllabi_by_instructor("山田 太郎")
+
+    assert [r["syllabus_code"] for r in result["results"]] == ["A1", "A2"]
+    assert result["count"] == 2
+    assert captured[0] == "山田 太郎"  # まず入力どおりで引く
+    assert f"山田{FULL_WIDTH}太郎" in captured
+
+
+@pytest.mark.asyncio
+async def test_by_instructor_without_space(monkeypatch):
+    """区切りなしのフルネームでも当たる(区切りを入れる位置を試す)。"""
+    captured: list = []
+    _patch_client(monkeypatch, _instructor_handler(captured))
+
+    result = await search_syllabi_by_instructor("山田太郎")
+
+    assert [r["syllabus_code"] for r in result["results"]] == ["A1", "A2"]
+    assert f"山田{FULL_WIDTH}太郎" in captured
+
+
+@pytest.mark.asyncio
+async def test_by_instructor_surname_only_hits_in_one_request(monkeypatch):
+    """姓のみは部分一致で当たるため、引き直さない。"""
+    captured: list = []
+    _patch_client(monkeypatch, _instructor_handler(captured))
+
+    result = await search_syllabi_by_instructor("山田")
+
+    assert [r["syllabus_code"] for r in result["results"]] == ["A1", "A2", "B1"]
+    assert captured == ["山田"]
+
+
+@pytest.mark.asyncio
+async def test_by_instructor_passes_other_conditions(monkeypatch):
+    """`instructor` 以外の条件はそのまま api-clean へ渡る。"""
+    captured = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["params"] = dict(request.url.params)
+        return httpx.Response(200, json={"count": 0, "limit": 10, "offset": 0, "results": []})
+
+    _patch_client(monkeypatch, handler)
+    await search_syllabi_by_instructor("山田", faculty="先端理工学部", year=2026, limit=10)
+
+    assert captured["params"]["faculty"] == "先端理工学部"
+    assert captured["params"]["year"] == "2026"
+    assert captured["params"]["limit"] == "10"
+
+
+@pytest.mark.asyncio
+async def test_by_instructor_merged_result_respects_limit(monkeypatch):
+    """束ねた結果が `limit` を超えない(引き直しは語の数だけ結果を増やす)。"""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        params = dict(request.url.params)
+        # 入力どおりの語だけ空振りし、書き換えた語はすべて当たる
+        rows = [] if params.get("instructor") == "山田太郎" else _ROWS
+        limit = int(params["limit"])
+        return httpx.Response(
+            200, json={"count": len(rows), "limit": limit, "offset": 0, "results": rows[:limit]}
+        )
+
+    _patch_client(monkeypatch, handler)
+    result = await search_syllabi_by_instructor("山田太郎", limit=2)
+
+    assert len(result["results"]) == 2
+    assert result["count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_by_instructor_dedupes_by_code(monkeypatch):
+    """書き換えた語が同じ科目に当たっても重複させない。"""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        params = dict(request.url.params)
+        rows = [] if params.get("instructor") == "山田太郎" else _ROWS[:2]
+        return httpx.Response(200, json={"count": len(rows), "limit": 20, "offset": 0, "results": rows})
+
+    _patch_client(monkeypatch, handler)
+    result = await search_syllabi_by_instructor("山田太郎")
+
+    assert [r["syllabus_code"] for r in result["results"]] == ["A1", "A2"]
+
+
+@pytest.mark.asyncio
+async def test_by_instructor_blank_drops_the_condition(monkeypatch):
+    """空白だけの教員名は条件にしない(空文字で絞り込まない)。"""
+    captured = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["params"] = dict(request.url.params)
+        return httpx.Response(200, json={"count": 0, "limit": 20, "offset": 0, "results": []})
+
+    _patch_client(monkeypatch, handler)
+    await search_syllabi_by_instructor("   ", q="情報")
+
+    assert "instructor" not in captured["params"]
+    assert captured["params"]["q"] == "情報"
 
 
 # ---------------------------------------------------------------------------
