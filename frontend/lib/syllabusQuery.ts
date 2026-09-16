@@ -11,7 +11,7 @@
 /** 一覧の絞り込みを表すクエリキー。`back` で往復させる対象でもある。 */
 export const LIST_QUERY_KEYS = [
   "q",
-  "faculty",
+  "program",
   "campus",
   "term",
   "day",

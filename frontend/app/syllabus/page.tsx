@@ -1,6 +1,12 @@
 import { Suspense } from "react";
 import { ArrowUpDown } from "lucide-react";
-import { searchCourses, getMasters, fetchInstructorMap, OFFERING_YEAR } from "@/lib/syllabus-api";
+import {
+  searchCourses,
+  getMasters,
+  fetchInstructorMap,
+  OFFERING_YEAR,
+  FACULTY,
+} from "@/lib/syllabus-api";
 import SyllabusTagList from "./_components/SyllabusTagList";
 import SyllabusTopBar from "./_components/SyllabusTopBar";
 import SyllabusFilters from "./_components/SyllabusFilters";
@@ -17,18 +23,19 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
 
   // 検索ボックスは科目名と教員名を1つの入力で受ける(§6.1)
   const keyword = typeof sp.q === "string" ? sp.q : undefined;
-  const faculty = typeof sp.faculty === "string" ? sp.faculty : undefined;
+  const program = typeof sp.program === "string" ? sp.program : undefined;
   const campus = typeof sp.campus === "string" ? sp.campus : undefined;
   const term = typeof sp.term === "string" ? sp.term : undefined;
   const day = typeof sp.day === "string" ? sp.day : undefined;
   // 時間割の空きコマ長押しメニューから「この時間に入る科目を探す」で渡ってくる
   const period = typeof sp.period === "string" ? parseInt(sp.period, 10) : undefined;
   const offset = typeof sp.offset === "string" ? parseInt(sp.offset, 10) : 0;
-  // 開講年度は `OFFERING_YEAR` に固定する。URL に `year` が付いていても見ない
+  // 開講年度と学部は固定する。URL に `year` / `faculty` が付いていても見ない
   const year = OFFERING_YEAR;
+  const faculty = FACULTY;
 
   const [data, masters] = await Promise.all([
-    searchCourses({ keyword, faculty, campus, term, day, period, year, limit: LIMIT, offset }),
+    searchCourses({ keyword, faculty, program, campus, term, day, period, year, limit: LIMIT, offset }),
     getMasters(),
   ]);
 
