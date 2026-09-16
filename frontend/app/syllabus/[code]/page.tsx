@@ -109,7 +109,10 @@ export default async function SyllabusDetailPage({
                 {syllabus.syllabus_code}
               </span>
               <span className="text-[11px] font-semibold text-fg-muted">{syllabus.year}年度</span>
-              <CourseTag code={syllabus.syllabus_code} />
+              <CourseTag
+                code={syllabus.syllabus_code}
+                target={{ programs: syllabus.programs, faculties: syllabus.faculties }}
+              />
               {/* 抽選かオープンかは履修できるかどうかそのもの(§8.1) */}
               {registration.map((flag) => (
                 <span

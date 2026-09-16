@@ -27,7 +27,7 @@ from app.agents.proposal_agent import (
     select_candidates,
 )
 from app.curricula.loader import LoadedCurriculum
-from app.curricula.merge import merge
+from app.curricula.merge import MergedCurriculum, merge
 from app.schemas.curriculum import Curriculum, LiberalArtsCurriculum
 from app.schemas.offering import Offering
 from app.schemas.proposal import TimetableProposal
@@ -662,6 +662,202 @@ def test_attach_offerings_limits_classes_per_course():
 
 
 # ---------------------------------------------------------------------------
+# 4b. 履修可否(§6.1)
+# ---------------------------------------------------------------------------
+
+
+def _merged_with_aliases(aliases: list[str]) -> MergedCurriculum:
+    """`program.name_aliases` を持つマージ済み履修要項。改称の吸収を確かめる用。"""
+    raw = _program("01").model_dump()
+    raw["program"]["name_aliases"] = aliases
+    program = Curriculum.model_validate(raw)
+    others = [program, _other_program("02"), _other_program("03")]
+    return merge(program, _liberal_arts(), others)
+
+
+def _fake_search_by_program(by_program: dict[str | None, list[str]], calls: list[dict]):
+    """`program` ごとにコード一覧を返す `search_syllabi` の差し替え。
+
+    api-clean の `program` は完全一致であり、対象課程を持たないシラバスは
+    絞り込みから落ちる。その振る舞いを、辞書に無い課程名を空で返すことで模す。
+    """
+
+    async def fake_search_syllabi(**kwargs):
+        calls.append(kwargs)
+        codes = by_program.get(kwargs.get("program"), [])
+        rows = [_row(c) for c in codes] if kwargs["offset"] == 0 else []
+        return {
+            "count": len(rows),
+            "limit": kwargs["limit"],
+            "offset": kwargs["offset"],
+            "results": rows,
+        }
+
+    return fake_search_syllabi
+
+
+def _fake_masters(names: list[str]):
+    async def fake_get_masters():
+        return {"course_program": [{"id": i, "name": n} for i, n in enumerate(names, 1)]}
+
+    return fake_get_masters
+
+
+def test_eligibility_allows_own_program():
+    """対象課程に学生の課程が入っていれば履修可。"""
+    e = pa.Eligibility(mine=frozenset({"A1"}), any_program=frozenset({"A1", "B1"}))
+    assert e.allows("A1") is True
+
+
+def test_eligibility_rejects_other_program_only():
+    """他課程だけが対象のクラスは履修不可。"""
+    e = pa.Eligibility(mine=frozenset({"A1"}), any_program=frozenset({"A1", "B1"}))
+    assert e.allows("B1") is False
+
+
+def test_eligibility_allows_course_without_program():
+    """どの課程の結果にも現れないコードは課程指定なし。学部の科目として履修可。"""
+    e = pa.Eligibility(mine=frozenset({"A1"}), any_program=frozenset({"A1", "B1"}))
+    assert e.allows("G1") is True
+
+
+@pytest.mark.asyncio
+async def test_fetch_eligibility_splits_mine_and_any_program(monkeypatch):
+    """課程ごとに引いた結果から、自課程の集合と全課程の集合を作る(§6.1)。"""
+    calls: list[dict] = []
+    monkeypatch.setattr(
+        pa,
+        "search_syllabi",
+        _fake_search_by_program(
+            {"テスト課程01": ["A1", "S1"], "テスト課程02": ["B1", "S1"]}, calls
+        ),
+    )
+    monkeypatch.setattr(pa, "get_masters", _fake_masters(["テスト課程01", "テスト課程02"]))
+
+    e = await pa.fetch_eligibility(_loaded().curriculum, year=OFFERING_YEAR)
+
+    assert e.mine == frozenset({"A1", "S1"})
+    assert e.any_program == frozenset({"A1", "B1", "S1"})
+    assert e.allows("A1") is True      # 自課程
+    assert e.allows("S1") is True      # 複数課程が対象(自課程を含む)
+    assert e.allows("B1") is False     # 他課程のみ
+    assert e.allows("G1") is True      # 課程指定なし
+    assert {c["year"] for c in calls} == {OFFERING_YEAR}
+
+
+@pytest.mark.asyncio
+async def test_fetch_eligibility_treats_renamed_program_as_own(monkeypatch):
+    """改称後の課程名も自課程として扱う(§4.4.2)。
+
+    課程コード `06` は入学年度で名称が異なり(環境生態工学課程 / 環境科学課程)、
+    api-clean は両方を別々の課程として持つ。片方だけで比べると取り違える。
+    """
+    calls: list[dict] = []
+    monkeypatch.setattr(
+        pa,
+        "search_syllabi",
+        _fake_search_by_program({"旧テスト課程01": ["A1"], "テスト課程02": ["B1"]}, calls),
+    )
+    monkeypatch.setattr(pa, "get_masters", _fake_masters(["旧テスト課程01", "テスト課程02"]))
+
+    e = await pa.fetch_eligibility(_merged_with_aliases(["旧テスト課程01"]), year=OFFERING_YEAR)
+
+    assert e.mine == frozenset({"A1"})
+    assert e.allows("A1") is True
+
+
+@pytest.mark.asyncio
+async def test_fetch_eligibility_falls_back_when_masters_unavailable(monkeypatch):
+    """課程一覧が引けないときは自課程だけで判定し、候補を絞りすぎない。"""
+    calls: list[dict] = []
+    monkeypatch.setattr(
+        pa, "search_syllabi", _fake_search_by_program({"テスト課程01": ["A1"]}, calls)
+    )
+
+    async def boom():
+        raise RuntimeError("api-clean に届かない")
+
+    monkeypatch.setattr(pa, "get_masters", boom)
+
+    e = await pa.fetch_eligibility(_loaded().curriculum, year=OFFERING_YEAR)
+
+    # 自課程のコードは履修可。他は「課程指定なし」と同じ扱いになり落とさない
+    assert e.mine == frozenset({"A1"})
+    assert e.any_program == frozenset({"A1"})
+    assert e.allows("A1") is True
+    assert e.allows("B1") is True
+
+
+def test_attach_offerings_drops_ineligible_classes():
+    """履修登録できないクラスは候補から落とす(§6.1)。"""
+    index = {
+        "A000000001": _offered("A000000001", day="月", period=1),
+        "A000000002": _offered("A000000002", day="火", period=2),
+    }
+    candidate = Candidate(
+        course=_loaded().curriculum.courses[0], codes=("A000000001", "A000000002")
+    )
+    eligibility = pa.Eligibility(
+        mine=frozenset({"A000000002"}), any_program=frozenset({"A000000001", "A000000002"})
+    )
+
+    attached = attach_offerings([candidate], index, eligibility=eligibility)
+
+    assert [c.syllabus_code for c in attached[0].classes] == ["A000000002"]
+
+
+def test_attach_offerings_filters_before_capping_class_count():
+    """**上限で切る前に**履修可否で落とす(§6.1)。
+
+    これが逆だと、他課程指定のクラスが早い時限に並ぶ科目(「英語総合1(A)」は
+    火2が他課程・火3が知能情報メディア課程)で履修できるクラスが1つも残らない。
+    実データでも4科目がこの状態になっていた。
+    """
+    index = {
+        "OTHER00001": _offered("OTHER00001", day="火", period=2),
+        "OTHER00002": _offered("OTHER00002", day="火", period=2),
+        "MINE000001": _offered("MINE000001", day="火", period=3),
+    }
+    candidate = Candidate(
+        course=_loaded().curriculum.courses[0],
+        codes=("OTHER00001", "OTHER00002", "MINE000001"),
+    )
+    eligibility = pa.Eligibility(
+        mine=frozenset({"MINE000001"}), any_program=frozenset(index)
+    )
+
+    attached = attach_offerings(
+        [candidate], index, eligibility=eligibility, max_classes_per_course=2
+    )
+
+    assert [c.syllabus_code for c in attached[0].classes] == ["MINE000001"]
+    # 絞り込みの母数も履修できるクラスだけで数える
+    assert attached[0].matched == 1
+
+
+def test_attach_offerings_keeps_classes_without_program():
+    """課程指定なしのクラスは残す(全学向けの教養教育科目・学部名義のクラス)。"""
+    index = {"G000000001": _offered("G000000001")}
+    candidate = Candidate(course=_loaded().curriculum.courses[0], codes=("G000000001",))
+    eligibility = pa.Eligibility(mine=frozenset(), any_program=frozenset({"Y000000009"}))
+
+    attached = attach_offerings([candidate], index, eligibility=eligibility)
+
+    assert [c.syllabus_code for c in attached[0].classes] == ["G000000001"]
+
+
+def test_attach_offerings_drops_course_with_no_eligible_class():
+    """履修できるクラスが1つも無い科目は候補から外す。"""
+    index = {"OTHER00001": _offered("OTHER00001")}
+    candidate = Candidate(course=_loaded().curriculum.courses[0], codes=("OTHER00001",))
+    eligibility = pa.Eligibility(
+        mine=frozenset(), any_program=frozenset({"OTHER00001"})
+    )
+
+    assert attach_offerings([candidate], index, eligibility=eligibility) == []
+
+
+# ---------------------------------------------------------------------------
 # 5. プロンプトの組み立て(§7.2)
 # ---------------------------------------------------------------------------
 
@@ -806,7 +1002,31 @@ async def test_build_proposal_prompt_end_to_end(monkeypatch, loaded_curricula):
     calls: list[dict] = []
     codes = ("G000000001", "G000000003", "Y000000001", "Y000000002")
     rows = [_row(code) for code in codes]
-    monkeypatch.setattr(pa, "search_syllabi", _fake_search([rows], calls))
+
+    # 開講情報の一括取得(`program` なし)と、履修可否の課程別取得(`program` あり)の
+    # 両方をこの1つで受ける。`Y000000005` は課程 02 だけが対象=履修できないクラス
+    async def fake_search_syllabi(**kwargs):
+        calls.append(kwargs)
+        if kwargs["offset"] > 0:
+            return {"count": 0, "limit": kwargs["limit"], "offset": kwargs["offset"], "results": []}
+        program = kwargs.get("program")
+        if program is None:
+            picked = [*rows, _row("Y000000005")]
+        elif program == "テスト課程01":
+            picked = [_row(c) for c in codes if c.startswith("Y")]
+        elif program == "テスト課程02":
+            picked = [_row("Y000000005")]
+        else:
+            picked = []
+        return {
+            "count": len(picked),
+            "limit": kwargs["limit"],
+            "offset": kwargs["offset"],
+            "results": picked,
+        }
+
+    monkeypatch.setattr(pa, "search_syllabi", fake_search_syllabi)
+    monkeypatch.setattr(pa, "get_masters", _fake_masters(["テスト課程01", "テスト課程02"]))
 
     prompt = await build_proposal_prompt(
         _profile(completed_courses=[_passed("微分積分")]),
@@ -825,9 +1045,14 @@ async def test_build_proposal_prompt_end_to_end(monkeypatch, loaded_curricula):
     # 修得済みの科目は候補に出さず、開講情報の引けた候補だけが並ぶ
     assert "[Y000000002] 線形代数" in prompt
     assert "[Y000000001] 微分積分" not in prompt
+    # 課程指定なしの教養教育科目は残る(履修可否の判定で落とさない)
+    assert "[G000000003] 哲学" in prompt
+    # 他課程だけが対象のクラスはプロンプトに載らない(§6.1)
+    assert "Y000000005" not in prompt
     # api-clean は年度を指定して一括で引く(1件ずつ引かない)
-    assert calls[0]["year"] == OFFERING_YEAR
-    assert len(calls) == 1
+    assert all(c["year"] == OFFERING_YEAR for c in calls)
+    # 開講情報を1本、履修可否を課程ごとに1本ずつ。候補のコード数には依らない
+    assert [c.get("program") for c in calls] == [None, "テスト課程01", "テスト課程02"]
 
 
 @pytest.mark.asyncio

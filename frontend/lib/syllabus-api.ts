@@ -378,7 +378,17 @@ const RETRY_DELAY_MS = 200;
 /** 補完に使う詳細のキャッシュ期間(秒)。シラバスは年度内で変わらない */
 const DETAIL_REVALIDATE_SECONDS = 86400;
 
-async function fetchInstructorsOf(code: string, retry = true): Promise<string | null> {
+/** 一覧のカード1枚に、一覧APIだけでは足りない値を補ったもの。 */
+export type CardMeta = {
+  /** 担当教員名を「、」で連ねたもの。取れなければ null */
+  instructors: string | null;
+  /** 対象課程。履修可否の判定に使う(`lib/eligibility.ts`) */
+  programs: string[];
+  /** 対象学部。`programs` が空のときの拠りどころ */
+  faculties: string[];
+};
+
+async function fetchCardMetaOf(code: string, retry = true): Promise<CardMeta | null> {
   try {
     const res = await fetch(`${apiBase()}/syllabi/${encodeURIComponent(code)}`, {
       // 補完のための取得。`getSyllabus()` と違い再検証つきでキャッシュする
@@ -387,38 +397,48 @@ async function fetchInstructorsOf(code: string, retry = true): Promise<string | 
     if (!res.ok) {
       if (retry && (res.status === 503 || res.status === 429)) {
         await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
-        return fetchInstructorsOf(code, false);
+        return fetchCardMetaOf(code, false);
       }
       return null;
     }
-    const detail = (await res.json()) as Pick<SyllabusDetail, "instructors">;
-    return formatInstructors(detail.instructors);
+    const detail = (await res.json()) as Pick<
+      SyllabusDetail,
+      "instructors" | "programs" | "faculties"
+    >;
+    return {
+      instructors: formatInstructors(detail.instructors),
+      programs: detail.programs ?? [],
+      faculties: detail.faculties ?? [],
+    };
   } catch {
-    // 1件の失敗で一覧を落とさない。その科目だけ教員名なしになる
+    // 1件の失敗で一覧を落とさない。その科目だけ教員名なし・可否不明になる
     return null;
   }
 }
 
 /**
- * 検索結果に担当教員名を補う。`syllabus_code` → 教員名の対応を返す。
+ * 検索結果に、一覧APIが返さない値を補う。`syllabus_code` → `CardMeta` の対応を返す。
  *
- * **api-clean の `GET /syllabi` は担当教員を返さない。** 1科目に複数の教員が
- * 対応するため一覧の `SELECT DISTINCT` から外されており、教員名は
- * `GET /syllabi/{code}` にしかない。api-clean は無変更で使う前提(§1.1.1、
- * §3.4.4)で一覧に足す口も無いため、**表示中のページ分だけ詳細を引いて補う**。
+ * **api-clean の `GET /syllabi` は担当教員も対象課程も返さない。** どちらも1科目に
+ * 複数が対応するため一覧の `SELECT DISTINCT` から外されており、
+ * `GET /syllabi/{code}` にしかない。api-clean は無変更で使う前提(§1.1.1、§3.4.4)で
+ * 一覧に足す口も無いため、**表示中のページ分だけ詳細を引いて補う**。
+ *
+ * 担当教員(§6.2)と対象課程(§6.1 のタグ付け)は**同じ詳細レスポンスから採れる**ため、
+ * 1回の取得にまとめる。タグの履修可否判定を足すために増えるリクエストは無い。
  *
  * サーバ側描画から呼ぶこと。ブラウザから30本投げるためのものではない。
  */
-export async function fetchInstructorMap(codes: string[]): Promise<Record<string, string>> {
+export async function fetchCardMetaMap(codes: string[]): Promise<Record<string, CardMeta>> {
   const targets = Array.from(new Set(codes));
-  const map: Record<string, string> = {};
+  const map: Record<string, CardMeta> = {};
   let cursor = 0;
 
   const worker = async () => {
     while (cursor < targets.length) {
       const code = targets[cursor++];
-      const names = await fetchInstructorsOf(code);
-      if (names) map[code] = names;
+      const meta = await fetchCardMetaOf(code);
+      if (meta) map[code] = meta;
     }
   };
 

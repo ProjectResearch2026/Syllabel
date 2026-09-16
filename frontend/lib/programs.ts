@@ -46,6 +46,28 @@ export function programCodeOf(name: string | null | undefined): string | null {
 }
 
 /**
+ * 2つの課程名が同じ課程を指すか。**課程名の比較は必ずこれを通す。**
+ *
+ * コード `06` は入学年度で改称されており(2024年度入学: 環境生態工学課程、
+ * 2025年度入学: 環境科学課程)、api-clean はその**両方を別々の課程として持つ**。
+ * 実データでも、全課程に開かれた科目の対象課程には
+ * `環境生態工学課程` と `環境科学課程` が並んで入る。したがって文字列の一致で
+ * 比べると、同じ課程を別物と見なして履修可否を取り違える(§4.4.2)。
+ *
+ * 未知の名称どうしは、コードに解決できないため原文の一致で判定する。
+ */
+export function isSameProgram(
+  a: string | null | undefined,
+  b: string | null | undefined,
+): boolean {
+  if (!a || !b) return false;
+  const codeA = programCodeOf(a);
+  const codeB = programCodeOf(b);
+  if (codeA && codeB) return codeA === codeB;
+  return a === b;
+}
+
+/**
  * 学年から入学年度を求める。年度は4月に切り替わる。
  *
  * 履修要項を引くキーのもう一方(§4.4.2)だが、プロファイルには入学年度が無い

@@ -12,7 +12,7 @@ import {
   User,
   Timer,
 } from "lucide-react";
-import type { SyllabusListItem, Masters, MatchedBy } from "@/lib/syllabus-api";
+import type { SyllabusListItem, Masters, MatchedBy, CardMeta } from "@/lib/syllabus-api";
 import { OFFERING_YEAR, FACULTY } from "@/lib/syllabus-api";
 import { SYLLABUS_CONTEXT, useAiStore } from "@/lib/ai";
 import AskBar from "@/components/ai/AskBar";
@@ -40,8 +40,11 @@ type Props = {
   masters: Masters;
   /** キーワードを教員名として引き直したか(§6.1) */
   matchedBy: MatchedBy | null;
-  /** `syllabus_code` → 担当教員名。一覧APIに教員が無いためサーバ側で補っている(§6.2) */
-  instructors: Record<string, string>;
+  /**
+   * `syllabus_code` → 担当教員名と対象課程。一覧APIがどちらも返さないため
+   * サーバ側で詳細から補っている(§6.1 / §6.2)
+   */
+  cardMeta: Record<string, CardMeta>;
 };
 
 export default function MobileSyllabusPage({
@@ -51,7 +54,7 @@ export default function MobileSyllabusPage({
   offset,
   masters,
   matchedBy,
-  instructors,
+  cardMeta,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -62,20 +65,21 @@ export default function MobileSyllabusPage({
   const setActiveChip = useSyllabusUIStore((s) => s.setActiveTag);
   // 空きコマ長押しメニューの「シラバスで絞り込む」から来たときは開いた状態で始める
   const [filterOpen, setFilterOpen] = useState(searchParams.get("filters") === "open");
-  const tagMap = useTagMap();
+  const tagOf = useTagMap();
   const setSelection = useAiStore((s) => s.setSelection);
 
   // 他の画面へ移ったら Ask Bar の文脈を持ち越さない
   useEffect(() => () => setSelection(null), [setSelection]);
 
-  const filteredResults = results.filter((c) => {
-    if (activeChip === "すべて") return true;
-    const tag = tagMap.get(c.syllabus_code);
-    if (activeChip === "必修") return tag === "必修";
-    if (activeChip === "選択") return tag === "選択";
-    if (activeChip === "既修得済み") return tag === "既修得済み";
-    return true;
-  });
+  // タグは履修要項と対象課程の両方から決まる。絞り込みも描画も同じ値を使う
+  const tagged = results.map((c) => ({
+    course: c,
+    tag: tagOf(c.syllabus_code, cardMeta[c.syllabus_code]),
+  }));
+
+  const filteredResults = tagged.filter(({ tag }) =>
+    activeChip === "すべて" ? true : tag === activeChip,
+  );
 
   const q = searchParams.get("q") ?? "";
 
@@ -269,12 +273,11 @@ export default function MobileSyllabusPage({
         <p className="text-sm text-[#6B7280] text-center py-16">該当する科目がありません</p>
       ) : (
         <div className="flex flex-col">
-          {filteredResults.map((c) => {
+          {filteredResults.map(({ course: c, tag }) => {
             const grade =
               c.grade_min === c.grade_max
                 ? `${c.grade_min}年次`
                 : `${c.grade_min}〜${c.grade_max}年次`;
-            const tag = tagMap.get(c.syllabus_code) ?? null;
             return (
               <Link
                 key={`${c.syllabus_code}-${c.year}`}
@@ -298,10 +301,10 @@ export default function MobileSyllabusPage({
 
                 {/* Mid */}
                 <div className="flex flex-col gap-0.5">
-                  {instructors[c.syllabus_code] && (
+                  {cardMeta[c.syllabus_code]?.instructors && (
                     <div className="flex min-w-0 items-center gap-1.5 text-[13px] text-[#4B5563]">
                       <User size={14} className="text-[#4B5563] shrink-0" />
-                      <span className="truncate">{instructors[c.syllabus_code]}</span>
+                      <span className="truncate">{cardMeta[c.syllabus_code].instructors}</span>
                     </div>
                   )}
                   <div className="flex items-center gap-1.5 text-[12px] text-[#6B7280]">

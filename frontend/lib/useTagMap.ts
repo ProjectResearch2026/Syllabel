@@ -1,20 +1,34 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useStudentStore } from "@/lib/student";
-import { buildTagMap, type TagType } from "@/lib/syllabusUI";
+import { buildTagMap, resolveTag, type TagType } from "@/lib/syllabusUI";
 import { getAdmissionYear, programCodeOf } from "@/lib/programs";
 import { fetchCurricula, type CurriculaData } from "@/lib/syllabus-api";
+import type { CourseTarget } from "@/lib/eligibility";
+
+/** `syllabus_code` と対象課程から、その学生にとってのタグを決める関数。 */
+export type TagResolver = (code: string, target: CourseTarget | undefined) => TagType;
 
 /**
- * `syllabus_code` → タグ(必修 / 選択 / 既修得済み)の対応を作る。design.md §6.1。
+ * タグ(必修 / 選択 / 既修得済み)を決める関数を返す。design.md §6.1。
  *
- * 学生プロファイルと履修要項の突合であり、**一覧(PC・モバイル)と講義詳細で
- * 同じ結果でなければならない**ため、取得と突合をここに1つだけ置く。
- * プロファイルが無い・履修要項が引けない場合は空の Map を返し、
- * 呼び出し側はタグ無しで描く。
+ * タグは2つの突合でできている。
+ *
+ * 1. **履修要項との突合** — `syllabus_code` → 必修 / 選択 / 既修得済みの候補。
+ *    学生プロファイル(`student.ts`)と `GET /api/curricula` から作る
+ * 2. **履修可否の判定** — シラバス側の対象課程で、その学生がそのクラスを
+ *    履修登録できるかを判定し、できないものは候補を落とす
+ *
+ * **1つの関数として返すのは、2を掛け忘れられないようにするためである。**
+ * 以前は `Map` を返しており、呼び出し側が `get()` した値をそのまま描いていた。
+ * 一覧(PC・モバイル)と講義詳細で同じ結果でなければならない(§8.1)のと同じ理由で、
+ * 判定はここに1つだけ置く。
+ *
+ * プロファイルが無い・履修要項が引けない場合は常に null を返し、呼び出し側は
+ * タグ無しで描く。
  */
-export function useTagMap(): Map<string, TagType> {
+export function useTagMap(): TagResolver {
   const profile = useStudentStore((s) => s.profile);
 
   // 履修要項を引くキーは (課程コード, 入学年度)。プロファイルの `program` は
@@ -44,7 +58,7 @@ export function useTagMap(): Map<string, TagType> {
 
   const curricula = loaded && loaded.key === key ? loaded.data : null;
 
-  return useMemo(() => {
+  const candidates = useMemo(() => {
     if (!curricula) return new Map<string, TagType>();
     const completed = profile?.completedCourses ?? [];
     const passedCodes = new Set(
@@ -55,4 +69,11 @@ export function useTagMap(): Map<string, TagType> {
     );
     return buildTagMap(curricula, passedCodes, passedTitles);
   }, [curricula, profile]);
+
+  const programName = profile?.program ?? null;
+
+  return useCallback(
+    (code, target) => resolveTag(candidates.get(code) ?? null, target, programName),
+    [candidates, programName],
+  );
 }
