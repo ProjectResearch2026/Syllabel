@@ -143,7 +143,7 @@ export default async function SyllabusDetailPage({
               ))}
 
             {syllabus.course_plan.length > 0 && (
-              <SectionCard icon={ListOrdered} title={`授業計画（全${syllabus.course_plan.length}回）`}>
+              <SectionCard icon={ListOrdered} title="授業計画">
                 <CoursePlan plan={syllabus.course_plan} />
               </SectionCard>
             )}
