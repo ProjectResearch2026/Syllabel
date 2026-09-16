@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import { motion } from "motion/react";
 import type { ChatMessage } from "@/lib/chat";
 import AiProposalCard from "./AiProposalCard";
+import { useScrollToBottom } from "@/lib/useScrollToBottom";
 
 /**
  * 会話表示（ui-design_phone.pen STEP5 MessageArea）。
@@ -11,14 +11,10 @@ import AiProposalCard from "./AiProposalCard";
  * どちらの発話かが形で分かるようにしている。
  */
 export default function AiMessageArea({ messages }: { messages: ChatMessage[] }) {
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages]);
+  const listRef = useScrollToBottom<HTMLDivElement>(messages);
 
   return (
-    <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 pb-2.5 pt-3.5">
+    <div ref={listRef} className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 pb-2.5 pt-3.5">
       <div className="flex justify-center">
         <span className="rounded-full bg-surface-gray px-2.5 py-1 text-[10px] font-bold text-fg-muted">
           今日
@@ -66,7 +62,6 @@ export default function AiMessageArea({ messages }: { messages: ChatMessage[] })
           </motion.div>
         ),
       )}
-      <div ref={bottomRef} />
     </div>
   );
 }

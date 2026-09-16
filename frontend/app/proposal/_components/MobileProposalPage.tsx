@@ -7,6 +7,7 @@ import { useStudentStore } from "@/lib/student";
 import { useProposalStore } from "@/lib/proposal";
 import { useGraduationCredits } from "@/lib/curricula";
 import { streamProposalChat } from "@/lib/chatApi";
+import { useScrollToBottom } from "@/lib/useScrollToBottom";
 import type { ChatMessage } from "@/lib/chat";
 
 export default function MobileProposalPage() {
@@ -54,7 +55,7 @@ export default function MobileProposalPage() {
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const listRef = useScrollToBottom<HTMLDivElement>(messages);
   const seq = useRef(0);
 
   // 提案完了時に初期メッセージを更新
@@ -76,10 +77,6 @@ export default function MobileProposalPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
 
   const handleSend = useCallback(async () => {
     const text = input.trim();
@@ -208,7 +205,7 @@ export default function MobileProposalPage() {
       </div>
 
       {/* Chat */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+      <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {messages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
@@ -222,7 +219,6 @@ export default function MobileProposalPage() {
             </div>
           </div>
         ))}
-        <div ref={bottomRef} />
       </div>
 
       {/* Input */}
