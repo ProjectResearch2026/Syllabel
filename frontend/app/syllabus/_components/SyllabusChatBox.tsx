@@ -12,11 +12,14 @@ export default function SyllabusChatBox({
   title,
   placeholder,
   initialMessage,
+  questions = [],
 }: {
   code?: string;
   title: string;
   placeholder: string;
   initialMessage: string;
+  /** その科目のシラバスで答えられる質問だけを並べる(`lib/courseQuestions.ts`) */
+  questions?: string[];
 }) {
   const profile = useStudentStore((s) => s.profile);
   const [messages, setMessages] = useState<Message[]>([
@@ -26,8 +29,8 @@ export default function SyllabusChatBox({
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
-  const handleSend = useCallback(async () => {
-    const text = input.trim();
+  const send = useCallback(async (raw: string) => {
+    const text = raw.trim();
     if (!text || streaming) return;
     setInput("");
 
@@ -79,7 +82,7 @@ export default function SyllabusChatBox({
       setStreaming(false);
       abortRef.current = null;
     }
-  }, [code, input, messages, profile, streaming]);
+  }, [code, messages, profile, streaming]);
 
   return (
     <div className="bg-white border border-[#D1D5DB] rounded-lg overflow-hidden">
@@ -103,19 +106,32 @@ export default function SyllabusChatBox({
             </div>
           </div>
         ))}
+        {!streaming && questions.length > 0 && (
+          <div className="flex flex-wrap gap-2 pt-0.5">
+            {questions.map((q) => (
+              <button
+                key={q}
+                onClick={() => send(q)}
+                className="rounded-full border border-[#D1D5DB] bg-white px-3 py-1.5 text-xs font-medium text-[#E60012] transition-colors active:bg-[#FFF0F1]"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
       <div className="px-3 py-3 border-t border-[#D1D5DB] flex items-center gap-2">
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
+          onKeyDown={(e) => e.key === "Enter" && send(input)}
           placeholder={placeholder}
           disabled={streaming}
           className="flex-1 h-10 bg-[#F8F9FA] border border-[#D1D5DB] rounded-full px-3.5 text-[13px] text-[#1A2B4E] placeholder-[#9CA3AF] focus:outline-none focus:border-[#1A2B4E] transition-colors disabled:opacity-60"
         />
         <button
-          onClick={handleSend}
+          onClick={() => send(input)}
           disabled={!input.trim() || streaming}
           className="w-10 h-10 flex items-center justify-center rounded-full bg-[#E60012] disabled:opacity-40 hover:bg-[#b7000c] transition-colors shrink-0"
         >
