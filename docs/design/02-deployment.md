@@ -162,6 +162,16 @@ GB10 の統合メモリ上で **vLLM のエンジンが2基動いている**(202
 
 backend は起動時に履修要項 YAML をロードし、api-clean へ疎通する。api-clean へ到達できなくても backend 自体は上がるが、シラバス参照を伴う機能が失敗する(§3.4.4)。**vllm は公開 VM 側の起動順序に関与しない**(トークンゲートウェイ経由で呼ぶため、backend は起動時に vllm へ接続しない)。ただし vllm が停止していると、提案・チャットは `502 upstream_unavailable` で失敗する(§6.3)。
 
+**frontend と backend は揃えて入れ替える。** 両者の間には API の契約があり(§6.1)、片方だけ新しくすると呼び出しが噛み合わない。**実際に事故が起きた** — frontend だけを入れ替えたところ、新しい frontend が呼ぶ `GET /api/course-targets`(§6.1.3)を古い backend が持たず 404 を返し、検索画面が `error.tsx` に落ちた。デプロイは両方を建て直してから両方を再起動する。
+
+```bash
+podman build -t localhost/pr2026-backend:latest ./backend
+podman build -t localhost/pr2026-frontend:latest ./frontend
+systemctl --user restart pr2026-backend.service pr2026-frontend.service
+```
+
+**API を足した側だけを先に入れるのは安全側である**(使われない口が増えるだけ)。逆順(呼ぶ側を先)は落ちる。判断に迷うときは backend を先に入れる。
+
 **公開 VM のコンテナは Quadlet で systemd ユーザユニットとして動かし、lingering を有効にする。** rootless Podman のコンテナは lingering が無いとログアウトで落ちるため、常時稼働(§3.5.3)の前提となる。各 `.container` の `[Install] WantedBy=default.target` が自動起動を担うので、**生成されたユニットに `systemctl --user enable` は行わない**(生成ユニットは enable の対象外であり、実行すると `transient or generated` で失敗する)。
 
 ### 3.4 ポート割り当てと待受状況
