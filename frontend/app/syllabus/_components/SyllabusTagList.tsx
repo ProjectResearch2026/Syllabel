@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useStudentStore } from "@/lib/student";
-import { useSyllabusUIStore, buildTagMap, type TagType } from "@/lib/syllabusUI";
-import { getAdmissionYear, programCodeOf } from "@/lib/programs";
-import { fetchCurricula, type SyllabusListItem, type CurriculaData } from "@/lib/syllabus-api";
+import { useSyllabusUIStore } from "@/lib/syllabusUI";
+import { useTagMap } from "@/lib/useTagMap";
+import type { SyllabusListItem } from "@/lib/syllabus-api";
 import { detailHref } from "@/lib/syllabusQuery";
 import CourseCard from "./CourseCard";
 
@@ -17,38 +15,10 @@ export default function SyllabusTagList({
   results: SyllabusListItem[];
   instructors: Record<string, string>;
 }) {
-  const profile = useStudentStore((s) => s.profile);
   // 詳細へ移っても絞り込みを失わないよう、いまのクエリをリンクに畳む
   const searchParams = useSearchParams();
   const activeTag = useSyllabusUIStore((s) => s.activeTag);
-  const [curricula, setCurricula] = useState<CurriculaData | null>(null);
-
-  useEffect(() => {
-    // 履修要項を引くキーは (課程コード, 入学年度)。プロファイルの `program` は
-    // 課程名なのでコードに解決する（design.md §4.4.2）
-    const programCode = programCodeOf(profile?.program);
-    if (!programCode || !profile?.grade) return;
-    fetchCurricula(programCode, getAdmissionYear(profile.grade))
-      .then(setCurricula)
-      .catch(() => {
-        // curricula 未取得でもタグなしで動作継続
-      });
-  }, [profile]);
-
-  const passedCodes = new Set(
-    (profile?.completedCourses ?? [])
-      .filter((c) => c.status === "passed" && c.code)
-      .map((c) => c.code as string),
-  );
-  const passedTitles = new Set(
-    (profile?.completedCourses ?? [])
-      .filter((c) => c.status === "passed")
-      .map((c) => c.title),
-  );
-
-  const tagMap = curricula
-    ? buildTagMap(curricula, passedCodes, passedTitles)
-    : new Map<string, TagType>();
+  const tagMap = useTagMap();
 
   const filtered = results.filter((c) => {
     if (activeTag === "すべて") return true;
