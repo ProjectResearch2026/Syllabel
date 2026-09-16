@@ -3,9 +3,7 @@
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useTransition } from "react";
 import { Search, Sparkles } from "lucide-react";
-import { useSyllabusUIStore } from "@/lib/syllabusUI";
-
-const TAG_CHIPS = ["すべて", "必修", "選択", "既修得済み"] as const;
+import { useSyllabusUIStore, TAG_CHIPS } from "@/lib/syllabusUI";
 
 export default function SyllabusTopBar() {
   const router = useRouter();

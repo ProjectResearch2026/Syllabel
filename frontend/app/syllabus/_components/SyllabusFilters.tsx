@@ -4,6 +4,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useTransition } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { OFFERING_YEAR, FACULTY, type Masters } from "@/lib/syllabus-api";
+import { useSyllabusUIStore, CATEGORY_CHOICES } from "@/lib/syllabusUI";
 
 const DAYS = ["月", "火", "水", "木", "金", "土"];
 
@@ -12,6 +13,8 @@ type Props = {
 };
 
 export default function SyllabusFilters({ masters }: Props) {
+  const activeCategory = useSyllabusUIStore((s) => s.activeCategory);
+  const setActiveCategory = useSyllabusUIStore((s) => s.setActiveCategory);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -74,6 +77,28 @@ export default function SyllabusFilters({ masters }: Props) {
               その課程が対象の科目のみ。全学向けの教養教育科目は外れます
             </span>
           )}
+        </>
+      ),
+    },
+    {
+      // 区分は履修要項と学生プロファイルの突合から決まる値であり(§6.1)、api-clean に
+      // 投げる検索条件ではない。したがって URL のクエリではなくクライアント状態に
+      // 持つ(§8)。同じ理由でページ送りにも影響しない
+      label: "区分",
+      node: (
+        <>
+          <select
+            value={activeCategory}
+            onChange={(e) => setActiveCategory(e.target.value)}
+            className={selectClass}
+          >
+            {CATEGORY_CHOICES.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <span className="text-[11px] leading-snug text-[#6B7280]">
+            学生情報を取り込むと絞れます
+          </span>
         </>
       ),
     },
