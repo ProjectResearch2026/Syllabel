@@ -3,68 +3,61 @@
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 
+/**
+ * 検索結果のページ送り。design.md §6.2。
+ *
+ * **総ページ数は出せない。** api-clean は総ヒット数を返さず(`count` はその
+ * ページの件数)、総件数を返す口も無いため、ページ番号を並べる UI にはできない。
+ * 分かるのは「次があるか」だけなので、前後移動と現在位置の表示にとどめる。
+ */
 type Props = {
-  total: number;
   limit: number;
   offset: number;
+  /** このページに実際に載っている件数 */
+  shown: number;
+  hasNext: boolean;
 };
 
-export default function SyllabusPagination({ total, limit, offset }: Props) {
+export default function SyllabusPagination({ limit, offset, shown, hasNext }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
 
-  const totalPages = Math.ceil(total / limit);
-  const currentPage = Math.floor(offset / limit) + 1;
+  const hasPrev = offset > 0;
+  if (!hasPrev && !hasNext) return null;
 
-  if (totalPages <= 1) return null;
-
-  const goToPage = (page: number) => {
+  const goToOffset = (next: number) => {
     const params = new URLSearchParams(searchParams.toString());
-    params.set("offset", String((page - 1) * limit));
+    if (next <= 0) params.delete("offset");
+    else params.set("offset", String(next));
     startTransition(() => {
       router.replace(`${pathname}?${params.toString()}`);
     });
   };
 
-  const pages: number[] = [];
-  for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
-    pages.push(i);
-  }
+  const buttonClass =
+    "px-3 py-1.5 text-xs border border-[#D1D5DB] rounded-lg disabled:opacity-40 enabled:hover:border-[#1A2B4E] transition-colors";
 
   return (
-    <div className={`flex items-center justify-center gap-1 mt-4 ${isPending ? "opacity-50" : ""}`}>
+    <div className={`flex items-center justify-center gap-2 mt-4 ${isPending ? "opacity-50" : ""}`}>
       <button
-        onClick={() => goToPage(currentPage - 1)}
-        disabled={currentPage === 1}
-        className="px-3 py-1.5 text-xs border border-[#D1D5DB] rounded-lg disabled:opacity-40 hover:border-[#1A2B4E] transition-colors"
+        onClick={() => goToOffset(offset - limit)}
+        disabled={!hasPrev}
+        className={buttonClass}
       >
-        ‹
+        ‹ 前へ
       </button>
-      {pages.map((p) => (
-        <button
-          key={p}
-          onClick={() => goToPage(p)}
-          className={`px-3 py-1.5 text-xs border rounded-lg transition-colors ${
-            p === currentPage
-              ? "bg-[#1A2B4E] text-white border-[#1A2B4E]"
-              : "border-[#D1D5DB] hover:border-[#1A2B4E]"
-          }`}
-        >
-          {p}
-        </button>
-      ))}
-      <button
-        onClick={() => goToPage(currentPage + 1)}
-        disabled={currentPage === totalPages}
-        className="px-3 py-1.5 text-xs border border-[#D1D5DB] rounded-lg disabled:opacity-40 hover:border-[#1A2B4E] transition-colors"
-      >
-        ›
-      </button>
-      <span className="text-xs text-[#6B7280] ml-2">
-        {total}件中 {offset + 1}〜{Math.min(offset + limit, total)}件
+      <span className="text-xs text-[#6B7280]">
+        {shown > 0 ? `${offset + 1}〜${offset + shown}件目` : "該当なし"}
       </span>
+      <button
+        onClick={() => goToOffset(offset + limit)}
+        disabled={!hasNext}
+        className={buttonClass}
+      >
+        次へ ›
+      </button>
     </div>
   );
 }

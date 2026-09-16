@@ -39,7 +39,8 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
         <Suspense>
           <MobileSyllabusPage
             results={data.results}
-            count={data.count}
+            total={data.total}
+            hasNext={data.hasNext}
             offset={offset}
             masters={masters}
             matchedBy={data.matchedBy}
@@ -62,7 +63,9 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
           {/* Result header */}
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-[#1A2B4E] text-sm font-bold">
-              検索結果 {data.count.toLocaleString()}件
+              {/* 総件数は最終ページに達するまで確定しない(§6.2) */}
+              検索結果 {(data.total ?? offset + data.results.length).toLocaleString()}件
+              {data.total === null && "以上"}
               {data.matchedBy === "instructor" && (
                 <span className="ml-2 font-normal text-xs text-[#4B5563]">
                   「{keyword}」を教員名として検索しました
@@ -79,7 +82,12 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
           <SyllabusTagList results={data.results} />
 
           <Suspense>
-            <SyllabusPagination total={data.count} limit={LIMIT} offset={offset} />
+            <SyllabusPagination
+              limit={LIMIT}
+              offset={offset}
+              shown={data.results.length}
+              hasNext={data.hasNext}
+            />
           </Suspense>
 
           <div id="ai-chat" className="mt-8 scroll-mt-32">
