@@ -224,31 +224,14 @@ export function matchesFilter(
   return tags.requirement === activeTag;
 }
 
-/** タグでの絞り込みが効いているか。 */
+/**
+ * タグでの絞り込みが効いているか。design.md §8。
+ *
+ * 絞り込みが効いているあいだは、件数の表示を絞り込み後のものに切り替える
+ * (`useTaggedResults()`)。かつては「いま表示している30件のうちn件」という
+ * 但し書きも出していたが、**絞り込みが検索結果の全件に効くようになったため
+ * 不要になった**(§6.2 で全件を引くようにした)。
+ */
 export function isFiltering(activeTag: string, activeCategory: string): boolean {
   return activeTag !== ALL_TAGS || activeCategory !== ALL_CATEGORIES;
-}
-
-/**
- * タグの絞り込みが**いま表示しているページの中でしか効かない**ことを伝える文。
- * design.md §8。
- *
- * タグは履修要項と学生プロファイルの突合で決まる値であり、api-clean に投げる検索
- * 条件にはできない(学生データをサーバへ出さない。要件§5)。したがって絞り込みは
- * 取得済みのページに対してしか効かず、**総ヒット数と表示件数が食い違う**。
- *
- * 軸を増やしたことでこの食い違いが目立つようになった。`選択必修` や `随意` は
- * 該当科目が少なく、キーワード無しの1ページ目では0件になることが多い。
- * 「該当する科目がありません」だけを出すと、**全体に1件も無いかのように読めてしまう**
- * ため、範囲を明示する。
- *
- * **文言をここに置くのは、一覧(PC)とモバイルで揃えるためである。**
- *
- * @param shown このページで取得した件数
- * @param matched 絞り込みに一致した件数
- */
-export function filterScopeNote(shown: number, matched: number): string {
-  return matched === 0
-    ? `いま表示している${shown}件の中に該当する科目はありません。キーワードや曜日で範囲を変えると見つかることがあります`
-    : `いま表示している${shown}件のうち${matched}件`;
 }

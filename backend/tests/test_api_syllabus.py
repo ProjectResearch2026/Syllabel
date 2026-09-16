@@ -138,3 +138,130 @@ def test_get_masters_502_on_upstream_error(monkeypatch):
 
     resp = client.get("/api/masters")
     assert resp.status_code == 502
+
+
+# ---------------------------------------------------------------------------
+# GET /api/course-targets(§6.1.3)
+# ---------------------------------------------------------------------------
+
+FACULTY = "先端理工学部"
+
+
+@pytest.fixture(autouse=True)
+def _clear_targets_cache():
+    """口ごとにキャッシュを捨てる。テスト間で組み立て結果を持ち越さない。"""
+    import app.api.syllabus as mod
+
+    mod.clear_targets_cache()
+    yield
+    mod.clear_targets_cache()
+
+
+def _fake_search_by_program(by_program: dict[str | None, list[str]], calls: list[dict]):
+    """`program` ごとにコード一覧を返す `search_syllabi` の差し替え。
+
+    api-clean の `program` は完全一致で、対象課程を持たないシラバスは絞り込みから
+    落ちる。その振る舞いを、辞書に無い課程名を空で返すことで模す。
+    """
+
+    async def mock_search(**kwargs):
+        calls.append(kwargs)
+        codes = by_program.get(kwargs.get("program"), [])
+        rows = [{"syllabus_code": c} for c in codes] if kwargs["offset"] == 0 else []
+        return {"count": len(rows), "limit": kwargs["limit"], "offset": kwargs["offset"], "results": rows}
+
+    return mock_search
+
+
+def _fake_masters(names: list[str]):
+    async def mock_masters():
+        return {"course_program": [{"id": i, "name": n} for i, n in enumerate(names, 1)]}
+
+    return mock_masters
+
+
+def test_course_targets_maps_codes_to_programs(monkeypatch):
+    """コード → 対象課程を返す。どの課程にも現れないコードは空配列(課程指定なし)。"""
+    import app.api.syllabus as mod
+
+    calls: list[dict] = []
+    monkeypatch.setattr(
+        mod,
+        "search_syllabi",
+        _fake_search_by_program(
+            {None: ["A1", "B1", "S1", "G1"], "課程A": ["A1", "S1"], "課程B": ["B1", "S1"]},
+            calls,
+        ),
+    )
+    monkeypatch.setattr(mod, "get_masters", _fake_masters(["課程A", "課程B"]))
+
+    resp = client.get("/api/course-targets", params={"year": 2026, "faculty": FACULTY})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["offeringYear"] == 2026
+    assert body["faculty"] == FACULTY
+    assert body["targets"] == {
+        "A1": ["課程A"],
+        "B1": ["課程B"],
+        "S1": ["課程A", "課程B"],
+        "G1": [],  # 課程指定なし
+    }
+    # 学部で絞った全件を1本、課程ごとに1本ずつ引く
+    assert [c.get("program") for c in calls] == [None, "課程A", "課程B"]
+    assert {c["faculty"] for c in calls} == {FACULTY}
+
+
+def test_course_targets_has_etag_and_returns_304(monkeypatch):
+    """学生データを含まないため ETag で再検証できる(§6.1.3)。"""
+    import app.api.syllabus as mod
+
+    monkeypatch.setattr(
+        mod, "search_syllabi", _fake_search_by_program({None: ["A1"], "課程A": ["A1"]}, [])
+    )
+    monkeypatch.setattr(mod, "get_masters", _fake_masters(["課程A"]))
+
+    first = client.get("/api/course-targets", params={"year": 2026, "faculty": FACULTY})
+    etag = first.headers["ETag"]
+    assert "max-age" in first.headers["Cache-Control"]
+
+    again = client.get(
+        "/api/course-targets",
+        params={"year": 2026, "faculty": FACULTY},
+        headers={"If-None-Match": etag},
+    )
+    assert again.status_code == 304
+    assert again.headers["ETag"] == etag
+
+
+def test_course_targets_caches_between_requests(monkeypatch):
+    """2回目は上流を引き直さない(組み立ては10リクエスト規模になるため)。"""
+    import app.api.syllabus as mod
+
+    calls: list[dict] = []
+    monkeypatch.setattr(
+        mod, "search_syllabi", _fake_search_by_program({None: ["A1"], "課程A": ["A1"]}, calls)
+    )
+    monkeypatch.setattr(mod, "get_masters", _fake_masters(["課程A"]))
+
+    client.get("/api/course-targets", params={"year": 2026, "faculty": FACULTY})
+    n = len(calls)
+    client.get("/api/course-targets", params={"year": 2026, "faculty": FACULTY})
+
+    assert len(calls) == n
+
+
+def test_course_targets_upstream_failure_is_502(monkeypatch):
+    """上流に届かないときは 502(§6.1 / §3.4.4)。"""
+    import httpx
+
+    import app.api.syllabus as mod
+
+    async def boom(**kwargs):
+        raise httpx.RequestError("connect error")
+
+    monkeypatch.setattr(mod, "search_syllabi", boom)
+    monkeypatch.setattr(mod, "get_masters", _fake_masters(["課程A"]))
+
+    resp = client.get("/api/course-targets", params={"year": 2026, "faculty": FACULTY})
+    assert resp.status_code == 502

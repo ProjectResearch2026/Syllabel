@@ -1,19 +1,18 @@
 import { Suspense } from "react";
-import { ArrowUpDown } from "lucide-react";
 import {
   searchCourses,
   getMasters,
-  fetchCardMetaMap,
+  fetchCourseTargets,
   OFFERING_YEAR,
   FACULTY,
 } from "@/lib/syllabus-api";
-import SyllabusTagList from "./_components/SyllabusTagList";
+import SyllabusResults from "./_components/SyllabusResults";
 import SyllabusTopBar from "./_components/SyllabusTopBar";
 import SyllabusFilters from "./_components/SyllabusFilters";
 import SyllabusChatBox from "./_components/SyllabusChatBox";
-import SyllabusPagination from "./_components/SyllabusPagination";
 import MobileSyllabusPage from "./_components/MobileSyllabusPage";
 
+/** 1ページに並べる件数。表示だけの都合であり、取得は全件行う(§6.2) */
 const LIMIT = 30;
 
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
@@ -34,14 +33,14 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
   const year = OFFERING_YEAR;
   const faculty = FACULTY;
 
-  const [data, masters] = await Promise.all([
-    searchCourses({ keyword, faculty, program, campus, term, day, period, year, limit: LIMIT, offset }),
+  // **検索は条件に当たる全件を引く**(§6.2)。タグでの絞り込みはクライアントで
+  // 行う必要があり(§6.1.3)、取得済みのページしか振り分けられないと使えない。
+  // 対象課程も全件ぶんまとめて受け取る
+  const [data, masters, courseTargets] = await Promise.all([
+    searchCourses({ keyword, faculty, program, campus, term, day, period, year }),
     getMasters(),
+    fetchCourseTargets(year, faculty),
   ]);
-
-  // 一覧には担当教員も対象課程も入っていないため、このページ分だけ詳細から補う。
-  // 教員名の表示(§6.2)とタグの履修可否判定(§6.1)が同じ取得を使う
-  const cardMeta = await fetchCardMetaMap(data.results.map((c) => c.syllabus_code));
 
   return (
     <div className="flex flex-col flex-1 min-w-0">
@@ -50,86 +49,49 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
         <Suspense>
           <MobileSyllabusPage
             results={data.results}
-            total={data.total}
-            hasNext={data.hasNext}
+            targets={courseTargets.targets}
+            faculty={faculty}
             offset={offset}
+            limit={LIMIT}
             masters={masters}
             matchedBy={data.matchedBy}
-            cardMeta={cardMeta}
           />
         </Suspense>
       </div>
 
       {/* デスクトップ */}
       <div className="hidden md:flex md:flex-col md:flex-1 min-w-0">
-      <Suspense>
-        <SyllabusTopBar />
-      </Suspense>
-
-      <div className="flex flex-1 min-w-0">
         <Suspense>
-          <SyllabusFilters masters={masters} />
+          <SyllabusTopBar />
         </Suspense>
 
-        <main className="flex-1 min-w-0 bg-[#F8F9FA] px-4 md:px-6 py-5">
-          {/* Result header */}
-          <div className="flex items-center justify-between gap-4 mb-3">
-            <h1 className="text-[#1A2B4E] text-sm font-bold">
-              {/* 総件数は api-clean が返さないため数えている(§6.2) */}
-              検索結果 {(data.total ?? offset + data.results.length).toLocaleString()}件
-              {data.total === null && "以上"}
-              {data.results.length > 0 && (
-                <span className="ml-2 font-normal text-xs text-[#4B5563]">
-                  {offset + 1}〜{offset + data.results.length}件目を表示
-                </span>
-              )}
-              {data.matchedBy === "instructor" && (
-                <span className="ml-2 font-normal text-xs text-[#4B5563]">
-                  「{keyword}」を教員名として検索しました
-                </span>
-              )}
-            </h1>
-            <div className="flex items-center gap-1.5 text-[#4B5563] text-xs shrink-0">
-              <ArrowUpDown size={14} />
-              <span>配当年次順</span>
-            </div>
-          </div>
-
-          {/* ページ送りは結果の上にも置く。下まで送らないと移動できないのは手間 */}
-          <div className="mb-4">
-            <Suspense>
-              <SyllabusPagination
-                limit={LIMIT}
-                offset={offset}
-                shown={data.results.length}
-                hasNext={data.hasNext}
-                total={data.total}
-              />
-            </Suspense>
-          </div>
-
-          {/* Card grid (タグフィルタリングはクライアント側で処理) */}
-          <SyllabusTagList results={data.results} cardMeta={cardMeta} />
-
+        <div className="flex flex-1 min-w-0">
           <Suspense>
-            <SyllabusPagination
-              limit={LIMIT}
-              offset={offset}
-              shown={data.results.length}
-              hasNext={data.hasNext}
-              total={data.total}
-            />
+            <SyllabusFilters masters={masters} />
           </Suspense>
 
-          <div id="ai-chat" className="mt-8 scroll-mt-32">
-            <SyllabusChatBox
-              title="AIに質問する（シラバス全体）"
-              placeholder="シラバスについて質問..."
-              initialMessage='シラバスについて質問してください。例：「プログラミングを扱う選択科目を一覧で」'
-            />
-          </div>
-        </main>
-      </div>
+          <main className="flex-1 min-w-0 bg-[#F8F9FA] px-4 md:px-6 py-5">
+            <Suspense>
+              <SyllabusResults
+                results={data.results}
+                targets={courseTargets.targets}
+                faculty={faculty}
+                matchedBy={data.matchedBy}
+                keyword={keyword}
+                offset={offset}
+                limit={LIMIT}
+              />
+            </Suspense>
+
+            <div id="ai-chat" className="mt-8 scroll-mt-32">
+              <SyllabusChatBox
+                title="AIに質問する（シラバス全体）"
+                placeholder="シラバスについて質問..."
+                initialMessage='シラバスについて質問してください。例：「プログラミングを扱う選択科目を一覧で」'
+              />
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   );

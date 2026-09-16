@@ -4,7 +4,8 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useTransition } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { OFFERING_YEAR, FACULTY, type Masters } from "@/lib/syllabus-api";
-import { useSyllabusUIStore, CATEGORY_CHOICES } from "@/lib/syllabusUI";
+import { CATEGORY_CHOICES } from "@/lib/syllabusUI";
+import { useFilterControls } from "@/lib/useFilterControls";
 
 const DAYS = ["月", "火", "水", "木", "金", "土"];
 
@@ -13,8 +14,7 @@ type Props = {
 };
 
 export default function SyllabusFilters({ masters }: Props) {
-  const activeCategory = useSyllabusUIStore((s) => s.activeCategory);
-  const setActiveCategory = useSyllabusUIStore((s) => s.setActiveCategory);
+  const { activeCategory, selectCategory } = useFilterControls();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -89,7 +89,7 @@ export default function SyllabusFilters({ masters }: Props) {
         <>
           <select
             value={activeCategory}
-            onChange={(e) => setActiveCategory(e.target.value)}
+            onChange={(e) => selectCategory(e.target.value)}
             className={selectClass}
           >
             {CATEGORY_CHOICES.map((c) => (
