@@ -10,11 +10,14 @@ import {
   Library,
   Info,
   ListOrdered,
+  StickyNote,
+  Ticket,
   type LucideIcon,
 } from "lucide-react";
 import { getSyllabus } from "@/lib/syllabus-api";
 import { listHref } from "@/lib/syllabusQuery";
 import { parseGrading } from "@/lib/grading";
+import { parseNote, registrationFlags } from "@/lib/note";
 import SyllabusChatBox from "../_components/SyllabusChatBox";
 import CourseChatPanel from "../_components/CourseChatPanel";
 import GradingContent from "../_components/GradingContent";
@@ -68,6 +71,12 @@ export default async function SyllabusDetailPage({
 
   // `grading` は JSON 文字列なので構造に戻してから描く(`lib/grading.ts`)
   const grading = parseGrading(syllabus.grading);
+  // `note` は履修登録の注記。登録方法だけ見出しに出し、残りは備考カードへ(`lib/note.ts`)
+  const note = parseNote(syllabus.note);
+  const registration = note ? registrationFlags(note) : [];
+  const hasNoteBody =
+    note !== null && (note.entries.length > 0 || note.lines.length > 0 ||
+      note.flags.some((flag) => !flag.includes("登録")));
   const prose: { icon: LucideIcon; title: string; body: string | null }[] = [
     { icon: BookOpen, title: "授業概要", body: syllabus.summary },
     { icon: Target, title: "到達目標", body: syllabus.goals },
@@ -98,6 +107,16 @@ export default async function SyllabusDetailPage({
               </span>
               <span className="text-[11px] font-semibold text-fg-muted">{syllabus.year}年度</span>
               <CourseTag code={syllabus.syllabus_code} />
+              {/* 抽選かオープンかは履修できるかどうかそのもの(§8.1) */}
+              {registration.map((flag) => (
+                <span
+                  key={flag}
+                  className="inline-flex items-center gap-1 rounded-md border border-[#FCD34D] bg-[#FFFBEB] px-2 py-0.5 text-[11px] font-bold text-[#B45309]"
+                >
+                  <Ticket size={12} aria-hidden="true" />
+                  {flag}
+                </span>
+              ))}
             </div>
             <h1 className="font-display text-[26px] font-bold leading-tight text-fg-primary">
               {syllabus.course_title}
@@ -112,13 +131,8 @@ export default async function SyllabusDetailPage({
           </div>
         </header>
 
-        {syllabus.note && (
-          <div className="mt-4">
-            <CourseNote note={syllabus.note} />
-          </div>
-        )}
-
         <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start">
+          {/* 左は読み物、右は参照物。縦に積むと本文がいたずらに長くなる */}
           <div className="flex min-w-0 flex-1 flex-col gap-4">
             {prose
               .filter((section) => section.body)
@@ -131,6 +145,14 @@ export default async function SyllabusDetailPage({
             {syllabus.course_plan.length > 0 && (
               <SectionCard icon={ListOrdered} title={`授業計画（全${syllabus.course_plan.length}回）`}>
                 <CoursePlan plan={syllabus.course_plan} />
+              </SectionCard>
+            )}
+          </div>
+
+          <div className="flex w-full shrink-0 flex-col gap-4 lg:w-[320px]">
+            {grading && (
+              <SectionCard icon={ClipboardCheck} title="成績評価">
+                <GradingContent grading={grading} />
               </SectionCard>
             )}
 
@@ -149,16 +171,13 @@ export default async function SyllabusDetailPage({
                 <RichText>{syllabus.advice}</RichText>
               </SectionCard>
             )}
-          </div>
 
-          {/* 成績評価は学生が最も見る情報なので、スクロールしても追従させる */}
-          {grading && (
-            <div className="w-full shrink-0 lg:sticky lg:top-4 lg:w-[320px]">
-              <SectionCard icon={ClipboardCheck} title="成績評価">
-                <GradingContent grading={grading} />
+            {hasNoteBody && note && (
+              <SectionCard icon={StickyNote} title="備考">
+                <CourseNote note={note} />
               </SectionCard>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* モバイルはこの位置にチャット(デスクトップは右のパネル) */}

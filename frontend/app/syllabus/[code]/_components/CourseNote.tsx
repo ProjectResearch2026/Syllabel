@@ -1,54 +1,45 @@
-import { Info } from "lucide-react";
+import type { ParsedNote } from "@/lib/note";
 
 /**
- * 備考(`note`)。**改行を保ち、`【…】` の見出しはタグとして出す。**
+ * 備考。**登録方法は見出し側のタグへ出しているので、ここには残りを置く。**
  *
- * 実データは `【抽選登録科目】\n6 社会科学系\nY:ALL\nT:2015～` のような複数行で、
- * 以前は1行に潰して描いていたため「【抽選登録科目】6 社会科学系 Y:ALL…」と
- * 読めない並びになっていた。**抽選登録の有無は履修に直接関わる**ため目立たせる。
+ * `【対象】…` のようなラベル付きの注記はラベルと値に分け、履修要項の区分コードや
+ * 記号(`Y4000` / `◎`)は原文のまま並べる(`lib/note.ts`)。意味を補って書き換えると
+ * 誤りうるため、解釈はしない。
  */
-export default function CourseNote({ note }: { note: string }) {
-  const lines = note.split("\n").map((line) => line.trim()).filter(Boolean);
-  const tags: string[] = [];
-  const rest: string[] = [];
-
-  for (const line of lines) {
-    const bracketed = line.match(/^【(.+?)】(.*)$/);
-    if (bracketed) {
-      tags.push(bracketed[1]);
-      if (bracketed[2].trim()) rest.push(bracketed[2].trim());
-    } else {
-      rest.push(line);
-    }
-  }
+export default function CourseNote({ note }: { note: ParsedNote }) {
+  const others = note.flags.filter((flag) => !flag.includes("登録"));
 
   return (
-    <section className="rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-4 py-3.5">
-      <div className="flex items-center gap-2">
-        <Info size={15} className="shrink-0 text-[#B45309]" aria-hidden="true" />
-        <h2 className="text-xs font-bold text-[#92400E]">備考</h2>
-      </div>
-      {tags.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {tags.map((tag) => (
+    <div className="flex flex-col gap-2.5">
+      {note.entries.map((entry) => (
+        <div key={`${entry.label}-${entry.value}`} className="flex flex-col gap-0.5">
+          <p className="text-[11px] font-semibold text-fg-muted">{entry.label}</p>
+          <p className="text-[12.5px] leading-relaxed text-fg-secondary">{entry.value}</p>
+        </div>
+      ))}
+
+      {others.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {others.map((flag) => (
             <span
-              key={tag}
-              className="rounded-md border border-[#FCD34D] bg-white px-2 py-0.5 text-[11px] font-bold text-[#B45309]"
+              key={flag}
+              className="rounded border border-border-primary px-1.5 py-0.5 text-[11px] text-fg-secondary"
             >
-              {tag}
+              {flag}
             </span>
           ))}
         </div>
       )}
-      {rest.length > 0 && (
-        <ul className="mt-2 flex flex-col gap-0.5">
-          {rest.map((line, i) => (
-            <li key={`${i}-${line}`} className="text-xs leading-relaxed text-[#92400E]">
-              {line}
-            </li>
-          ))}
-        </ul>
+
+      {note.lines.length > 0 && (
+        <div className="flex flex-col gap-0.5">
+          <p className="text-[11px] font-semibold text-fg-muted">履修要項の記載</p>
+          <p className="font-mono text-[12px] leading-relaxed text-fg-secondary">
+            {note.lines.join(" ")}
+          </p>
+        </div>
       )}
-    </section>
+    </div>
   );
 }
