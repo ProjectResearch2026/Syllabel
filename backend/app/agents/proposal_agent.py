@@ -16,11 +16,46 @@
    要件枠ごとの不足単位を得る。要件§4.3.2 の「単位数の最適化」はこの値を要する
 3. `select_candidates()` — 履修可能な候補科目を絞る(`type != "随意"` / 配当年次 /
    未修得)
-4. `fetch_offering_index()` + `attach_offerings()` — 候補のシラバスコードを開講年度
-   ファイルの `resolved` から採り(§4.4.2)、曜日・時限・教室は api-clean から
-   **一括取得**してコードで突合する(§7.2)
+4. `fetch_offering_index()` + `fetch_eligibility()` + `attach_offerings()` — 候補の
+   シラバスコードを開講年度ファイルの `resolved` から採り(§4.4.2)、曜日・時限・教室は
+   api-clean から**一括取得**してコードで突合する(§7.2)。あわせて**その学生が
+   履修登録できるクラスだけを残す**(§6.1。下記)
 5. `render_prompt()` — 上記に CAP(`registration_limits`)・修得済み一覧・希望条件を
    加えて1つの文字列にする
+
+## 履修可否(§6.1)
+
+**履修要項は「科目」の単位で書かれており、その学生がその開講クラスを履修登録
+できるかを持たない。** 判定の正本はシラバス側の対象課程であり、規則は
+frontend のタグ表示と共通で次の3分岐である。
+
+- 対象課程に学生の課程が入っている → 履修可
+- 対象課程が空で、対象学部に先端理工学部が入る → 課程指定なし。履修可
+- それ以外 → 他課程指定のクラス。履修不可
+
+**候補を絞る前にこれを掛けることが要る。** 掛けていなかったとき、2026年度開講・
+2024年度入学の知能情報メディア課程(3回生・既修得12科目)では、プロンプトに載る
+673 クラス行のうち 189 行がその学生には履修登録できないものだった。さらに悪いことに、
+`MAX_CLASSES_PER_COURSE` が曜日・時限の早い順で切るため、**履修できるクラスが
+1つも候補に載らない科目が4件**あった。
+
+| 科目 | 履修できるクラス | 候補に載っていたもの |
+|---|---|---|
+| 英語総合1(A) | 11(火3) | 火2の他課程クラス6件 |
+| 英語総合2(A) | 11 | 他課程クラス6件 |
+| スポーツ技術学A | 10 | 他課程クラス6件 |
+| スポーツ技術学B | 10 | 他課程クラス6件 |
+
+コードだけでなく曜日・時限が丸ごと違うため、コマ重複の判定(`_INSTRUCTIONS` 規則3)も
+誤った前提で行われていた。掛けたあとは 508 クラス行・履修不可 0 行になる。
+
+**api-clean の一覧は対象課程を返さない。** 1科目に複数の課程が対応するため
+`SELECT DISTINCT` から外されており、対象課程は `GET /syllabi/{code}` にしかない
+(§6.2)。候補は1,000コード規模になり1件ずつ詳細を引くのは避けたい(§7.2)ため、
+**課程名で絞った一覧を課程ごとに引いて集合演算で判定する**(`fetch_eligibility()`)。
+api-clean の `program` は `cp.name = %s` の完全一致であり、対象課程を持たない
+シラバスは絞り込みから落ちる。したがって「どの課程の結果にも現れないコード」が
+課程指定なしのコードである。
 
 **学生データはログに出さない(§4.2.3)。** 本モジュールのログは件数だけを扱う。
 """
@@ -34,7 +69,7 @@ from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIChatModelSettings
 
 from app.agents import build_model
-from app.agents.tools import search_syllabi
+from app.agents.tools import get_masters, search_syllabi
 from app.curricula.loader import LoadedCurriculum, get_curricula
 from app.curricula.merge import MergedCourse, MergedCurriculum
 from app.curricula.requirements import (
@@ -324,10 +359,117 @@ async def fetch_offering_index(
     return index
 
 
+@dataclass(frozen=True)
+class Eligibility:
+    """その学生が履修登録できる開講クラスの判定(§6.1)。
+
+    `mine` は学生の課程が対象課程に入っているコード、`any_program` は**いずれかの
+    課程**が対象課程に入っているコードである。api-clean の `program` 絞り込みは
+    対象課程を持たないシラバスを落とすため、`any_program` に居ないコードが
+    「課程指定なし」であり、学部の科目として履修できる。
+    """
+
+    mine: frozenset[str]
+    any_program: frozenset[str]
+
+    def allows(self, code: str) -> bool:
+        """そのコードのクラスを履修登録できるか。"""
+        return code in self.mine or code not in self.any_program
+
+
+def _program_names_of(curriculum: MergedCurriculum) -> set[str]:
+    """学生の課程を指す名称の集合。改称前後の両方を含む(§4.4.2)。
+
+    課程コード `06` は入学年度で名称が異なり(環境生態工学課程 / 環境科学課程)、
+    api-clean は**両方を別々の課程として持つ**ため、片方だけで比べると
+    履修可否を取り違える。別名は課程ファイルの `program.name_aliases` が持つ。
+    """
+    return {curriculum.program.name, *curriculum.program.name_aliases}
+
+
+async def _codes_of_program(
+    program: str | None, *, year: int, page_size: int, max_pages: int
+) -> set[str]:
+    """`program` を対象課程に持つシラバスコードを一括取得する。"""
+    codes: set[str] = set()
+    for page in range(max_pages):
+        payload = await search_syllabi(
+            year=year, program=program, limit=page_size, offset=page * page_size
+        )
+        rows = payload.get("results") or []
+        for row in rows:
+            code = _to_str(row.get("syllabus_code"))
+            if code is not None:
+                codes.add(code)
+        if len(rows) < page_size:
+            break
+    else:
+        logger.warning(
+            "対象課程の取得がページ上限に達しました: 課程=%s / %d件", program, len(codes)
+        )
+    return codes
+
+
+async def fetch_eligibility(
+    curriculum: MergedCurriculum,
+    *,
+    year: int,
+    page_size: int = PAGE_SIZE,
+    max_pages: int = MAX_PAGES,
+    program_names: Sequence[str] | None = None,
+) -> Eligibility:
+    """履修可否の判定に要る2つのコード集合を引く(§6.1)。
+
+    課程名の一覧は `GET /masters` の `course_program` から採る(検索画面の絞り込みと
+    同じ出所)。取れなかったときは学生の課程だけを引き、`any_program` をその集合に
+    揃える。**判定が「学生の課程に入っているか」だけに退化し、課程指定なしの科目も
+    履修可と扱われる**(絞り込みすぎて候補を失うより、従来どおりの振る舞いに倒す)。
+
+    Args:
+        program_names: 課程名の一覧。省略時は `/masters` から引く(テスト用の口)。
+    """
+    mine_names = _program_names_of(curriculum)
+
+    if program_names is None:
+        try:
+            masters = await get_masters()
+            program_names = [
+                name
+                for item in (masters.get("course_program") or [])
+                if (name := _to_str(item.get("name"))) is not None
+            ]
+        except Exception:  # noqa: BLE001 - 候補を失わないため既定の振る舞いへ倒す
+            logger.warning("課程一覧を引けませんでした。履修可否は学生の課程のみで判定します")
+            program_names = []
+
+    mine: set[str] = set()
+    any_program: set[str] = set()
+    for name in program_names:
+        codes = await _codes_of_program(
+            name, year=year, page_size=page_size, max_pages=max_pages
+        )
+        any_program |= codes
+        if name in mine_names:
+            mine |= codes
+
+    if not program_names:
+        for name in sorted(mine_names):
+            mine |= await _codes_of_program(
+                name, year=year, page_size=page_size, max_pages=max_pages
+            )
+        any_program = set(mine)
+
+    logger.info(
+        "履修可否を引きました: 自課程 %d件 / いずれかの課程 %d件", len(mine), len(any_program)
+    )
+    return Eligibility(mine=frozenset(mine), any_program=frozenset(any_program))
+
+
 def attach_offerings(
     candidates: Sequence[Candidate],
     index: dict[str, OfferedClass],
     *,
+    eligibility: Eligibility | None = None,
     max_classes_per_course: int = MAX_CLASSES_PER_COURSE,
 ) -> list[Candidate]:
     """候補にシラバスコードで開講情報を結び付ける(§7.2)。
@@ -335,12 +477,22 @@ def attach_offerings(
     api-clean 側に1クラスも見つからない科目は、曜日・時限が分からず時間割に
     置けないため候補から外す。クラスが多すぎる科目は曜日・時限・コードの昇順で
     `max_classes_per_course` 件に絞る。
+
+    **`eligibility` を与えたときは、履修登録できないクラスを先に落とす**(§6.1)。
+    順序が重要である。上限で切ってから落とすと、他課程指定のクラスが早い時限に
+    並ぶ科目(「英語総合1(A)」は火2が他課程・火3が知能情報メディア課程)では
+    **履修できるクラスが1つも残らない**。落としてから切れば、上限の枠を履修
+    できるクラスに使える。1クラスも残らない科目は候補から外す。
     """
     attached: list[Candidate] = []
     for candidate in candidates:
         # 曜日・時限が欠測のクラス(集中講義など)は末尾に寄せる
         classes = sorted(
-            (index[code] for code in candidate.codes if code in index),
+            (
+                index[code]
+                for code in candidate.codes
+                if code in index and (eligibility is None or eligibility.allows(code))
+            ),
             key=lambda c: (c.day_of_week or "\uffff", c.period or 99, c.syllabus_code),
         )
         if not classes:
@@ -566,10 +718,13 @@ async def build_proposal_prompt(
     index = await fetch_offering_index(
         (code for candidate in candidates for code in candidate.codes), year=year
     )
+    # 履修登録できないクラスは候補に載せない(§6.1)。`attach_offerings()` が
+    # 1科目あたりのクラス数を絞る**前**に掛かる
+    eligibility = await fetch_eligibility(loaded.curriculum, year=year)
     return render_prompt(
         loaded,
         profile,
         requirements,
-        attach_offerings(candidates, index),
+        attach_offerings(candidates, index, eligibility=eligibility),
         wishes=wishes,
     )
