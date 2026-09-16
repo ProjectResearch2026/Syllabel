@@ -33,7 +33,9 @@ const TAG_STYLES: Record<NonNullable<TagType>, string> = {
 
 type Props = {
   results: SyllabusListItem[];
-  count: number;
+  /** 総ヒット数。最終ページに達するまで確定しない(§6.2) */
+  total: number | null;
+  hasNext: boolean;
   offset: number;
   masters: Masters;
   /** キーワードを教員名として引き直したか(§6.1) */
@@ -42,7 +44,8 @@ type Props = {
 
 export default function MobileSyllabusPage({
   results,
-  count,
+  total,
+  hasNext,
   offset,
   masters,
   matchedBy,
@@ -250,7 +253,12 @@ export default function MobileSyllabusPage({
       {/* Results header */}
       <div className="flex items-center justify-between px-4 pt-2.5 pb-1.5 bg-white">
         <span className="text-[13px] text-[#4B5563]">
-          {filteredResults.length.toLocaleString()}件の科目
+          {/* タグで絞っているあいだはこのページの表示件数を出す */}
+          {activeChip === "すべて"
+            ? total !== null
+              ? `${total.toLocaleString()}件の科目`
+              : `${(offset + results.length).toLocaleString()}件以上の科目`
+            : `${filteredResults.length.toLocaleString()}件の科目`}
           {matchedBy === "instructor" && (
             <span className="ml-1.5 text-xs">（「{q}」を教員名として検索）</span>
           )}
@@ -336,7 +344,12 @@ export default function MobileSyllabusPage({
       )}
 
       <div className="px-4 py-4">
-        <SyllabusPagination total={count} limit={LIMIT} offset={offset} />
+        <SyllabusPagination
+          limit={LIMIT}
+          offset={offset}
+          shown={results.length}
+          hasNext={hasNext}
+        />
       </div>
 
       {/* 時間割と同じ Ask Bar パターン。参照中の文脈が「この検索結果」に変わるだけ */}
