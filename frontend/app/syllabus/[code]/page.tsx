@@ -17,6 +17,7 @@ import {
 import { getSyllabus } from "@/lib/syllabus-api";
 import { listHref } from "@/lib/syllabusQuery";
 import { parseGrading } from "@/lib/grading";
+import { courseQuestions } from "@/lib/courseQuestions";
 import { parseNote, registrationFlags, pruneNote } from "@/lib/note";
 import { targetsOf } from "@/lib/courseTarget";
 import SyllabusChatBox from "../_components/SyllabusChatBox";
@@ -83,6 +84,8 @@ export default async function SyllabusDetailPage({
     { icon: Presentation, title: "授業方法", body: syllabus.methods },
     { icon: BookMarked, title: "授業外学習", body: syllabus.outside_study },
   ];
+  // チャットのサジェストは、その科目のシラバスで答えられるものだけにする(§7.5)
+  const questions = courseQuestions(syllabus);
   const hasBooks =
     syllabus.textbooks.length > 0 || syllabus.textbook_note || syllabus.reference_note;
 
@@ -188,12 +191,17 @@ export default async function SyllabusDetailPage({
             code={syllabus.syllabus_code}
             title="この講義について質問"
             placeholder="この講義について質問..."
-            initialMessage={`「${syllabus.course_title}」についてご質問ください。例：「この講義の成績評価方法は？」`}
+            initialMessage={`「${syllabus.course_title}」についてご質問ください。`}
+            questions={questions}
           />
         </div>
       </main>
 
-      <CourseChatPanel code={syllabus.syllabus_code} title={syllabus.course_title} />
+      <CourseChatPanel
+        code={syllabus.syllabus_code}
+        title={syllabus.course_title}
+        questions={questions}
+      />
     </div>
   );
 }

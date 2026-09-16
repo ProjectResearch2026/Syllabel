@@ -351,6 +351,7 @@ export default function MobileSyllabusPage({
           offset={offset}
           shown={results.length}
           hasNext={hasNext}
+          total={total}
         />
       </div>
 

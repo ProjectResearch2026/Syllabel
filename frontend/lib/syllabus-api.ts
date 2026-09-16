@@ -212,9 +212,8 @@ export type CourseSearchResponse = {
   /** 次のページがあるか */
   hasNext: boolean;
   /**
-   * 総ヒット数。**最終ページに達したときだけ確定する**(`offset + 件数`)。
-   * それ以外は null で、「いま何件目までを見ているか」しか言えない。
-   * api-clean に総件数を返す口が無いためである(§6.2)。
+   * 総ヒット数。api-clean は総件数を返さないため `countCourses()` で数える(§6.2)。
+   * 数えられなかったときだけ null になり、「n件以上」の表示に落とす。
    */
   total: number | null;
   /** キーワード未指定のときは null */
@@ -249,6 +248,44 @@ async function searchPage(
  * 0件のときに `instructor` で引き直す。**両方を同時に送ってはならない**
  * (AND 条件となり必ず0件になる)。
  */
+/**
+ * 検索条件に当たる件数を数える。design.md §6.2。
+ *
+ * **api-clean は総ヒット数を返さない。** `count` はそのページの件数であり、
+ * 総件数を返す口も無く、`POST /sql` はゲートウェイが拒否する(§3.4.4)。
+ * そのため従来は最終ページに達するまで件数が確定せず、**1,200件規模の検索では
+ * 40回ページを送るまで何件あるか分からなかった**。
+ *
+ * そこで **`limit=1` の空振り判定で 500 件単位のブロックを特定し、最後の
+ * ブロックだけを取得して数える**。1,219 件なら「offset 500 / 1000 に在る、
+ * 1500 に無い」を確かめた後、offset 1000 から 500 件要求して 219 件を得る。
+ * 小さな問い合わせ3回と通常の取得1回で確定する。
+ *
+ * 数えられなかったときは null を返し、呼び出し側は「n件以上」の表示に落とす。
+ */
+const COUNT_BLOCK = 500; // api-clean の MAX_ROWS(既定値)
+
+async function hasRowAt(params: SearchParams, offset: number): Promise<boolean> {
+  const page = await searchSyllabi({ ...params, limit: 1, offset });
+  return page.results.length > 0;
+}
+
+export async function countCourses(params: SearchParams): Promise<number | null> {
+  try {
+    let block = 0;
+    // 上限は api-clean が保持する年度あたりの件数(数千)を超えない範囲で切る
+    while (block < 40 && (await hasRowAt(params, (block + 1) * COUNT_BLOCK))) {
+      block += 1;
+    }
+    const offset = block * COUNT_BLOCK;
+    const last = await searchSyllabi({ ...params, limit: COUNT_BLOCK, offset });
+    return offset + last.results.length;
+  } catch {
+    // 件数が数えられなくても一覧は出す
+    return null;
+  }
+}
+
 export async function searchCourses(
   params: Omit<SearchParams, "q" | "instructor"> & { keyword?: string },
 ): Promise<CourseSearchResponse> {
@@ -257,29 +294,32 @@ export async function searchCourses(
   const offset = rest.offset ?? 0;
   const word = keyword?.trim();
 
-  const build = (
+  const build = async (
     page: { results: SyllabusListItem[]; hasNext: boolean },
     matchedBy: MatchedBy | null,
-  ): CourseSearchResponse => ({
+    counted: SearchParams,
+  ): Promise<CourseSearchResponse> => ({
     results: page.results,
     limit,
     offset,
     hasNext: page.hasNext,
-    // 次ページが無い = ここが最後。総件数はこの時点で確定する
-    total: page.hasNext ? null : offset + page.results.length,
+    // 次ページが無ければここが最後なので数えるまでもない
+    total: page.hasNext ? await countCourses(counted) : offset + page.results.length,
     matchedBy,
   });
 
-  if (!word) return build(await searchPage(rest), null);
+  if (!word) return build(await searchPage(rest), null, rest);
 
   const byTitle = await searchPage({ ...rest, q: word });
-  if (byTitle.results.length > 0) return build(byTitle, "title");
+  if (byTitle.results.length > 0) return build(byTitle, "title", { ...rest, q: word });
 
   const byInstructor = await searchPage({ ...rest, instructor: word });
-  if (byInstructor.results.length > 0) return build(byInstructor, "instructor");
+  if (byInstructor.results.length > 0) {
+    return build(byInstructor, "instructor", { ...rest, instructor: word });
+  }
 
   // どちらも 0 件。科目名で引いた結果をそのまま返す
-  return build(byTitle, "title");
+  return build(byTitle, "title", { ...rest, q: word });
 }
 
 export async function getSyllabus(code: string): Promise<SyllabusDetail> {
