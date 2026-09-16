@@ -1,22 +1,18 @@
 import Link from "next/link";
 import { User, Award, Clock, GraduationCap, ArrowUpRight } from "lucide-react";
 import type { SyllabusListItem } from "@/lib/syllabus-api";
-import type { TagType } from "@/lib/syllabusUI";
-
-const TAG_STYLES: Record<NonNullable<TagType>, string> = {
-  必修: "bg-[#FFF1F2] text-[#BE123C] border-[#FECDD3]",
-  選択: "bg-[#F0F9FF] text-[#0369A1] border-[#BAE6FD]",
-  既修得済み: "bg-[#F0FDF4] text-[#15803D] border-[#BBF7D0]",
-};
+import type { CourseTags as CourseTagsType } from "@/lib/syllabusUI";
+import CourseTags from "./CourseTags";
 
 export default function CourseCard({
   course,
-  tag,
+  tags,
   instructors,
   href,
 }: {
   course: SyllabusListItem;
-  tag?: TagType;
+  /** 状態 / 区分 / 履修区分のタグ一式(§8) */
+  tags: CourseTagsType;
   /** 担当教員名。一覧APIには無いためサーバ側で補っている(§6.2)。取れなければ null */
   instructors?: string | null;
   /** 詳細画面への宛先。いまの絞り込みを `back` に畳んだものが渡る */
@@ -46,13 +42,7 @@ export default function CourseCard({
 
       <div className="mt-3 min-w-0">
         <div className="mb-2 flex flex-wrap items-center gap-1.5">
-          {tag && (
-            <span
-              className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold ${TAG_STYLES[tag]}`}
-            >
-              {tag}
-            </span>
-          )}
+          <CourseTags tags={tags} />
           <span className="rounded-md bg-[#F2F4F7] px-2 py-0.5 text-[10px] font-semibold text-[#475467]">
             {course.term}
           </span>

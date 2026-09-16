@@ -17,19 +17,20 @@ import { OFFERING_YEAR, FACULTY } from "@/lib/syllabus-api";
 import { SYLLABUS_CONTEXT, useAiStore } from "@/lib/ai";
 import AskBar from "@/components/ai/AskBar";
 import SyllabusPagination from "./SyllabusPagination";
-import { useSyllabusUIStore, type TagType } from "@/lib/syllabusUI";
+import {
+  useSyllabusUIStore,
+  matchesFilter,
+  isFiltering,
+  filterScopeNote,
+  TAG_CHIPS,
+  CATEGORY_CHOICES,
+} from "@/lib/syllabusUI";
 import { useTagMap } from "@/lib/useTagMap";
 import { detailHref } from "@/lib/syllabusQuery";
+import CourseTags from "./CourseTags";
 
-const TAG_CHIPS = ["すべて", "必修", "選択", "既修得済み"] as const;
 const DAYS = ["月", "火", "水", "木", "金", "土"];
 const LIMIT = 30;
-
-const TAG_STYLES: Record<NonNullable<TagType>, string> = {
-  必修: "bg-[#FEF2F2] text-[#DC2626]",
-  選択: "bg-[#EFF6FF] text-[#2563EB]",
-  既修得済み: "bg-[#F0FDF4] text-[#16A34A]",
-};
 
 type Props = {
   results: SyllabusListItem[];
@@ -63,6 +64,8 @@ export default function MobileSyllabusPage({
   // 詳細画面へ移っても選択を保つため、デスクトップと同じストアに持たせる
   const activeChip = useSyllabusUIStore((s) => s.activeTag);
   const setActiveChip = useSyllabusUIStore((s) => s.setActiveTag);
+  const activeCategory = useSyllabusUIStore((s) => s.activeCategory);
+  const setActiveCategory = useSyllabusUIStore((s) => s.setActiveCategory);
   // 空きコマ長押しメニューの「シラバスで絞り込む」から来たときは開いた状態で始める
   const [filterOpen, setFilterOpen] = useState(searchParams.get("filters") === "open");
   const tagOf = useTagMap();
@@ -74,12 +77,18 @@ export default function MobileSyllabusPage({
   // タグは履修要項と対象課程の両方から決まる。絞り込みも描画も同じ値を使う
   const tagged = results.map((c) => ({
     course: c,
-    tag: tagOf(c.syllabus_code, cardMeta[c.syllabus_code]),
+    tags: tagOf(c.syllabus_code, cardMeta[c.syllabus_code]),
   }));
 
-  const filteredResults = tagged.filter(({ tag }) =>
-    activeChip === "すべて" ? true : tag === activeChip,
+  const filteredResults = tagged.filter(({ tags }) =>
+    matchesFilter(tags, activeChip, activeCategory),
   );
+
+  // タグの絞り込みは取得済みのページにしか効かない(§8)。範囲を明示する
+  const filtering = isFiltering(activeChip, activeCategory);
+  const scopeNote = filtering
+    ? filterScopeNote(results.length, filteredResults.length)
+    : null;
 
   const q = searchParams.get("q") ?? "";
 
@@ -140,6 +149,22 @@ export default function MobileSyllabusPage({
             </span>
           )}
         </>
+      ),
+    },
+    {
+      // 区分は履修要項と学生プロファイルの突合から決まる値であり、api-clean に
+      // 投げる検索条件ではない。URL のクエリではなくクライアント状態に持つ(§8)
+      label: "区分",
+      node: (
+        <select
+          value={activeCategory}
+          onChange={(e) => setActiveCategory(e.target.value)}
+          className={selectClass}
+        >
+          {CATEGORY_CHOICES.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
       ),
     },
     {
@@ -252,12 +277,12 @@ export default function MobileSyllabusPage({
       {/* Results header */}
       <div className="flex items-center justify-between px-4 pt-2.5 pb-1.5 bg-white">
         <span className="text-[13px] text-[#4B5563]">
-          {/* タグで絞っているあいだはこのページの表示件数を出す */}
-          {activeChip === "すべて"
-            ? total !== null
+          {/* 絞っているあいだは総ヒット数ではなく絞り込みの範囲を出す(§8) */}
+          {filtering
+            ? scopeNote
+            : total !== null
               ? `${total.toLocaleString()}件の科目`
-              : `${(offset + results.length).toLocaleString()}件以上の科目`
-            : `${filteredResults.length.toLocaleString()}件の科目`}
+              : `${(offset + results.length).toLocaleString()}件以上の科目`}
           {matchedBy === "instructor" && (
             <span className="ml-1.5 text-xs">（「{q}」を教員名として検索）</span>
           )}
@@ -270,10 +295,10 @@ export default function MobileSyllabusPage({
 
       {/* Course list */}
       {filteredResults.length === 0 ? (
-        <p className="text-sm text-[#6B7280] text-center py-16">該当する科目がありません</p>
+        <p className="px-4 py-16 text-center text-sm text-[#6B7280]">{scopeNote}</p>
       ) : (
         <div className="flex flex-col">
-          {filteredResults.map(({ course: c, tag }) => {
+          {filteredResults.map(({ course: c, tags }) => {
             const grade =
               c.grade_min === c.grade_max
                 ? `${c.grade_min}年次`
@@ -317,13 +342,7 @@ export default function MobileSyllabusPage({
                 {/* Bottom */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    {tag && (
-                      <span
-                        className={`px-2 py-[3px] rounded text-[11px] font-semibold ${TAG_STYLES[tag]}`}
-                      >
-                        {tag}
-                      </span>
-                    )}
+                    <CourseTags tags={tags} />
                     <span className="flex items-center gap-1 px-2 py-[3px] rounded bg-[#EFF6FF] text-[11px] text-[#3B82F6]">
                       <Timer size={11} />
                       {c.day_of_week}曜{c.period}限
