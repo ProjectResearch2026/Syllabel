@@ -80,3 +80,15 @@ export function canRegister(
   if (target.programs.length === 0) return target.faculties.includes(FACULTY);
   return target.programs.some((name) => isSameProgram(name, programName));
 }
+
+/**
+ * 学部で絞った一覧から得た対象課程を `CourseTarget` にする。design.md §6.1.3。
+ *
+ * `GET /api/course-targets` は (開講年度, 学部) で絞った結果を返すため、
+ * **含まれるコードはすべてその学部が対象である**ことが絞り込み自体で保証されて
+ * いる。したがって `faculties` にその学部を入れてよい。対象課程が空のコードは
+ * 「課程指定なし」であり、`canRegister()` の2番目の分岐で履修可と判定される。
+ */
+export function targetOfPrograms(programs: string[], faculty: string): CourseTarget {
+  return { programs, faculties: [faculty] };
+}
