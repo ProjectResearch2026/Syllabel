@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { ArrowUpDown } from "lucide-react";
-import { searchCourses, getMasters, OFFERING_YEAR } from "@/lib/syllabus-api";
+import { searchCourses, getMasters, fetchInstructorMap, OFFERING_YEAR } from "@/lib/syllabus-api";
 import SyllabusTagList from "./_components/SyllabusTagList";
 import SyllabusTopBar from "./_components/SyllabusTopBar";
 import SyllabusFilters from "./_components/SyllabusFilters";
@@ -32,6 +32,9 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
     getMasters(),
   ]);
 
+  // 一覧には担当教員が入っていないため、このページ分だけ詳細から補う(§6.2)
+  const instructors = await fetchInstructorMap(data.results.map((c) => c.syllabus_code));
+
   return (
     <div className="flex flex-col flex-1 min-w-0">
       {/* モバイル */}
@@ -44,6 +47,7 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
             offset={offset}
             masters={masters}
             matchedBy={data.matchedBy}
+            instructors={instructors}
           />
         </Suspense>
       </div>
@@ -79,7 +83,7 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
           </div>
 
           {/* Card grid (タグフィルタリングはクライアント側で処理) */}
-          <SyllabusTagList results={data.results} />
+          <SyllabusTagList results={data.results} instructors={instructors} />
 
           <Suspense>
             <SyllabusPagination

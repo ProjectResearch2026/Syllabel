@@ -18,7 +18,8 @@ import { useStudentStore } from "@/lib/student";
 import { SYLLABUS_CONTEXT, useAiStore } from "@/lib/ai";
 import AskBar from "@/components/ai/AskBar";
 import SyllabusPagination from "./SyllabusPagination";
-import { buildTagMap, type TagType } from "@/lib/syllabusUI";
+import { buildTagMap, useSyllabusUIStore, type TagType } from "@/lib/syllabusUI";
+import { detailHref } from "@/lib/syllabusQuery";
 import { getAdmissionYear, programCodeOf } from "@/lib/programs";
 
 const TAG_CHIPS = ["すべて", "必修", "選択", "既修得済み"] as const;
@@ -40,6 +41,8 @@ type Props = {
   masters: Masters;
   /** キーワードを教員名として引き直したか(§6.1) */
   matchedBy: MatchedBy | null;
+  /** `syllabus_code` → 担当教員名。一覧APIに教員が無いためサーバ側で補っている(§6.2) */
+  instructors: Record<string, string>;
 };
 
 export default function MobileSyllabusPage({
@@ -49,12 +52,15 @@ export default function MobileSyllabusPage({
   offset,
   masters,
   matchedBy,
+  instructors,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
-  const [activeChip, setActiveChip] = useState<string>("すべて");
+  // 詳細画面へ移っても選択を保つため、デスクトップと同じストアに持たせる
+  const activeChip = useSyllabusUIStore((s) => s.activeTag);
+  const setActiveChip = useSyllabusUIStore((s) => s.setActiveTag);
   // 空きコマ長押しメニューの「シラバスで絞り込む」から来たときは開いた状態で始める
   const [filterOpen, setFilterOpen] = useState(searchParams.get("filters") === "open");
   const [curricula, setCurricula] = useState<CurriculaData | null>(null);
@@ -283,7 +289,7 @@ export default function MobileSyllabusPage({
             return (
               <Link
                 key={`${c.syllabus_code}-${c.year}`}
-                href={`/syllabus/${c.syllabus_code}`}
+                href={detailHref(c.syllabus_code, searchParams.toString())}
                 className="flex flex-col gap-1.5 px-4 py-3.5 border-b border-[#D1D5DB] active:bg-[#F8F9FA] transition-colors"
               >
                 {/* Top */}
@@ -302,11 +308,18 @@ export default function MobileSyllabusPage({
                 </div>
 
                 {/* Mid */}
-                <div className="flex items-center gap-1.5 text-[13px] text-[#4B5563]">
-                  <User size={14} className="text-[#4B5563] shrink-0" />
-                  <span>{grade}</span>
-                  <span className="text-[#D1D5DB]">·</span>
-                  <span>{c.campus}</span>
+                <div className="flex flex-col gap-0.5">
+                  {instructors[c.syllabus_code] && (
+                    <div className="flex min-w-0 items-center gap-1.5 text-[13px] text-[#4B5563]">
+                      <User size={14} className="text-[#4B5563] shrink-0" />
+                      <span className="truncate">{instructors[c.syllabus_code]}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1.5 text-[12px] text-[#6B7280]">
+                    <span>{grade}</span>
+                    <span className="text-[#D1D5DB]">·</span>
+                    <span>{c.campus}</span>
+                  </div>
                 </div>
 
                 {/* Bottom */}

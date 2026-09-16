@@ -20,7 +20,8 @@ export default function CourseChatPanel({
   const messages = useMemo(() => courseMessages[code] ?? [], [courseMessages, code]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const scrolledOnce = useRef(false);
   const seq = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -41,7 +42,16 @@ export default function CourseChatPanel({
   }, [code]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const list = listRef.current;
+    if (!list) return;
+    // `scrollIntoView` は祖先(=ページ本体)まで巻き込んで動かす。このパネルは
+    // 本文と同じ高さまで伸びるため内側にスクロールが生じず、詳細画面を開いた
+    // 直後にページ全体がわずかにスクロールしていた。この要素だけを動かす。
+    list.scrollTo({
+      top: list.scrollHeight,
+      behavior: scrolledOnce.current ? "smooth" : "auto",
+    });
+    scrolledOnce.current = true;
   }, [messages]);
 
   const send = useCallback(async (text: string) => {
@@ -124,7 +134,7 @@ export default function CourseChatPanel({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3.5 bg-[#F8F9FA]">
+      <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3.5 bg-[#F8F9FA]">
         {messages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
@@ -152,7 +162,6 @@ export default function CourseChatPanel({
             ))}
           </div>
         )}
-        <div ref={bottomRef} />
       </div>
 
       {/* Input */}
