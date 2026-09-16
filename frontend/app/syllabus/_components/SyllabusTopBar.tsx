@@ -3,14 +3,15 @@
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useTransition } from "react";
 import { Search, Sparkles } from "lucide-react";
-import { useSyllabusUIStore, TAG_CHIPS } from "@/lib/syllabusUI";
+import { TAG_CHIPS } from "@/lib/syllabusUI";
+import { useFilterControls } from "@/lib/useFilterControls";
 
 export default function SyllabusTopBar() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
-  const { activeTag, setActiveTag } = useSyllabusUIStore();
+  const { activeTag, selectTag } = useFilterControls();
 
   const q = searchParams.get("q") ?? "";
 
@@ -48,7 +49,7 @@ export default function SyllabusTopBar() {
           return (
             <button
               key={chip}
-              onClick={() => setActiveTag(chip)}
+              onClick={() => selectTag(chip)}
               className={`rounded-full px-3.5 py-1.5 text-xs whitespace-nowrap transition-colors ${
                 active
                   ? "bg-[#1A2B4E] text-white font-semibold"

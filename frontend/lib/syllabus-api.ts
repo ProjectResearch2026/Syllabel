@@ -204,40 +204,55 @@ export async function searchSyllabi(params: SearchParams): Promise<SyllabusListR
 /** `searchCourses()` がキーワードをどちらの条件として引いたか。 */
 export type MatchedBy = "title" | "instructor";
 
-/** 検索結果1ページ分。design.md §6.1 / §6.2。 */
+/** 検索結果。design.md §6.1 / §6.2。 */
 export type CourseSearchResponse = {
-  results: SyllabusListItem[];
-  limit: number;
-  offset: number;
-  /** 次のページがあるか */
-  hasNext: boolean;
   /**
-   * 総ヒット数。api-clean は総件数を返さないため `countCourses()` で数える(§6.2)。
-   * 数えられなかったときだけ null になり、「n件以上」の表示に落とす。
+   * **条件に当たる全件**。ページ送りは行わない(下記)。
    */
-  total: number | null;
+  results: SyllabusListItem[];
+  /** 総ヒット数。`results.length` と同じで、必ず確定する */
+  total: number;
   /** キーワード未指定のときは null */
   matchedBy: MatchedBy | null;
 };
 
-/** `limit` 省略時の1ページの件数 */
-const DEFAULT_LIMIT = 30;
+/**
+ * 一括取得の1ページあたりの件数と、辿るページ数の上限。
+ *
+ * `500` は api-clean の `MAX_ROWS`(既定値)であり、1リクエストで返せる最大である。
+ * 学部を固定した検索の母数は 2026年度で 1,219 件なので3リクエストで足りる。
+ * 上限は年度あたりの件数(api-clean 全体で数千)を超えない範囲で切る。
+ */
+const PAGE_SIZE = 500;
+const MAX_PAGES = 40;
 
 /**
- * 1ページ分を引き、次ページの有無を判定する。
+ * 条件に当たる**全件**を取得する。design.md §6.2。
  *
- * api-clean の `count` はそのページで返した件数であり、総ヒット数ではない
- * (§6.2)。総件数を返す口も無い。そこで **`limit + 1` 件を要求し、`limit` を
- * 超えて返ってきたら次ページがある**と判定する。余分な1件は呼び出し元へ
- * 渡さない。
+ * **ページ送りをせず全件引く。** 理由は3つある。
+ *
+ * 1. **タグでの絞り込みが全件に効かないと使えない。** タグは学生プロファイルとの
+ *    突合で決まり(§6.1)、プロファイルはブラウザにしか無いため api-clean の検索
+ *    条件にできない。取得済みのページしか振り分けられないと、`修得済み` のような
+ *    該当の少ないタグでは**ほとんどのページが「該当なし」になる**(2026年度・
+ *    2024年度入学の知能情報メディア課程では、修得済み 184 コードが 41 ページに
+ *    散り、35 ページが空になっていた)
+ * 2. **総件数がタダで確定する。** api-clean は総ヒット数を返さない(`count` は
+ *    そのページの件数)。従来は `limit=1` の空振り判定で 500 件単位のブロックを
+ *    特定してから最後のブロックを数えており、検索1回につき余分に3〜4リクエストを
+ *    払っていた。全件引けば `results.length` がそのまま総件数である
+ * 3. **安い。** 先端理工学部・2026年度の全 1,219 件で 3リクエスト / 転送 gzip 約
+ *    22KB / 実測 0.23 秒。30 件ずつ刻む必要がない
  */
-async function searchPage(
-  params: SearchParams,
-): Promise<{ results: SyllabusListItem[]; hasNext: boolean }> {
-  const limit = params.limit ?? DEFAULT_LIMIT;
-  const raw = await searchSyllabi({ ...params, limit: limit + 1 });
-  const hasNext = raw.results.length > limit;
-  return { results: hasNext ? raw.results.slice(0, limit) : raw.results, hasNext };
+async function fetchAll(params: SearchParams): Promise<SyllabusListItem[]> {
+  const results: SyllabusListItem[] = [];
+  for (let page = 0; page < MAX_PAGES; page += 1) {
+    const raw = await searchSyllabi({ ...params, limit: PAGE_SIZE, offset: page * PAGE_SIZE });
+    results.push(...raw.results);
+    if (raw.results.length < PAGE_SIZE) return results;
+  }
+  // 上限に達した。取れた分だけ返す(件数は「以上」ではなく取得済みの実数になる)
+  return results;
 }
 
 /**
@@ -248,78 +263,57 @@ async function searchPage(
  * 0件のときに `instructor` で引き直す。**両方を同時に送ってはならない**
  * (AND 条件となり必ず0件になる)。
  */
-/**
- * 検索条件に当たる件数を数える。design.md §6.2。
- *
- * **api-clean は総ヒット数を返さない。** `count` はそのページの件数であり、
- * 総件数を返す口も無く、`POST /sql` はゲートウェイが拒否する(§3.4.4)。
- * そのため従来は最終ページに達するまで件数が確定せず、**1,200件規模の検索では
- * 40回ページを送るまで何件あるか分からなかった**。
- *
- * そこで **`limit=1` の空振り判定で 500 件単位のブロックを特定し、最後の
- * ブロックだけを取得して数える**。1,219 件なら「offset 500 / 1000 に在る、
- * 1500 に無い」を確かめた後、offset 1000 から 500 件要求して 219 件を得る。
- * 小さな問い合わせ3回と通常の取得1回で確定する。
- *
- * 数えられなかったときは null を返し、呼び出し側は「n件以上」の表示に落とす。
- */
-const COUNT_BLOCK = 500; // api-clean の MAX_ROWS(既定値)
-
-async function hasRowAt(params: SearchParams, offset: number): Promise<boolean> {
-  const page = await searchSyllabi({ ...params, limit: 1, offset });
-  return page.results.length > 0;
-}
-
-export async function countCourses(params: SearchParams): Promise<number | null> {
-  try {
-    let block = 0;
-    // 上限は api-clean が保持する年度あたりの件数(数千)を超えない範囲で切る
-    while (block < 40 && (await hasRowAt(params, (block + 1) * COUNT_BLOCK))) {
-      block += 1;
-    }
-    const offset = block * COUNT_BLOCK;
-    const last = await searchSyllabi({ ...params, limit: COUNT_BLOCK, offset });
-    return offset + last.results.length;
-  } catch {
-    // 件数が数えられなくても一覧は出す
-    return null;
-  }
-}
-
 export async function searchCourses(
-  params: Omit<SearchParams, "q" | "instructor"> & { keyword?: string },
+  params: Omit<SearchParams, "q" | "instructor" | "limit" | "offset"> & { keyword?: string },
 ): Promise<CourseSearchResponse> {
   const { keyword, ...rest } = params;
-  const limit = rest.limit ?? DEFAULT_LIMIT;
-  const offset = rest.offset ?? 0;
   const word = keyword?.trim();
 
-  const build = async (
-    page: { results: SyllabusListItem[]; hasNext: boolean },
-    matchedBy: MatchedBy | null,
-    counted: SearchParams,
-  ): Promise<CourseSearchResponse> => ({
-    results: page.results,
-    limit,
-    offset,
-    hasNext: page.hasNext,
-    // 次ページが無ければここが最後なので数えるまでもない
-    total: page.hasNext ? await countCourses(counted) : offset + page.results.length,
-    matchedBy,
-  });
-
-  if (!word) return build(await searchPage(rest), null, rest);
-
-  const byTitle = await searchPage({ ...rest, q: word });
-  if (byTitle.results.length > 0) return build(byTitle, "title", { ...rest, q: word });
-
-  const byInstructor = await searchPage({ ...rest, instructor: word });
-  if (byInstructor.results.length > 0) {
-    return build(byInstructor, "instructor", { ...rest, instructor: word });
+  if (!word) {
+    const results = await fetchAll(rest);
+    return { results, total: results.length, matchedBy: null };
   }
 
-  // どちらも 0 件。科目名で引いた結果をそのまま返す
-  return build(byTitle, "title", { ...rest, q: word });
+  const byTitle = await fetchAll({ ...rest, q: word });
+  if (byTitle.length > 0) {
+    return { results: byTitle, total: byTitle.length, matchedBy: "title" };
+  }
+
+  const byInstructor = await fetchAll({ ...rest, instructor: word });
+  if (byInstructor.length > 0) {
+    return { results: byInstructor, total: byInstructor.length, matchedBy: "instructor" };
+  }
+
+  // どちらも 0 件。科目名で引いた結果(空)をそのまま返す
+  return { results: byTitle, total: 0, matchedBy: "title" };
+}
+
+/** `GET /api/course-targets` のレスポンス。design.md §6.1.3。 */
+export type CourseTargetsResponse = {
+  offeringYear: number;
+  faculty: string;
+  /** `syllabus_code` → 対象課程。空配列は「課程指定なし」 */
+  targets: Record<string, string[]>;
+};
+
+/**
+ * 開講年度と学部で、シラバスコード → 対象課程の対応を**まとめて**引く。
+ * design.md §6.1.3。
+ *
+ * タグの絞り込みを全件に効かせるには、検索結果の全件について履修可否を判定できる
+ * 必要がある。一覧API は対象課程を返さず(§6.2)、1件ずつ詳細を引くと 1,200
+ * リクエストになるため、backend がまとめて組み立てた表を1回で受け取る。
+ *
+ * **学生データを含まないため ETag が効く**(§6.1.3)。`no-store` は付けない。
+ */
+export async function fetchCourseTargets(
+  year: number,
+  faculty: string,
+): Promise<CourseTargetsResponse> {
+  const qs = new URLSearchParams({ year: String(year), faculty });
+  const res = await fetch(`${apiBase()}/course-targets?${qs.toString()}`);
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return res.json();
 }
 
 export async function getSyllabus(code: string): Promise<SyllabusDetail> {
@@ -378,17 +372,7 @@ const RETRY_DELAY_MS = 200;
 /** 補完に使う詳細のキャッシュ期間(秒)。シラバスは年度内で変わらない */
 const DETAIL_REVALIDATE_SECONDS = 86400;
 
-/** 一覧のカード1枚に、一覧APIだけでは足りない値を補ったもの。 */
-export type CardMeta = {
-  /** 担当教員名を「、」で連ねたもの。取れなければ null */
-  instructors: string | null;
-  /** 対象課程。履修可否の判定に使う(`lib/eligibility.ts`) */
-  programs: string[];
-  /** 対象学部。`programs` が空のときの拠りどころ */
-  faculties: string[];
-};
-
-async function fetchCardMetaOf(code: string, retry = true): Promise<CardMeta | null> {
+async function fetchInstructorsOf(code: string, retry = true): Promise<string | null> {
   try {
     const res = await fetch(`${apiBase()}/syllabi/${encodeURIComponent(code)}`, {
       // 補完のための取得。`getSyllabus()` と違い再検証つきでキャッシュする
@@ -397,48 +381,46 @@ async function fetchCardMetaOf(code: string, retry = true): Promise<CardMeta | n
     if (!res.ok) {
       if (retry && (res.status === 503 || res.status === 429)) {
         await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
-        return fetchCardMetaOf(code, false);
+        return fetchInstructorsOf(code, false);
       }
       return null;
     }
-    const detail = (await res.json()) as Pick<
-      SyllabusDetail,
-      "instructors" | "programs" | "faculties"
-    >;
-    return {
-      instructors: formatInstructors(detail.instructors),
-      programs: detail.programs ?? [],
-      faculties: detail.faculties ?? [],
-    };
+    const detail = (await res.json()) as Pick<SyllabusDetail, "instructors">;
+    return formatInstructors(detail.instructors);
   } catch {
-    // 1件の失敗で一覧を落とさない。その科目だけ教員名なし・可否不明になる
+    // 1件の失敗で一覧を落とさない。その科目だけ教員名なしになる
     return null;
   }
 }
 
 /**
- * 検索結果に、一覧APIが返さない値を補う。`syllabus_code` → `CardMeta` の対応を返す。
+ * 検索結果に担当教員名を補う。`syllabus_code` → 教員名の対応を返す。design.md §6.2。
  *
- * **api-clean の `GET /syllabi` は担当教員も対象課程も返さない。** どちらも1科目に
- * 複数が対応するため一覧の `SELECT DISTINCT` から外されており、
+ * **api-clean の `GET /syllabi` は担当教員を返さない。** 1科目に複数の教員が
+ * 対応するため一覧の `SELECT DISTINCT` から外されており、教員名は
  * `GET /syllabi/{code}` にしかない。api-clean は無変更で使う前提(§1.1.1、§3.4.4)で
- * 一覧に足す口も無いため、**表示中のページ分だけ詳細を引いて補う**。
+ * 一覧に足す口も無いため、**表示している行の分だけ詳細を引いて補う**。
  *
- * 担当教員(§6.2)と対象課程(§6.1 のタグ付け)は**同じ詳細レスポンスから採れる**ため、
- * 1回の取得にまとめる。タグの履修可否判定を足すために増えるリクエストは無い。
+ * **ブラウザから呼ぶ。** 以前はサーバ側描画から呼んでいたが、タグでの絞り込みを
+ * 全件に効かせたことで**どの行が表示されるかはクライアントで決まる**ようになった
+ * (§8)。絞り込みはプロファイルとの突合で決まり、その結果(例えば修得済みの
+ * コード一覧)は学生の成績そのものなのでサーバへ送れない(要件§5)。したがって
+ * 表示する行を知っているのはブラウザだけである。
  *
- * サーバ側描画から呼ぶこと。ブラウザから30本投げるためのものではない。
+ * 教員名は補助情報なので、揃う前でもカードは描ける(揃った時点で差し込まれる)。
+ * 対象課程は**この口では引かない** — 絞り込みには全件ぶん要るため
+ * `fetchCourseTargets()` でまとめて受け取る(§6.1.3)。
  */
-export async function fetchCardMetaMap(codes: string[]): Promise<Record<string, CardMeta>> {
+export async function fetchInstructorMap(codes: string[]): Promise<Record<string, string>> {
   const targets = Array.from(new Set(codes));
-  const map: Record<string, CardMeta> = {};
+  const map: Record<string, string> = {};
   let cursor = 0;
 
   const worker = async () => {
     while (cursor < targets.length) {
       const code = targets[cursor++];
-      const meta = await fetchCardMetaOf(code);
-      if (meta) map[code] = meta;
+      const names = await fetchInstructorsOf(code);
+      if (names) map[code] = names;
     }
   };
 
