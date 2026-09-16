@@ -41,6 +41,21 @@ export type Instructor = {
   order_index: number;
 };
 
+/** 教科書・参考文献1件。design.md §6.2(api-clean の `syllabus_textbook` × `book`)。 */
+export type Textbook = {
+  id: number;
+  title: string;
+  author: string | null;
+  author_raw: string | null;
+  publisher: string | null;
+  publisher_raw: string | null;
+  isbn: string | null;
+  price: number | null;
+  /** `main` = テキスト、`reference` = 参考文献 */
+  role: string;
+  order_index: number;
+};
+
 export type CoursePlan = {
   session_number: number;
   content: string;
@@ -72,7 +87,7 @@ export type SyllabusDetail = Omit<SyllabusListItem, "campus" | "term" | "detail_
   programs: string[];
   instructors: Instructor[];
   course_plan: CoursePlan[];
-  textbooks: unknown[];
+  textbooks: Textbook[];
   attributes: unknown[];
 };
 

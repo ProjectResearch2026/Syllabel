@@ -108,7 +108,8 @@ export default function CourseChatPanel({
   }, [code, streaming, profile, courseMessages, addCourseMessage]);
 
   return (
-    <div className="hidden md:flex w-[360px] shrink-0 flex-col border-l border-[#D1D5DB] bg-white">
+    // 本文と同じ高さまで伸ばさず、画面に貼り付けて中だけスクロールさせる
+    <aside className="sticky top-0 hidden h-[100dvh] w-[360px] shrink-0 flex-col border-l border-[#D1D5DB] bg-white md:flex">
       {/* Header */}
       <div className="flex items-center gap-2.5 h-[52px] px-4 border-b border-[#D1D5DB] shrink-0">
         <div className="w-[30px] h-[30px] rounded-full bg-[#E60012] flex items-center justify-center shrink-0">
@@ -170,6 +171,6 @@ export default function CourseChatPanel({
           <Send size={18} className="text-white" />
         </button>
       </div>
-    </div>
+    </aside>
   );
 }

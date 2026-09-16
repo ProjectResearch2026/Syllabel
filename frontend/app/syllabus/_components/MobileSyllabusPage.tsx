@@ -12,15 +12,14 @@ import {
   User,
   Timer,
 } from "lucide-react";
-import type { SyllabusListItem, Masters, CurriculaData, MatchedBy } from "@/lib/syllabus-api";
-import { fetchCurricula, OFFERING_YEAR } from "@/lib/syllabus-api";
-import { useStudentStore } from "@/lib/student";
+import type { SyllabusListItem, Masters, MatchedBy } from "@/lib/syllabus-api";
+import { OFFERING_YEAR } from "@/lib/syllabus-api";
 import { SYLLABUS_CONTEXT, useAiStore } from "@/lib/ai";
 import AskBar from "@/components/ai/AskBar";
 import SyllabusPagination from "./SyllabusPagination";
-import { buildTagMap, useSyllabusUIStore, type TagType } from "@/lib/syllabusUI";
+import { useSyllabusUIStore, type TagType } from "@/lib/syllabusUI";
+import { useTagMap } from "@/lib/useTagMap";
 import { detailHref } from "@/lib/syllabusQuery";
-import { getAdmissionYear, programCodeOf } from "@/lib/programs";
 
 const TAG_CHIPS = ["すべて", "必修", "選択", "既修得済み"] as const;
 const DAYS = ["月", "火", "水", "木", "金", "土"];
@@ -63,37 +62,11 @@ export default function MobileSyllabusPage({
   const setActiveChip = useSyllabusUIStore((s) => s.setActiveTag);
   // 空きコマ長押しメニューの「シラバスで絞り込む」から来たときは開いた状態で始める
   const [filterOpen, setFilterOpen] = useState(searchParams.get("filters") === "open");
-  const [curricula, setCurricula] = useState<CurriculaData | null>(null);
-  const profile = useStudentStore((s) => s.profile);
+  const tagMap = useTagMap();
   const setSelection = useAiStore((s) => s.setSelection);
 
   // 他の画面へ移ったら Ask Bar の文脈を持ち越さない
   useEffect(() => () => setSelection(null), [setSelection]);
-
-  useEffect(() => {
-    // 履修要項を引くキーは (課程コード, 入学年度)。プロファイルの `program` は
-    // 課程名なのでコードに解決する（design.md §4.4.2）
-    const programCode = programCodeOf(profile?.program);
-    if (!programCode || !profile?.grade) return;
-    fetchCurricula(programCode, getAdmissionYear(profile.grade))
-      .then(setCurricula)
-      .catch(() => {});
-  }, [profile]);
-
-  const passedCodes = new Set(
-    (profile?.completedCourses ?? [])
-      .filter((c) => c.status === "passed" && c.code)
-      .map((c) => c.code as string),
-  );
-  const passedTitles = new Set(
-    (profile?.completedCourses ?? [])
-      .filter((c) => c.status === "passed")
-      .map((c) => c.title),
-  );
-
-  const tagMap = curricula
-    ? buildTagMap(curricula, passedCodes, passedTitles)
-    : new Map<string, TagType>();
 
   const filteredResults = results.filter((c) => {
     if (activeChip === "すべて") return true;
