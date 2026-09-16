@@ -199,8 +199,8 @@ export async function searchCourses(
   if (!word) return { ...(await searchSyllabi(rest)), matchedBy: null };
 
   const byTitle = await searchSyllabi({ ...rest, q: word });
-  // 上流の `count` が総ヒット数か返却件数かは確定していないため、判定は
-  // 実際に返った件数で行う(`limit` を超えるページでは 0 件になり得る)
+  // 上流の `count` はそのページで返した件数であり総ヒット数ではない(§6.2)。
+  // 空振りの判定は実際に返った件数で行う
   if (byTitle.results.length > 0) return { ...byTitle, matchedBy: "title" };
 
   const byInstructor = await searchSyllabi({ ...rest, instructor: word });
