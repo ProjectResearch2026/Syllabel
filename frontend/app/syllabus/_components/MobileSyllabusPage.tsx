@@ -13,7 +13,7 @@ import {
   Timer,
 } from "lucide-react";
 import type { SyllabusListItem, Masters, MatchedBy } from "@/lib/syllabus-api";
-import { OFFERING_YEAR } from "@/lib/syllabus-api";
+import { OFFERING_YEAR, FACULTY } from "@/lib/syllabus-api";
 import { SYLLABUS_CONTEXT, useAiStore } from "@/lib/ai";
 import AskBar from "@/components/ai/AskBar";
 import SyllabusPagination from "./SyllabusPagination";
@@ -92,7 +92,7 @@ export default function MobileSyllabusPage({
     [router, pathname, searchParams],
   );
 
-  const faculty = searchParams.get("faculty") ?? "";
+  const program = searchParams.get("program") ?? "";
   const campus = searchParams.get("campus") ?? "";
   const term = searchParams.get("term") ?? "";
   const day = searchParams.get("day") ?? "";
@@ -112,14 +112,30 @@ export default function MobileSyllabusPage({
       ),
     },
     {
+      // 学部は選べない。対象は先端理工学部の学生である(要件§2.1)
       label: "学部",
       node: (
-        <select value={faculty} onChange={(e) => update("faculty", e.target.value)} className={selectClass}>
-          <option value="">すべて</option>
-          {masters.faculty.map((f) => (
-            <option key={f.id} value={f.name}>{f.name}</option>
-          ))}
-        </select>
+        <p className="text-[13px] text-[#1A2B4E] px-2.5 py-2 bg-[#F3F4F6] border border-[#D1D5DB] rounded-lg">
+          {FACULTY}のみ
+        </p>
+      ),
+    },
+    {
+      label: "課程",
+      node: (
+        <>
+          <select value={program} onChange={(e) => update("program", e.target.value)} className={selectClass}>
+            <option value="">すべて</option>
+            {masters.course_program.map((p) => (
+              <option key={p.id} value={p.name}>{p.name}</option>
+            ))}
+          </select>
+          {program && (
+            <span className="text-[10px] leading-snug text-[#6B7280]">
+              その課程が対象の科目のみ
+            </span>
+          )}
+        </>
       ),
     },
     {

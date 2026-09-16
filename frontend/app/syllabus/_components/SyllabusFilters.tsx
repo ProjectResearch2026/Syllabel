@@ -3,7 +3,7 @@
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useTransition } from "react";
 import { SlidersHorizontal } from "lucide-react";
-import { OFFERING_YEAR, type Masters } from "@/lib/syllabus-api";
+import { OFFERING_YEAR, FACULTY, type Masters } from "@/lib/syllabus-api";
 
 const DAYS = ["月", "火", "水", "木", "金", "土"];
 
@@ -30,7 +30,7 @@ export default function SyllabusFilters({ masters }: Props) {
     [router, pathname, searchParams],
   );
 
-  const faculty = searchParams.get("faculty") ?? "";
+  const program = searchParams.get("program") ?? "";
   const campus = searchParams.get("campus") ?? "";
   const term = searchParams.get("term") ?? "";
   const day = searchParams.get("day") ?? "";
@@ -50,14 +50,31 @@ export default function SyllabusFilters({ masters }: Props) {
       ),
     },
     {
+      // 学部は選べない。対象は先端理工学部の学生であり(要件§2.1)、他学部の
+      // 科目は履修要項を持たずタグ付けの対象外になる
       label: "学部",
       node: (
-        <select value={faculty} onChange={(e) => update("faculty", e.target.value)} className={selectClass}>
-          <option value="">すべて</option>
-          {masters.faculty.map((f) => (
-            <option key={f.id} value={f.name}>{f.name}</option>
-          ))}
-        </select>
+        <p className="text-[13px] text-[#1A2B4E] px-2.5 py-2 bg-[#F3F4F6] border border-[#D1D5DB] rounded">
+          {FACULTY}のみ
+        </p>
+      ),
+    },
+    {
+      label: "課程",
+      node: (
+        <>
+          <select value={program} onChange={(e) => update("program", e.target.value)} className={selectClass}>
+            <option value="">すべて</option>
+            {masters.course_program.map((p) => (
+              <option key={p.id} value={p.name}>{p.name}</option>
+            ))}
+          </select>
+          {program && (
+            <span className="text-[11px] leading-snug text-[#6B7280]">
+              その課程が対象の科目のみ。全学向けの教養教育科目は外れます
+            </span>
+          )}
+        </>
       ),
     },
     {
