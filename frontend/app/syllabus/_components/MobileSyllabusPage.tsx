@@ -28,8 +28,8 @@ const DAYS = ["月", "火", "水", "木", "金", "土"];
 type Props = {
   /** 条件に当たる**全件**。ページ送りはこの中から切り出す(§6.2) */
   results: SyllabusListItem[];
-  /** `syllabus_code` → 対象課程(§6.1.3) */
-  targets: Record<string, string[]>;
+  /** `syllabus_code` → 対象課程。引けなかったときは null(§6.1.3) */
+  targets: Record<string, string[]> | null;
   faculty: string;
   offset: number;
   limit: number;

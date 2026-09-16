@@ -36,10 +36,15 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
   // **検索は条件に当たる全件を引く**(§6.2)。タグでの絞り込みはクライアントで
   // 行う必要があり(§6.1.3)、取得済みのページしか振り分けられないと使えない。
   // 対象課程も全件ぶんまとめて受け取る
+  //
+  // **対象課程が引けなくても一覧は出す。** タグは検索の付加価値であって前提では
+  // ないため、`fetchCourseTargets()` の失敗で画面ごと落としてはならない(§6.1.3)。
+  // backend だけが古い(このエンドポイントを持たない)ときに 404 で一覧が
+  // 真っ白になる事故が実際に起きた。引けなければタグを出さずに続ける
   const [data, masters, courseTargets] = await Promise.all([
     searchCourses({ keyword, faculty, program, campus, term, day, period, year }),
     getMasters(),
-    fetchCourseTargets(year, faculty),
+    fetchCourseTargets(year, faculty).catch(() => null),
   ]);
 
   return (
@@ -49,7 +54,7 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
         <Suspense>
           <MobileSyllabusPage
             results={data.results}
-            targets={courseTargets.targets}
+            targets={courseTargets?.targets ?? null}
             faculty={faculty}
             offset={offset}
             limit={LIMIT}
@@ -74,7 +79,7 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
             <Suspense>
               <SyllabusResults
                 results={data.results}
-                targets={courseTargets.targets}
+                targets={courseTargets?.targets ?? null}
                 faculty={faculty}
                 matchedBy={data.matchedBy}
                 keyword={keyword}

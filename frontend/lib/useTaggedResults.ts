@@ -47,10 +47,19 @@ export type TaggedResults = {
  *
  * **PC・モバイルの双方から呼ぶ。** 同じ結果でなければならないため、切り出しと
  * 教員名の補完をここに1つだけ置く(§8.1 と同じ理由)。
+ *
+ * **対象課程が引けなくても検索は動く。** `targets` が null のとき、または当該
+ * コードが表に無いときはタグを出さない(修得済みだけは成績の事実なので出る)。
+ * タグは検索の付加価値であって前提ではないため、タグ付けの材料が欠けたことで
+ * 一覧そのものを落としてはならない。
  */
 export function useTaggedResults(
   results: SyllabusListItem[],
-  targets: Record<string, string[]>,
+  /**
+   * `syllabus_code` → 対象課程。**引けなかったときは null**(§6.1.3)。
+   * その場合タグは修得済みだけになり、検索そのものは通常どおり動く。
+   */
+  targets: Record<string, string[]> | null,
   faculty: string,
   offset: number,
   limit: number,
@@ -60,10 +69,14 @@ export function useTaggedResults(
   const tagOf = useTagMap();
 
   const filtered = useMemo(() => {
-    const tagged = results.map((course) => ({
-      course,
-      tags: tagOf(course.syllabus_code, targetOfPrograms(targets[course.syllabus_code] ?? [], faculty)),
-    }));
+    const tagged = results.map((course) => {
+      // **対象課程が分からないときは `undefined` を渡す。** 空配列を渡してはならない
+      // — 空配列は「課程指定なし(＝履修可)」を意味するため、引けなかったコードを
+      // 全部履修可と扱ってしまい、PR #100 で直した誤タグが戻る(§6.1.3)
+      const programs = targets?.[course.syllabus_code];
+      const target = programs === undefined ? undefined : targetOfPrograms(programs, faculty);
+      return { course, tags: tagOf(course.syllabus_code, target) };
+    });
     return tagged.filter(({ tags }) => matchesFilter(tags, activeTag, activeCategory));
   }, [results, targets, faculty, tagOf, activeTag, activeCategory]);
 

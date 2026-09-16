@@ -89,6 +89,18 @@
 
 ---
 
+## デプロイ時の注意
+
+- **frontend と backend は揃えて入れ替える**（設計書 §3.3）。frontend だけを入れ替えて `GET /api/course-targets` を持たない古い backend に当たり、検索画面が「シラバスの読み込みに失敗しました」になる事故が実際に起きた
+
+```bash
+podman build -t localhost/pr2026-backend:latest ./backend
+podman build -t localhost/pr2026-frontend:latest ./frontend
+systemctl --user restart pr2026-backend.service pr2026-frontend.service
+```
+
+- `podman build` が全ステップ `Using cache` になるときは、**そのソースで既にビルド済み**ということ。`git pull` を忘れていないか確認する
+
 ## メモ
 
 - バックエンドとの通信は **`/pr-2026/api/*`** 経由（ゲートウェイが `/pr-2026` を剥がして backend へ振り分け）— design.md §3.5.2、§6.1。`basePath` は `fetch()` のパスに前置されないため、宛先は `lib/api_base.ts` の `apiBase()` で解決する
