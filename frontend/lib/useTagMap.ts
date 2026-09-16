@@ -6,6 +6,7 @@ import { buildTagMap, resolveTags, NO_TAGS, type CourseTags } from "@/lib/syllab
 import { getAdmissionYear, programCodeOf } from "@/lib/programs";
 import { fetchCurricula, type CurriculaData } from "@/lib/syllabus-api";
 import type { CourseTarget } from "@/lib/eligibility";
+import { normalizeTitle } from "@/lib/courseTitle";
 
 /** `syllabus_code` と対象課程から、その学生にとってのタグ一式を決める関数。 */
 export type TagResolver = (code: string, target: CourseTarget | undefined) => CourseTags;
@@ -64,8 +65,10 @@ export function useTagMap(): TagResolver {
     const passedCodes = new Set(
       completed.filter((c) => c.status === "passed" && c.code).map((c) => c.code as string),
     );
+    // 成績表由来の科目名は表記が揺れる(全角英数字・空白)ため正規化して持つ。
+    // backend の `normalize_title()` と同じ規則(`lib/courseTitle.ts`)
     const passedTitles = new Set(
-      completed.filter((c) => c.status === "passed").map((c) => c.title),
+      completed.filter((c) => c.status === "passed").map((c) => normalizeTitle(c.title)),
     );
     return buildTagMap(curricula, passedCodes, passedTitles);
   }, [curricula, profile]);

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { Category, CourseType, CurriculaData } from "@/lib/syllabus-api";
 import { canRegister, type CourseTarget } from "@/lib/eligibility";
+import { normalizeTitle } from "@/lib/courseTitle";
 
 /** 区分の絞り込みで「絞らない」を表す値。 */
 export const ALL_CATEGORIES = "すべて";
@@ -13,7 +14,7 @@ export const ALL_TAGS = "すべて";
  * 履修区分と状態はチップに、区分はセレクトに出す(§8)。チップに7値を並べると
  * 1行に収まらないため、軸で分けている。
  */
-export const TAG_CHIPS = [ALL_TAGS, "必修", "選択必修", "選択", "随意", "既修得済み"] as const;
+export const TAG_CHIPS = [ALL_TAGS, "必修", "選択必修", "選択", "随意", "修得済み"] as const;
 export const CATEGORY_CHOICES = [
   ALL_CATEGORIES,
   "教養教育",
@@ -23,7 +24,7 @@ export const CATEGORY_CHOICES = [
 ] as const;
 
 type SyllabusUIStore = {
-  /** 履修区分または状態での絞り込み(`必修` / `選択必修` / `選択` / `随意` / `既修得済み`) */
+  /** 履修区分または状態での絞り込み(`必修` / `選択必修` / `選択` / `随意` / `修得済み`) */
   activeTag: string;
   setActiveTag: (tag: string) => void;
   /** 区分での絞り込み(`教養教育` / `専門基礎` / `専門応用` / `専門関連`) */
@@ -55,7 +56,7 @@ export const useSyllabusUIStore = create<SyllabusUIStore>((set) => ({
  *
  * | 軸 | 値 |
  * |---|---|
- * | 状態 | `既修得済み` |
+ * | 状態 | `修得済み` |
  * | 区分 | `教養教育` / `専門基礎` / `専門応用` / `専門関連` |
  * | 履修区分 | `必修` / `選択必修` / `選択` / `随意` |
  */
@@ -63,7 +64,7 @@ export type CourseCategoryTag = "教養教育" | "専門基礎" | "専門応用"
 export type RequirementTag = "必修" | "選択必修" | "選択" | "随意";
 
 /** 履修区分または状態。絞り込みのチップが取る値でもある。 */
-export type TagType = RequirementTag | "既修得済み" | null;
+export type TagType = RequirementTag | "修得済み" | null;
 
 /** 1つのシラバスコードに付すタグ一式。すべて null / false ならタグなし。 */
 export type CourseTags = {
@@ -72,7 +73,7 @@ export type CourseTags = {
   /** 区分 */
   category: CourseCategoryTag | null;
   /**
-   * 履修区分。**既修得済みのときと専門関連科目のときは null になる**
+   * 履修区分。**修得済みのときと専門関連科目のときは null になる**
    * (`resolveTags()` の規則を参照)
    */
   requirement: RequirementTag | null;
@@ -120,12 +121,15 @@ type TagCandidate = {
 export function buildTagMap(
   curricula: CurriculaData,
   passedCodes: Set<string>,
+  /** **正規化済み**の科目名の集合(`normalizeTitle()` を通したもの) */
   passedTitles: Set<string>,
 ): Map<string, TagCandidate> {
   const map = new Map<string, TagCandidate>();
 
   for (const course of curricula.courses) {
-    const passedByTitle = passedTitles.has(course.title);
+    // 科目名は正規化して突き合わせる。成績表由来の表記は全角英数字や空白が
+    // 混じり、完全一致では外れる(`lib/courseTitle.ts`)
+    const passedByTitle = passedTitles.has(normalizeTitle(course.title));
     for (const code of course.syllabusCodes) {
       const completed = passedByTitle || passedCodes.has(code);
       const current = map.get(code);
@@ -154,14 +158,14 @@ export function buildTagMap(
  * | 状況 | 出すタグ |
  * |---|---|
  * | 履修不可 | なし |
- * | 履修可 × 既修得済み | `既修得済み` + 区分 |
+ * | 履修可 × 修得済み | `修得済み` + 区分 |
  * | 履修可 × 未修得 × 自課程の設置科目 | 区分 + 履修区分 |
  * | 履修可 × 未修得 × 他課程の設置科目 | `専門関連` のみ |
  * | 履修要項に無い | なし |
  *
  * 履修区分を出さない場合が2つある。
  *
- * - **既修得済みのとき。** 履修区分は「これから履修する必要があるか」を示す情報で
+ * - **修得済みのとき。** 履修区分は「これから履修する必要があるか」を示す情報で
  *   あり、単位を修得した科目では意味を持たない。バッジも2つに収まる
  * - **他課程の設置科目（`own` が false）のとき。** その `type` は**導出元の課程に
  *   とっての**区分であって、閲覧している学生にとっての区分ではない。
@@ -170,7 +174,7 @@ export function buildTagMap(
  *   とっての区分は**専門関連科目**であり、`related` → `free.faculty` の要件枠に
  *   計上される（§4.4.3）。導出元での `選択必修` をそのまま出してはならない
  *
- * **既修得済みは履修可否を問わず出す。** 単位を修得した事実であり、そのクラスを
+ * **修得済みは履修可否を問わず出す。** 単位を修得した事実であり、そのクラスを
  * これから履修できるかとは無関係である。
  *
  * **対象課程が分からないときはタグを出さない。** 一覧は表示中のぶんだけシラバス詳細を
@@ -206,7 +210,7 @@ export function hasTags(tags: CourseTags): boolean {
 /**
  * 絞り込みに一致するか。design.md §8。
  *
- * 2つの軸は AND で効く。`既修得済み` は履修区分ではなく状態の軸だが、
+ * 2つの軸は AND で効く。`修得済み` は履修区分ではなく状態の軸だが、
  * 学生の探し方（「もう取った科目を除きたい」）に沿うため同じチップの並びに置く。
  */
 export function matchesFilter(
@@ -216,7 +220,7 @@ export function matchesFilter(
 ): boolean {
   if (activeCategory !== ALL_CATEGORIES && tags.category !== activeCategory) return false;
   if (activeTag === ALL_TAGS) return true;
-  if (activeTag === "既修得済み") return tags.completed;
+  if (activeTag === "修得済み") return tags.completed;
   return tags.requirement === activeTag;
 }
 
