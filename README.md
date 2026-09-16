@@ -96,6 +96,47 @@ npm run dev                        # http://localhost:3000/pr-2026
 
 開発時はゲートウェイが居ないため、ブラウザからの `/pr-2026/api/*` は `next.config.ts` の `rewrites()` が `BACKEND_ORIGIN` へ中継する(本番ではゲートウェイが振り分けるため無効)。上の backend 開発サーバを立てておけば、そのまま疎通する。
 
+### ローカル開発環境(シラバス検索まで一式)
+
+**公開デプロイを挟まずに、手元で画面を見ながら開発できる。** シラバス検索・講義詳細・履修要項のタグ表示までが実データで動く。vllm は立てないので、チャットと履修提案は使えない(その2つは実機で確かめる)。
+
+必要なもの: docker (compose v2)、Python 3.12 以上、Node.js。
+
+**1. シラバスバックエンド(api-clean + Postgres)を立てる。** 別リポジトリ [ProjectResearch2026/syllabus_backend](https://github.com/ProjectResearch2026/syllabus_backend) が、シラバスの元データ(xlsx)ごと持っている。初回だけ:
+
+```bash
+git clone https://github.com/ProjectResearch2026/syllabus_backend ../syllabus_backend
+cd ../syllabus_backend
+bin/init_clean.sh --years 2026     # Postgres 起動 → スキーマ作成 → 2026年度データ投入
+```
+
+`http://localhost:5050/docs` が開けば成功(Postgres は `localhost:5433`)。2回目以降は `docker compose -f docker-compose.clean.yml up -d` だけでよい。投入されるのは先端理工学部を含む1,512件(2026年度)で、`Y00…` の専攻科目と `G26…` の教養教育科目がどちらも入る。
+
+**2. backend と frontend を起動する。**
+
+```bash
+cd backend && python -m venv .venv && .venv/bin/pip install -e ".[dev]"   # 初回だけ
+cd ../frontend && npm install                                             # 初回だけ
+
+cd .. && scripts/dev.sh
+```
+
+`scripts/dev.sh` は api-clean の死活を確かめてから、backend(`uvicorn --reload`)と frontend(`next dev`)を一緒に立ち上げる。**どちらもソースを保存すれば自動で反映される**ので、PR・マージ・デプロイを回さずに変更を確認できる。Ctrl-C で両方止まる。
+
+| URL | 中身 |
+|---|---|
+| `http://localhost:3000/pr-2026/syllabus` | 画面 |
+| `http://localhost:8000/api/healthz` | backend |
+| `http://localhost:5050/docs` | api-clean(Swagger UI) |
+
+宛先を変えたいときは `API_CLEAN_BASE_URL` / `BACKEND_ORIGIN` / `BACKEND_PORT` を環境変数で渡す。
+
+**frontend だけを触るなら backend も要らない。** 公開中の backend を宛先にすれば、DB もシラバスリポジトリも無しで画面の開発ができる(サーバ側描画・ブラウザの両方がこの宛先を使う。設計§6.1)。
+
+```bash
+cd frontend && BACKEND_ORIGIN="https://<公開ホスト>/pr-2026" npm run dev
+```
+
 ### 実機スモーク
 
 vllm・api-clean を相手にした疎通確認は `backend/scripts/smoke_*.py` を手で実行する(pytest の対象外。設計§12.3)。

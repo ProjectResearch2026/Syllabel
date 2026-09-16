@@ -85,6 +85,16 @@ export type Masters = {
   term: MasterItem[];
 };
 
+/**
+ * 検索対象とする開講年度。design.md §5.1.4 / §6.1。
+ *
+ * api-clean は2025年度の開講科目も保持しているが、履修要項側の名寄せ結果
+ * (`offerings/<開講年度>/`)は2026年度分しか無く、教養教育科目が揃っていない。
+ * 他年度を検索できるようにすると、タグ付け(§6.1)の対象外となる結果だけが
+ * 並ぶことになるため、検索画面が扱う開講年度はこの1年度に固定する。
+ */
+export const OFFERING_YEAR = 2026;
+
 export type SearchParams = {
   q?: string;
   faculty?: string;
@@ -163,6 +173,87 @@ export async function searchSyllabi(params: SearchParams): Promise<SyllabusListR
   const res = await fetch(`${apiBase()}/syllabi${query}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   return res.json();
+}
+
+/** `searchCourses()` がキーワードをどちらの条件として引いたか。 */
+export type MatchedBy = "title" | "instructor";
+
+/** 検索結果1ページ分。design.md §6.1 / §6.2。 */
+export type CourseSearchResponse = {
+  results: SyllabusListItem[];
+  limit: number;
+  offset: number;
+  /** 次のページがあるか */
+  hasNext: boolean;
+  /**
+   * 総ヒット数。**最終ページに達したときだけ確定する**(`offset + 件数`)。
+   * それ以外は null で、「いま何件目までを見ているか」しか言えない。
+   * api-clean に総件数を返す口が無いためである(§6.2)。
+   */
+  total: number | null;
+  /** キーワード未指定のときは null */
+  matchedBy: MatchedBy | null;
+};
+
+/** `limit` 省略時の1ページの件数 */
+const DEFAULT_LIMIT = 30;
+
+/**
+ * 1ページ分を引き、次ページの有無を判定する。
+ *
+ * api-clean の `count` はそのページで返した件数であり、総ヒット数ではない
+ * (§6.2)。総件数を返す口も無い。そこで **`limit + 1` 件を要求し、`limit` を
+ * 超えて返ってきたら次ページがある**と判定する。余分な1件は呼び出し元へ
+ * 渡さない。
+ */
+async function searchPage(
+  params: SearchParams,
+): Promise<{ results: SyllabusListItem[]; hasNext: boolean }> {
+  const limit = params.limit ?? DEFAULT_LIMIT;
+  const raw = await searchSyllabi({ ...params, limit: limit + 1 });
+  const hasNext = raw.results.length > limit;
+  return { results: hasNext ? raw.results.slice(0, limit) : raw.results, hasNext };
+}
+
+/**
+ * 検索ボックスの1語(科目名または教員名)でシラバスを検索する。design.md §6.1。
+ *
+ * api-clean の `q` と `instructor` は別々のパラメータであり、`q` は教員名に
+ * 当たらない。検索ボックスは科目名と教員名を1つの入力で受けるため、`q` が
+ * 0件のときに `instructor` で引き直す。**両方を同時に送ってはならない**
+ * (AND 条件となり必ず0件になる)。
+ */
+export async function searchCourses(
+  params: Omit<SearchParams, "q" | "instructor"> & { keyword?: string },
+): Promise<CourseSearchResponse> {
+  const { keyword, ...rest } = params;
+  const limit = rest.limit ?? DEFAULT_LIMIT;
+  const offset = rest.offset ?? 0;
+  const word = keyword?.trim();
+
+  const build = (
+    page: { results: SyllabusListItem[]; hasNext: boolean },
+    matchedBy: MatchedBy | null,
+  ): CourseSearchResponse => ({
+    results: page.results,
+    limit,
+    offset,
+    hasNext: page.hasNext,
+    // 次ページが無い = ここが最後。総件数はこの時点で確定する
+    total: page.hasNext ? null : offset + page.results.length,
+    matchedBy,
+  });
+
+  if (!word) return build(await searchPage(rest), null);
+
+  const byTitle = await searchPage({ ...rest, q: word });
+  if (byTitle.results.length > 0) return build(byTitle, "title");
+
+  const byInstructor = await searchPage({ ...rest, instructor: word });
+  if (byInstructor.results.length > 0) return build(byInstructor, "instructor");
+
+  // どちらも 0 件。科目名で引いた結果をそのまま返す
+  return build(byTitle, "title");
 }
 
 export async function getSyllabus(code: string): Promise<SyllabusDetail> {
