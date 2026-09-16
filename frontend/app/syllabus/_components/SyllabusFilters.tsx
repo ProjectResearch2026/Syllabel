@@ -3,16 +3,15 @@
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useTransition } from "react";
 import { SlidersHorizontal } from "lucide-react";
-import type { Masters } from "@/lib/syllabus-api";
+import { OFFERING_YEAR, type Masters } from "@/lib/syllabus-api";
 
 const DAYS = ["月", "火", "水", "木", "金", "土"];
 
 type Props = {
   masters: Masters;
-  currentNendo: number;
 };
 
-export default function SyllabusFilters({ masters, currentNendo }: Props) {
+export default function SyllabusFilters({ masters }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -35,22 +34,19 @@ export default function SyllabusFilters({ masters, currentNendo }: Props) {
   const campus = searchParams.get("campus") ?? "";
   const term = searchParams.get("term") ?? "";
   const day = searchParams.get("day") ?? "";
-  const year = searchParams.get("year") ?? String(currentNendo);
-
-  const nendoOptions = Array.from({ length: 5 }, (_, i) => currentNendo - 2 + i);
 
   const selectClass =
     "w-full border border-[#D1D5DB] rounded px-2.5 py-2 text-[13px] text-[#1A2B4E] bg-white focus:outline-none focus:border-[#1A2B4E] transition-colors";
 
   const fields: { label: string; node: React.ReactNode }[] = [
     {
+      // 開講年度は選べない。履修要項側の名寄せ結果が `OFFERING_YEAR` の1年度分
+      // しか無いため(`lib/syllabus-api.ts`)、表示のみとする
       label: "年度",
       node: (
-        <select value={year} onChange={(e) => update("year", e.target.value)} className={selectClass}>
-          {nendoOptions.map((y) => (
-            <option key={y} value={y}>{y}年度</option>
-          ))}
-        </select>
+        <p className="text-[13px] text-[#1A2B4E] px-2.5 py-2 bg-[#F3F4F6] border border-[#D1D5DB] rounded">
+          {OFFERING_YEAR}年度のみ
+        </p>
       ),
     },
     {

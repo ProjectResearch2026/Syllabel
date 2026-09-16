@@ -1,4 +1,4 @@
-# 履修登録支援AIチャットボット 設計書(v0.9.16)— §6 API設計 / §7 主要シーケンス / §8 画面構成とルーティング
+# 履修登録支援AIチャットボット 設計書(v0.9.17)— §6 API設計 / §7 主要シーケンス / §8 画面構成とルーティング
 
 > 本ファイルは [`docs/design.md`](../design.md) の一部である。§番号は設計書全体で通し番号であり、他ファイルの節を `§X.Y` の形で参照する。全ファイルの対応表は [design.md](../design.md) の「0.3 本書の構成」を参照。
 
@@ -44,6 +44,10 @@
 **`POST /api/chat/proposal` は未実装である**(2026-09-09 時点)。frontend 側は接続済みであり、backend にルートが入るまでこの経路は 404 を返す。他の9本は実装済みで、後述の書式に従う。
 
 `GET /api/syllabi` / `/api/syllabi/{code}` / `/api/masters` は、検索画面(§4.1 の `/syllabus` 一覧・検索および `/syllabus/[code]` 詳細)が使う読み取り専用エンドポイントで、backend は §6.2 の api-clean(`GET /syllabi` / `GET /syllabi/{code}` / `GET /masters`)を中継する。公開経路はゲートウェイの単一オリジンに統一され、`/` は frontend、`/api/*` は backend へ振り分けられる一方、api-clean は公開されない(§1.2)。したがって frontend は api-clean を直接呼べず、検索画面向けにも backend 側の口が必要となる。クエリパラメータは api-clean の `/syllabi`(`q` / `faculty` / `program` / `campus` / `term` / `day` / `period` / `year` / `instructor` / `grade` / `limit` / `offset`)を素通しする。検索結果に付す「必修 / 選択 / 既修得済み」タグ(§8)は、この結果と `GET /api/curricula` の履修要項、ブラウザ内の学生プロファイルを frontend 側で突き合わせて生成する。突合はシラバスコードによる結合を第一とし、履修要項側のコードは開講年度ファイルの `resolved`(科目名 → シラバスコード。§5.1.4)から解決する。`not_offered` / `unresolved` の科目はコードを持たないためタグ付けの対象外とする。
+
+**検索画面が扱う開講年度は1年度に固定する。** api-clean は2025年度の開講科目も保持しているが、履修要項側の名寄せ結果(`offerings/<開講年度>/`。§5.1.4)は2026年度分しか無く、教養教育科目の対応が揃っていない。他年度を選べるようにすると、タグ付けの対象外となる結果だけが並ぶ画面になる。したがって **frontend は `year` を定数(`lib/syllabus-api.ts` の `OFFERING_YEAR`)で与え、絞り込み UI から年度の選択肢を外す**(URL に `year` が付いていても見ない)。backend の `/api/syllabi` は引き続き `year` を素通しし、制限は置かない。他年度の `offerings/` が揃えばこの定数を増やすだけで開放できる。
+
+**検索ボックスの1語は、科目名 → 教員名の順で引く。** api-clean の `q` と `instructor` は別のパラメータであり、`q` は教員名に当たらない。一方 UI は科目名と教員名を1つの入力で受ける(§8)ため、frontend は `q` で引いて結果が空のときに同じ語を `instructor` で引き直す(`lib/syllabus-api.ts` の `searchCourses()`)。**両者を同時に送ってはならない。** api-clean のパラメータは AND 条件であり、必ず0件になる。教員名として引き直したことは検索結果の見出しに示す。
 
 `GET /api/curricula/{program_code}/{admission_year}` は、このタグ付けが必要とする科目レイヤ(§4.4.3)を返す。**backend は次の3点を解決済みの状態で返し、履修要項の構造をクライアントに持ち込まない。**
 

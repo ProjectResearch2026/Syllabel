@@ -85,6 +85,16 @@ export type Masters = {
   term: MasterItem[];
 };
 
+/**
+ * 検索対象とする開講年度。design.md §5.1.4 / §6.1。
+ *
+ * api-clean は2025年度の開講科目も保持しているが、履修要項側の名寄せ結果
+ * (`offerings/<開講年度>/`)は2026年度分しか無く、教養教育科目が揃っていない。
+ * 他年度を検索できるようにすると、タグ付け(§6.1)の対象外となる結果だけが
+ * 並ぶことになるため、検索画面が扱う開講年度はこの1年度に固定する。
+ */
+export const OFFERING_YEAR = 2026;
+
 export type SearchParams = {
   q?: string;
   faculty?: string;
@@ -163,6 +173,41 @@ export async function searchSyllabi(params: SearchParams): Promise<SyllabusListR
   const res = await fetch(`${apiBase()}/syllabi${query}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   return res.json();
+}
+
+/** `searchCourses()` がキーワードをどちらの条件として引いたか。 */
+export type MatchedBy = "title" | "instructor";
+
+export type KeywordSearchResponse = SyllabusListResponse & {
+  /** キーワード未指定のときは null */
+  matchedBy: MatchedBy | null;
+};
+
+/**
+ * 検索ボックスの1語(科目名または教員名)でシラバスを検索する。design.md §6.1。
+ *
+ * api-clean の `q` と `instructor` は別々のパラメータであり、`q` は教員名に
+ * 当たらない。検索ボックスは科目名と教員名を1つの入力で受けるため、`q` が
+ * 0件のときに `instructor` で引き直す。**両方を同時に送ってはならない**
+ * (AND 条件となり必ず0件になる)。
+ */
+export async function searchCourses(
+  params: Omit<SearchParams, "q" | "instructor"> & { keyword?: string },
+): Promise<KeywordSearchResponse> {
+  const { keyword, ...rest } = params;
+  const word = keyword?.trim();
+  if (!word) return { ...(await searchSyllabi(rest)), matchedBy: null };
+
+  const byTitle = await searchSyllabi({ ...rest, q: word });
+  // 上流の `count` が総ヒット数か返却件数かは確定していないため、判定は
+  // 実際に返った件数で行う(`limit` を超えるページでは 0 件になり得る)
+  if (byTitle.results.length > 0) return { ...byTitle, matchedBy: "title" };
+
+  const byInstructor = await searchSyllabi({ ...rest, instructor: word });
+  if (byInstructor.results.length > 0) return { ...byInstructor, matchedBy: "instructor" };
+
+  // どちらも 0 件。科目名で引いた結果(件数・offset)をそのまま返す
+  return { ...byTitle, matchedBy: "title" };
 }
 
 export async function getSyllabus(code: string): Promise<SyllabusDetail> {

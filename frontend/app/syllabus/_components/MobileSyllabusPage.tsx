@@ -12,8 +12,8 @@ import {
   User,
   Timer,
 } from "lucide-react";
-import type { SyllabusListItem, Masters, CurriculaData } from "@/lib/syllabus-api";
-import { fetchCurricula } from "@/lib/syllabus-api";
+import type { SyllabusListItem, Masters, CurriculaData, MatchedBy } from "@/lib/syllabus-api";
+import { fetchCurricula, OFFERING_YEAR } from "@/lib/syllabus-api";
 import { useStudentStore } from "@/lib/student";
 import { SYLLABUS_CONTEXT, useAiStore } from "@/lib/ai";
 import AskBar from "@/components/ai/AskBar";
@@ -36,7 +36,8 @@ type Props = {
   count: number;
   offset: number;
   masters: Masters;
-  currentNendo: number;
+  /** キーワードを教員名として引き直したか(§6.1) */
+  matchedBy: MatchedBy | null;
 };
 
 export default function MobileSyllabusPage({
@@ -44,7 +45,7 @@ export default function MobileSyllabusPage({
   count,
   offset,
   masters,
-  currentNendo,
+  matchedBy,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -109,25 +110,23 @@ export default function MobileSyllabusPage({
     [router, pathname, searchParams],
   );
 
-  const year = searchParams.get("year") ?? String(currentNendo);
   const faculty = searchParams.get("faculty") ?? "";
   const campus = searchParams.get("campus") ?? "";
   const term = searchParams.get("term") ?? "";
   const day = searchParams.get("day") ?? "";
-  const nendoOptions = Array.from({ length: 5 }, (_, i) => currentNendo - 2 + i);
 
   const selectClass =
     "w-full border border-[#D1D5DB] rounded-lg px-2.5 py-2 text-[13px] text-[#1A2B4E] bg-white focus:outline-none focus:border-[#1A2B4E] transition-colors";
 
   const filterFields: { label: string; node: React.ReactNode }[] = [
     {
+      // 開講年度は選べない。履修要項側の名寄せ結果が `OFFERING_YEAR` の1年度分
+      // しか無いため(`lib/syllabus-api.ts`)、表示のみとする
       label: "年度",
       node: (
-        <select value={year} onChange={(e) => update("year", e.target.value)} className={selectClass}>
-          {nendoOptions.map((y) => (
-            <option key={y} value={y}>{y}年度</option>
-          ))}
-        </select>
+        <p className="text-[13px] text-[#1A2B4E] px-2.5 py-2 bg-[#F3F4F6] border border-[#D1D5DB] rounded-lg">
+          {OFFERING_YEAR}年度のみ
+        </p>
       ),
     },
     {
@@ -250,7 +249,12 @@ export default function MobileSyllabusPage({
 
       {/* Results header */}
       <div className="flex items-center justify-between px-4 pt-2.5 pb-1.5 bg-white">
-        <span className="text-[13px] text-[#4B5563]">{filteredResults.length.toLocaleString()}件の科目</span>
+        <span className="text-[13px] text-[#4B5563]">
+          {filteredResults.length.toLocaleString()}件の科目
+          {matchedBy === "instructor" && (
+            <span className="ml-1.5 text-xs">（「{q}」を教員名として検索）</span>
+          )}
+        </span>
         <div className="flex items-center gap-1 text-[13px] text-[#1A2B4E]">
           <span>配当年次順</span>
           <ChevronDown size={14} />
