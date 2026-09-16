@@ -72,21 +72,39 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
 
         <main className="flex-1 min-w-0 bg-[#F8F9FA] px-4 md:px-6 py-5">
           {/* Result header */}
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between gap-4 mb-3">
             <h1 className="text-[#1A2B4E] text-sm font-bold">
-              {/* 総件数は最終ページに達するまで確定しない(§6.2) */}
+              {/* 総件数は api-clean が返さないため数えている(§6.2) */}
               検索結果 {(data.total ?? offset + data.results.length).toLocaleString()}件
               {data.total === null && "以上"}
+              {data.results.length > 0 && (
+                <span className="ml-2 font-normal text-xs text-[#4B5563]">
+                  {offset + 1}〜{offset + data.results.length}件目を表示
+                </span>
+              )}
               {data.matchedBy === "instructor" && (
                 <span className="ml-2 font-normal text-xs text-[#4B5563]">
                   「{keyword}」を教員名として検索しました
                 </span>
               )}
             </h1>
-            <div className="flex items-center gap-1.5 text-[#4B5563] text-xs">
+            <div className="flex items-center gap-1.5 text-[#4B5563] text-xs shrink-0">
               <ArrowUpDown size={14} />
               <span>配当年次順</span>
             </div>
+          </div>
+
+          {/* ページ送りは結果の上にも置く。下まで送らないと移動できないのは手間 */}
+          <div className="mb-4">
+            <Suspense>
+              <SyllabusPagination
+                limit={LIMIT}
+                offset={offset}
+                shown={data.results.length}
+                hasNext={data.hasNext}
+                total={data.total}
+              />
+            </Suspense>
           </div>
 
           {/* Card grid (タグフィルタリングはクライアント側で処理) */}
@@ -98,6 +116,7 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
               offset={offset}
               shown={data.results.length}
               hasNext={data.hasNext}
+              total={data.total}
             />
           </Suspense>
 

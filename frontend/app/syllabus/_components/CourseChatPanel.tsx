@@ -7,14 +7,15 @@ import { useStudentStore } from "@/lib/student";
 import { streamCourseChat } from "@/lib/chatApi";
 import { useScrollToBottom } from "@/lib/useScrollToBottom";
 
-const QUICK_ASKS = ["課題の分量はどのくらい？", "出席は評価に影響する？"];
-
 export default function CourseChatPanel({
   code,
   title,
+  questions,
 }: {
   code: string;
   title: string;
+  /** その科目のシラバスで答えられる質問だけを並べる(`lib/courseQuestions.ts`) */
+  questions: string[];
 }) {
   const { courseMessages, setCourseMessages, addCourseMessage } = useChatStore();
   const profile = useStudentStore((s) => s.profile);
@@ -137,9 +138,9 @@ export default function CourseChatPanel({
           </div>
         ))}
         {/* Quick asks */}
-        {!streaming && (
+        {!streaming && questions.length > 0 && (
           <div className="flex flex-col gap-2 pt-1">
-            {QUICK_ASKS.map((q) => (
+            {questions.map((q) => (
               <button
                 key={q}
                 onClick={() => send(q)}
