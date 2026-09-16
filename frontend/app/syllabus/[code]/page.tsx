@@ -17,7 +17,8 @@ import {
 import { getSyllabus } from "@/lib/syllabus-api";
 import { listHref } from "@/lib/syllabusQuery";
 import { parseGrading } from "@/lib/grading";
-import { parseNote, registrationFlags } from "@/lib/note";
+import { parseNote, registrationFlags, pruneNote } from "@/lib/note";
+import { targetsOf } from "@/lib/courseTarget";
 import SyllabusChatBox from "../_components/SyllabusChatBox";
 import CourseChatPanel from "../_components/CourseChatPanel";
 import GradingContent from "../_components/GradingContent";
@@ -74,9 +75,8 @@ export default async function SyllabusDetailPage({
   // `note` は履修登録の注記。登録方法だけ見出しに出し、残りは備考カードへ(`lib/note.ts`)
   const note = parseNote(syllabus.note);
   const registration = note ? registrationFlags(note) : [];
-  const hasNoteBody =
-    note !== null && (note.entries.length > 0 || note.lines.length > 0 ||
-      note.flags.some((flag) => !flag.includes("登録")));
+  // 見出しと基本情報に出した分を引いた残り。無ければカードごと出さない
+  const noteBody = note ? pruneNote(note, targetsOf(syllabus)) : null;
   const prose: { icon: LucideIcon; title: string; body: string | null }[] = [
     { icon: BookOpen, title: "授業概要", body: syllabus.summary },
     { icon: Target, title: "到達目標", body: syllabus.goals },
@@ -156,6 +156,19 @@ export default async function SyllabusDetailPage({
               </SectionCard>
             )}
 
+            {syllabus.advice && (
+              <SectionCard icon={Info} title="受講に際しての注意">
+                <RichText>{syllabus.advice}</RichText>
+              </SectionCard>
+            )}
+
+            {noteBody && (
+              <SectionCard icon={StickyNote} title="備考">
+                <CourseNote note={noteBody} />
+              </SectionCard>
+            )}
+
+            {/* 書誌は件数が多く縦に長いので最後に置く */}
             {hasBooks && (
               <SectionCard icon={Library} title="テキスト・参考文献">
                 <BookList
@@ -166,17 +179,6 @@ export default async function SyllabusDetailPage({
               </SectionCard>
             )}
 
-            {syllabus.advice && (
-              <SectionCard icon={Info} title="受講に際しての注意">
-                <RichText>{syllabus.advice}</RichText>
-              </SectionCard>
-            )}
-
-            {hasNoteBody && note && (
-              <SectionCard icon={StickyNote} title="備考">
-                <CourseNote note={note} />
-              </SectionCard>
-            )}
           </div>
         </div>
 

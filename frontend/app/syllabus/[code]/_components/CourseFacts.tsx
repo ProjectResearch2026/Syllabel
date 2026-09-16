@@ -10,6 +10,7 @@ import {
 import type { SyllabusDetail } from "@/lib/syllabus-api";
 import { formatInstructors } from "@/lib/syllabus-api";
 import { formatSchedule, formatGrade } from "@/lib/schedule";
+import { targetsOf } from "@/lib/courseTarget";
 
 /**
  * 科目の基本情報。**ラベル付きで並べる。**
@@ -23,7 +24,7 @@ export default function CourseFacts({ syllabus }: { syllabus: SyllabusDetail }) 
   const grade = formatGrade(syllabus);
   const instructors = formatInstructors(syllabus.instructors);
   const place = [syllabus.campus_name, syllabus.room].filter(Boolean).join(" / ");
-  const target = syllabus.programs.length > 0 ? syllabus.programs : syllabus.faculties;
+  const target = targetsOf(syllabus);
 
   const facts: { icon: LucideIcon; label: string; value: React.ReactNode }[] = [
     {
@@ -44,7 +45,7 @@ export default function CourseFacts({ syllabus }: { syllabus: SyllabusDetail }) 
     { icon: MapPin, label: "場所", value: place || null },
     {
       icon: Building2,
-      label: target === syllabus.programs ? "対象課程" : "対象学部",
+      label: syllabus.programs.length > 0 ? "対象課程" : "対象学部",
       value: target.length > 0 ? target.join("・") : null,
     },
   ];

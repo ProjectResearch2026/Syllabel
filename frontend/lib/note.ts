@@ -21,6 +21,8 @@ export type ParsedNote = {
   lines: string[];
 };
 
+import { extraTargets } from "@/lib/courseTarget";
+
 const LABELLED = /^【(.+?)】(.*)$/;
 
 export function parseNote(note: string | null | undefined): ParsedNote | null {
@@ -52,4 +54,24 @@ export function parseNote(note: string | null | undefined): ParsedNote | null {
 /** 見出しのうち、履修できるかどうかに直結するもの(登録方法)だけを返す */
 export function registrationFlags(parsed: ParsedNote): string[] {
   return parsed.flags.filter((flag) => flag.includes("登録"));
+}
+
+/**
+ * 備考カードに残す分だけにする。**画面の他の場所に出したものは引く。**
+ *
+ * - 登録方法は見出しのタグに出しているので落とす
+ * - `【対象】` は基本情報の対象課程と重なる分を落とす(`lib/courseTarget.ts`)
+ *
+ * @returns 残りが無ければ null(カードごと出さない)
+ */
+export function pruneNote(parsed: ParsedNote, shownTargets: string[]): ParsedNote | null {
+  const flags = parsed.flags.filter((flag) => !flag.includes("登録"));
+  const entries = parsed.entries.flatMap((entry) => {
+    if (entry.label !== "対象") return [entry];
+    const extra = extraTargets(entry.value, shownTargets);
+    return extra ? [{ label: entry.label, value: extra }] : [];
+  });
+  const pruned: ParsedNote = { flags, entries, lines: parsed.lines };
+  const empty = flags.length === 0 && entries.length === 0 && parsed.lines.length === 0;
+  return empty ? null : pruned;
 }
