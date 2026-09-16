@@ -4,13 +4,14 @@ import type { Message } from "./types";
 
 export default function MessageList({
   messages,
-  bottomRef,
+  /** スクロールする要素に付ける ref(`lib/useScrollToBottom.ts`) */
+  listRef,
 }: {
   messages: Message[];
-  bottomRef: React.RefObject<HTMLDivElement | null>;
+  listRef: React.RefObject<HTMLDivElement | null>;
 }) {
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+    <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
       <div className="flex justify-center">
         <span className="text-[#9CA3AF] text-[11px]">今日 · 9:38</span>
       </div>
@@ -77,7 +78,6 @@ export default function MessageList({
           </motion.div>
         )
       )}
-      <div ref={bottomRef} />
     </div>
   );
 }

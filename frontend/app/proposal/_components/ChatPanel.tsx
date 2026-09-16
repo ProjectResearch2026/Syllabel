@@ -6,6 +6,7 @@ import { useChatStore } from "@/lib/chat";
 import { useStudentStore } from "@/lib/student";
 import { useProposalStore } from "@/lib/proposal";
 import { streamProposalChat } from "@/lib/chatApi";
+import { useScrollToBottom } from "@/lib/useScrollToBottom";
 
 export default function ChatPanel() {
   const { proposalMessages, setProposalMessages, addProposalMessage } = useChatStore();
@@ -13,7 +14,7 @@ export default function ChatPanel() {
   const { status, message: proposalMessage } = useProposalStore();
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const listRef = useScrollToBottom<HTMLDivElement>(proposalMessages);
   const abortRef = useRef<AbortController | null>(null);
   const seq = useRef(0);
 
@@ -53,10 +54,6 @@ export default function ChatPanel() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [proposalMessages]);
 
   const handleSend = useCallback(async () => {
     const text = input.trim();
@@ -129,7 +126,7 @@ export default function ChatPanel() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3.5 bg-[#F8F9FA]">
+      <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3.5 bg-[#F8F9FA]">
         {proposalMessages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
@@ -143,7 +140,6 @@ export default function ChatPanel() {
             </div>
           </div>
         ))}
-        <div ref={bottomRef} />
       </div>
 
       {/* Input */}

@@ -9,6 +9,7 @@ import InputBar from "./_components/InputBar";
 import { useChatStore } from "@/lib/chat";
 import { useStudentStore } from "@/lib/student";
 import { streamSyllabusChat } from "@/lib/chatApi";
+import { useScrollToBottom } from "@/lib/useScrollToBottom";
 
 const INIT_MESSAGE_ID = "init-1";
 
@@ -17,7 +18,7 @@ export default function ChatPage() {
   const profile = useStudentStore((s) => s.profile);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const listRef = useScrollToBottom<HTMLDivElement>(syllabusMessages);
   const abortRef = useRef<AbortController | null>(null);
   const seq = useRef(0);
 
@@ -35,10 +36,6 @@ export default function ChatPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [syllabusMessages]);
 
   const send = useCallback(async (text: string) => {
     if (!text.trim() || streaming) return;
@@ -100,7 +97,7 @@ export default function ChatPage() {
     <div className="flex flex-col h-[calc(100dvh-76px)] md:h-[calc(100vh-60px)] bg-[#F8F9FA]">
       <ChatHeader />
       <ContextBanner />
-      <MessageList messages={syllabusMessages} bottomRef={bottomRef} />
+      <MessageList messages={syllabusMessages} listRef={listRef} />
       <QuickChips onSend={send} />
       <InputBar
         value={input}

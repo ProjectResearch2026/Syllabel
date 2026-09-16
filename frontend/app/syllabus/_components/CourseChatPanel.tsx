@@ -5,6 +5,7 @@ import { MessageCircle, Send } from "lucide-react";
 import { useChatStore } from "@/lib/chat";
 import { useStudentStore } from "@/lib/student";
 import { streamCourseChat } from "@/lib/chatApi";
+import { useScrollToBottom } from "@/lib/useScrollToBottom";
 
 const QUICK_ASKS = ["課題の分量はどのくらい？", "出席は評価に影響する？"];
 
@@ -20,8 +21,7 @@ export default function CourseChatPanel({
   const messages = useMemo(() => courseMessages[code] ?? [], [courseMessages, code]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
-  const listRef = useRef<HTMLDivElement>(null);
-  const scrolledOnce = useRef(false);
+  const listRef = useScrollToBottom<HTMLDivElement>(messages);
   const seq = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -40,19 +40,6 @@ export default function CourseChatPanel({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code]);
-
-  useEffect(() => {
-    const list = listRef.current;
-    if (!list) return;
-    // `scrollIntoView` は祖先(=ページ本体)まで巻き込んで動かす。このパネルは
-    // 本文と同じ高さまで伸びるため内側にスクロールが生じず、詳細画面を開いた
-    // 直後にページ全体がわずかにスクロールしていた。この要素だけを動かす。
-    list.scrollTo({
-      top: list.scrollHeight,
-      behavior: scrolledOnce.current ? "smooth" : "auto",
-    });
-    scrolledOnce.current = true;
-  }, [messages]);
 
   const send = useCallback(async (text: string) => {
     if (!text.trim() || streaming) return;
