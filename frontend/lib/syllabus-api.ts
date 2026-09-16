@@ -1,4 +1,5 @@
 import { apiBase } from "@/lib/api_base";
+import { instructorQueries } from "@/lib/instructorName";
 
 /**
  * backend の読み取り専用エンドポイントのクライアント。design.md §6.1。
@@ -256,6 +257,67 @@ async function fetchAll(params: SearchParams): Promise<SyllabusListItem[]> {
 }
 
 /**
+ * 表記の揺れを埋めるために引き直す教員名の、同時実行数。
+ *
+ * 経路にトークンゲートウェイが挟まるため同時リクエストは控えめにする
+ * (`INSTRUCTOR_CONCURRENCY` と同じ理由)。引き直しは入力どおりの語が空振りした
+ * ときだけなので、ここに来る回数自体が少ない。
+ */
+const INSTRUCTOR_QUERY_CONCURRENCY = 3;
+
+/** `items` を高々 `limit` 本の並列で処理する。結果は `items` の順に並べる */
+async function mapWithLimit<T, R>(
+  items: T[],
+  limit: number,
+  run: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let cursor = 0;
+
+  const worker = async () => {
+    while (cursor < items.length) {
+      const index = cursor++;
+      results[index] = await run(items[index]);
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
+/**
+ * 教員名で条件に当たる全件を取得する。design.md §6.2。
+ *
+ * **api-clean の `instructor` は登録された表記のままの部分一致であり、姓名の
+ * 区切りの揺れを吸収しない。** 入力どおりの語で空振りしたときは、区切りを
+ * 書き換えた語で引き直して束ねる(`lib/instructorName.ts`)。全角スペースを
+ * 入れないとフルネームで引けなかったのはこの引き直しが無かったためである。
+ *
+ * 引き直しは**空振りしたときだけ**行う。姓のみ(`山田`)や全角区切りの
+ * フルネーム(`山田　太郎`)は入力どおりの1回で当たるため、そちらは従来どおり
+ * リクエスト1回で済む。
+ */
+async function fetchAllByInstructor(
+  rest: Omit<SearchParams, "q" | "instructor" | "limit" | "offset">,
+  word: string,
+): Promise<SyllabusListItem[]> {
+  const [asTyped, ...fallbacks] = instructorQueries(word);
+  const hit = await fetchAll({ ...rest, instructor: asTyped });
+  if (hit.length > 0 || fallbacks.length === 0) return hit;
+
+  // 書き換えた語は同じ教員に当たり得る(登録表記が科目ごとに違う場合)ため畳む
+  const rounds = await mapWithLimit(fallbacks, INSTRUCTOR_QUERY_CONCURRENCY, (query) =>
+    fetchAll({ ...rest, instructor: query }),
+  );
+  const seen = new Set<string>();
+  return rounds.flat().filter((item) => {
+    if (seen.has(item.syllabus_code)) return false;
+    seen.add(item.syllabus_code);
+    return true;
+  });
+}
+
+/**
  * 検索ボックスの1語(科目名または教員名)でシラバスを検索する。design.md §6.1。
  *
  * api-clean の `q` と `instructor` は別々のパラメータであり、`q` は教員名に
@@ -279,7 +341,7 @@ export async function searchCourses(
     return { results: byTitle, total: byTitle.length, matchedBy: "title" };
   }
 
-  const byInstructor = await fetchAll({ ...rest, instructor: word });
+  const byInstructor = await fetchAllByInstructor(rest, word);
   if (byInstructor.length > 0) {
     return { results: byInstructor, total: byInstructor.length, matchedBy: "instructor" };
   }

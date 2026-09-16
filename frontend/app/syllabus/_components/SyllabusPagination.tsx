@@ -10,7 +10,12 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
  * **総件数は必ず確定する。** 検索は条件に当たる全件を引くため(§6.2)、
  * `total` は絞り込み後の件数そのものである。従来は api-clean が総件数を
  * 返さないため数え上げに失敗することがあり、その場合は前後移動しか出せなかった。
- * いまはつねにページ番号を並べ、最後のページへも1回で飛べる。
+ * いまはつねにページ番号を並べ、両端のページへも1回で飛べる。
+ *
+ * **先頭と末尾への飛び先は対称に出す。** 番号は現在地の前後にしか並ばないため、
+ * 端のページは自力では反対の端へ辿り着けない。末尾だけを足していた頃は
+ * 1ページ目から「1 2 3 4 5 … 41」と飛べる一方、41ページ目は「37 38 39 40 41」で
+ * 1ページ目への飛び先が無かった。**両端を同じ規則で足す**。
  */
 type Props = {
   limit: number;
@@ -51,9 +56,13 @@ export default function SyllabusPagination({ limit, offset, total }: Props) {
 
   const current = Math.floor(offset / limit) + 1;
   const last = Math.max(1, Math.ceil(total / limit));
+  const pages = pageNumbers(current, last);
+  const head = pages[0];
+  const tail = pages[pages.length - 1];
 
   const buttonClass =
     "flex h-8 min-w-8 items-center justify-center rounded-lg border border-[#D1D5DB] px-2 text-xs transition-colors disabled:opacity-40 enabled:hover:border-[#1A2B4E]";
+  const ellipsis = <span className="px-0.5 text-xs text-[#9CA3AF]">…</span>;
 
   return (
     <div
@@ -64,7 +73,18 @@ export default function SyllabusPagination({ limit, offset, total }: Props) {
         前へ
       </button>
 
-      {pageNumbers(current, last).map((page) => (
+      {/* 最初のページは1回で出せるようにする。1,200件規模で40回戻らせない */}
+      {head > 1 && (
+        <>
+          <button onClick={() => goToOffset(0)} className={buttonClass}>
+            1
+          </button>
+          {/* 隣り合っているときに「…」を挟むと飛ばしたページがあるように見える */}
+          {head > 2 && ellipsis}
+        </>
+      )}
+
+      {pages.map((page) => (
         <button
           key={page}
           onClick={() => goToOffset((page - 1) * limit)}
@@ -78,10 +98,11 @@ export default function SyllabusPagination({ limit, offset, total }: Props) {
           {page}
         </button>
       ))}
+
       {/* 最後のページは1回で出せるようにする。1,200件規模で40回送らせない */}
-      {!pageNumbers(current, last).includes(last) && (
+      {tail < last && (
         <>
-          <span className="px-0.5 text-xs text-[#9CA3AF]">…</span>
+          {tail < last - 1 && ellipsis}
           <button onClick={() => goToOffset((last - 1) * limit)} className={buttonClass}>
             {last}
           </button>
