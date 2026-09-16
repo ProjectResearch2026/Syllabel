@@ -2,29 +2,28 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
   ChevronLeft,
-  User,
-  Award,
-  Clock,
-  Calendar,
-  MapPin,
-  GraduationCap,
   BookOpen,
   Target,
   Presentation,
   BookMarked,
   ClipboardCheck,
-  Book,
   Library,
   Info,
   ListOrdered,
   type LucideIcon,
 } from "lucide-react";
-import { getSyllabus, formatInstructors } from "@/lib/syllabus-api";
+import { getSyllabus } from "@/lib/syllabus-api";
 import { listHref } from "@/lib/syllabusQuery";
 import { parseGrading } from "@/lib/grading";
 import SyllabusChatBox from "../_components/SyllabusChatBox";
 import CourseChatPanel from "../_components/CourseChatPanel";
 import GradingContent from "../_components/GradingContent";
+import CourseFacts from "./_components/CourseFacts";
+import CourseNote from "./_components/CourseNote";
+import CoursePlan from "./_components/CoursePlan";
+import BookList from "./_components/BookList";
+import RichText from "./_components/RichText";
+import CourseTag from "./_components/CourseTag";
 
 type Params = Promise<{ code: string }>;
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
@@ -39,13 +38,13 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-white rounded-lg border border-[#D1D5DB] p-5 flex flex-col gap-3">
+    <section className="flex flex-col gap-3 rounded-xl border border-border-primary bg-surface-primary p-5">
       <div className="flex items-center gap-2">
-        <Icon size={16} className="text-[#E60012]" />
-        <h2 className="text-sm font-bold text-[#1A2B4E]">{title}</h2>
+        <Icon size={15} className="text-accent" aria-hidden="true" />
+        <h2 className="text-[13px] font-bold text-fg-primary">{title}</h2>
       </div>
-      <div className="text-[13px] text-[#4B5563] leading-[1.8] whitespace-pre-wrap">{children}</div>
-    </div>
+      <div className="text-[13px] text-fg-secondary">{children}</div>
+    </section>
   );
 }
 
@@ -67,118 +66,103 @@ export default async function SyllabusDetailPage({
     notFound();
   }
 
-  const instructorNames = formatInstructors(syllabus.instructors);
   // `grading` は JSON 文字列なので構造に戻してから描く(`lib/grading.ts`)
   const grading = parseGrading(syllabus.grading);
-
-  const meta: { icon: LucideIcon; text: string }[] = [
-    ...(instructorNames ? [{ icon: User, text: instructorNames }] : []),
-    { icon: Award, text: `${syllabus.credits}単位` },
-    { icon: Clock, text: `${syllabus.day_of_week}曜 ${syllabus.period}限` },
-    { icon: Calendar, text: `${syllabus.year}年度 ${syllabus.term_name}` },
-    ...(syllabus.campus_name ? [{ icon: MapPin, text: syllabus.campus_name }] : []),
-    ...(syllabus.grade_raw ? [{ icon: GraduationCap, text: syllabus.grade_raw }] : []),
+  const prose: { icon: LucideIcon; title: string; body: string | null }[] = [
+    { icon: BookOpen, title: "授業概要", body: syllabus.summary },
+    { icon: Target, title: "到達目標", body: syllabus.goals },
+    { icon: Presentation, title: "授業方法", body: syllabus.methods },
+    { icon: BookMarked, title: "授業外学習", body: syllabus.outside_study },
   ];
+  const hasBooks =
+    syllabus.textbooks.length > 0 || syllabus.textbook_note || syllabus.reference_note;
 
   return (
-    <div className="flex flex-1 min-w-0">
-      {/* Main area */}
-      <main className="flex-1 min-w-0 bg-[#F8F9FA] px-4 md:px-8 py-6 flex flex-col gap-5">
+    <div className="flex min-w-0 flex-1 items-start">
+      <main className="min-w-0 flex-1 bg-surface-gray px-4 py-5 md:px-8 md:py-6">
         <Link
           href={backTo}
-          className="inline-flex items-center gap-1 text-[13px] text-[#4B5563] hover:text-[#1A2B4E] transition-colors"
+          className="-ml-1.5 inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-[13px] font-medium text-fg-secondary transition-colors hover:bg-surface-primary hover:text-fg-primary"
         >
-          <ChevronLeft size={16} />
+          <ChevronLeft size={16} aria-hidden="true" />
           シラバス一覧に戻る
         </Link>
 
-        {/* Header card */}
-        <div className="bg-white rounded-lg border border-[#D1D5DB] p-6 flex flex-col gap-3">
-          <div className="flex items-center gap-2.5">
-            <span className="bg-[#1A2B4E] text-white text-[11px] font-bold rounded-xl px-2.5 py-0.5">
-              {syllabus.term_name}
-            </span>
-            <span className="text-[#4B5563] text-[13px] font-semibold font-mono">
-              {syllabus.syllabus_code}
-            </span>
-          </div>
-          <h1 className="text-2xl font-bold text-[#1A2B4E]">
-            {syllabus.course_title}
-            {syllabus.subtitle && (
-              <span className="text-base font-normal text-[#6B7280] ml-2">({syllabus.subtitle})</span>
-            )}
-          </h1>
-          <div className="flex items-center gap-5 flex-wrap">
-            {meta.map((m, i) => (
-              <span key={i} className="flex items-center gap-1.5 text-[13px] text-[#4B5563]">
-                <m.icon size={15} className="text-[#4B5563]" />
-                {m.text}
+        {/* 見出し + 基本情報。開講期はここに一度だけ出す(以前はバッジと
+            メタ行で「後期」が二重になっていた) */}
+        <header className="mt-3 flex flex-col gap-4 rounded-xl border border-border-primary bg-surface-primary p-5 md:p-6">
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-md bg-surface-gray px-2 py-0.5 font-mono text-[11px] font-bold tracking-[0.04em] text-fg-secondary">
+                {syllabus.syllabus_code}
               </span>
-            ))}
+              <span className="text-[11px] font-semibold text-fg-muted">{syllabus.year}年度</span>
+              <CourseTag code={syllabus.syllabus_code} />
+            </div>
+            <h1 className="font-display text-[26px] font-bold leading-tight text-fg-primary">
+              {syllabus.course_title}
+            </h1>
+            {syllabus.subtitle && (
+              <p className="text-[15px] text-fg-secondary">{syllabus.subtitle}</p>
+            )}
           </div>
-        </div>
+
+          <div className="border-t border-border-subtle pt-4">
+            <CourseFacts syllabus={syllabus} />
+          </div>
+        </header>
 
         {syllabus.note && (
-          <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-lg px-4 py-3">
-            <p className="text-xs text-[#92400E]">{syllabus.note}</p>
+          <div className="mt-4">
+            <CourseNote note={syllabus.note} />
           </div>
         )}
 
-        {/* Section columns */}
-        <div className="flex flex-col lg:flex-row gap-5">
-          <div className="flex-1 min-w-0 flex flex-col gap-5">
-            {syllabus.summary && (
-              <SectionCard icon={BookOpen} title="授業概要">{syllabus.summary}</SectionCard>
-            )}
-            {syllabus.goals && (
-              <SectionCard icon={Target} title="到達目標">{syllabus.goals}</SectionCard>
-            )}
-            {syllabus.methods && (
-              <SectionCard icon={Presentation} title="授業方法">{syllabus.methods}</SectionCard>
-            )}
-            {syllabus.outside_study && (
-              <SectionCard icon={BookMarked} title="授業外学習">{syllabus.outside_study}</SectionCard>
-            )}
+        <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start">
+          <div className="flex min-w-0 flex-1 flex-col gap-4">
+            {prose
+              .filter((section) => section.body)
+              .map((section) => (
+                <SectionCard key={section.title} icon={section.icon} title={section.title}>
+                  <RichText>{section.body as string}</RichText>
+                </SectionCard>
+              ))}
+
             {syllabus.course_plan.length > 0 && (
-              <div className="bg-white rounded-lg border border-[#D1D5DB] p-5 flex flex-col gap-3">
-                <div className="flex items-center gap-2">
-                  <ListOrdered size={16} className="text-[#E60012]" />
-                  <h2 className="text-sm font-bold text-[#1A2B4E]">授業計画</h2>
-                </div>
-                <div className="flex flex-col divide-y divide-[#F3F4F6]">
-                  {syllabus.course_plan.map((plan) => (
-                    <div key={plan.session_number} className="flex gap-3 py-2.5 first:pt-0 last:pb-0">
-                      <span className="text-xs font-bold text-[#9CA3AF] w-6 shrink-0 pt-0.5 font-mono">
-                        {plan.session_number}
-                      </span>
-                      <p className="text-[13px] text-[#4B5563] leading-relaxed">{plan.content}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <SectionCard icon={ListOrdered} title={`授業計画（全${syllabus.course_plan.length}回）`}>
+                <CoursePlan plan={syllabus.course_plan} />
+              </SectionCard>
+            )}
+
+            {hasBooks && (
+              <SectionCard icon={Library} title="テキスト・参考文献">
+                <BookList
+                  books={syllabus.textbooks}
+                  textbookNote={syllabus.textbook_note}
+                  referenceNote={syllabus.reference_note}
+                />
+              </SectionCard>
+            )}
+
+            {syllabus.advice && (
+              <SectionCard icon={Info} title="受講に際しての注意">
+                <RichText>{syllabus.advice}</RichText>
+              </SectionCard>
             )}
           </div>
 
-          <div className="w-full lg:w-[360px] shrink-0 flex flex-col gap-5">
-            {grading && (
+          {/* 成績評価は学生が最も見る情報なので、スクロールしても追従させる */}
+          {grading && (
+            <div className="w-full shrink-0 lg:sticky lg:top-4 lg:w-[320px]">
               <SectionCard icon={ClipboardCheck} title="成績評価">
                 <GradingContent grading={grading} />
               </SectionCard>
-            )}
-            {syllabus.textbook_note && (
-              <SectionCard icon={Book} title="テキスト">{syllabus.textbook_note}</SectionCard>
-            )}
-            {syllabus.reference_note && (
-              <SectionCard icon={Library} title="参考書">{syllabus.reference_note}</SectionCard>
-            )}
-            {syllabus.advice && (
-              <SectionCard icon={Info} title="受講に際しての注意">{syllabus.advice}</SectionCard>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
-        {/* Mobile chat (desktop uses the side panel) */}
-        <div className="md:hidden">
+        {/* モバイルはこの位置にチャット(デスクトップは右のパネル) */}
+        <div className="mt-4 md:hidden">
           <SyllabusChatBox
             code={syllabus.syllabus_code}
             title="この講義について質問"
@@ -188,7 +172,6 @@ export default async function SyllabusDetailPage({
         </div>
       </main>
 
-      {/* Desktop chat panel */}
       <CourseChatPanel code={syllabus.syllabus_code} title={syllabus.course_title} />
     </div>
   );
