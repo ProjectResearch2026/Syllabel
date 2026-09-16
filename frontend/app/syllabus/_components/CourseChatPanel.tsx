@@ -5,6 +5,7 @@ import { MessageCircle, Send } from "lucide-react";
 import { useChatStore } from "@/lib/chat";
 import { useStudentStore } from "@/lib/student";
 import { streamCourseChat } from "@/lib/chatApi";
+import { useScrollToBottom } from "@/lib/useScrollToBottom";
 
 const QUICK_ASKS = ["課題の分量はどのくらい？", "出席は評価に影響する？"];
 
@@ -20,7 +21,7 @@ export default function CourseChatPanel({
   const messages = useMemo(() => courseMessages[code] ?? [], [courseMessages, code]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const listRef = useScrollToBottom<HTMLDivElement>(messages);
   const seq = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -39,10 +40,6 @@ export default function CourseChatPanel({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code]);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
 
   const send = useCallback(async (text: string) => {
     if (!text.trim() || streaming) return;
@@ -124,7 +121,7 @@ export default function CourseChatPanel({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3.5 bg-[#F8F9FA]">
+      <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3.5 bg-[#F8F9FA]">
         {messages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
@@ -152,7 +149,6 @@ export default function CourseChatPanel({
             ))}
           </div>
         )}
-        <div ref={bottomRef} />
       </div>
 
       {/* Input */}

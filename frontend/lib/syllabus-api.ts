@@ -281,3 +281,83 @@ export async function fetchCurricula(
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   return res.json();
 }
+
+/**
+ * 担当教員名を「、」で連ねる。design.md §6.2。
+ *
+ * api-clean は `role`(main/sub)→`order_index` の順で返すため、並びはそのまま
+ * 使う。同一人物が main と sub の両方に載っている行があるので重複は畳む。
+ */
+export function formatInstructors(instructors: Instructor[] | undefined | null): string | null {
+  if (!instructors || instructors.length === 0) return null;
+  const names = instructors
+    .map((i) => i.kanji_name?.trim())
+    .filter((name): name is string => !!name);
+  const unique = Array.from(new Set(names));
+  return unique.length > 0 ? unique.join("、") : null;
+}
+
+/**
+ * 一覧を教員名で補うときの同時実行数。
+ *
+ * 経路にトークンゲートウェイが挟まり、同一トークンの同時リクエストが
+ * `503` で弾かれ得る(§3.4.3 は vllm 側での実測)。控えめに並べ、弾かれた分は
+ * 1度だけ引き直す。
+ */
+const INSTRUCTOR_CONCURRENCY = 4;
+
+/** `503`/`429` を1度だけ待って引き直すときの待ち時間(ミリ秒) */
+const RETRY_DELAY_MS = 200;
+
+/** 補完に使う詳細のキャッシュ期間(秒)。シラバスは年度内で変わらない */
+const DETAIL_REVALIDATE_SECONDS = 86400;
+
+async function fetchInstructorsOf(code: string, retry = true): Promise<string | null> {
+  try {
+    const res = await fetch(`${apiBase()}/syllabi/${encodeURIComponent(code)}`, {
+      // 補完のための取得。`getSyllabus()` と違い再検証つきでキャッシュする
+      next: { revalidate: DETAIL_REVALIDATE_SECONDS },
+    });
+    if (!res.ok) {
+      if (retry && (res.status === 503 || res.status === 429)) {
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+        return fetchInstructorsOf(code, false);
+      }
+      return null;
+    }
+    const detail = (await res.json()) as Pick<SyllabusDetail, "instructors">;
+    return formatInstructors(detail.instructors);
+  } catch {
+    // 1件の失敗で一覧を落とさない。その科目だけ教員名なしになる
+    return null;
+  }
+}
+
+/**
+ * 検索結果に担当教員名を補う。`syllabus_code` → 教員名の対応を返す。
+ *
+ * **api-clean の `GET /syllabi` は担当教員を返さない。** 1科目に複数の教員が
+ * 対応するため一覧の `SELECT DISTINCT` から外されており、教員名は
+ * `GET /syllabi/{code}` にしかない。api-clean は無変更で使う前提(§1.1.1、
+ * §3.4.4)で一覧に足す口も無いため、**表示中のページ分だけ詳細を引いて補う**。
+ *
+ * サーバ側描画から呼ぶこと。ブラウザから30本投げるためのものではない。
+ */
+export async function fetchInstructorMap(codes: string[]): Promise<Record<string, string>> {
+  const targets = Array.from(new Set(codes));
+  const map: Record<string, string> = {};
+  let cursor = 0;
+
+  const worker = async () => {
+    while (cursor < targets.length) {
+      const code = targets[cursor++];
+      const names = await fetchInstructorsOf(code);
+      if (names) map[code] = names;
+    }
+  };
+
+  await Promise.all(
+    Array.from({ length: Math.min(INSTRUCTOR_CONCURRENCY, targets.length) }, worker),
+  );
+  return map;
+}
