@@ -1,14 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useStudentStore } from "@/lib/student";
 import { useSyllabusUIStore, buildTagMap, type TagType } from "@/lib/syllabusUI";
 import { getAdmissionYear, programCodeOf } from "@/lib/programs";
 import { fetchCurricula, type SyllabusListItem, type CurriculaData } from "@/lib/syllabus-api";
+import { detailHref } from "@/lib/syllabusQuery";
 import CourseCard from "./CourseCard";
 
-export default function SyllabusTagList({ results }: { results: SyllabusListItem[] }) {
+export default function SyllabusTagList({
+  results,
+  /** `syllabus_code` → 担当教員名。一覧APIに教員が無いためサーバ側で補っている(§6.2) */
+  instructors,
+}: {
+  results: SyllabusListItem[];
+  instructors: Record<string, string>;
+}) {
   const profile = useStudentStore((s) => s.profile);
+  // 詳細へ移っても絞り込みを失わないよう、いまのクエリをリンクに畳む
+  const searchParams = useSearchParams();
   const activeTag = useSyllabusUIStore((s) => s.activeTag);
   const [curricula, setCurricula] = useState<CurriculaData | null>(null);
 
@@ -63,6 +74,8 @@ export default function SyllabusTagList({ results }: { results: SyllabusListItem
           key={`${c.syllabus_code}-${c.year}`}
           course={c}
           tag={tagMap.get(c.syllabus_code) ?? null}
+          instructors={instructors[c.syllabus_code] ?? null}
+          href={detailHref(c.syllabus_code, searchParams.toString())}
         />
       ))}
     </div>

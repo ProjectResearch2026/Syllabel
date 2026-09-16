@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { User, Award, Clock, ArrowUpRight } from "lucide-react";
+import { User, Award, Clock, GraduationCap, ArrowUpRight } from "lucide-react";
 import type { SyllabusListItem } from "@/lib/syllabus-api";
 import type { TagType } from "@/lib/syllabusUI";
 
@@ -12,9 +12,15 @@ const TAG_STYLES: Record<NonNullable<TagType>, string> = {
 export default function CourseCard({
   course,
   tag,
+  instructors,
+  href,
 }: {
   course: SyllabusListItem;
   tag?: TagType;
+  /** 担当教員名。一覧APIには無いためサーバ側で補っている(§6.2)。取れなければ null */
+  instructors?: string | null;
+  /** 詳細画面への宛先。いまの絞り込みを `back` に畳んだものが渡る */
+  href: string;
 }) {
   const grade =
     course.grade_min === course.grade_max
@@ -23,7 +29,7 @@ export default function CourseCard({
 
   return (
     <Link
-      href={`/syllabus/${course.syllabus_code}`}
+      href={href}
       className="group flex min-h-[172px] flex-col justify-between rounded-xl border border-[#D9DEE7] bg-white p-4 shadow-[0_2px_8px_rgba(26,43,78,0.04)] transition-all hover:-translate-y-0.5 hover:border-[#9AA8BC] hover:shadow-[0_8px_20px_rgba(26,43,78,0.10)]"
     >
       <div className="flex min-w-0 items-start justify-between gap-3">
@@ -58,6 +64,13 @@ export default function CourseCard({
             <span className="ml-1 text-xs font-normal text-[#667085]">({course.subtitle})</span>
           )}
         </p>
+
+        {instructors && (
+          <p className="mt-2 flex min-w-0 items-center gap-1 text-[11.5px] text-[#475467]">
+            <User size={13} className="shrink-0 text-[#98A2B3]" />
+            <span className="truncate">{instructors}</span>
+          </p>
+        )}
       </div>
 
       <div className="mt-4 grid grid-cols-3 divide-x divide-[#EAECF0] border-t border-[#EAECF0] pt-3 text-[11px] text-[#667085]">
@@ -70,7 +83,7 @@ export default function CourseCard({
           {course.day_of_week}{course.period}限
         </span>
         <span className="flex min-w-0 items-center gap-1 pl-2">
-          <User size={13} className="shrink-0 text-[#98A2B3]" />
+          <GraduationCap size={13} className="shrink-0 text-[#98A2B3]" />
           <span className="truncate">{course.campus} / {grade}</span>
         </span>
       </div>

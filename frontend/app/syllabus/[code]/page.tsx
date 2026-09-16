@@ -19,11 +19,15 @@ import {
   ListOrdered,
   type LucideIcon,
 } from "lucide-react";
-import { getSyllabus } from "@/lib/syllabus-api";
+import { getSyllabus, formatInstructors } from "@/lib/syllabus-api";
+import { listHref } from "@/lib/syllabusQuery";
+import { parseGrading } from "@/lib/grading";
 import SyllabusChatBox from "../_components/SyllabusChatBox";
 import CourseChatPanel from "../_components/CourseChatPanel";
+import GradingContent from "../_components/GradingContent";
 
 type Params = Promise<{ code: string }>;
+type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
 
 function SectionCard({
   icon: Icon,
@@ -47,10 +51,14 @@ function SectionCard({
 
 export default async function SyllabusDetailPage({
   params,
+  searchParams,
 }: {
   params: Params;
+  searchParams: SearchParams;
 }) {
   const { code } = await params;
+  // 一覧の絞り込みは `back` に畳んで渡ってくる(`lib/syllabusQuery.ts`)
+  const backTo = listHref((await searchParams).back);
 
   let syllabus;
   try {
@@ -59,7 +67,9 @@ export default async function SyllabusDetailPage({
     notFound();
   }
 
-  const instructorNames = syllabus.instructors.map((i) => i.kanji_name).join("、");
+  const instructorNames = formatInstructors(syllabus.instructors);
+  // `grading` は JSON 文字列なので構造に戻してから描く(`lib/grading.ts`)
+  const grading = parseGrading(syllabus.grading);
 
   const meta: { icon: LucideIcon; text: string }[] = [
     ...(instructorNames ? [{ icon: User, text: instructorNames }] : []),
@@ -75,7 +85,7 @@ export default async function SyllabusDetailPage({
       {/* Main area */}
       <main className="flex-1 min-w-0 bg-[#F8F9FA] px-4 md:px-8 py-6 flex flex-col gap-5">
         <Link
-          href="/syllabus"
+          href={backTo}
           className="inline-flex items-center gap-1 text-[13px] text-[#4B5563] hover:text-[#1A2B4E] transition-colors"
         >
           <ChevronLeft size={16} />
@@ -150,8 +160,10 @@ export default async function SyllabusDetailPage({
           </div>
 
           <div className="w-full lg:w-[360px] shrink-0 flex flex-col gap-5">
-            {syllabus.grading && (
-              <SectionCard icon={ClipboardCheck} title="成績評価">{syllabus.grading}</SectionCard>
+            {grading && (
+              <SectionCard icon={ClipboardCheck} title="成績評価">
+                <GradingContent grading={grading} />
+              </SectionCard>
             )}
             {syllabus.textbook_note && (
               <SectionCard icon={Book} title="テキスト">{syllabus.textbook_note}</SectionCard>
