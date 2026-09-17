@@ -17,7 +17,7 @@ export default function ProposalPage() {
       <div className="md:hidden">
         <MobileProposalPage />
       </div>
-      <div className="hidden min-h-0 flex-1 gap-2 md:flex md:flex-col">
+      <div className="hidden min-h-0 flex-1 gap-2 md:flex md:flex-col md:pc-viewport">
         <CreditBar />
         <div className="flex min-h-0 flex-1 gap-4">
           <TimetablePanel />

@@ -114,3 +114,22 @@ body {
   scrollbar-gutter: stable;
 }
 
+/*
+ * PC の画面枠を端末の高さで止める（ui-design_pc.pen PageBody）。
+ *
+ * `layout.tsx` の `<main>` は `flex-1` だが、body の高さが内容で決まるため
+ * **高さが確定しない**。確定しないと配下の `min-h-0` + `overflow-y-auto` が
+ * 効かず、カードが内容ぶん伸びてページ全体がスクロールしてしまう。
+ * 実際にシラバス一覧・講義詳細で、AIチャットの入力欄が画面外（ページ末尾）
+ * まで落ちていた。
+ *
+ * 引く 76px の内訳は Header の 68px と `<main>` の下余白 8px（`md:pb-2`）。
+ * どちらかを変えるときはここも一緒に直すこと。
+ *
+ * 各画面のPC枠に `md:pc-viewport` を付けて使う。`max-height` にしているのは、
+ * `height` だと `flex-1`（flex-basis:0）に上書きされて効かないため。
+ */
+@utility pc-viewport {
+  max-height: calc(100dvh - 76px);
+}
+
