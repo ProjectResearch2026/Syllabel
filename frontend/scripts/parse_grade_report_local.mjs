@@ -4,10 +4,29 @@
  *
  *   node scripts/parse_grade_report_local.mjs <成績表.pdf> [...]
  *
+ * frontend/ を作業ディレクトリにして実行すること(`@/` の解決基点にしている)。
+ *
  * PDF は個人情報なのでリポジトリに置かないこと。
  */
-import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
+import { existsSync, readFileSync } from "node:fs";
+import { createRequire, registerHooks } from "node:module";
+import { pathToFileURL } from "node:url";
+
+// tsconfig の `@/*` エイリアスは Node の解決規則には無いので、ここで肩代わりする。
+// これが無いと lib/pdf/parseGradeReport.ts の `@/lib/programs` が
+// ERR_MODULE_NOT_FOUND になり、このハーネス自体が起動しない。
+const projectRoot = pathToFileURL(process.cwd() + "/");
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (!specifier.startsWith("@/")) return nextResolve(specifier, context);
+    const base = new URL(specifier.slice(2), projectRoot);
+    for (const candidate of ["", ".ts", ".tsx", "/index.ts"]) {
+      const url = new URL(base.href + candidate);
+      if (existsSync(url)) return nextResolve(url.href, context);
+    }
+    return nextResolve(base.href, context);
+  },
+});
 
 const require = createRequire(process.cwd() + "/package.json");
 const pdfjs = await import(require.resolve("pdfjs-dist/legacy/build/pdf.mjs"));

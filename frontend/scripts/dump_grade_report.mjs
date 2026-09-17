@@ -52,7 +52,7 @@ console.log("findEvaluationYValues ->", evalYs);
 const yCount = new Map();
 for (const it of items) {
   if (it.x <= 100 || it.x > 460) continue;
-  if (/^[＊＜＞*<>]/.test(it.str)) continue;
+  if (/^[＊＜＞*<>]/.test(it.str) || /単位＞$/.test(it.str)) continue;
   if (!/[　-鿿＀-￯]/.test(it.str)) continue;
   const ry = Math.round(it.y / 5) * 5;
   yCount.set(ry, (yCount.get(ry) ?? 0) + 1);
