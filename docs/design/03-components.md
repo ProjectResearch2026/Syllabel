@@ -33,6 +33,7 @@ frontend/
 │   ├── chatApi.ts                # backend との通信と SSE の読み取り(readSSE)
 │   ├── syllabus-api.ts           # /api/syllabi・/api/masters の呼び出し
 │   ├── curricula.ts              # /api/curricula の呼び出しと卒業残り単位の算出(§4.4.5)
+│   ├── openbd.ts                 # openBD から書影の URL を引く(§6.4)
 │   ├── pdf/parseGradeReport.ts   # PDF解析
 │   └── dummy/profiles.ts         # 展示用ダミープロファイル(§11)
 └── package.json

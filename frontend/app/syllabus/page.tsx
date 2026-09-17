@@ -70,7 +70,7 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
         検索バーはヘッダーカードの続き、その下を 絞り込み / 結果 / AI の3列が分ける。
         縦に伸びるのは結果の列だけで、両脇のカードは画面の高さに収まる。
       */}
-      <div className="hidden min-h-0 min-w-0 flex-1 flex-col gap-2 md:flex">
+      <div className="hidden min-h-0 min-w-0 flex-1 flex-col gap-2 md:flex md:pc-viewport">
         <Suspense>
           <SyllabusTopBar />
         </Suspense>
