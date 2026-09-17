@@ -16,7 +16,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { getSyllabus } from "@/lib/syllabus-api";
-import { fetchBookCovers } from "@/lib/openbd";
+import { fetchBookInfo } from "@/lib/openbd";
 import { listHref } from "@/lib/syllabusQuery";
 import { parseGrading } from "@/lib/grading";
 import { courseQuestions } from "@/lib/courseQuestions";
@@ -105,9 +105,10 @@ export default async function SyllabusDetailPage({
     syllabus.textbooks.length > 0 || syllabus.textbook_note || syllabus.reference_note;
   const hasMaterialsTab = hasBooks || syllabus.advice || noteBody || targets.length > 0;
 
-  // 書影は ISBN から openBD に引く(§6.4)。引けた本だけ書影になり、他はアイコンのまま。
-  // ISBN が要るので詳細の取得より後になるが、1科目ぶんを1リクエストにまとめている
-  const covers = await fetchBookCovers(syllabus.textbooks.map((book) => book.isbn));
+  // 書影と書誌の詳細は ISBN から openBD に引く(§6.4)。引けた本だけ書影が付き、
+  // 書名を押すと開くようになる。ISBN が要るので詳細の取得より後になるが、
+  // 1科目ぶんを1リクエストにまとめている
+  const bookInfo = await fetchBookInfo(syllabus.textbooks.map((book) => book.isbn));
 
   // ---- 概要タブ ----
   const hasOverview = !!(
@@ -250,7 +251,7 @@ export default async function SyllabusDetailPage({
                   books={syllabus.textbooks}
                   textbookNote={syllabus.textbook_note}
                   referenceNote={syllabus.reference_note}
-                  covers={covers}
+                  bookInfo={bookInfo}
                 />
               </PanelCard>
             )}
