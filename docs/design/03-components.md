@@ -1,4 +1,4 @@
-# 履修登録支援AIチャットボット 設計書(v0.9.35)— §4 コンポーネント設計
+# 履修登録支援AIチャットボット 設計書(v0.9.37)— §4 コンポーネント設計
 
 > 本ファイルは [`docs/design.md`](../design.md) の一部である。§番号は設計書全体で通し番号であり、他ファイルの節を `§X.Y` の形で参照する。全ファイルの対応表は [design.md](../design.md) の「0.3 本書の構成」を参照。
 
@@ -33,6 +33,7 @@ frontend/
 │   ├── chatApi.ts                # backend との通信と SSE の読み取り(readSSE)
 │   ├── syllabus-api.ts           # /api/syllabi・/api/masters の呼び出し
 │   ├── curricula.ts              # /api/curricula の呼び出しと卒業残り単位の算出(§4.4.5)
+│   ├── openbd.ts                 # openBD から書影の URL を引く(§6.4)
 │   ├── pdf/parseGradeReport.ts   # PDF解析
 │   └── dummy/profiles.ts         # 展示用ダミープロファイル(§11)
 └── package.json
