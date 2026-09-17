@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   CircleCheck,
   ArrowRight,
+  BookOpen,
   AlertCircle,
   Loader2,
   ChevronDown,
@@ -351,13 +352,25 @@ export default function PcImportPage() {
         ))}
       </div>
 
-      <button
-        onClick={() => router.push("/proposal")}
-        className="w-[520px] h-12 rounded bg-[#E60012] flex items-center justify-center gap-2 hover:bg-[#b7000c] transition-colors"
-      >
-        <span className="text-white text-[15px] font-bold">履修提案を見る</span>
-        <ArrowRight size={18} className="text-white" />
-      </button>
+      {/* 取り込み後の行き先は履修提案だけではない。**シラバス検索も同じ画面から出す**
+          (§8)。取り込んだプロファイルは検索結果のタグ付けに効くため、ここが
+          タグ付きのシラバス検索への入口になる */}
+      <div className="flex w-[520px] flex-col gap-3">
+        <button
+          onClick={() => router.push("/proposal")}
+          className="h-12 rounded bg-[#E60012] flex items-center justify-center gap-2 hover:bg-[#b7000c] transition-colors"
+        >
+          <span className="text-white text-[15px] font-bold">履修提案を見る</span>
+          <ArrowRight size={18} className="text-white" />
+        </button>
+        <button
+          onClick={() => router.push("/syllabus")}
+          className="h-12 rounded border border-[#1A2B4E] bg-white flex items-center justify-center gap-2 hover:bg-[#EEF1F8] transition-colors"
+        >
+          <BookOpen size={18} className="text-[#1A2B4E]" />
+          <span className="text-[#1A2B4E] text-[15px] font-bold">シラバスを検索する</span>
+        </button>
+      </div>
     </div>
   );
 }

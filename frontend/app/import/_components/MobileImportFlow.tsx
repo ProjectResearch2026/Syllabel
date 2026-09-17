@@ -18,6 +18,7 @@ import {
   CircleCheck,
   MessageCircle,
   CalendarDays,
+  BookOpen,
   Check,
   Loader2,
   AlertCircle,
@@ -454,6 +455,22 @@ export default function MobileImportFlow() {
               <div className="flex-1 flex flex-col gap-0.5">
                 <span className="text-sm font-semibold text-[#1A2B4E]">時間割を確認する</span>
                 <span className="text-xs text-[#4B5563]">今期の登録科目を時間割で確認</span>
+              </div>
+              <ChevronRight size={18} className="text-[#9CA3AF] shrink-0" />
+            </button>
+
+            {/* 取り込んだプロファイルは検索結果のタグ付けに効く(§6.1.3)。
+                ここをタグ付きのシラバス検索への入口にする */}
+            <button
+              onClick={() => router.push("/syllabus")}
+              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-lg bg-white border border-[#E5E7EB] text-left"
+            >
+              <div className="w-10 h-10 rounded-full bg-[#EEF1F8] flex items-center justify-center shrink-0">
+                <BookOpen size={20} className="text-[#1A2B4E]" />
+              </div>
+              <div className="flex-1 flex flex-col gap-0.5">
+                <span className="text-sm font-semibold text-[#1A2B4E]">シラバスを検索する</span>
+                <span className="text-xs text-[#4B5563]">履修できる科目にタグを付けて表示</span>
               </div>
               <ChevronRight size={18} className="text-[#9CA3AF] shrink-0" />
             </button>
