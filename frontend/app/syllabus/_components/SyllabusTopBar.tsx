@@ -5,6 +5,7 @@ import { useCallback, useTransition } from "react";
 import { Search, Sparkles } from "lucide-react";
 import { TAG_CHIPS } from "@/lib/syllabusUI";
 import { useFilterControls } from "@/lib/useFilterControls";
+import SyllabusProfileNotice from "./SyllabusProfileNotice";
 
 export default function SyllabusTopBar() {
   const router = useRouter();
@@ -29,47 +30,52 @@ export default function SyllabusTopBar() {
   );
 
   return (
-    <div className="flex items-center gap-4 h-16 px-4 md:px-8 bg-white border-b border-[#D1D5DB] shrink-0 overflow-x-auto">
-      {/* Search input */}
-      <div className="flex items-center gap-2 h-10 w-full max-w-[420px] shrink-0 bg-[#F8F9FA] border border-[#D1D5DB] rounded-full px-3.5">
-        <Search size={18} className="text-[#9CA3AF] shrink-0" />
-        <input
-          type="search"
-          defaultValue={q}
-          onChange={(e) => updateQ(e.target.value)}
-          placeholder="科目名・教員名で検索"
-          className="flex-1 bg-transparent text-sm text-[#1A2B4E] placeholder-[#9CA3AF] outline-none"
-        />
+    <div className="shrink-0">
+      <div className="flex items-center gap-4 h-16 px-4 md:px-8 bg-white border-b border-[#D1D5DB] overflow-x-auto">
+        {/* Search input */}
+        <div className="flex items-center gap-2 h-10 w-full max-w-[420px] shrink-0 bg-[#F8F9FA] border border-[#D1D5DB] rounded-full px-3.5">
+          <Search size={18} className="text-[#9CA3AF] shrink-0" />
+          <input
+            type="search"
+            defaultValue={q}
+            onChange={(e) => updateQ(e.target.value)}
+            placeholder="科目名・教員名で検索"
+            className="flex-1 bg-transparent text-sm text-[#1A2B4E] placeholder-[#9CA3AF] outline-none"
+          />
+        </div>
+
+        {/* Filter chips */}
+        <div className="flex items-center gap-2 shrink-0">
+          {TAG_CHIPS.map((chip) => {
+            const active = activeTag === chip;
+            return (
+              <button
+                key={chip}
+                onClick={() => selectTag(chip)}
+                className={`rounded-full px-3.5 py-1.5 text-xs whitespace-nowrap transition-colors ${
+                  active
+                    ? "bg-[#1A2B4E] text-white font-semibold"
+                    : "bg-white border border-[#D1D5DB] text-[#4B5563] hover:border-[#1A2B4E]"
+                }`}
+              >
+                {chip}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* AI button */}
+        <a
+          href="#ai-chat"
+          className="flex items-center gap-1.5 h-10 px-4 rounded-full bg-[#E60012] hover:bg-[#b7000c] transition-colors shrink-0 ml-auto"
+        >
+          <Sparkles size={16} className="text-white" />
+          <span className="text-white text-[13px] font-semibold whitespace-nowrap">AIに相談</span>
+        </a>
       </div>
 
-      {/* Filter chips */}
-      <div className="flex items-center gap-2 shrink-0">
-        {TAG_CHIPS.map((chip) => {
-          const active = activeTag === chip;
-          return (
-            <button
-              key={chip}
-              onClick={() => selectTag(chip)}
-              className={`rounded-full px-3.5 py-1.5 text-xs whitespace-nowrap transition-colors ${
-                active
-                  ? "bg-[#1A2B4E] text-white font-semibold"
-                  : "bg-white border border-[#D1D5DB] text-[#4B5563] hover:border-[#1A2B4E]"
-              }`}
-            >
-              {chip}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* AI button */}
-      <a
-        href="#ai-chat"
-        className="flex items-center gap-1.5 h-10 px-4 rounded-full bg-[#E60012] hover:bg-[#b7000c] transition-colors shrink-0 ml-auto"
-      >
-        <Sparkles size={16} className="text-white" />
-        <span className="text-white text-[13px] font-semibold whitespace-nowrap">AIに相談</span>
-      </a>
+      {/* タグが付く条件は、絞り込みを試す前に見えるところへ出す(§8) */}
+      <SyllabusProfileNotice />
     </div>
   );
 }

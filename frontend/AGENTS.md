@@ -169,6 +169,8 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 3. Zustand `student.ts` の学生プロファイル
 4. `GET /api/syllabi/{code}` の**対象課程**(`programs` / `faculties`)
 
+**プロファイルが無いあいだは、チップもセレクトも押せるのに必ず0件になる。** タグが1つも付かないためで、その案内は `app/syllabus/_components/SyllabusProfileNotice.tsx` に1つだけ置き、PC・モバイルで共用する(チップの直下のバーと、絞り込みパネルの「区分」の注記)。**プロファイルがあるときは出さない** — 「取り込むと絞れます」は取り込んだ後には誤りになる。
+
 タグは2段で決まる。**入口は `lib/useTagMap.ts` の `useTagMap()` だけで、これは `Map` ではなくタグを決める関数を返す。** 呼び出し側が2段目を掛け忘れられないようにするためで、`Map` に戻してはならない。
 
 | 段 | 何をするか | どこ |
