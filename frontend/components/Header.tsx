@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { GraduationCap, RotateCcw } from "lucide-react";
+import Image from "next/image";
+import logoMark from "@/public/logo.svg";
+import { RotateCcw } from "lucide-react";
 import { useStudentStore } from "@/lib/student";
 import { useChatStore } from "@/lib/chat";
 import { useChatHistoryStore } from "@/lib/chatHistory";
@@ -88,7 +90,21 @@ export default function Header() {
       >
         {/* Logo */}
         <Link href="/" className="flex shrink-0 items-center gap-2.5">
-          <GraduationCap size={24} className="text-fg-primary" />
+          {/*
+            SVG は最適化の対象外（`dangerouslyAllowSVG` が既定の false のままだと
+            /_next/image が 400 を返す）ので `unoptimized` を付ける。ただし
+            `unoptimized` は src をそのまま出すため、`"/logo.svg"` と書くと
+            basePath（/pr-2026）が付かず 404 になる。**静的 import で渡すこと。**
+          */}
+          <Image
+            src={logoMark}
+            alt=""
+            width={48}
+            height={48}
+            priority
+            unoptimized
+            className="shrink-0"
+          />
           <span className="font-display text-base font-bold leading-none text-fg-primary">
             Syllabel
           </span>
