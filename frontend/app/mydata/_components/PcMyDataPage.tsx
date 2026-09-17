@@ -149,51 +149,12 @@ export default function PcMyDataPage() {
           </div>
         </section>
 
-        function CourseSection({
-          title,
-          courses,
-          unearned = false,
-        }: {
-          title: string;
-          courses: Course[];
-          unearned?: boolean;
-        }) {
-          return (
-            <section className="overflow-hidden rounded-xl border border-border-primary bg-surface-primary">
-              <div className="px-5 py-3 border-b border-[#E5E7EB] bg-[#F9FAFB]">
-                <h2 className="text-sm font-semibold text-fg-primary">{title}</h2>
-              </div>
-              <div className="divide-y divide-[#F3F4F6]">
-                {courses.map((course) => (
-                  <div
-                    key={`${course.title}-${course.year}-${course.term}`}
-                    className="flex items-center justify-between px-5 py-3 gap-3"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate text-sm font-medium text-fg-primary">{course.title}</p>
-                      <p className="mt-0.5 text-xs text-fg-faint">
-                        {course.year}年度 {course.term}
-                        {course.code ? ` · ${course.code}` : ""}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className="text-xs text-fg-tertiary">{course.credits}単位</span>
-                      {course.rawScore && (
-                        <span
-                          className={`rounded px-1.5 py-0.5 text-center text-xs font-semibold ${
-                            unearned ? "bg-[#FEE2E2] text-[#991B1B]" : "bg-[#EFF6FF] text-fg-primary"
-                          }`}
-                        >
-                          {course.rawScore}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          );
-        }
+        <CourseSection title="修得済み科目" courses={passedCourses} />
+
+        {/* 不合格・履修辞退。単位にはならないが再履修の提案に使う(設計書 §6.1) */}
+        {unearnedCourses.length > 0 && (
+          <CourseSection title="未修得科目（再履修の対象）" courses={unearnedCourses} unearned />
+        )}
 
         {/* デモモード */}
         <section className="flex flex-col gap-4 rounded-lg border border-border-primary bg-surface-primary p-6">
@@ -266,9 +227,9 @@ function CourseSection({
   unearned?: boolean;
 }) {
   return (
-    <section className="bg-white border border-[#D1D5DB] rounded-xl overflow-hidden">
+    <section className="overflow-hidden rounded-xl border border-border-primary bg-surface-primary">
       <div className="px-5 py-3 border-b border-[#E5E7EB] bg-[#F9FAFB]">
-        <h2 className="text-sm font-semibold text-[#1A2B4E]">{title}</h2>
+        <h2 className="text-sm font-semibold text-fg-primary">{title}</h2>
       </div>
       <div className="divide-y divide-[#F3F4F6]">
         {courses.map((course) => (
@@ -277,18 +238,18 @@ function CourseSection({
             className="flex items-center justify-between px-5 py-3 gap-3"
           >
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-[#1A2B4E] font-medium truncate">{course.title}</p>
-              <p className="text-xs text-[#9CA3AF] mt-0.5">
+              <p className="truncate text-sm font-medium text-fg-primary">{course.title}</p>
+              <p className="mt-0.5 text-xs text-fg-faint">
                 {course.year}年度 {course.term}
                 {course.code ? ` · ${course.code}` : ""}
               </p>
             </div>
             <div className="flex items-center gap-3 shrink-0">
-              <span className="text-xs text-[#6B7280]">{course.credits}単位</span>
+              <span className="text-xs text-fg-tertiary">{course.credits}単位</span>
               {course.rawScore && (
                 <span
-                  className={`text-xs font-semibold text-center rounded px-1.5 py-0.5 ${
-                    unearned ? "text-[#991B1B] bg-[#FEE2E2]" : "text-[#1A2B4E] bg-[#EFF6FF]"
+                  className={`rounded px-1.5 py-0.5 text-center text-xs font-semibold ${
+                    unearned ? "bg-[#FEE2E2] text-[#991B1B]" : "bg-[#EFF6FF] text-fg-primary"
                   }`}
                 >
                   {course.rawScore}
