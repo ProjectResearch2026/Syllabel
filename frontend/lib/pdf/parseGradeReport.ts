@@ -336,15 +336,7 @@ function parseSection(
     const mergedTermScore =
       creditMatch?.[2] && isScore(creditMatch[2]) ? creditMatch[2] : null;
 
-    // 評価スコア（x が近い評価行の items をまとめる）
-    const rawScore = combineEvalTokens(
-      evalItems.filter((ei) => Math.abs(ei.x - x) <= 6),
-    );
-    if (!rawScore) continue;
-
-    const status = rawToStatus(rawScore);
-
-    // 年度・学期: 単位行より上(y大)、評価行より下(y小)の範囲でスコアを探す
+    // 履修グリッドの成績セル: 単位行より上(y大)、評価行より下(y小)の範囲で探す
     // - 単位行(creditY)の数字が isScore をパスするため creditY+5 以上に限定
     // - 評価バンドに食い込むと記号(例: y=268 の "T")を年度と誤認するため除外
     const termScoreCells = items
@@ -361,6 +353,22 @@ function parseSection(
     if (mergedTermScore) {
       termScoreCells.unshift({ y: creditY, score: normalizeScore(mergedTermScore) });
     }
+
+    // 評価スコア（x が近い評価行の items をまとめる）
+    const evalScore = combineEvalTokens(
+      evalItems.filter((ei) => Math.abs(ei.x - x) <= 6),
+    );
+
+    // **この様式は未修得の科目の評価列を空にする。** 不合格・履修辞退の成績は
+    // 履修グリッドのセルにだけ入り(例: 心理学入門 58 / 環境としての情報技術 J)、
+    // 評価列には何も刷られない。評価列だけを見て捨てると【再履修の対象】(§6.1)
+    // に渡す科目が丸ごと落ちるため、グリッドの最後（最新）のセルに退避する。
+    // **グリッドにセルが無い科目は除外する** — 科目名と単位だけが刷られた
+    // 未履修の科目(配当年次が先の科目など)であり、未修得とは別物である。
+    const rawScore = evalScore ?? termScoreCells[termScoreCells.length - 1]?.score;
+    if (!rawScore) continue;
+
+    const status = rawToStatus(rawScore);
 
     // **修得した学期**を選ぶ。再履修した科目は成績セルが複数並ぶため、
     // 最初のセル（＝落とした回）を採ってはならない。評価列はその科目の最終結果
