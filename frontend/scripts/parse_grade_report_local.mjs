@@ -58,11 +58,18 @@ for (const path of paths) {
   }
 
   const { profile, warnings } = parseItems(items);
-  const credits = profile.completedCourses.reduce((sum, c) => sum + c.credits, 0);
+  // 取り込みは全科目。単位計は合格したものだけを数える(要件§4.2)
+  const passed = profile.completedCourses.filter((c) => c.status === "passed");
+  const unearned = profile.completedCourses.filter((c) => c.status !== "passed");
+  const credits = passed.reduce((sum, c) => sum + c.credits, 0);
   console.log(`\n===== ${path.split("/").pop()} =====`);
-  console.log(`学年=${profile.grade} 課程=${profile.program} 合格=${profile.completedCourses.length}件 単位計=${credits}`);
+  console.log(
+    `学年=${profile.grade} 課程=${profile.program} ` +
+      `全${profile.completedCourses.length}件(修得${passed.length}/未修得${unearned.length}) 修得単位計=${credits}`,
+  );
   if (warnings.length) console.log(`warnings: ${JSON.stringify(warnings)}`);
   for (const c of profile.completedCourses) {
-    console.log(`  ${c.year}${c.term} ${c.credits}単位 [${c.rawScore}] ${c.title}`);
+    const mark = c.status === "passed" ? "修得  " : "未修得";
+    console.log(`  ${mark} ${c.year}${c.term} ${c.credits}単位 [${c.rawScore}] ${c.title}`);
   }
 }

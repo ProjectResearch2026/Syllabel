@@ -496,9 +496,12 @@ export function parseItems(items: TextItem[]): ParseResult {
     warnings.push("科目データを読み取れませんでした");
   }
 
-  // passed のみを completedCourses として保持
+  // **成績表に載っている科目は履修状態ごと全件保持する**(要件§4.2)。
+  // 不合格・履修辞退は【再履修の対象】として履修提案に渡す必要があり
+  // (§6.1 の §7.3 プロンプト整形)、ここで落とすと常に空になる。
+  // 卒業要件の単位計算に数えるのは passed だけであり、その絞り込みは
+  // 単位を数える側(CreditBar / 取り込み確認 / マイデータ)が行う。
   const completedCourses: Course[] = allEntries
-    .filter((e) => e.status === "passed")
     .map((e) => ({
       title: e.title,
       year: e.year,
