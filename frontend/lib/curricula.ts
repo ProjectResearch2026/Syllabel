@@ -22,13 +22,15 @@ export function useGraduationCredits(profile: StudentProfile | null): number {
   // 課程名なのでコードに解決する（§4.4.2、`lib/programs.ts`）
   const programCode = programCodeOf(profile?.program);
   const grade = profile?.grade ?? null;
-  const key = `${programCode ?? ""}:${grade ?? ""}`;
+  const admissionYear =
+    profile?.admissionYear ?? (grade !== null ? getAdmissionYear(grade) : null);
+  const key = `${programCode ?? ""}:${admissionYear ?? ""}`;
 
   useEffect(() => {
-    if (!programCode || !grade) return;
+    if (!programCode || !admissionYear) return;
 
     let active = true;
-    fetchCurricula(programCode, getAdmissionYear(grade))
+    fetchCurricula(programCode, admissionYear)
       .then((data) => {
         if (active && data.graduation.totalCredits > 0) {
           setFetched({ key, credits: data.graduation.totalCredits });
@@ -41,7 +43,7 @@ export function useGraduationCredits(profile: StudentProfile | null): number {
     return () => {
       active = false;
     };
-  }, [programCode, grade, key]);
+  }, [programCode, admissionYear, key]);
 
   return fetched?.key === key ? fetched.credits : FALLBACK_GRADUATION_CREDITS;
 }

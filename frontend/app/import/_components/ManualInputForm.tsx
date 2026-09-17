@@ -5,7 +5,7 @@ import { ChevronLeft, Plus, Trash2 } from "lucide-react";
 import type { StudentProfile, Course, CourseTerm } from "@/lib/student";
 // 課程の正本は `curricula/admission-<年度>/` の課程ファイル（design.md §4.4.2）。
 // 履修要項を引けない課程名を選ばせないため、一覧はそこから引く
-import { PROGRAM_NAMES as PROGRAMS } from "@/lib/programs";
+import { PROGRAM_NAMES as PROGRAMS, getAdmissionYear } from "@/lib/programs";
 
 const TERMS: CourseTerm[] = ["前期", "後期", "通年", "1Q", "2Q", "3Q", "4Q", "サ集"];
 const CREDIT_OPTIONS = [1, 2, 3, 4, 6, 8];
@@ -54,7 +54,12 @@ export default function ManualInputForm({
       setErrors(e);
       return;
     }
-    onComplete({ grade, program, completedCourses: courses });
+    onComplete({
+      grade,
+      program,
+      completedCourses: courses,
+      admissionYear: grade !== null ? getAdmissionYear(grade) : null,
+    });
   };
 
   const handleAddCourse = () => {

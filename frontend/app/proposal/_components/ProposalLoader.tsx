@@ -34,7 +34,7 @@ export default function ProposalLoader() {
       {
         studentProfile: profile,
         programCode,
-        admissionYear: getAdmissionYear(profile.grade),
+        admissionYear: profile.admissionYear ?? getAdmissionYear(profile.grade),
       },
       // 組み立て途中の提案。時間割表を逐次描画するために反映する（§6.1.1 / §7.2）
       (snapshot) =>

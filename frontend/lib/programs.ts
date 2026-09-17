@@ -68,10 +68,11 @@ export function isSameProgram(
 }
 
 /**
- * 学年から入学年度を求める。年度は4月に切り替わる。
+ * 学年から入学年度を算出する。年度は4月に切り替わる。今日の日付を基準にする。
  *
- * 履修要項を引くキーのもう一方(§4.4.2)だが、プロファイルには入学年度が無い
- * (成績表から採れない)ため frontend が学年から算出して送る。
+ * PDF 取り込みではパーサーが入学日欄から直接読んだ `StudentProfile.admissionYear`
+ * を使う。プロファイルに `admissionYear` がある場合は必ずそちらを優先すること。
+ * この関数は手入力フォームおよびフォールバック用途に限定する。
  */
 export function getAdmissionYear(grade: number): number {
   const now = new Date();
