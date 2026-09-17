@@ -7,6 +7,9 @@
 #   科目名で結合する(§5.1.1)
 # - kikan(基幹科目)は設置科目表の●印に対応する。2024年度版の設置科目表と照合し、●印33件
 #   (人文22・社会11)が type:"選択必修" の外延と完全一致することを確認済み
+# - quarters は持たない。教養教育科目はクォーター制の対象外である(§5.1.3・§5.1.5)。履修要項
+#   「教養教育科目の教育目的及び履修方法」Ⅳ が開講方式をセメスター型・通年型の2つと定めており、
+#   設置科目表の列も「配当年次・セメスター」でクォーターの格子を持たない
 admission_year: 2024                # このファイルが属するコホート。ディレクトリ名と一致させる
 liberal_arts_version: "until-2025"  # 履修要項の版(先端理工学部【〜2025年度入学】)
 applies_to: ["先端理工学部"]
@@ -90,7 +93,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "仏教の思想B"
     category: "教養教育科目"
     subcategory: "「仏教の思想」科目"
@@ -98,7 +100,6 @@ courses:
     credits: 2
     grade: 1
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "歎異抄の思想Ⅰ"
     category: "教養教育科目"
     subcategory: "「仏教の思想」科目"
@@ -106,7 +107,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "歎異抄の思想Ⅱ"
     category: "教養教育科目"
     subcategory: "「仏教の思想」科目"
@@ -114,7 +114,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    quarters: ["3Q", "4Q"]
   # ---- 必修外国語科目 (6科目) ----
   - title: "英語総合1（A）"
     category: "教養教育科目"
@@ -123,7 +122,6 @@ courses:
     credits: 1
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "英語総合1（B）"
     category: "教養教育科目"
     subcategory: "必修外国語科目"
@@ -131,7 +129,6 @@ courses:
     credits: 1
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "英語総合2（A）"
     category: "教養教育科目"
     subcategory: "必修外国語科目"
@@ -139,7 +136,6 @@ courses:
     credits: 1
     grade: 1
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "英語総合2（B）"
     category: "教養教育科目"
     subcategory: "必修外国語科目"
@@ -147,7 +143,6 @@ courses:
     credits: 1
     grade: 1
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "英語総合3"
     category: "教養教育科目"
     subcategory: "必修外国語科目"
@@ -155,7 +150,6 @@ courses:
     credits: 1
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "英語総合4"
     category: "教養教育科目"
     subcategory: "必修外国語科目"
@@ -163,7 +157,6 @@ courses:
     credits: 1
     grade: 2
     term: "後期"
-    quarters: ["3Q", "4Q"]
   # ---- 選択外国語科目 (40科目) ----
   - title: "英語セミナーA1"
     category: "教養教育科目"
@@ -172,7 +165,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "英語セミナーA2"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -180,7 +172,6 @@ courses:
     credits: 2
     grade: 1
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "英語セミナーB1"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -188,7 +179,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "英語セミナーB2"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -196,7 +186,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "英語セミナーC1"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -204,7 +193,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "英語セミナーC2"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -212,7 +200,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "英語セミナーD1"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -220,7 +207,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "英語セミナーD2"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -228,7 +214,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "英語セミナーE1"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -236,7 +221,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "英語セミナーE2"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -244,7 +228,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "英語セミナーF1"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -252,7 +235,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "英語セミナーF2"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -260,7 +242,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "英語セミナーG1"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -268,7 +249,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "英語セミナーG2"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -276,7 +256,6 @@ courses:
     credits: 2
     grade: 1
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "海外英語研修"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -284,7 +263,6 @@ courses:
     credits: 2
     grade: 1
     term: "後期"
-    quarters: ["3Q", "4Q"]
     notes: "1・2年次のみ履修可能。履修登録制限単位数(CAP)の対象外"
   - title: "ドイツ語ⅠA"
     category: "教養教育科目"
@@ -293,7 +271,6 @@ courses:
     credits: 1
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "ドイツ語ⅠB"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -301,7 +278,6 @@ courses:
     credits: 1
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "ドイツ語ⅡA"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -309,7 +285,6 @@ courses:
     credits: 1
     grade: 1
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "ドイツ語ⅡB"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -317,7 +292,6 @@ courses:
     credits: 1
     grade: 1
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "フランス語ⅠA"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -325,7 +299,6 @@ courses:
     credits: 1
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "フランス語ⅠB"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -333,7 +306,6 @@ courses:
     credits: 1
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "フランス語ⅡA"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -341,7 +313,6 @@ courses:
     credits: 1
     grade: 1
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "フランス語ⅡB"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -349,7 +320,6 @@ courses:
     credits: 1
     grade: 1
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "中国語ⅠA"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -357,7 +327,6 @@ courses:
     credits: 1
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "中国語ⅠB"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -365,7 +334,6 @@ courses:
     credits: 1
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "中国語ⅡA"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -373,7 +341,6 @@ courses:
     credits: 1
     grade: 1
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "中国語ⅡB"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -381,7 +348,6 @@ courses:
     credits: 1
     grade: 1
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "コリア語ⅠA"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -389,7 +355,6 @@ courses:
     credits: 1
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "コリア語ⅠB"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -397,7 +362,6 @@ courses:
     credits: 1
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "コリア語ⅡA"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -405,7 +369,6 @@ courses:
     credits: 1
     grade: 1
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "コリア語ⅡB"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -413,7 +376,6 @@ courses:
     credits: 1
     grade: 1
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "ドイツ語セミナーⅠA"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -421,7 +383,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "ドイツ語セミナーⅠB"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -429,7 +390,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "フランス語セミナーⅠA"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -437,7 +397,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "フランス語セミナーⅠB"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -445,7 +404,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "中国語セミナーⅠA"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -453,7 +411,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "中国語セミナーⅠB"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -461,7 +418,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "コリア語セミナーⅠA"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -469,7 +425,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "コリア語セミナーⅠB"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -477,7 +432,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "日本語"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -485,7 +439,6 @@ courses:
     credits: 1
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
     notes: "留学生対象科目"
   # ---- 人文科学系科目 (30科目) ----
   - title: "哲学入門"
@@ -496,7 +449,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "倫理学入門"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -505,7 +457,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "倫理学A"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -514,7 +465,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "クリティカル・シンキング"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -523,7 +473,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "宗教学のすすめ"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -532,7 +481,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "宗教の世界"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -541,7 +489,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "日本の文学M"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -550,7 +497,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "日本の文学N"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -559,7 +505,6 @@ courses:
     credits: 2
     grade: 1
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "アジアの文学A"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -568,7 +513,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "アジアの文学B"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -577,7 +521,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "西洋の文学A"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -586,7 +529,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "西洋の文学B"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -595,7 +537,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "言語学入門"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -604,7 +545,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "歴史入門"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -613,7 +553,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "日本の歴史M"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -622,7 +561,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "日本の歴史N"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -631,7 +569,6 @@ courses:
     credits: 2
     grade: 1
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "日本の文化"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -640,7 +577,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "西洋の歴史M"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -649,7 +585,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "西洋の歴史N"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -658,7 +593,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "心理学入門"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -667,7 +601,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "教育原論A"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -676,7 +609,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "教育原論B"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -685,7 +617,6 @@ courses:
     credits: 2
     grade: 1
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "倫理学B"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -693,7 +624,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "アジアの歴史M"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -701,7 +631,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "アジアの歴史N"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -709,7 +638,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "アジアの文化"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -717,7 +645,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "心理学A"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -725,7 +652,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "心理学B"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -733,7 +659,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "学習・発達論A"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -741,7 +666,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "学習・発達論B"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -749,7 +673,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    quarters: ["3Q", "4Q"]
   # ---- 社会科学系科目 (28科目) ----
   - title: "日本国憲法"
     category: "教養教育科目"
@@ -759,7 +682,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "法学のすすめ"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -768,7 +690,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "政治学のすすめ"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -777,7 +698,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "社会学のすすめ"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -786,7 +706,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "地理学のすすめ"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -795,7 +714,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "経済学のすすめ"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -804,7 +722,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "経営学のすすめ"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -813,7 +730,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "国際学のすすめ"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -822,7 +738,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "文化人類学のすすめ"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -831,7 +746,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "社会調査のすすめ"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -840,7 +754,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "社会統計学のすすめ"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -849,7 +762,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "人権論A"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -857,7 +769,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "人権論B"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -865,7 +776,6 @@ courses:
     credits: 2
     grade: 1
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "現代社会とメディア"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -873,7 +783,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "現代社会と福祉"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -881,7 +790,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "現代社会と法"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -889,7 +797,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "現代社会と労働"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -897,7 +804,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "現代社会の諸問題"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -905,7 +811,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "環境と社会"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -913,7 +818,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "平和学A"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -921,7 +825,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "ジェンダー論"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -929,7 +832,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "国際社会論"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -937,7 +839,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "地域論"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -945,7 +846,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "企業と会計"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -953,7 +853,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "社会思想史"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -961,7 +860,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "情報倫理"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -969,7 +867,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "情報社会とメディア"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -977,7 +874,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "データサイエンス・AI入門"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -985,7 +881,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   # ---- 自然科学系科目 (15科目) ----
   - title: "生活の中の数学"
     category: "教養教育科目"
@@ -994,7 +889,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
     notes: "「生活の中の数学・化学・物理・生物学」の4科目のうち、卒業要件単位として認められるのは1科目2単位まで"
   - title: "生活の中の統計技術"
     category: "教養教育科目"
@@ -1003,7 +897,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "生活の中の化学"
     category: "教養教育科目"
     subcategory: "自然科学系科目"
@@ -1011,7 +904,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
     not_available_to_programs: ["05"]   # 設置科目表 ◆印「「生活の中の化学」は応用化学課程では履修不可」
     notes: "「生活の中の数学・化学・物理・生物学」の4科目のうち、卒業要件単位として認められるのは1科目2単位まで"
   - title: "生活の中の物理"
@@ -1021,7 +913,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
     notes: "「生活の中の数学・化学・物理・生物学」の4科目のうち、卒業要件単位として認められるのは1科目2単位まで"
   - title: "生活の中の生物学"
     category: "教養教育科目"
@@ -1030,7 +921,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
     notes: "「生活の中の数学・化学・物理・生物学」の4科目のうち、卒業要件単位として認められるのは1科目2単位まで"
   - title: "生活の中の地学"
     category: "教養教育科目"
@@ -1039,7 +929,6 @@ courses:
     credits: 2
     grade: 1
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "生命と科学"
     category: "教養教育科目"
     subcategory: "自然科学系科目"
@@ -1047,7 +936,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "現代の技術"
     category: "教養教育科目"
     subcategory: "自然科学系科目"
@@ -1055,7 +943,6 @@ courses:
     credits: 2
     grade: 1
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "自然観察法"
     category: "教養教育科目"
     subcategory: "自然科学系科目"
@@ -1063,7 +950,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "里山学"
     category: "教養教育科目"
     subcategory: "自然科学系科目"
@@ -1071,7 +957,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "植物の自然誌"
     category: "教養教育科目"
     subcategory: "自然科学系科目"
@@ -1079,7 +964,6 @@ courses:
     credits: 2
     grade: 1
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "環境の科学"
     category: "教養教育科目"
     subcategory: "自然科学系科目"
@@ -1087,7 +971,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "人類の科学"
     category: "教養教育科目"
     subcategory: "自然科学系科目"
@@ -1095,7 +978,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "情報と人間"
     category: "教養教育科目"
     subcategory: "自然科学系科目"
@@ -1103,7 +985,6 @@ courses:
     credits: 2
     grade: 1
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "現代社会と栄養"
     category: "教養教育科目"
     subcategory: "自然科学系科目"
@@ -1111,7 +992,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   # ---- スポーツ科学系科目 (5科目) ----
   - title: "スポーツ技術学A"
     category: "教養教育科目"
@@ -1120,7 +1000,6 @@ courses:
     credits: 1
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "スポーツ技術学B"
     category: "教養教育科目"
     subcategory: "スポーツ科学系科目"
@@ -1128,7 +1007,6 @@ courses:
     credits: 1
     grade: 1
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "健康とスポーツ"
     category: "教養教育科目"
     subcategory: "スポーツ科学系科目"
@@ -1136,7 +1014,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   - title: "現代社会とスポーツ"
     category: "教養教育科目"
     subcategory: "スポーツ科学系科目"
@@ -1144,7 +1021,6 @@ courses:
     credits: 2
     grade: 1
     term: "後期"
-    quarters: ["3Q", "4Q"]
   - title: "スポーツ文化論"
     category: "教養教育科目"
     subcategory: "スポーツ科学系科目"
@@ -1152,7 +1028,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    quarters: ["1Q", "2Q"]
   # ---- 教養特別講義科目 (1科目) ----
   - title: "教養教育科目特別講義"
     category: "教養教育科目"
@@ -1161,4 +1036,3 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    quarters: ["1Q", "2Q"]
