@@ -18,9 +18,13 @@ export default function ProposalLoader() {
 
     // 履修要項を引くキーは (課程コード, 入学年度)。プロファイルの `program` は
     // 課程名なのでコードに解決する（design.md §4.4.2）。解決できない課程・
-    // 学年未取得では提案を作れない（backend は対応課程外を 404 で返す）
+    // 入学年度未取得では提案を作れない（backend は対応課程外を 404 で返す）。
+    // grade ではなく admissionYear でガードする: 5回生以上では grade が null に
+    // なる場合があるが admissionYear は入学日から正確に読めている。
     const programCode = programCodeOf(profile.program);
-    if (!programCode || !profile.grade) {
+    const admissionYear =
+      profile.admissionYear ?? (profile.grade ? getAdmissionYear(profile.grade) : null);
+    if (!programCode || !admissionYear) {
       setStatus("error");
       return;
     }
@@ -34,7 +38,7 @@ export default function ProposalLoader() {
       {
         studentProfile: profile,
         programCode,
-        admissionYear: profile.admissionYear ?? getAdmissionYear(profile.grade),
+        admissionYear,
       },
       // 組み立て途中の提案。時間割表を逐次描画するために反映する（§6.1.1 / §7.2）
       (snapshot) =>

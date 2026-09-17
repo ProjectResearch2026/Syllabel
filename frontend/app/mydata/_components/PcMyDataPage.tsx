@@ -79,14 +79,10 @@ export default function PcMyDataPage() {
   const totalCredits = passedCourses.reduce((sum, c) => sum + c.credits, 0);
   // 不合格と履修辞退は「未修得」に丸める(設計書 §6.1。再履修の対象として同じ扱い)
   const unearnedCourses = profile.completedCourses.filter((c) => c.status !== "passed");
-  const now = new Date();
-  const currentNendo = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
-  const enrollmentYear = profile.grade != null ? currentNendo - (profile.grade - 1) : null;
-
   const profRows = [
     { label: "学年", value: profile.grade != null ? `${profile.grade}回生` : "不明" },
     { label: "課程", value: profile.program },
-    { label: "入学年度", value: enrollmentYear != null ? `${enrollmentYear}年度` : "不明" },
+    { label: "入学年度", value: profile.admissionYear != null ? `${profile.admissionYear}年度` : "不明" },
     { label: "取得単位", value: `${totalCredits} / ${GRADUATION_CREDITS} 単位` },
   ];
 

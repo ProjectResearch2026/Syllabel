@@ -482,10 +482,12 @@ function extractMeta(items: TextItem[]): {
     const raw = reportYear - admissionYear + 1;
     if (raw >= 1 && raw <= 4) grade = raw as 1 | 2 | 3 | 4;
 
-    // 学年欄との照合
+    // 学年欄との照合。入学日の計算が範囲外（5回生以上）の場合は学年欄で補う
     if (gradeTextItem) {
       const pdfGrade = parseInt(gradeTextItem.str[0], 10);
-      if (grade !== null && grade !== pdfGrade) {
+      if (grade === null && pdfGrade >= 1 && pdfGrade <= 4) {
+        grade = pdfGrade as 1 | 2 | 3 | 4;
+      } else if (grade !== null && grade !== pdfGrade) {
         metaWarnings.push(
           `学年の照合不一致: 入学日から算出=${grade}回生、PDF学年欄=${pdfGrade}回生。入学日の値を優先します。`,
         );

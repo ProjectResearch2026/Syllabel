@@ -36,6 +36,11 @@ export default function ManualInputForm({
   const [grade, setGrade] = useState<1 | 2 | 3 | 4 | null>(initialProfile?.grade ?? null);
   const [program, setProgram] = useState(initialProfile?.program ?? "");
   const [courses, setCourses] = useState<Course[]>(initialProfile?.completedCourses ?? []);
+  // PDF から読んだ入学年度は学年が変わらない限り引き継ぐ。
+  // 毎回 getAdmissionYear() で再計算すると、過年度の成績表を取り込んだ場合や
+  // 年度をまたいで開き直した場合に正確な値が失われる。
+  const initialGrade = initialProfile?.grade ?? null;
+  const initialAdmissionYear = initialProfile?.admissionYear ?? null;
   const [addingCourse, setAddingCourse] = useState(false);
   const [courseForm, setCourseForm] = useState<CourseFormState>(DEFAULT_COURSE);
   const [errors, setErrors] = useState<{ grade?: boolean; program?: boolean }>({});
@@ -54,12 +59,11 @@ export default function ManualInputForm({
       setErrors(e);
       return;
     }
-    onComplete({
-      grade,
-      program,
-      completedCourses: courses,
-      admissionYear: grade !== null ? getAdmissionYear(grade) : null,
-    });
+    const admissionYear =
+      grade === initialGrade && initialAdmissionYear !== null
+        ? initialAdmissionYear
+        : grade !== null ? getAdmissionYear(grade) : null;
+    onComplete({ grade, program, completedCourses: courses, admissionYear });
   };
 
   const handleAddCourse = () => {
