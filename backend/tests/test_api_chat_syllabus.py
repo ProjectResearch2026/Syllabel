@@ -130,7 +130,7 @@ def test_build_prompt_excludes_completed_courses():
 
 # 回答内容そのものは LLM 依存で非決定的なため、ここで確かめるのは
 # 「原典を逸脱させないための規則がプロンプトに載り、両ルートでモデルに渡ること」まで。
-# 捏造が実際に消えたかは実機スモーク(scripts/smoke_chat_syllabus.py)で確認する。
+# 規則の効果(捏造・帰属誤りの有無)は実機スモーク(scripts/smoke_chat_syllabus.py)で確認する。
 
 
 @pytest.mark.parametrize(
@@ -140,10 +140,12 @@ def test_build_prompt_excludes_completed_courses():
         "推測であることを明示",  # 対応案2
         "必修",  # 対応案3
         "複数のクラス",  # 対応案4
+        "記述の単位を1クラス",  # #63 対応案1
+        "読み替えない",  # #63 対応案2
     ],
 )
 def test_syllabus_prompt_states_grounding_rules(rule: str):
-    """issue #62 の対応案1〜4に当たる規則がプロンプトに含まれること。"""
+    """issue #62 の対応案1〜4、issue #63 の対応案1・2に当たる規則がプロンプトに含まれること。"""
     assert rule in mod._SYLLABUS_PROMPT
 
 

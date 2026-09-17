@@ -198,6 +198,8 @@ def test_chat_proposal_prompt_reaches_model(spy_stream):
         "ツールが返した内容だけを根拠にする",  # シラバス事項の捏造を禁じる
         "自分で計算・推定しない",  # 単位数・曜日・時限の数え直しを禁じる
         "提案の再生成",  # 時間割を書き換えたかのような回答を禁じる
+        "記述の単位を1クラス",  # #63 対応案1(§7.4.1 規則6と同文)
+        "読み替えない",  # #63 対応案2(§7.4.1 規則9と同文)
     ],
 )
 def test_proposal_prompt_states_grounding_rules(rule: str):
@@ -219,6 +221,21 @@ def test_proposal_prompt_matches_design_doc():
     quoted = body.split("```", 2)[1].strip("\n")
 
     assert quoted == mod._PROPOSAL_PROMPT
+
+
+def test_proposal_shares_attribution_rules_with_syllabus():
+    """帰属誤りを縛る規則は2つの指示文で同じ文言に保つ(#63、#108 の申し送り)。
+
+    番号は指示文ごとに違ってよい(シラバスチャットは規則6・9、提案チャットは規則6・10)。
+    """
+
+    def sentence(prompt: str, number: str) -> str:
+        line = next(li for li in prompt.splitlines() if li.startswith(f"{number}. "))
+        return line.split(". ", 1)[1]
+
+    syllabus = chat_syllabus_mod._SYLLABUS_PROMPT
+    assert sentence(mod._PROPOSAL_PROMPT, "6") == sentence(syllabus, "6")
+    assert sentence(mod._PROPOSAL_PROMPT, "10") == sentence(syllabus, "9")
 
 
 # ---------------------------------------------------------------------------
