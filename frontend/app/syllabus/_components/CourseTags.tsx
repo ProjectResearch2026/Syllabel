@@ -18,17 +18,17 @@ import { hasTags } from "@/lib/syllabusUI";
 
 /** 履修区分ごとの配色。卒業要件に算入されない `随意` だけ彩度を落とす。 */
 const REQUIREMENT_STYLES: Record<string, string> = {
-  必修: "border-[#FECDD3] bg-[#FFF1F2] text-[#BE123C]",
-  選択必修: "border-[#FDE68A] bg-[#FFFBEB] text-[#B45309]",
-  選択: "border-[#BAE6FD] bg-[#F0F9FF] text-[#0369A1]",
-  随意: "border-[#E5E7EB] bg-[#F9FAFB] text-[#6B7280]",
+  必修:     "border-tag-required-border   bg-tag-required-bg   text-tag-required-fg",
+  選択必修: "border-tag-selective-border  bg-tag-selective-bg  text-tag-selective-fg",
+  選択:     "border-tag-elective-border   bg-tag-elective-bg   text-tag-elective-fg",
+  随意:     "border-tag-optional-border   bg-tag-optional-bg   text-tag-optional-fg",
 };
 
 /** 修得済みを示す配色。 */
-const COMPLETED_STYLE = "border-[#BBF7D0] bg-[#F0FDF4] text-[#15803D]";
+const COMPLETED_STYLE = "border-tag-done-border bg-tag-done-bg text-tag-done-fg";
 
 /** 区分は4値とも同じ配色にする(上のコメントの理由)。 */
-const CATEGORY_STYLE = "border-[#DDE3EE] bg-[#F4F6FA] text-[#3F4E6B]";
+const CATEGORY_STYLE = "border-tag-category-border bg-tag-category-bg text-tag-category-fg";
 
 export default function CourseTags({
   tags,

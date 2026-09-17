@@ -12,8 +12,8 @@ export default function InputBar({
   disabled?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2.5 px-4 h-16 bg-white border-t border-[#D1D5DB] shrink-0">
-      <div className="flex-1 flex items-center h-11 bg-[#F3F4F6] border border-[#D1D5DB] rounded-lg px-3.5 gap-2">
+    <div className="flex items-center gap-2.5 px-4 h-16 bg-surface-primary border-t border-border-primary shrink-0">
+      <div className="flex-1 flex items-center h-11 bg-surface-gray border border-border-primary rounded-lg px-3.5 gap-2">
         <input
           type="text"
           value={value}
@@ -21,16 +21,16 @@ export default function InputBar({
           onKeyDown={(e) => e.key === "Enter" && !disabled && onSend()}
           placeholder="メッセージを入力..."
           disabled={disabled}
-          className="flex-1 bg-transparent text-[14px] text-[#1A2B4E] placeholder-[#9CA3AF] outline-none disabled:opacity-60"
+          className="flex-1 bg-transparent text-[14px] text-fg-primary placeholder-fg-faint outline-none disabled:opacity-60"
         />
-        <Paperclip size={18} className="text-[#9CA3AF] shrink-0" />
+        <Paperclip size={18} className="text-fg-muted shrink-0" />
       </div>
       <button
         onClick={onSend}
         disabled={!value.trim() || disabled}
-        className="w-11 h-11 flex items-center justify-center bg-[#E60012] rounded-lg disabled:opacity-40 transition-opacity"
+        className="w-11 h-11 flex items-center justify-center bg-accent rounded-lg disabled:opacity-40 transition-opacity"
       >
-        <SendHorizontal size={20} className="text-white" />
+        <SendHorizontal size={20} className="text-fg-inverse" />
       </button>
     </div>
   );

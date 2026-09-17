@@ -43,10 +43,10 @@ export default function BottomTabBar() {
                   transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
                 />
               )}
-              <Icon size={20} className={`relative z-10 ${active ? "text-fg-inverse" : "text-[#6b7280]"}`} />
+              <Icon size={20} className={`relative z-10 ${active ? "text-fg-inverse" : "text-fg-secondary"}`} />
               <span
                 className={`relative z-10 text-[10px] leading-none ${
-                  active ? "text-fg-inverse" : "text-[#6b7280]"
+                  active ? "text-fg-inverse" : "text-fg-secondary"
                 }`}
               >
                 {label}
