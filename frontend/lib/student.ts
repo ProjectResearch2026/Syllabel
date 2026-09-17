@@ -22,6 +22,8 @@ export type Course = {
 
 export type StudentProfile = {
   grade: 1 | 2 | 3 | 4 | null;
+  /** PDF の入学日欄または学年欄から読み取った入学年度。手入力フォームでは今日基準で算出 */
+  admissionYear: number | null;
   program: string | null;
   completedCourses: Course[];
 };

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { fetchCurricula } from "@/lib/syllabus-api";
-import { getAdmissionYear, programCodeOf } from "@/lib/programs";
+import { programCodeOf, resolveAdmissionYear } from "@/lib/programs";
 import type { StudentProfile } from "@/lib/student";
 
 export const FALLBACK_GRADUATION_CREDITS = 124;
@@ -21,14 +21,14 @@ export function useGraduationCredits(profile: StudentProfile | null): number {
   // 履修要項を引くキーは (課程コード, 入学年度)。プロファイルの `program` は
   // 課程名なのでコードに解決する（§4.4.2、`lib/programs.ts`）
   const programCode = programCodeOf(profile?.program);
-  const grade = profile?.grade ?? null;
-  const key = `${programCode ?? ""}:${grade ?? ""}`;
+  const admissionYear = resolveAdmissionYear(profile);
+  const key = `${programCode ?? ""}:${admissionYear ?? ""}`;
 
   useEffect(() => {
-    if (!programCode || !grade) return;
+    if (!programCode || !admissionYear) return;
 
     let active = true;
-    fetchCurricula(programCode, getAdmissionYear(grade))
+    fetchCurricula(programCode, admissionYear)
       .then((data) => {
         if (active && data.graduation.totalCredits > 0) {
           setFetched({ key, credits: data.graduation.totalCredits });
@@ -41,7 +41,7 @@ export function useGraduationCredits(profile: StudentProfile | null): number {
     return () => {
       active = false;
     };
-  }, [programCode, grade, key]);
+  }, [programCode, admissionYear, key]);
 
   return fetched?.key === key ? fetched.credits : FALLBACK_GRADUATION_CREDITS;
 }

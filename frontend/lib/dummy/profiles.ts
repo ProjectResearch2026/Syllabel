@@ -5,6 +5,7 @@ export const DUMMY_PROFILES: { label: string; profile: StudentProfile }[] = [
     label: "3回生・知能情報メディア課程",
     profile: {
       grade: 3,
+      admissionYear: 2024,
       program: "知能情報メディア課程",
       completedCourses: [
         { title: "仏教の思想A", year: 2024, term: "前期", credits: 2, status: "passed", rawScore: "70" },
@@ -32,6 +33,7 @@ export const DUMMY_PROFILES: { label: string; profile: StudentProfile }[] = [
     label: "2回生・知能情報メディア課程（再履修あり）",
     profile: {
       grade: 2,
+      admissionYear: 2025,
       program: "知能情報メディア課程",
       completedCourses: [
         { title: "仏教の思想A", year: 2025, term: "前期", credits: 2, status: "passed", rawScore: "65" },
@@ -47,6 +49,7 @@ export const DUMMY_PROFILES: { label: string; profile: StudentProfile }[] = [
     label: "1回生・電子情報通信課程",
     profile: {
       grade: 1,
+      admissionYear: 2026,
       program: "電子情報通信課程",
       completedCourses: [
         { title: "仏教の思想A", year: 2025, term: "前期", credits: 2, status: "passed", rawScore: "80" },

@@ -5,7 +5,7 @@ import { useStudentStore } from "@/lib/student";
 import { useProposalStore } from "@/lib/proposal";
 import { useChatStore } from "@/lib/chat";
 import { streamProposal } from "@/lib/chatApi";
-import { getAdmissionYear, programCodeOf } from "@/lib/programs";
+import { programCodeOf, resolveAdmissionYear } from "@/lib/programs";
 
 export default function ProposalLoader() {
   const profile = useStudentStore((s) => s.profile);
@@ -18,9 +18,16 @@ export default function ProposalLoader() {
 
     // 履修要項を引くキーは (課程コード, 入学年度)。プロファイルの `program` は
     // 課程名なのでコードに解決する（design.md §4.4.2）。解決できない課程・
-    // 学年未取得では提案を作れない（backend は対応課程外を 404 で返す）
+    // 学年未取得では提案を作れない（backend は対応課程外を 404 で返す）。
+    //
+    // 学年でガードするのは、backend の配当年次フィルタが `course.grade <=
+    // profile.grade` で絞る（§7.2.1、`proposal_agent.py`）ため grade を必須と
+    // しており、grade なしのプロファイルは `POST /api/proposal` が必ず
+    // ProposalError になるからである。ここを通しても往復1回ぶん遅れて同じ
+    // error 状態に落ちるだけなので、grade が要るという制約はここに閉じる。
     const programCode = programCodeOf(profile.program);
-    if (!programCode || !profile.grade) {
+    const admissionYear = resolveAdmissionYear(profile);
+    if (!programCode || !profile.grade || !admissionYear) {
       setStatus("error");
       return;
     }
@@ -34,7 +41,7 @@ export default function ProposalLoader() {
       {
         studentProfile: profile,
         programCode,
-        admissionYear: getAdmissionYear(profile.grade),
+        admissionYear,
       },
       // 組み立て途中の提案。時間割表を逐次描画するために反映する（§6.1.1 / §7.2）
       (snapshot) =>

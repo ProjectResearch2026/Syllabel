@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useStudentStore } from "@/lib/student";
 import { buildTagMap, resolveTags, NO_TAGS, type CourseTags } from "@/lib/syllabusUI";
-import { getAdmissionYear, programCodeOf } from "@/lib/programs";
+import { programCodeOf, resolveAdmissionYear } from "@/lib/programs";
 import { fetchCurricula, type CurriculaData } from "@/lib/syllabus-api";
 import type { CourseTarget } from "@/lib/eligibility";
 import { normalizeTitle } from "@/lib/courseTitle";
@@ -35,7 +35,7 @@ export function useTagMap(): TagResolver {
   // 履修要項を引くキーは (課程コード, 入学年度)。プロファイルの `program` は
   // 課程名なのでコードに解決する(design.md §4.4.2)
   const programCode = programCodeOf(profile?.program);
-  const admissionYear = profile?.grade ? getAdmissionYear(profile.grade) : null;
+  const admissionYear = resolveAdmissionYear(profile);
   const key = programCode && admissionYear ? `${programCode}/${admissionYear}` : null;
 
   // 取得したキーごと持つ。プロファイルが変わった直後に前の課程の要項で

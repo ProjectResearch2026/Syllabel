@@ -410,8 +410,10 @@ function parseSection(
 
 function extractMeta(items: TextItem[]): {
   grade: StudentProfile["grade"];
+  admissionYear: number | null;
   program: string | null;
   reportYear: number;
+  metaWarnings: string[];
 } {
   const fullText = items.map((it) => it.str).join(" ");
 
@@ -438,19 +440,102 @@ function extractMeta(items: TextItem[]): {
     ? parseInt(reportYearItem.str, 10)
     : new Date().getFullYear();
 
-  // 入学年度は履修グリッド左端の年度列の最小値から求める。
-  // （学籍番号は個人情報保護の設計方針により抽出しない）
-  const gridYears = items
-    .filter((it) => /^\d{4}$/.test(it.str) && it.x >= 60 && it.x <= 75)
-    .map((it) => parseInt(it.str, 10));
+  // -----------------------------------------------------------------------
+  // 入学年度・学年の読み取り
+  //
+  // 優先順位:
+  //   1. 基本情報欄の入学日 (x≈461, y≈701): YYYY年MM月DD日 → 入学年度を算出
+  //   2. 基本情報欄の学年欄 (x≈531, y≈701): N年 → 直接取得・照合
+  //   3. フォールバック: 履修グリッド左端の年度列の最小値
+  //      （再入学・編入・単位認定がある学生では最初の在籍年度がグリッドに
+  //        含まれるため、現在の入学年度より小さくなり学年が過大推定される）
+  // -----------------------------------------------------------------------
+  const BASIC_INFO_Y = 701;
+  const Y_TOLERANCE = 25;
+
+  // 入学日: pdfjs がアイテムを細分化する場合があるため x=440〜520 を結合して探す
+  const admissionDateText = items
+    .filter((it) => Math.abs(it.y - BASIC_INFO_Y) <= Y_TOLERANCE && it.x >= 440 && it.x <= 520)
+    .sort((a, b) => a.x - b.x)
+    .map((it) => it.str)
+    .join("");
+  const admissionDateMatch = admissionDateText.match(/(\d{4})年(\d{2})月/);
+
+  // 学年欄: "N年" (N は 1 桁) の単独アイテム
+  const gradeTextItem = items.find(
+    (it) =>
+      /^[1-9]年$/.test(it.str) &&
+      Math.abs(it.y - BASIC_INFO_Y) <= Y_TOLERANCE &&
+      it.x >= 515 &&
+      it.x <= 555,
+  );
+
+  let admissionYear: number | null = null;
   let grade: StudentProfile["grade"] = null;
-  if (gridYears.length > 0) {
-    const admissionYear = Math.min(...gridYears);
-    const raw = reportYear - admissionYear + 1;
-    if (raw >= 1 && raw <= 4) grade = raw as 1 | 2 | 3 | 4;
+  const metaWarnings: string[] = [];
+
+  if (admissionDateMatch) {
+    const calendarYear = parseInt(admissionDateMatch[1], 10);
+    const month = parseInt(admissionDateMatch[2], 10);
+    // 学年度は4月始まり
+    admissionYear = month >= 4 ? calendarYear : calendarYear - 1;
+    // 在籍年数。留年・休学があると学年(配当年次の基準)とは一致しない
+    const enrolledYears = reportYear - admissionYear + 1;
+    if (enrolledYears >= 1 && enrolledYears <= 4) grade = enrolledYears as 1 | 2 | 3 | 4;
+
+    if (gradeTextItem) {
+      const pdfGrade = parseInt(gradeTextItem.str[0], 10);
+      if (grade !== null) {
+        // 学年欄との照合
+        if (grade !== pdfGrade) {
+          metaWarnings.push(
+            `学年の照合不一致: 入学日から算出=${grade}回生、PDF学年欄=${pdfGrade}回生。入学日の値を優先します。`,
+          );
+        }
+      } else if (pdfGrade >= 1 && pdfGrade <= 4) {
+        // 在籍年数が1〜4の外(5年目以降)。学年は学年欄で補うが、`admissionYear` は
+        // **入学日側を残す**。履修要項を引くキーは入学年度であり(§4.4.2)、留年した
+        // 学生に適用されるのは入学当時の要項だからである。
+        //
+        // ただしこの補完は「留年」と「入学日の誤読」を区別できない。誤読だった
+        // 場合は学年だけ正しく見えて `admissionYear` が静かに間違い、履修要項が
+        // 404 になって卒業必要単位数がフォールバック値に落ちる。どちらであっても
+        // 在籍年数と学年欄は食い違っているので、補完したことを必ず警告に残す。
+        grade = pdfGrade as 1 | 2 | 3 | 4;
+        metaWarnings.push(
+          `学年をPDF学年欄から補完しました: 入学日(${admissionYear}年度)と成績表(${reportYear}年度)から` +
+            `算出した在籍年数=${enrolledYears}年目に対し、PDF学年欄=${pdfGrade}回生。` +
+            `留年・休学であれば入学年度=${admissionYear}年度で正しいですが、` +
+            `入学日を誤読していた場合は入学年度も誤っています。`,
+        );
+      }
+    }
+  } else if (gradeTextItem) {
+    // 入学日を読めなかった場合は学年欄から直接取得
+    const pdfGrade = parseInt(gradeTextItem.str[0], 10);
+    if (pdfGrade >= 1 && pdfGrade <= 4) {
+      grade = pdfGrade as 1 | 2 | 3 | 4;
+      admissionYear = reportYear - pdfGrade + 1;
+    }
+  } else {
+    // フォールバック: グリッド年度列の最小値から推定
+    const gridYears = items
+      .filter((it) => /^\d{4}$/.test(it.str) && it.x >= 60 && it.x <= 75)
+      .map((it) => parseInt(it.str, 10));
+    if (gridYears.length > 0) {
+      const gridMin = Math.min(...gridYears);
+      const raw = reportYear - gridMin + 1;
+      if (raw >= 1 && raw <= 4) {
+        grade = raw as 1 | 2 | 3 | 4;
+        admissionYear = gridMin;
+      }
+    }
+    metaWarnings.push(
+      "入学日・学年欄を読み取れなかったため、履修グリッドの年度列最小値から学年を推定しました。再入学・編入・単位認定がある場合は学年が誤る可能性があります。",
+    );
   }
 
-  return { grade, program, reportYear };
+  return { grade, admissionYear, program, reportYear, metaWarnings };
 }
 
 // ---------------------------------------------------------------------------
@@ -474,7 +559,8 @@ export async function parseGradeReport(file: File): Promise<ParseResult> {
 export function parseItems(items: TextItem[]): ParseResult {
   const warnings: string[] = [];
 
-  const { grade, program, reportYear } = extractMeta(items);
+  const { grade, admissionYear, program, reportYear, metaWarnings } = extractMeta(items);
+  warnings.push(...metaWarnings);
   if (!program) warnings.push("課程名を読み取れませんでした");
   if (!grade) warnings.push("学年を推定できませんでした");
 
@@ -485,7 +571,7 @@ export function parseItems(items: TextItem[]): ParseResult {
   if (evaluationYValues.length === 0 || courseNameYValues.length === 0) {
     warnings.push("科目データの構造を認識できませんでした");
     return {
-      profile: { grade, program, completedCourses: [] },
+      profile: { grade, admissionYear, program, completedCourses: [] },
       warnings,
     };
   }
@@ -520,7 +606,7 @@ export function parseItems(items: TextItem[]): ParseResult {
     }));
 
   return {
-    profile: { grade, program, completedCourses },
+    profile: { grade, admissionYear, program, completedCourses },
     warnings,
   };
 }

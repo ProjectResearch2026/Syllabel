@@ -5,7 +5,7 @@ import { ChevronLeft, Plus, Trash2 } from "lucide-react";
 import type { StudentProfile, Course, CourseTerm } from "@/lib/student";
 // 課程の正本は `curricula/admission-<年度>/` の課程ファイル（design.md §4.4.2）。
 // 履修要項を引けない課程名を選ばせないため、一覧はそこから引く
-import { PROGRAM_NAMES as PROGRAMS } from "@/lib/programs";
+import { PROGRAM_NAMES as PROGRAMS, getAdmissionYear } from "@/lib/programs";
 
 const TERMS: CourseTerm[] = ["前期", "後期", "通年", "1Q", "2Q", "3Q", "4Q", "サ集"];
 const CREDIT_OPTIONS = [1, 2, 3, 4, 6, 8];
@@ -36,6 +36,11 @@ export default function ManualInputForm({
   const [grade, setGrade] = useState<1 | 2 | 3 | 4 | null>(initialProfile?.grade ?? null);
   const [program, setProgram] = useState(initialProfile?.program ?? "");
   const [courses, setCourses] = useState<Course[]>(initialProfile?.completedCourses ?? []);
+  // PDF から読んだ入学年度は学年が変わらない限り引き継ぐ。
+  // 毎回 getAdmissionYear() で再計算すると、過年度の成績表を取り込んだ場合や
+  // 年度をまたいで開き直した場合に正確な値が失われる。
+  const initialGrade = initialProfile?.grade ?? null;
+  const initialAdmissionYear = initialProfile?.admissionYear ?? null;
   const [addingCourse, setAddingCourse] = useState(false);
   const [courseForm, setCourseForm] = useState<CourseFormState>(DEFAULT_COURSE);
   const [errors, setErrors] = useState<{ grade?: boolean; program?: boolean }>({});
@@ -54,7 +59,11 @@ export default function ManualInputForm({
       setErrors(e);
       return;
     }
-    onComplete({ grade, program, completedCourses: courses });
+    const admissionYear =
+      grade === initialGrade && initialAdmissionYear !== null
+        ? initialAdmissionYear
+        : grade !== null ? getAdmissionYear(grade) : null;
+    onComplete({ grade, program, completedCourses: courses, admissionYear });
   };
 
   const handleAddCourse = () => {
