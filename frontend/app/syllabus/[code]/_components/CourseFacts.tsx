@@ -13,11 +13,14 @@ import { formatSchedule, formatGrade } from "@/lib/schedule";
 import { targetsOf } from "@/lib/courseTarget";
 
 /**
- * 科目の基本情報。**ラベル付きで並べる。**
+ * 科目の基本情報（ui-design_pc.pen 06_講義詳細 FactsStrip）。
  *
+ * 見出しカードの下に**1行で横並び**にする。**ラベル付きで並べる**のは変えない。
  * 以前はアイコンと値だけを横一列に並べていたため、`オンライン` が
  * キャンパスなのか授業形態なのか、`2年次～4年次` が配当年次なのかが
  * 読み取れなかった。開講の表示は `lib/schedule.ts` に従う。
+ *
+ * 値が無い項目は落とすので、残った項目だけで幅を分け合う。
  */
 export default function CourseFacts({ syllabus }: { syllabus: SyllabusDetail }) {
   const schedule = formatSchedule(syllabus);
@@ -51,20 +54,16 @@ export default function CourseFacts({ syllabus }: { syllabus: SyllabusDetail }) 
   ];
 
   return (
-    <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
+    <dl className="flex flex-wrap gap-x-5 gap-y-4 border-t border-card-divider pt-4">
       {facts
         .filter((fact) => fact.value)
         .map((fact) => (
-          <div key={fact.label} className="flex min-w-0 gap-2">
-            <fact.icon size={15} className="mt-[3px] shrink-0 text-fg-muted" aria-hidden="true" />
-            <div className="min-w-0">
-              <dt className="text-[11px] font-semibold tracking-wide text-fg-muted">
-                {fact.label}
-              </dt>
-              <dd className="text-[13.5px] font-medium leading-relaxed text-fg-primary">
-                {fact.value}
-              </dd>
-            </div>
+          <div key={fact.label} className="flex min-w-[140px] flex-1 flex-col gap-1">
+            <dt className="flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.3px] text-fg-muted">
+              <fact.icon size={13} className="shrink-0 text-fg-icon" aria-hidden="true" />
+              {fact.label}
+            </dt>
+            <dd className="text-[13px] font-medium leading-5 text-fg-primary">{fact.value}</dd>
           </div>
         ))}
     </dl>

@@ -9,7 +9,8 @@ import {
 import SyllabusResults from "./_components/SyllabusResults";
 import SyllabusTopBar from "./_components/SyllabusTopBar";
 import SyllabusFilters from "./_components/SyllabusFilters";
-import SyllabusChatBox from "./_components/SyllabusChatBox";
+import SyllabusChatPanel from "./_components/SyllabusChatPanel";
+import SyllabusProfileNotice from "./_components/SyllabusProfileNotice";
 import MobileSyllabusPage from "./_components/MobileSyllabusPage";
 
 /** 1ページに並べる件数。表示だけの都合であり、取得は全件行う(§6.2) */
@@ -48,9 +49,9 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
   ]);
 
   return (
-    <div className="flex flex-col flex-1 min-w-0">
+    <>
       {/* モバイル */}
-      <div className="md:hidden flex-1">
+      <div className="flex-1 md:hidden">
         <Suspense>
           <MobileSyllabusPage
             results={data.results}
@@ -64,18 +65,24 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
         </Suspense>
       </div>
 
-      {/* デスクトップ */}
-      <div className="hidden md:flex md:flex-col md:flex-1 min-w-0">
+      {/*
+        デスクトップ（ui-design_pc.pen 05_シラバス一覧）。
+        検索バーはヘッダーカードの続き、その下を 絞り込み / 結果 / AI の3列が分ける。
+        縦に伸びるのは結果の列だけで、両脇のカードは画面の高さに収まる。
+      */}
+      <div className="hidden min-h-0 min-w-0 flex-1 flex-col gap-2 md:flex">
         <Suspense>
           <SyllabusTopBar />
         </Suspense>
 
-        <div className="flex flex-1 min-w-0">
+        <div className="flex min-h-0 min-w-0 flex-1 gap-4">
           <Suspense>
             <SyllabusFilters masters={masters} />
           </Suspense>
 
-          <main className="flex-1 min-w-0 bg-[#F8F9FA] px-4 md:px-6 py-5">
+          <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
+            {/* タグが付く条件は、絞り込みを試す前に見えるところへ出す(§8) */}
+            <SyllabusProfileNotice />
             <Suspense>
               <SyllabusResults
                 results={data.results}
@@ -87,17 +94,11 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
                 limit={LIMIT}
               />
             </Suspense>
-
-            <div id="ai-chat" className="mt-8 scroll-mt-32">
-              <SyllabusChatBox
-                title="AIに質問する（シラバス全体）"
-                placeholder="シラバスについて質問..."
-                initialMessage='シラバスについて質問してください。例：「プログラミングを扱う選択科目を一覧で」'
-              />
-            </div>
           </main>
+
+          <SyllabusChatPanel />
         </div>
       </div>
-    </div>
+    </>
   );
 }

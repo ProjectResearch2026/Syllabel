@@ -10,7 +10,7 @@ import SyllabusPagination from "./SyllabusPagination";
 
 /**
  * 検索結果(PC)。件数・ページ送り・カードを1つのクライアントコンポーネントに置く。
- * design.md §8。
+ * design.md §8 / ui-design_pc.pen 05_シラバス一覧 MainArea。
  *
  * **件数とページ送りをサーバ側描画から持ってこられない。** タグでの絞り込みは
  * クライアントで行う必要があり(学生プロファイルがブラウザにしか無く、絞り込んだ
@@ -47,53 +47,41 @@ export default function SyllabusResults({
     limit,
   );
 
-  const pagination = (
-    <SyllabusPagination
-      limit={limit}
-      offset={offset}
-      total={matched}
-    />
-  );
-
   return (
     <>
-      <div className="mb-3 flex items-center justify-between gap-4">
-        <h1 className="text-sm font-bold text-[#1A2B4E]">
+      {/* ui-design_pc.pen ResultHeader。件数・内訳・並び順を1行に収める */}
+      <div className="flex shrink-0 items-center justify-between gap-4">
+        <h1 className="text-sm font-bold text-fg-primary">
           検索結果 {matched.toLocaleString()}件
           {/* 絞っているときは、絞る前の母数も示す */}
           {filtering && (
-            <span className="ml-2 text-xs font-normal text-[#4B5563]">
+            <span className="ml-2 text-xs font-normal text-fg-secondary">
               （{total.toLocaleString()}件中）
             </span>
           )}
           {visible.length > 0 && (
-            <span className="ml-2 text-xs font-normal text-[#4B5563]">
+            <span className="ml-2 text-xs font-normal text-fg-secondary">
               {offset + 1}〜{offset + visible.length}件目を表示
             </span>
           )}
           {matchedBy === "instructor" && (
-            <span className="ml-2 text-xs font-normal text-[#4B5563]">
+            <span className="ml-2 text-xs font-normal text-fg-secondary">
               「{keyword}」を教員名として検索しました
             </span>
           )}
         </h1>
-        <div className="flex shrink-0 items-center gap-1.5 text-xs text-[#4B5563]">
-          <ArrowUpDown size={14} />
+        <div className="flex shrink-0 items-center gap-1.5 text-xs text-fg-secondary">
+          <ArrowUpDown size={14} aria-hidden="true" />
           <span>配当年次順</span>
         </div>
       </div>
 
-      {/* ページ送りは結果の上にも置く。下まで送らないと移動できないのは手間 */}
-      <div className="mb-4">{pagination}</div>
-
       {visible.length === 0 ? (
-        <p className="py-16 text-center text-sm text-[#6B7280]">
-          {filtering
-            ? "絞り込みに該当する科目がありません"
-            : "該当する科目がありません"}
+        <p className="py-16 text-center text-sm text-fg-tertiary">
+          {filtering ? "絞り込みに該当する科目がありません" : "該当する科目がありません"}
         </p>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           {visible.map(({ course, tags, instructors }) => (
             <CourseCard
               key={`${course.syllabus_code}-${course.year}`}
@@ -106,7 +94,8 @@ export default function SyllabusResults({
         </div>
       )}
 
-      {pagination}
+      {/* ページ送りは結果の下に一度だけ。上下に出すと1画面に2つ並んで見える */}
+      <SyllabusPagination limit={limit} offset={offset} total={matched} />
     </>
   );
 }

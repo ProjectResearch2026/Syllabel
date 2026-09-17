@@ -40,7 +40,10 @@ export default function SyllabusFilters({ masters }: Props) {
   const day = searchParams.get("day") ?? "";
 
   const selectClass =
-    "w-full border border-[#D1D5DB] rounded px-2.5 py-2 text-[13px] text-[#1A2B4E] bg-white focus:outline-none focus:border-[#1A2B4E] transition-colors";
+    "w-full appearance-none rounded border border-border-primary bg-surface-primary px-2.5 py-2 text-[13px] text-fg-primary transition-colors focus:border-fg-primary focus:outline-none";
+  // 固定値（年度・学部）は入力に見せない。地を落として読み取り専用だと分かるようにする
+  const staticClass =
+    "rounded border border-border-primary bg-cell-elective px-2.5 py-2 text-[13px] text-fg-primary";
 
   const fields: { label: string; node: React.ReactNode }[] = [
     {
@@ -48,9 +51,7 @@ export default function SyllabusFilters({ masters }: Props) {
       // しか無いため(`lib/syllabus-api.ts`)、表示のみとする
       label: "年度",
       node: (
-        <p className="text-[13px] text-[#1A2B4E] px-2.5 py-2 bg-[#F3F4F6] border border-[#D1D5DB] rounded">
-          {OFFERING_YEAR}年度のみ
-        </p>
+        <p className={staticClass}>{OFFERING_YEAR}年度のみ</p>
       ),
     },
     {
@@ -58,9 +59,7 @@ export default function SyllabusFilters({ masters }: Props) {
       // 科目は履修要項を持たずタグ付けの対象外になる
       label: "学部",
       node: (
-        <p className="text-[13px] text-[#1A2B4E] px-2.5 py-2 bg-[#F3F4F6] border border-[#D1D5DB] rounded">
-          {FACULTY}のみ
-        </p>
+        <p className={staticClass}>{FACULTY}のみ</p>
       ),
     },
     {
@@ -74,7 +73,7 @@ export default function SyllabusFilters({ masters }: Props) {
             ))}
           </select>
           {program && (
-            <span className="text-[11px] leading-snug text-[#6B7280]">
+            <span className="text-[11px] leading-snug text-fg-secondary">
               その課程が対象の科目のみ。全学向けの教養教育科目は外れます
             </span>
           )}
@@ -138,14 +137,15 @@ export default function SyllabusFilters({ masters }: Props) {
   ];
 
   return (
-    <aside className="hidden md:flex flex-col gap-4 w-60 shrink-0 bg-white border-r border-[#D1D5DB] px-5 py-6 overflow-y-auto">
+    /* グレーの地に浮く白いカード（ui-design_pc.pen Sidebar） */
+    <aside className="hidden min-h-0 w-60 shrink-0 flex-col gap-4 self-stretch overflow-y-auto rounded-lg bg-surface-primary px-4 py-6 md:flex">
       <div className="flex items-center gap-1.5">
-        <SlidersHorizontal size={14} className="text-[#9CA3AF]" />
-        <span className="text-[11px] font-bold text-[#9CA3AF] tracking-wide">絞り込み</span>
+        <SlidersHorizontal size={14} className="text-fg-faint" aria-hidden="true" />
+        <span className="text-[11px] font-bold tracking-wide text-fg-faint">絞り込み</span>
       </div>
       {fields.map((f) => (
         <label key={f.label} className="flex flex-col gap-1.5">
-          <span className="text-xs font-semibold text-[#4B5563]">{f.label}</span>
+          <span className="text-xs font-semibold text-fg-secondary">{f.label}</span>
           {f.node}
         </label>
       ))}

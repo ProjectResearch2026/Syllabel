@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useStudentStore } from "@/lib/student";
 import { useChatStore } from "@/lib/chat";
+import { useChatHistoryStore } from "@/lib/chatHistory";
 import ManualInputForm from "@/app/import/_components/ManualInputForm";
 
 function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
@@ -86,6 +87,7 @@ export default function MobileSettingsPage() {
   const setProfile = useStudentStore((s) => s.setProfile);
   const clearProfile = useStudentStore((s) => s.clearProfile);
   const clearAll = useChatStore((s) => s.clearAll);
+  const clearHistory = useChatHistoryStore((s) => s.clearAll);
   const [notify, setNotify] = useState(true);
   const [dark, setDark] = useState(false);
   const [editMode, setEditMode] = useState<"grade-program" | "courses" | null>(null);
@@ -94,6 +96,7 @@ export default function MobileSettingsPage() {
     if (confirm("学生データ・成績情報・対話履歴をすべて消去しますか? この操作は取り消せません。")) {
       clearProfile();
       clearAll();
+      clearHistory();
       router.push("/");
     }
   };

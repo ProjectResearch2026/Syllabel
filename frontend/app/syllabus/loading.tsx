@@ -33,48 +33,58 @@ export default function SyllabusLoading() {
         </div>
       </div>
 
-      {/* デスクトップ */}
-      <div className="hidden md:flex md:flex-col md:flex-1 min-w-0">
-        {/* TopBar skeleton */}
-        <div className="flex items-center gap-3 px-6 h-14 bg-white border-b border-[#D1D5DB]">
-          <div className="flex-1 max-w-md h-9 rounded-full bg-[#E5E7EB] animate-pulse" />
-          <div className="h-9 w-24 rounded-lg bg-[#E5E7EB] animate-pulse" />
+      {/* デスクトップ（ui-design_pc.pen 05_シラバス一覧 の骨格に合わせる） */}
+      <div className="hidden min-h-0 min-w-0 flex-1 flex-col gap-2 md:flex">
+        {/* SearchBar skeleton。ヘッダーカードの続きとして貼り付く */}
+        <div className="flex h-16 shrink-0 items-center gap-4 rounded-b-lg bg-surface-primary px-8">
+          <div className="h-10 w-[420px] shrink-0 animate-pulse rounded-full bg-[#E5E7EB]" />
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-7 w-16 shrink-0 animate-pulse rounded-full bg-[#E5E7EB]" />
+          ))}
         </div>
 
-        <div className="flex flex-1 min-w-0">
+        <div className="flex min-h-0 min-w-0 flex-1 gap-4">
           {/* Filters skeleton */}
-          <aside className="w-[220px] shrink-0 border-r border-[#D1D5DB] bg-white px-4 py-5 flex flex-col gap-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex flex-col gap-2">
-                <div className="h-3 w-16 rounded bg-[#E5E7EB] animate-pulse" />
-                <div className="h-8 rounded-lg bg-[#E5E7EB] animate-pulse" />
+          <aside className="flex w-60 shrink-0 flex-col gap-4 self-stretch rounded-lg bg-surface-primary px-4 py-6">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="flex flex-col gap-1.5">
+                <div className="h-3 w-16 animate-pulse rounded bg-[#E5E7EB]" />
+                <div className="h-9 animate-pulse rounded bg-[#E5E7EB]" />
               </div>
             ))}
           </aside>
 
           {/* Cards skeleton */}
-          <main className="flex-1 bg-[#F8F9FA] px-6 py-5">
-            <div className="h-4 w-24 rounded bg-[#E5E7EB] animate-pulse mb-5" />
-            <div className="grid grid-cols-2 gap-4">
+          <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
+            <div className="h-4 w-40 animate-pulse rounded bg-[#E5E7EB]" />
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
               {[...Array(8)].map((_, i) => (
-                <div key={i} className="bg-white border border-[#D1D5DB] rounded-lg overflow-hidden flex">
-                  <div className="w-1 bg-[#E5E7EB]" />
-                  <div className="flex flex-col gap-2 px-3.5 py-3 flex-1">
-                    <div className="flex items-center justify-between">
-                      <div className="h-3 w-20 rounded bg-[#E5E7EB] animate-pulse" />
-                      <div className="h-5 w-10 rounded-full bg-[#E5E7EB] animate-pulse" />
-                    </div>
-                    <div className="h-4 w-3/4 rounded bg-[#E5E7EB] animate-pulse" />
-                    <div className="flex gap-3">
-                      <div className="h-3 w-10 rounded bg-[#E5E7EB] animate-pulse" />
-                      <div className="h-3 w-10 rounded bg-[#E5E7EB] animate-pulse" />
-                      <div className="h-3 w-20 rounded bg-[#E5E7EB] animate-pulse" />
-                    </div>
+                <div
+                  key={i}
+                  className="flex flex-col gap-3 rounded-xl border border-card-border bg-surface-primary p-4"
+                >
+                  <div className="h-3 w-20 animate-pulse rounded bg-[#E5E7EB]" />
+                  <div className="flex gap-1.5">
+                    {[...Array(3)].map((__, j) => (
+                      <div key={j} className="h-4 w-12 animate-pulse rounded-md bg-[#E5E7EB]" />
+                    ))}
                   </div>
+                  <div className="h-5 w-3/4 animate-pulse rounded bg-[#E5E7EB]" />
+                  <div className="h-3 w-24 animate-pulse rounded bg-[#E5E7EB]" />
+                  <div className="mt-1 h-4 animate-pulse rounded bg-[#E5E7EB]" />
                 </div>
               ))}
             </div>
           </main>
+
+          {/* ChatPanel skeleton */}
+          <aside className="flex w-[344px] shrink-0 flex-col self-stretch overflow-hidden rounded-lg border border-border-primary bg-surface-primary">
+            <div className="h-[52px] shrink-0 bg-surface-gray" />
+            <div className="flex-1 bg-surface-gray" />
+            <div className="shrink-0 bg-surface-gray p-3">
+              <div className="h-16 animate-pulse rounded-full bg-surface-primary" />
+            </div>
+          </aside>
         </div>
       </div>
     </>

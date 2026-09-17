@@ -2,7 +2,7 @@
 
 /*
  * デザイントークン
- * ui-ux/ui-design_phone.pen の `variables` をそのまま CSS カスタムプロパティへ移植している。
+ * ui-ux/ui-design_pc.pen / ui-design_phone.pen の `variables` をそのまま CSS カスタムプロパティへ移植している。
  * Pencil の値は CSS 互換（#RRGGBB / rgba() / px）なので変換は不要で、
  * 変数名も 1:1 で対応させてある（surface-primary → --color-surface-primary）。
  * 設計を直せばここを直すだけで済むよう、リテラル色の再定義はしない。
@@ -25,13 +25,54 @@
   --color-academic-navy: #1a2b4e;
   --color-surface-gray: #f8f9fa;
 
+  --color-primary-dark: #b7000c;
+
   /* --- .pen 内でリテラル指定されている色に名前を与えたもの --- */
+  /* ヘッダーやカードが浮くグレーの地。PC版は全画面この色（ui-design_pc.pen） */
+  --color-surface-soft: #eef0f5; /* アイコン地・ユーザー吹き出し */
+  --color-fg-tertiary: #6b7280;
+
+  /* 成績評価の積み上げバー（ui-design_pc.pen chart-red-1〜4） */
+  --color-chart-red-1: #b7000c;
+  --color-chart-red-2: #e60012;
+  --color-chart-red-3: #f0666f;
+  --color-chart-red-4: #f9bfc4;
+
   --color-fg-muted: #8a93a3; /* 補助テキスト・アイコン */
+  --color-fg-icon: #98a2b3; /* カード内アイコン（fg-muted より薄め） */
   --color-fg-faint: #9ca3af; /* プレースホルダ */
   --color-border-subtle: #edeff2; /* シート内の区切り線 */
   --color-chevron: #c7ccd4;
   --color-scrim: #1a2b4e66; /* シート背後のスクリム */
   --color-scrim-menu: #1a2b4e59; /* 長押しメニューのスクリム */
+
+  /* カード */
+  --color-card-border: #d9dee7;
+  --color-card-border-hover: #9aa8bc;
+  --color-card-divider: #eaecf0;
+
+  /* 履修区分タグ（セマンティックカラー） */
+  --color-tag-required-bg: #fff1f2;
+  --color-tag-required-border: #fecdd3;
+  --color-tag-required-fg: #be123c;
+  --color-tag-selective-bg: #fffbeb;
+  --color-tag-selective-border: #fde68a;
+  --color-tag-selective-fg: #b45309;
+  --color-tag-elective-bg: #f0f9ff;
+  --color-tag-elective-border: #bae6fd;
+  --color-tag-elective-fg: #0369a1;
+  --color-tag-optional-bg: #f9fafb;
+  --color-tag-optional-border: #e5e7eb;
+  --color-tag-optional-fg: #6b7280;
+  --color-tag-done-bg: #f0fdf4;
+  --color-tag-done-border: #bbf7d0;
+  --color-tag-done-fg: #15803d;
+  --color-tag-category-bg: #f4f6fa;
+  --color-tag-category-border: #dde3ee;
+  --color-tag-category-fg: #3f4e6b;
+  --color-tag-term-bg: #f2f4f7;
+  --color-tag-term-border: #eaecf0;
+  --color-tag-term-fg: #475467;
 
   /* 時間割セルの地色（種別ごと） */
   --color-cell-required: #ffe8e9;
@@ -49,8 +90,9 @@
   --shadow-askbar: 0 3px 12px #1a2b4e24;
   --shadow-sheet: 0 -4px 20px #1a2b4e33;
   --shadow-popover: 0 8px 24px #1a2b4e3d;
+  --shadow-menu: 0 8px 24px #1a2b4e29; /* ui-design_pc.pen Chat/HistoryMenu */
   --shadow-tabbar: 0 -1px 8px #00000012;
-  --shadow-card: 0 4px 24px #1a2b4e14;
+  --shadow-card: 0 2px 8px #1a2b4e0a; /* ui-design_pc.pen CourseCard */
 
   /* --- .pen fontFamily --- */
   --font-ui: var(--font-funnel-sans), var(--font-noto-sans), sans-serif;
