@@ -140,9 +140,16 @@ def test_course_not_available_to_program_is_excluded(cohort):
     """`not_available_to_programs` の課程では当該教養教育科目を取り込まないこと。
 
     2024・2025年度入学コホートでは「生活の中の化学」→ 応用化学課程(05)の1件のみ。
+    2026年度入学版は履修不可の指定が学部単位に変わったため0件になる(§5.1.3)。
     """
     liberal, programs = _cohort(cohort)
     excluded = [c for c in liberal.courses if c.not_available_to_programs]
+    if liberal.liberal_arts_version == "2026":
+        # 履修不可が学部単位になり、【先端理工学部履修不可】の科目は転記しない(§5.1.3)
+        assert not excluded
+        return
+
+    # 0件のまま以降のループが素通りしないことの番兵。転記漏れを検出する
     assert excluded, f"{cohort} に not_available_to_programs を持つ科目がない"
     merged = _merge_cohort(cohort)
     for course in excluded:
