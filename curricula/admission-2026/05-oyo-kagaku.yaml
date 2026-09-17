@@ -2,7 +2,9 @@
 # 出典: https://rishu.ryukoku.ac.jp/curriculum/faculty-rikou/s04/ （年度を含まないURLが最新年度）
 #   設置科目・先修制・進級要件・別表は HTML テーブルから機械転記した（2026年度版は画像化されていない）。
 #   卒業要件単位（最低）数表のみ画像のため、拡大して読み取り合計124単位を検算した。
-# 未確定: registration_limits（履修登録制限単位数）の出典が上記ページに無いため 2025年度入学版の値を暫定で置いている。要確認。
+#   registration_limits（履修登録制限単位数）は上記ページに無く、
+#   https://rishu.ryukoku.ac.jp/knowledge/no5-01/ の【5】履修登録「2．履修登録制限単位数」
+#   の先端理工学部の表から転記した。
 
 program:
   code: "05"
@@ -59,7 +61,7 @@ grade_up_requirements:
   - to_grade: 4
     conditions: null
 
-registration_limits:                # 出典未確認（2025年度入学版からの暫定値）
+registration_limits:                # 出典: knowledge/no5-01/【5】履修登録「2．履修登録制限単位数」
   by_semester:
     - semesters: [1, 2, 3, 4]
       max_credits_per_semester: 22
