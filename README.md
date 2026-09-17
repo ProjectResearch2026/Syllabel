@@ -158,12 +158,12 @@ podman exec -it pr2026-backend python -m scripts.smoke_api_clean
 
 履修提案は1回に4〜5分かかる。応答時間は出力トークン数でほぼ決まる(設計§7.2)。
 
-## 実装状況(2026-09-15)
+## 実装状況(2026-09-17)
 
 | 領域 | 状況 |
 |---|---|
 | backend / シラバス | `GET /api/syllabi`・`/api/syllabi/{code}`・`/api/masters`(api-clean 中継)実装済み |
-| backend / チャット | `POST /api/chat/syllabus`・`/api/chat/syllabus/{code}` 実装済み。**`POST /api/chat/proposal` は未実装** |
+| backend / チャット | `POST /api/chat/syllabus`・`/api/chat/syllabus/{code}`・`/api/chat/proposal` 実装済み |
 | backend / 履修要項 | YAML スキーマ・ロード・マージ・要件充足判定、`GET /api/curricula/{program_code}/{admission_year}`・`POST /api/requirements` 実装済み |
 | backend / 履修提案 | `POST /api/proposal` 実装済み(SSE で逐次配信)。実機で提案の生成を確認済み |
 | frontend | 全画面を実装済み。backend との接続は設計§6.1 の宛先・SSE 書式・スキーマに準拠(`lib/api_base.ts` / `lib/chatApi.ts` / `lib/syllabus-api.ts`) |
