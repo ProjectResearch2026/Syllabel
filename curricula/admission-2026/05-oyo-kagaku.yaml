@@ -1,0 +1,780 @@
+# 先端理工学部 応用化学課程 2026年度入学者向け履修要項
+# 出典: https://rishu.ryukoku.ac.jp/curriculum/faculty-rikou/s04/ （年度を含まないURLが最新年度）
+#   設置科目・先修制・進級要件・別表は HTML テーブルから機械転記した（2026年度版は画像化されていない）。
+#   卒業要件単位（最低）数表のみ画像のため、拡大して読み取り合計124単位を検算した。
+#   registration_limits（履修登録制限単位数）は上記ページに無く、
+#   https://rishu.ryukoku.ac.jp/knowledge/no5-01/ の【5】履修登録「2．履修登録制限単位数」
+#   の先端理工学部の表から転記した。
+
+program:
+  code: "05"
+  name: "応用化学課程"
+  name_aliases: []
+admission_year: 2026
+curriculum_version: "2026年度以降入学生"
+duplicate_of: null
+
+graduation:
+  total_credits: 124
+  excluded_types: ["随意"]
+
+requirement_slots:                  # 卒業要件単位（最低）数表から転記
+  - key: "basic.required"
+    credits: 42
+    accepts: {category: "専門基礎科目", type: "必修"}
+  - key: "basic.elective"
+    credits: 0
+    accepts: {category: "専門基礎科目", type: "選択"}
+    overflow_to: "free.faculty"           # 注記B
+  - key: "applied.required"
+    credits: 16
+    accepts: {category: "専門応用科目", type: "必修"}
+  - key: "applied.elective"
+    credits: 26
+    accepts: {category: "専門応用科目", type: "選択"}
+    overflow_to: "free.faculty"
+  - key: "related"
+    credits: 0
+    accepts: {category: "専門関連科目"}
+    overflow_to: "free.faculty"           # 注記C
+  - key: "free.faculty"
+    credits: 12
+    accepts: {category: ["専門基礎科目", "専門応用科目", "専門関連科目"]}
+    # 注記D
+  - key: "free.all"
+    credits: 0
+    accepts: {category: "any"}
+    # この課程にオールフリーゾーンは無い。卒業要件単位数表に当該行が存在しないため credits: 0 とし、liberal.elective の overflow_to 先としてのみ機能する
+
+prerequisites:                      # 先修制(専攻科目)。「（2）先修制（専攻科目）」の表から転記
+  - title: "特別研究"
+    min_credits:
+      - {credits: 100}
+    all_of: ["物理基礎実験", "化学基礎実験", "物理化学実験", "機器分析化学実験", "化学合成実験", "科学技術英語", "研究デザイン演習"]
+    notes: "卒業要件総修得単位数が100単位以上あること。かつ、物理基礎実験、化学基礎実験、物理化学実験、機器分析化学実験、化学合成実験、科学技術英語、研究デザイン演習を単位修得していること。"
+
+grade_up_requirements:
+  - to_grade: 2
+    conditions: null
+  - to_grade: 3
+    conditions: null
+  - to_grade: 4
+    conditions: null
+
+registration_limits:                # 出典: knowledge/no5-01/【5】履修登録「2．履修登録制限単位数」
+  by_semester:
+    - semesters: [1, 2, 3, 4]
+      max_credits_per_semester: 22
+    - semesters: [5, 6]
+      max_credits_per_semester: 24
+    - semesters: [7, 8]
+      max_credits_per_year: 48
+      notes: "4年次は学期ごとの上限ではなく、通年（7・8セメスター合計）で48単位が上限"
+  notes: |
+    通年科目の単位数は第1学期（前期）と第2学期（後期）で2分割して計算する。
+    クォーター型科目の単位数は1Q・2Qを前期に、3Q・4Qを後期に算入する。
+    随意科目、サマーセッション科目、「海外英語研修」、大学コンソーシアム京都の単位互換科目、
+    放送大学科目は制限単位数に含まれない。
+  gpa_exception: "前学期までの累積GPA3.5以上の学生は、申請により各学期2単位まで制限を拡大できる（毎学期初めの履修登録期間に先端理工学部教務課へ申請）"
+
+credit_caps:                        # 設置科目表の備考から転記
+  - titles: ["キャリア実習・実習指導", "ASEANグローバルプログラム", "グローバル人材育成プログラム", "プロジェクトリサーチⅠ", "プロジェクトリサーチⅡ", "先端理工キャリア実習Ⅰ", "先端理工インターンシップⅠ", "先端理工キャリア実習Ⅱ", "先端理工インターンシップⅡ"]
+    max_credits: 4
+    overflow_to: null
+    notes: "これら科目のうち、卒業要件単位として認められるのは4単位までです。"
+
+courses:                            # 「7. 設置科目」の HTML テーブルから機械転記
+  - title: "化学の英語"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "化学の基礎"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 1
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "化学と社会"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 1
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "化学と安全管理"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "化学と情報処理"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "数学の基礎"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 1
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "物理の基礎"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 1
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "物理化学Ⅰ"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 1
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "物理化学Ⅱ"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "物理化学Ⅲ"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 2
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "無機化学Ⅰ"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 1
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "無機化学Ⅱ"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "有機化学Ⅰ"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 1
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "有機化学Ⅱ"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "プロジェクト演習Ⅰ"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 1
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "物理基礎実験"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "化学基礎実験"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 1
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "物理化学実験"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "機器分析化学実験"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "化学合成実験"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "情報基礎"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 1
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "資源・エネルギーと環境"
+    category: "専門基礎科目"
+    type: "必修"
+    credits: 2
+    grade: 1
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "プロジェクト演習Ⅱ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "地学概論"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "生物学概論"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "地学実験"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "生物学実験"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "デザインシンキング"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "キャリア実習・実習指導"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 1
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "ASEANグローバルプログラム"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "グローバル人材育成プログラム"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "プロジェクトリサーチⅠ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "プロジェクトリサーチⅡ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "先端理工キャリア実習Ⅰ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "先端理工インターンシップⅠ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "先端理工キャリア実習Ⅱ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "先端理工インターンシップⅡ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "フレッシャーズセミナー"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 1
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+    notes: "配当年次において必ず履修登録してください。ただし、必修科目ではありませんので、不合格であった場合も再履修する必要はありません。"
+  - title: "理工学のすすめ"
+    category: "専門基礎科目"
+    type: "選択"
+    credits: 2
+    grade: 1
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+    notes: "配当年次において必ず履修登録してください。ただし、必修科目ではありませんので、不合格であった場合も再履修する必要はありません。"
+  - title: "科学技術英語"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 2
+    grade: 3
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "英語セミナー"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 2
+    grade: 4
+    term: "前期"
+    quarters: ["1Q", "2Q"]
+  - title: "研究デザイン演習"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 2
+    grade: 3
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "特別研究"
+    category: "専門応用科目"
+    type: "必修"
+    credits: 10
+    grade: 4
+    term: "通年"
+  - title: "アドバンスト数学Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "アドバンスト数学Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "アドバンスト数学Ⅲ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "アドバンスト数学Ⅳ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "アドバンスト物理Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "アドバンスト物理Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "アドバンスト物理Ⅲ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "アドバンスト物理Ⅳ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "電気化学Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "電気化学Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "アドバンスト電気化学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "分析化学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "機器分析化学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "アドバンスト機器分析化学Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "アドバンスト機器分析化学Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "結晶学入門Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "結晶学入門Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "固体物性化学Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "固体物性化学Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "セラミックス材料工学Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "セラミックス材料工学Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "構造解析学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "医薬品のプロセス化学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "有機化合物スペクトル解析入門Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "有機化合物スペクトル解析入門Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "光化学Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "光化学Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "逆合成解析化学Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "逆合成解析化学Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "高分子化学Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "高分子化学Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "高分子構造材料物性Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "高分子構造材料物性Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "高分子材料工学Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "高分子材料工学Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "生化学Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "生化学Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "分子集合化学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "バイオミメティックス　生物に倣ったものづくり"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "界面化学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "バイオマテリアルⅠ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "バイオマテリアルⅡ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "量子材料科学Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "量子材料科学Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 2
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "半導体材料Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "半導体材料Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "ナノマテリアル"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["3Q"]
+  - title: "アドバンスト環境化学Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "アドバンスト環境化学Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "循環系グリーンケミストリー"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "食と分子科学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "アドバンスト物質科学合成実験"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 2
+    grade: 3
+    term: "前期"
+    quarters: ["2Q"]
+  - title: "化学工学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 2
+    grade: 2
+    term: "後期"
+    quarters: ["3Q", "4Q"]
+  - title: "反応工学"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "後期"
+    quarters: ["4Q"]
+  - title: "エネルギー変換工学Ⅰ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["1Q"]
+  - title: "エネルギー変換工学Ⅱ"
+    category: "専門応用科目"
+    type: "選択"
+    credits: 1
+    grade: 3
+    term: "前期"
+    quarters: ["2Q"]

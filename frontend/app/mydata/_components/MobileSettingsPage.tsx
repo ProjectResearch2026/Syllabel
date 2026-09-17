@@ -101,7 +101,10 @@ export default function MobileSettingsPage() {
     }
   };
 
-  const totalCredits = profile?.completedCourses.reduce((sum, c) => sum + c.credits, 0) ?? 0;
+  // 取り込みは不合格・履修辞退も含む全科目。単位に数えるのは合格したものだけ(要件§4.2)
+  const passedCourses = profile?.completedCourses.filter((c) => c.status === "passed") ?? [];
+  const totalCredits = passedCourses.reduce((sum, c) => sum + c.credits, 0);
+  const passedCount = passedCourses.length;
   const courseCount = profile?.completedCourses.length ?? 0;
   const iconCls = "text-[#1A2B4E]";
 
@@ -141,7 +144,7 @@ export default function MobileSettingsPage() {
                 {totalCredits}単位取得済
               </span>
               <span className="px-2 py-[3px] rounded-md bg-[#EEF0F5] text-[10px] font-bold text-[#1A2B4E]">
-                {courseCount}科目
+                {passedCount}科目
               </span>
             </div>
           </div>
@@ -176,9 +179,10 @@ export default function MobileSettingsPage() {
               value={profile ? `${profile.grade}回生 / ${profile.program}` : "未登録"}
               onClick={() => setEditMode("grade-program")}
             />
+            {/* 編集画面には未修得の科目も並ぶので、件数は取り込んだ全科目で出す */}
             <Row
               icon={<FileText size={16} className={iconCls} />}
-              label="修得科目を編集"
+              label="取り込んだ科目を編集"
               value={`${courseCount}科目`}
               onClick={() => setEditMode("courses")}
             />

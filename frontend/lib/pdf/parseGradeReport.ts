@@ -174,8 +174,10 @@ function findCourseNameYValues(items: TextItem[]): number[] {
   for (const it of items) {
     // 日本語文字を含む、x>100 かつ x<460 の item（ヘッダー列除外）
     if (it.x <= 100 || it.x > 460) continue;
-    // セクション区分行 (＊,＜) を除外
-    if (/^[＊＜＞*<>]/.test(it.str)) continue;
+    // セクション区分行 (＊,＜) を除外。区分見出しは
+    // "＜応用必修" / "１８単位＞" のように2行に割れて入るため、後半も落とす
+    // （落とさないと "４単位＞" が5件並ぶ y=50 が科目名行に化ける）
+    if (/^[＊＜＞*<>]/.test(it.str) || /単位＞$/.test(it.str)) continue;
     // 純粋な日本語・英数字混合のテキスト
     if (!/[　-鿿＀-￯]/.test(it.str)) continue;
     const ry = Math.round(it.y / 5) * 5;
@@ -319,6 +321,7 @@ function parseSection(
     // 括弧類・記号だけの行をスキップ
     if (/^[<＜＊*\[\]（）()【】]+$/.test(title)) continue;
     if (/^＊/.test(title) || /^＜/.test(title)) continue;
+    if (/単位＞$/.test(title)) continue;
 
     const x = nameIt.x;
 
@@ -333,29 +336,51 @@ function parseSection(
     const mergedTermScore =
       creditMatch?.[2] && isScore(creditMatch[2]) ? creditMatch[2] : null;
 
+    // 履修グリッドの成績セル: 単位行より上(y大)、評価行より下(y小)の範囲で探す
+    // - 単位行(creditY)の数字が isScore をパスするため creditY+5 以上に限定
+    // - 評価バンドに食い込むと記号(例: y=268 の "T")を年度と誤認するため除外
+    const termScoreCells = items
+      .filter(
+        (it) =>
+          Math.abs(it.x - x) <= 6 &&
+          it.y > creditY + 5 &&
+          it.y < evaluationY - bandUp &&
+          isScore(it.str),
+      )
+      .map((it) => ({ y: it.y, score: normalizeScore(it.str) }))
+      .sort((a, b) => a.y - b.y); // y 昇順（＝年度順）
+    // 結合トークンの場合、その学期の成績セルは単位行と同じ y にある
+    if (mergedTermScore) {
+      termScoreCells.unshift({ y: creditY, score: normalizeScore(mergedTermScore) });
+    }
+
     // 評価スコア（x が近い評価行の items をまとめる）
-    const rawScore = combineEvalTokens(
+    const evalScore = combineEvalTokens(
       evalItems.filter((ei) => Math.abs(ei.x - x) <= 6),
     );
+
+    // **この様式は未修得の科目の評価列を空にする。** 不合格・履修辞退の成績は
+    // 履修グリッドのセルにだけ入り(例: 心理学入門 58 / 環境としての情報技術 J)、
+    // 評価列には何も刷られない。評価列だけを見て捨てると【再履修の対象】(§6.1)
+    // に渡す科目が丸ごと落ちるため、グリッドの最後（最新）のセルに退避する。
+    // **グリッドにセルが無い科目は除外する** — 科目名と単位だけが刷られた
+    // 未履修の科目(配当年次が先の科目など)であり、未修得とは別物である。
+    const rawScore = evalScore ?? termScoreCells[termScoreCells.length - 1]?.score;
     if (!rawScore) continue;
 
     const status = rawToStatus(rawScore);
 
-    // 年度・学期: 単位行より上(y大)、評価行より下(y小)の範囲でスコアを探す
-    // - 単位行(creditY)の数字が isScore をパスするため creditY+5 以上に限定
-    // - 評価バンドに食い込むと記号(例: y=268 の "T")を年度と誤認するため除外
-    const termScoreY = mergedTermScore
-      ? // 結合トークンの場合、成績セルは単位行の直下にある
-        creditY
-      : items
-          .filter(
-            (it) =>
-              Math.abs(it.x - x) <= 6 &&
-              it.y > creditY + 5 &&
-              it.y < evaluationY - bandUp &&
-              isScore(it.str),
-          )
-          .sort((a, b) => a.y - b.y)[0]?.y; // y 昇順（最も早い年度）
+    // **修得した学期**を選ぶ。再履修した科目は成績セルが複数並ぶため、
+    // 最初のセル（＝落とした回）を採ってはならない。評価列はその科目の最終結果
+    // なので、評価と同じ値のセルがその科目を修得した学期である。
+    //   例: ハードウェア基礎 41(2025前期) → 60(2026前期) / 評価 60 → 2026前期
+    // 一致が見つからないときは最後（最新）のセルに寄せる。
+    const passedCell =
+      [...termScoreCells]
+        .reverse()
+        .find((c) => c.score === normalizeScore(rawScore)) ??
+      termScoreCells[termScoreCells.length - 1];
+    const termScoreY = passedCell?.y;
 
     let year = reportYear;
     let term: CourseTerm = "前期";
@@ -479,9 +504,12 @@ export function parseItems(items: TextItem[]): ParseResult {
     warnings.push("科目データを読み取れませんでした");
   }
 
-  // passed のみを completedCourses として保持
+  // **成績表に載っている科目は履修状態ごと全件保持する**(要件§4.2)。
+  // 不合格・履修辞退は【再履修の対象】として履修提案に渡す必要があり
+  // (§6.1 の §7.3 プロンプト整形)、ここで落とすと常に空になる。
+  // 卒業要件の単位計算に数えるのは passed だけであり、その絞り込みは
+  // 単位を数える側(CreditBar / 取り込み確認 / マイデータ)が行う。
   const completedCourses: Course[] = allEntries
-    .filter((e) => e.status === "passed")
     .map((e) => ({
       title: e.title,
       year: e.year,
