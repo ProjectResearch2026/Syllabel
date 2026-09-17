@@ -702,7 +702,7 @@
       "clip": true,
       "width": 1440,
       "height": 900,
-      "fill": "$bg-canvas",
+      "fill": "$surface-gray",
       "layout": "vertical",
       "children": [
         {
@@ -1273,7 +1273,7 @@
       "clip": true,
       "width": 1440,
       "height": 900,
-      "fill": "$bg-canvas",
+      "fill": "$surface-gray",
       "layout": "vertical",
       "children": [
         {
@@ -1839,7 +1839,7 @@
       "clip": true,
       "width": 1440,
       "height": 900,
-      "fill": "$bg-canvas",
+      "fill": "$surface-gray",
       "layout": "vertical",
       "children": [
         {
@@ -2312,7 +2312,8 @@
       "id": "MSWK3",
       "x": 5293,
       "y": 600,
-      "name": "Frame 3",
+      "name": "04_時間割",
+      "fill": "$surface-gray",
       "layout": "vertical",
       "gap": 10,
       "padding": 10,
@@ -2324,7 +2325,6 @@
           "clip": true,
           "width": 1440,
           "height": 900,
-          "fill": "$bg-canvas",
           "layout": "vertical",
           "children": [
             {
@@ -2332,7 +2332,35 @@
               "type": "ref",
               "ref": "u0KugM",
               "name": "AppHeader",
-              "width": "fill_container"
+              "width": "fill_container",
+              "padding": [
+                8,
+                16,
+                0,
+                16
+              ],
+              "stroke": [],
+              "strokeLinecap": "butt",
+              "strokeLinejoin": "miter",
+              "strokeWidth": 1,
+              "strokeAlignment": "inner",
+              "descendants": {
+                "AtW76": {
+                  "cornerRadius": [
+                    8,
+                    8,
+                    0,
+                    0
+                  ],
+                  "stroke": [],
+                  "strokeLinecap": "round",
+                  "strokeLinejoin": "miter",
+                  "strokeWidth": {
+                    "bottom": 1
+                  },
+                  "strokeAlignment": "inner"
+                }
+              }
             },
             {
               "type": "frame",
@@ -2356,7 +2384,12 @@
                   "width": "fill_container",
                   "height": 48,
                   "fill": "$surface-primary",
-                  "cornerRadius": 8,
+                  "cornerRadius": [
+                    0,
+                    0,
+                    8,
+                    8
+                  ],
                   "stroke": "$border-primary",
                   "strokeLinejoin": "round",
                   "padding": [
@@ -4012,7 +4045,7 @@
       "clip": true,
       "width": 1440,
       "height": 1260,
-      "fill": "$bg-canvas",
+      "fill": "$surface-gray",
       "layout": "vertical",
       "children": [
         {
@@ -4020,7 +4053,23 @@
           "type": "ref",
           "ref": "u0KugM",
           "name": "AppHeader",
-          "width": "fill_container"
+          "width": "fill_container",
+          "padding": [
+            8,
+            16,
+            0,
+            16
+          ],
+          "descendants": {
+            "AtW76": {
+              "cornerRadius": [
+                8,
+                8,
+                0,
+                0
+              ]
+            }
+          }
         },
         {
           "type": "frame",
@@ -4044,7 +4093,12 @@
               "width": "fill_container",
               "height": 64,
               "fill": "$surface-primary",
-              "cornerRadius": 8,
+              "cornerRadius": [
+                0,
+                0,
+                8,
+                8
+              ],
               "stroke": "$border-primary",
               "strokeLinejoin": "round",
               "gap": 16,
@@ -6259,7 +6313,7 @@
       "clip": true,
       "width": 1440,
       "height": 900,
-      "fill": "$bg-canvas",
+      "fill": "$surface-gray",
       "layout": "vertical",
       "children": [
         {
@@ -7494,7 +7548,7 @@
       "clip": true,
       "width": 1440,
       "height": 900,
-      "fill": "$bg-canvas",
+      "fill": "$surface-gray",
       "layout": "vertical",
       "children": [
         {
@@ -8210,7 +8264,7 @@
       "clip": true,
       "width": 1440,
       "height": 1220,
-      "fill": "$bg-canvas",
+      "fill": "$surface-gray",
       "layout": "vertical",
       "children": [
         {
@@ -11088,7 +11142,7 @@
       "clip": true,
       "width": 1440,
       "height": 1185,
-      "fill": "$bg-canvas",
+      "fill": "$surface-gray",
       "layout": "vertical",
       "children": [
         {
@@ -13384,7 +13438,7 @@
       "clip": true,
       "width": 1440,
       "height": 1160,
-      "fill": "$bg-canvas",
+      "fill": "$surface-gray",
       "layout": "vertical",
       "children": [
         {
@@ -15052,7 +15106,7 @@
       "clip": true,
       "width": 1440,
       "height": 1106,
-      "fill": "$bg-canvas",
+      "fill": "$surface-gray",
       "layout": "vertical",
       "children": [
         {
