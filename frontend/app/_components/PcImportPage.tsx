@@ -119,9 +119,14 @@ export default function PcImportPage() {
     fileInputRef.current?.click();
   };
 
-  const totalCredits =
-    pending?.completedCourses.reduce((sum, c) => sum + c.credits, 0) ?? 0;
+  // 取り込みは不合格・履修辞退も含む全科目。単位に数えるのは合格したものだけ(要件§4.2)
+  const passedCourses =
+    pending?.completedCourses.filter((c) => c.status === "passed") ?? [];
+  const totalCredits = passedCourses.reduce((sum, c) => sum + c.credits, 0);
   const remaining = Math.max(0, GRADUATION_CREDITS - totalCredits);
+  // 不合格と履修辞退は「未修得」に丸める(設計書 §6.1。再履修の対象として同じ扱い)
+  const unearnedCount =
+    (pending?.completedCourses.length ?? 0) - passedCourses.length;
 
   const handleConfirm = () => {
     if (pending) setProfile(pending);
@@ -267,7 +272,11 @@ export default function PcImportPage() {
       { label: "学年", value: `${pending?.grade ?? "-"}回生` },
       { label: "課程", value: pending?.program ?? "-" },
       { label: "取得済み単位", value: `${totalCredits}単位` },
-      { label: "判定科目数", value: `${pending?.completedCourses.length ?? 0}科目` },
+      { label: "判定科目数", value: `${passedCourses.length}科目` },
+      // 未修得は単位に数えないが、再履修の提案に使うので取り込んだことを見せる
+      ...(unearnedCount > 0
+        ? [{ label: "未修得科目（再履修の対象）", value: `${unearnedCount}科目` }]
+        : []),
     ];
     return (
       <div className="flex-1 bg-[#F8F9FA] flex flex-col items-center justify-center gap-8 px-[80px] py-[48px]">
