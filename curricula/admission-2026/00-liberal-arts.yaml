@@ -1420,6 +1420,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "基礎教養"
+    subgroup: "全学共通教育科目群"
     credits: 2
     grade: 1
     term: "前期"
@@ -1429,6 +1430,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "基礎教養"
+    subgroup: "全学共通教育科目群"
     credits: 2
     grade: 1
     term: "前期"
@@ -1438,6 +1440,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "基礎教養"
+    subgroup: "全学共通教育科目群"
     credits: 2
     grade: 1
     term: "前期"
@@ -1447,6 +1450,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "基礎教養"
+    subgroup: "全学共通教育科目群"
     credits: 2
     grade: 1
     term: "前期"
@@ -1456,6 +1460,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "基礎教養"
+    subgroup: "全学共通教育科目群"
     credits: 2
     grade: 1
     term: "前期"
@@ -1475,6 +1480,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "基礎教養"
+    subgroup: "全学共通教育科目群"
     credits: 2
     grade: 1
     term: "後期"
@@ -1484,6 +1490,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "基礎教養"
+    subgroup: "全学共通教育科目群"
     credits: 2
     grade: 2
     term: "後期"
@@ -1493,6 +1500,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "基礎教養"
+    subgroup: "全学共通教育科目群"
     credits: 2
     grade: 2
     term: "後期"
@@ -1502,6 +1510,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "基礎教養"
+    subgroup: "全学共通教育科目群"
     credits: 2
     grade: 2
     term: "後期"
@@ -1561,6 +1570,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 2
     term: "後期"
@@ -1570,6 +1580,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 2
     term: "前期"
@@ -1579,6 +1590,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 2
     term: "後期"
@@ -1588,6 +1600,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 2
     term: "前期"
@@ -1597,6 +1610,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 2
     term: "後期"
@@ -1606,28 +1620,31 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 2
     term: "前期"
-    notes: "科目群欄: 文学部提供科目。学部等提供／アクティブ・ラーニング"
+    notes: "科目群欄: 学部等提供／アクティブ・ラーニング。文学部提供科目"
   - title: "近代文学講読（Ｃ）Ｂ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 2
     term: "後期"
-    notes: "学部等提供／アクティブ・ラーニング"
+    notes: "科目群欄: 学部等提供／アクティブ・ラーニング。文学部提供科目"
   - title: "情報出版学講読（Ｂ）Ａ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 2
     term: "前期"
-    notes: "学部等提供／アクティブ・ラーニング"
+    notes: "科目群欄: 学部等提供／アクティブ・ラーニング。文学部提供科目"
   - title: "脳と心"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1663,6 +1680,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 2
     term: "前期"
@@ -1672,6 +1690,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 2
     term: "後期"
@@ -1681,6 +1700,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 1
     term: "後期"
@@ -1690,6 +1710,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 4
     grade: 2
     term: "前期"
@@ -1699,6 +1720,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 2
     term: "後期"
@@ -1708,6 +1730,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 4
     grade: 2
     term: "前期"
@@ -1717,6 +1740,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 2
     term: "前期"
@@ -1726,6 +1750,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 4
     grade: 2
     term: "後期"
@@ -1735,6 +1760,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 2
     term: "後期"
@@ -1794,6 +1820,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 2
     term: "後期"
@@ -1803,6 +1830,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 3
     term: "前期"
@@ -1812,6 +1840,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 2
     term: "前期"
@@ -1821,6 +1850,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 2
     term: "後期"
@@ -1830,19 +1860,21 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 2
     term: "前期"
-    notes: "科目群欄: 政策学部提供科目。学部等提供／融合型"
+    notes: "科目群欄: 学部等提供／融合型。政策学部提供科目"
   - title: "地域課題発見演習"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 4
     grade: 2
     term: "前期"
-    notes: "科目群欄: 政策学部提供科目。学部等提供／アクティブ・ラーニング"
+    notes: "科目群欄: 学部等提供／アクティブ・ラーニング。政策学部提供科目"
   - title: "会話分析入門A"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2078,6 +2110,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 3
     term: "前期"
@@ -2087,6 +2120,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 3
     term: "後期"
@@ -2096,6 +2130,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 3
     term: "前期"
@@ -2105,6 +2140,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 2
     term: "後期"
@@ -2114,6 +2150,7 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 2
     term: "前期"
@@ -2123,64 +2160,71 @@ courses:
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 2
     term: "後期"
-    notes: "科目群欄: 社会学部提供科目。学部等提供／アクティブ・ラーニング"
+    notes: "科目群欄: 学部等提供／アクティブ・ラーニング。社会学部提供科目"
   - title: "社会起業演習A"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 4
     term: "前期"
-    notes: "学部等提供／アクティブ・ラーニング"
+    notes: "科目群欄: 学部等提供／アクティブ・ラーニング。社会学部提供科目"
   - title: "社会起業演習B"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 4
     term: "後期"
-    notes: "学部等提供／アクティブ・ラーニング"
+    notes: "科目群欄: 学部等提供／アクティブ・ラーニング。社会学部提供科目"
   - title: "音楽社会学"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 2
     term: "前期"
-    notes: "科目群欄: 社会学部提供科目。学部等提供"
+    notes: "社会学部提供科目"
   - title: "カルチュラルスタディーズ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 2
     term: "後期"
-    notes: "学部等提供"
+    notes: "社会学部提供科目"
   - title: "情報社会論"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 2
     term: "後期"
-    notes: "学部等提供"
+    notes: "社会学部提供科目"
   - title: "デジタルメディア論"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
     type: "選択"
     course_group: "発展教養"
+    subgroup: "学部等提供科目群"
     credits: 2
     grade: 2
     term: "前期"
-    notes: "学部等提供"
+    notes: "社会学部提供科目"
   - title: "農業を支える植物細胞の力"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
