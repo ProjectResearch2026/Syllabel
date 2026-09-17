@@ -115,7 +115,7 @@ export default function PcMyDataPage() {
                 } ${i < profRows.length - 1 ? "border-b border-border-primary" : ""}`}
               >
                 <span className="text-[13px] text-fg-secondary">{row.label}</span>
-                <span className="font-mono text-[13px] font-semibold text-fg-primary">{row.value}</span>
+                <span className="tabular-nums text-[13px] font-semibold text-fg-primary">{row.value}</span>
               </div>
             ))}
           </div>

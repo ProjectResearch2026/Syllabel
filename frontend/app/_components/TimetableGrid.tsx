@@ -87,7 +87,7 @@ export default function TimetableGrid({
       {PERIODS.map((period) => (
         <div key={period} className="flex h-[72px] border-b border-border-primary">
           <div className="flex w-7 shrink-0 flex-col items-center justify-center border-r border-border-primary bg-cell-free">
-            <span className="font-mono text-[13px] font-bold leading-none text-fg-primary">
+            <span className="tabular-nums text-[13px] font-bold leading-none text-fg-primary">
               {period}
             </span>
             <span className="text-[9px] text-fg-secondary">限</span>

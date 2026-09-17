@@ -95,11 +95,10 @@
   --shadow-card: 0 2px 8px #1a2b4e0a; /* ui-design_pc.pen CourseCard */
 
   /* --- .pen fontFamily --- */
-  --font-ui: var(--font-funnel-sans), var(--font-noto-sans), sans-serif;
-  --font-display: var(--font-inter), var(--font-noto-sans), sans-serif;
-  --font-cell: var(--font-geist), var(--font-noto-sans), sans-serif;
-  --font-sans: var(--font-noto-sans), sans-serif;
-  --font-mono: var(--font-ibm-plex-mono), monospace;
+  --font-ui: var(--font-ibm-plex-sans-jp), sans-serif;
+  --font-display: var(--font-ibm-plex-sans-jp), sans-serif;
+  --font-cell: var(--font-ibm-plex-sans-jp), sans-serif;
+  --font-sans: var(--font-ibm-plex-sans-jp), sans-serif;
 
   /* Spacing */
   --spacing-xs: 8px;

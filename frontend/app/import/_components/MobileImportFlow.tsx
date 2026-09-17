@@ -49,7 +49,7 @@ function StepBar({ current }: { current: number }) {
                 {done ? (
                   <Check size={12} className="text-white" strokeWidth={3} />
                 ) : (
-                  <span className={`text-[11px] font-bold font-mono ${active ? "text-white" : "text-[#9CA3AF]"}`}>
+                  <span className={`text-[11px] font-bold tabular-nums ${active ? "text-white" : "text-[#9CA3AF]"}`}>
                     {i + 1}
                   </span>
                 )}
@@ -280,7 +280,7 @@ export default function MobileImportFlow() {
             ].map((s, i) => (
               <div key={s.title} className="flex items-start gap-3.5">
                 <div className="w-8 h-8 rounded-md bg-[#1A2B4E] flex items-center justify-center shrink-0">
-                  <span className="text-white text-sm font-bold font-mono">{i + 1}</span>
+                  <span className="text-white text-sm font-bold tabular-nums">{i + 1}</span>
                 </div>
                 <div className="flex flex-col gap-0.5 pt-0.5">
                   <span className="text-[13px] font-semibold text-[#1A2B4E]">{s.title}</span>
@@ -330,14 +330,14 @@ export default function MobileImportFlow() {
                 }`}
               >
                 <span className="text-xs text-[#4B5563]">{r.label}</span>
-                <span className="text-[13px] font-semibold text-[#1A2B4E] font-mono">{r.value}</span>
+                <span className="text-[13px] font-semibold text-[#1A2B4E] tabular-nums">{r.value}</span>
               </div>
             ))}
 
             {/* Course preview */}
             <div className="flex items-center justify-between h-9 px-3.5 bg-[#EEF0F5] border-b border-[#E5E7EB]">
               <span className="text-[11px] font-semibold text-[#4B5563]">取り込まれた科目（一部）</span>
-              <span className="text-[11px] text-[#E60012] font-mono">全{courses.length}件 →</span>
+              <span className="text-[11px] text-[#E60012] tabular-nums">全{courses.length}件 →</span>
             </div>
             {courses.slice(0, 5).map((c, i) => {
               const fail = c.status !== "passed";
@@ -350,7 +350,7 @@ export default function MobileImportFlow() {
                   }`}
                 >
                   <span
-                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold font-mono ${
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold tabular-nums ${
                       fail ? "bg-[#FEE2E2] text-[#991B1B]" : "bg-[#D1FAE5] text-[#065F46]"
                     }`}
                   >
@@ -422,7 +422,7 @@ export default function MobileImportFlow() {
               { val: remaining, label: "卒業残り単位" },
             ].map((s) => (
               <div key={s.label} className="flex flex-col items-center gap-1">
-                <span className="text-[22px] font-bold font-mono text-[#1A2B4E]">{s.val}</span>
+                <span className="text-[22px] font-bold tabular-nums text-[#1A2B4E]">{s.val}</span>
                 <span className="text-[10px] text-[#6B7280]">{s.label}</span>
               </div>
             ))}

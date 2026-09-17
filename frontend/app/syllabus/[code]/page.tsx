@@ -296,7 +296,7 @@ export default async function SyllabusDetailPage({
     <header className="flex flex-col gap-4 rounded-xl border border-border-primary bg-surface-primary p-5 md:p-6">
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-md bg-surface-gray px-2 py-0.5 font-mono text-[11px] font-bold tracking-[0.04em] text-fg-secondary">
+          <span className="rounded-md bg-surface-gray px-2 py-0.5 tabular-nums text-[11px] font-bold tracking-[0.04em] text-fg-secondary">
             {syllabus.syllabus_code}
           </span>
           <span className="text-[11px] font-semibold text-fg-muted">{syllabus.year}年度</span>

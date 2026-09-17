@@ -326,7 +326,7 @@ export default function PcImportPage() {
                 } ${i < rows.length - 1 ? "border-b border-[#E5E7EB]" : ""}`}
               >
                 <span className="text-xs text-fg-secondary">{row.label}</span>
-                <span className="font-mono text-[13px] font-semibold text-fg-primary">
+                <span className="tabular-nums text-[13px] font-semibold text-fg-primary">
                   {row.value}
                 </span>
               </div>
@@ -378,7 +378,7 @@ export default function PcImportPage() {
       <div className="flex w-[520px] justify-around rounded-lg border border-border-primary bg-surface-primary py-6">
         {stats.map(({ val, label, color }) => (
           <div key={label} className="flex flex-col items-center gap-1">
-            <span className={`font-mono text-2xl font-bold ${color}`}>{val}</span>
+            <span className={`tabular-nums text-2xl font-bold ${color}`}>{val}</span>
             <span className="text-[11px] text-fg-secondary">{label}</span>
           </div>
         ))}

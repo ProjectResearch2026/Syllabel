@@ -55,7 +55,7 @@ export default function CreditBar() {
       <div className="flex items-center gap-8">
         {items.map(({ val, label, color }) => (
           <div key={label} className="flex items-center gap-1.5">
-            <span className={`font-mono text-xl font-bold ${color}`}>{val}</span>
+            <span className={`tabular-nums text-xl font-bold ${color}`}>{val}</span>
             <span className="text-xs text-fg-tertiary">{label}</span>
           </div>
         ))}

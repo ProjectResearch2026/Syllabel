@@ -1,54 +1,21 @@
 import type { Metadata } from "next";
-import {
-  Noto_Sans_JP,
-  IBM_Plex_Mono,
-  Funnel_Sans,
-  Inter,
-  Geist,
-} from "next/font/google";
+import { IBM_Plex_Sans_JP } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import BottomTabBar from "@/components/BottomTabBar";
 import AiLayer from "@/components/ai/AiLayer";
 
 /*
- * ui-design_phone.pen が使う4書体をそのまま読み込む。
- * Funnel Sans / Inter / Geist は日本語グリフを持たないため、
- * globals.css のフォントスタックで Noto Sans JP を後ろに繋いでいる
- * （ラテン文字は設計通りの書体、日本語は Noto にフォールバックする）。
+ * 全書体を IBM Plex Sans JP に統一する。
+ * 欧文・和文を同じスーパーファミリーで揃えるため、
+ * globals.css のフォントスタック（ui / display / cell / sans）は
+ * すべてこの1書体を参照する。単位数・時限などの数値は等幅書体では
+ * なく tabular-nums（等幅数字）で桁を揃える。
  */
-const notoSansJP = Noto_Sans_JP({
-  variable: "--font-noto-sans",
+const ibmPlexSansJP = IBM_Plex_Sans_JP({
+  variable: "--font-ibm-plex-sans-jp",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
-  display: "swap",
-});
-
-const funnelSans = Funnel_Sans({
-  variable: "--font-funnel-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-});
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  weight: ["400", "600", "700"],
-  display: "swap",
-});
-
-const geist = Geist({
-  variable: "--font-geist",
-  subsets: ["latin"],
-  weight: ["400", "600"],
-  display: "swap",
-});
-
-const ibmPlexMono = IBM_Plex_Mono({
-  variable: "--font-ibm-plex-mono",
-  subsets: ["latin"],
-  weight: ["400", "700"],
   display: "swap",
 });
 
@@ -65,7 +32,7 @@ export default function RootLayout({
   return (
     <html
       lang="ja"
-      className={`${notoSansJP.variable} ${funnelSans.variable} ${inter.variable} ${geist.variable} ${ibmPlexMono.variable}`}
+      className={ibmPlexSansJP.variable}
     >
       <body className="min-h-screen flex flex-col font-ui bg-surface-gray">
         {/* デスクトップ用ヘッダー */}

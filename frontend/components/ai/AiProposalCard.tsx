@@ -39,7 +39,7 @@ export default function AiProposalCard({
               {slot ? (
                 <>
                   <span className="text-[9px] font-bold text-fg-secondary">{course.day}</span>
-                  <span className="font-mono text-[14px] font-bold leading-[1.2] text-fg-primary">
+                  <span className="tabular-nums text-[14px] font-bold leading-[1.2] text-fg-primary">
                     {course.period}
                   </span>
                 </>

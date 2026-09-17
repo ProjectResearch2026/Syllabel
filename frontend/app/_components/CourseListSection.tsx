@@ -46,7 +46,7 @@ export default function CourseListSection({ timetable }: { timetable: Timetable 
               className={`flex size-10 shrink-0 flex-col items-center justify-center rounded-[10px] ${style.badge}`}
             >
               <span className="text-[9px] font-bold text-fg-secondary">{day}</span>
-              <span className="font-mono text-[15px] font-bold leading-[1.2] text-fg-primary">
+              <span className="tabular-nums text-[15px] font-bold leading-[1.2] text-fg-primary">
                 {period}
               </span>
             </span>

@@ -28,26 +28,26 @@ const navItems: {
   label: string;
   match: (p: string) => boolean;
 }[] = [
-  {
-    href: "/proposal",
-    label: "時間割",
-    match: (p) => p.startsWith("/proposal"),
-  },
-  {
-    href: "/syllabus",
-    label: "シラバス",
-    match: (p) => p.startsWith("/syllabus"),
-  },
-  {
-    href: "/mydata",
-    label: "マイデータ",
-    match: (p) =>
-      p === "/" ||
-      p.startsWith("/mydata") ||
-      p.startsWith("/import") ||
-      p.startsWith("/privacy"),
-  },
-];
+    {
+      href: "/proposal",
+      label: "時間割",
+      match: (p) => p.startsWith("/proposal"),
+    },
+    {
+      href: "/syllabus",
+      label: "シラバス",
+      match: (p) => p.startsWith("/syllabus"),
+    },
+    {
+      href: "/mydata",
+      label: "マイデータ",
+      match: (p) =>
+        p === "/" ||
+        p.startsWith("/mydata") ||
+        p.startsWith("/import") ||
+        p.startsWith("/privacy"),
+    },
+  ];
 
 /** 直下に帯が続く画面。ヘッダーカードと帯を地続きに見せる */
 function isAttached(pathname: string): boolean {
@@ -79,20 +79,18 @@ export default function Header() {
 
   return (
     <header
-      className={`sticky top-0 z-50 h-[68px] shrink-0 bg-surface-gray px-4 pt-2 ${
-        attached ? "pb-0" : "pb-2"
-      }`}
+      className={`sticky top-0 z-50 h-[68px] shrink-0 bg-surface-gray px-4 pt-2 ${attached ? "pb-0" : "pb-2"
+        }`}
     >
       <div
-        className={`flex h-full items-center justify-between gap-2 bg-surface-primary px-8 ${
-          attached ? "rounded-t-lg" : "rounded-lg"
-        }`}
+        className={`flex h-full items-center justify-between gap-2 bg-surface-primary px-8 ${attached ? "rounded-t-lg" : "rounded-lg"
+          }`}
       >
         {/* Logo */}
         <Link href="/" className="flex shrink-0 items-center gap-2.5">
           <GraduationCap size={24} className="text-fg-primary" />
           <span className="font-display text-base font-bold leading-none text-fg-primary">
-            龍谷大学 履修支援AI
+            Syllabel
           </span>
         </Link>
 
@@ -108,11 +106,10 @@ export default function Header() {
                   className="flex flex-col items-center gap-1 px-1"
                 >
                   <span
-                    className={`text-sm leading-none transition-colors ${
-                      active
-                        ? "font-semibold text-accent"
-                        : "font-normal text-fg-secondary hover:text-fg-primary"
-                    }`}
+                    className={`text-sm leading-none transition-colors ${active
+                      ? "font-semibold text-accent"
+                      : "font-normal text-fg-secondary hover:text-fg-primary"
+                      }`}
                   >
                     {item.label}
                   </span>

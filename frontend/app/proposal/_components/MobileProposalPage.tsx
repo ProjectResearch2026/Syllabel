@@ -151,7 +151,7 @@ export default function MobileProposalPage() {
           { val: remainingCredits != null ? String(remainingCredits) : "—", label: "卒業残り単位" },
         ].map(({ val, label }) => (
           <div key={label} className="flex flex-col items-center gap-0.5">
-            <span className="text-[#1A2B4E] text-xl font-bold font-mono leading-none">{val}</span>
+            <span className="text-[#1A2B4E] text-xl font-bold tabular-nums leading-none">{val}</span>
             <span className="text-[#6B7280] text-[10px]">{label}</span>
           </div>
         ))}
@@ -171,7 +171,7 @@ export default function MobileProposalPage() {
           {PERIODS.map((p) => (
             <div key={p} className="flex border-b border-[#E5E7EB]" style={{ height: 64 }}>
               <div className="w-7 shrink-0 bg-[#F9FAFB] border-r border-[#E5E7EB] flex flex-col items-center justify-center">
-                <span className="text-[#1A2B4E] text-[13px] font-bold font-mono leading-none">{p}</span>
+                <span className="text-[#1A2B4E] text-[13px] font-bold tabular-nums leading-none">{p}</span>
                 <span className="text-[#9CA3AF] text-[9px]">限</span>
               </div>
               {DAYS.map((d) => {

@@ -29,7 +29,7 @@ export default function CourseCard({
       className="group flex min-h-[172px] flex-col justify-between rounded-xl border border-card-border bg-surface-primary p-4 shadow-card transition-all hover:-translate-y-0.5 hover:border-card-border-hover hover:shadow-popover"
     >
       <div className="flex min-w-0 items-start justify-between gap-3">
-        <span className="font-mono text-[11px] font-bold tracking-[0.04em] text-fg-muted">
+        <span className="tabular-nums text-[11px] font-bold tracking-[0.04em] text-fg-muted">
           {course.syllabus_code}
         </span>
         <ArrowUpRight

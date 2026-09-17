@@ -113,7 +113,7 @@ export default function MobileTimetablePage() {
           { val: remainingCredits, label: "卒業残り単位" },
         ].map(({ val, label }) => (
           <div key={label} className="flex flex-col items-center gap-0.5">
-            <span className="font-mono text-xl font-bold leading-none text-fg-primary">{val}</span>
+            <span className="tabular-nums text-xl font-bold leading-none text-fg-primary">{val}</span>
             <span className="text-[10px] text-[#6b7280]">{label}</span>
           </div>
         ))}

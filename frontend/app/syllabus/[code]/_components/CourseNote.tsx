@@ -37,7 +37,7 @@ export default function CourseNote({ note }: { note: ParsedNote }) {
       {note.lines.length > 0 && (
         <div className="flex flex-col gap-0.5">
           <p className="text-[11px] font-semibold text-fg-muted">履修要項の記載</p>
-          <p className="font-mono text-[12px] leading-relaxed text-fg-secondary">
+          <p className="text-[12px] leading-relaxed text-fg-secondary">
             {note.lines.join(" ")}
           </p>
         </div>
