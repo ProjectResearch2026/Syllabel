@@ -328,6 +328,14 @@ def test_invalid_quarter_is_rejected():
         CurriculumCourse.model_validate(_minimal_course(term="後期", quarters=["5Q"]))
 
 
+def test_faculty_provided_subcategory_is_accepted():
+    """`学部・センター等提供科目` は2026年度入学版で加わった9番目の区分(§5.1.5)。"""
+    parsed = CurriculumCourse.model_validate(
+        _minimal_liberal_course(subcategory="学部・センター等提供科目")
+    )
+    assert parsed.subcategory == "学部・センター等提供科目"
+
+
 def test_invalid_subcategory_is_rejected():
     with pytest.raises(ValidationError):
         CurriculumCourse.model_validate(
@@ -390,11 +398,17 @@ def test_term_and_quarters_must_agree(term, quarters):
 
 
 @pytest.mark.parametrize("term", ["前期", "後期"])
-def test_semester_course_requires_quarters(term):
+def test_semester_course_may_omit_quarters(term):
+    """`前期` / `後期` でも `quarters` は任意(§5.1.5)。
+
+    教養教育科目はクォーター制の対象外であり、`term` が `前期` / `後期` でも
+    `quarters` を持たない(§5.1.3)。`quarters` の欠落は「不明」ではなく
+    「クォーターに分割されない開講形態である」ことを表す。
+    """
     course = _minimal_course(term=term)
     del course["quarters"]
-    with pytest.raises(ValidationError, match="quarters が必要"):
-        CurriculumCourse.model_validate(course)
+    parsed = CurriculumCourse.model_validate(course)
+    assert parsed.quarters is None
 
 
 @pytest.mark.parametrize("term", ["通年", "サ集"])
