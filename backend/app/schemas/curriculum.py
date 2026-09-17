@@ -37,6 +37,7 @@ Subcategory = Literal[
     "自然科学系科目",
     "スポーツ科学系科目",
     "教養特別講義科目",
+    "学部・センター等提供科目",
 ]
 # 2026年度入学の教養教育科目ファイルでのみ用いる軸(§5.1.3)。subcategory と直交する
 CourseGroup = Literal["基礎教養", "発展教養"]
@@ -222,8 +223,13 @@ class CurriculumCourse(_YamlModel):
     def check_term_quarters(self) -> "CurriculumCourse":
         """`term` と `quarters` の整合(§5.1.5 / §4.4.3)。
 
-        `前期` ⇔ `quarters ⊆ {1Q, 2Q}`、`後期` ⇔ `quarters ⊆ {3Q, 4Q}`、
-        `通年` ⇔ `quarters` を持たない、`サ集` ⇔ `quarters` を持たない。
+        `quarters` は任意フィールドであり、クォーター制が適用される科目にのみ置く。
+        持つ場合は `前期` ⇔ `quarters ⊆ {1Q, 2Q}`、`後期` ⇔ `quarters ⊆ {3Q, 4Q}`。
+        `通年` / `サ集` は持たない。
+
+        `前期` / `後期` でも `quarters` を持たないことがあり、これは「不明」ではなく
+        「クォーターに分割されない開講形態である」ことを表す。教養教育科目は
+        クォーター制の対象外であり、版を問わず `quarters` を持たない(§5.1.3)。
         """
         allowed = _TERM_QUARTERS.get(self.term)
         if allowed is None:
@@ -233,7 +239,7 @@ class CurriculumCourse(_YamlModel):
                 )
             return self
         if not self.quarters:
-            raise ValueError(f"term: {self.term} の科目には quarters が必要です: {self.title}")
+            return self
         outside = [q for q in self.quarters if q not in allowed]
         if outside:
             raise ValueError(
