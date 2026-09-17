@@ -53,6 +53,7 @@ frontend/
 │   ├── chatApi.ts                  # SSEクライアント(チャット・履修提案)
 │   ├── programs.ts                 # 課程名→課程コード・入学年度の算出(§4.4.2)
 │   ├── syllabusUI.ts               # 検索画面の状態とタグ突合
+│   ├── openbd.ts                   # 書影の取得(openBD。唯一の学外API。§6.4)
 │   └── timetable.ts
 └── package.json
 ```
@@ -116,6 +117,8 @@ Zustand store を2本使用する。**どちらも永続化機能は意図的に
 | `GET /api/masters` | JSON | 検索絞り込み用マスタ |
 | `GET /api/curricula/{program}/{year}` | JSON | 履修要項データ |
 | `GET /api/course-targets?year=&faculty=` | JSON | シラバスコード → 対象課程（タグの履修可否判定用） |
+
+**backend 以外に1つだけ外部の口がある。** 講義詳細の書影は openBD(`https://api.openbd.jp/v1/get`、認証不要)から ISBN で引く(`lib/openbd.ts`、design.md §6.4)。**宛先が固定の学外サービスなので、ここだけは `apiBase()` を通さず URL をモジュール内に持つ。** 規則は3つ。**1科目ぶんを1リクエストにまとめる**(`isbn` はカンマ区切りで複数取れ、応答は要求した順の配列)、**失敗は空の対応表に畳んで講義詳細を落とさない**(3秒で打ち切る。サーバ側描画なのでこの待ちがそのままページの表示を止める)、**書影が引けない本のほうが多い前提で作る**(版元ドットコム登録分にしか書影が無く、指定図書の多くは空文字で返る)。**学生データは送らない**(送るのは ISBN だけ。画像を引くときは `referrerPolicy="no-referrer"` で閲覧中の講義のURLを渡さない)。
 
 SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 React state に反映する。書式は `data: <JSON>` の1行1イベントで、イベント名は design.md §6.1.1 に従う(`lib/chatApi.ts`)。
 
