@@ -479,17 +479,34 @@ function extractMeta(items: TextItem[]): {
     const month = parseInt(admissionDateMatch[2], 10);
     // 学年度は4月始まり
     admissionYear = month >= 4 ? calendarYear : calendarYear - 1;
-    const raw = reportYear - admissionYear + 1;
-    if (raw >= 1 && raw <= 4) grade = raw as 1 | 2 | 3 | 4;
+    // 在籍年数。留年・休学があると学年(配当年次の基準)とは一致しない
+    const enrolledYears = reportYear - admissionYear + 1;
+    if (enrolledYears >= 1 && enrolledYears <= 4) grade = enrolledYears as 1 | 2 | 3 | 4;
 
-    // 学年欄との照合。入学日の計算が範囲外（5回生以上）の場合は学年欄で補う
     if (gradeTextItem) {
       const pdfGrade = parseInt(gradeTextItem.str[0], 10);
-      if (grade === null && pdfGrade >= 1 && pdfGrade <= 4) {
+      if (grade !== null) {
+        // 学年欄との照合
+        if (grade !== pdfGrade) {
+          metaWarnings.push(
+            `学年の照合不一致: 入学日から算出=${grade}回生、PDF学年欄=${pdfGrade}回生。入学日の値を優先します。`,
+          );
+        }
+      } else if (pdfGrade >= 1 && pdfGrade <= 4) {
+        // 在籍年数が1〜4の外(5年目以降)。学年は学年欄で補うが、`admissionYear` は
+        // **入学日側を残す**。履修要項を引くキーは入学年度であり(§4.4.2)、留年した
+        // 学生に適用されるのは入学当時の要項だからである。
+        //
+        // ただしこの補完は「留年」と「入学日の誤読」を区別できない。誤読だった
+        // 場合は学年だけ正しく見えて `admissionYear` が静かに間違い、履修要項が
+        // 404 になって卒業必要単位数がフォールバック値に落ちる。どちらであっても
+        // 在籍年数と学年欄は食い違っているので、補完したことを必ず警告に残す。
         grade = pdfGrade as 1 | 2 | 3 | 4;
-      } else if (grade !== null && grade !== pdfGrade) {
         metaWarnings.push(
-          `学年の照合不一致: 入学日から算出=${grade}回生、PDF学年欄=${pdfGrade}回生。入学日の値を優先します。`,
+          `学年をPDF学年欄から補完しました: 入学日(${admissionYear}年度)と成績表(${reportYear}年度)から` +
+            `算出した在籍年数=${enrolledYears}年目に対し、PDF学年欄=${pdfGrade}回生。` +
+            `留年・休学であれば入学年度=${admissionYear}年度で正しいですが、` +
+            `入学日を誤読していた場合は入学年度も誤っています。`,
         );
       }
     }

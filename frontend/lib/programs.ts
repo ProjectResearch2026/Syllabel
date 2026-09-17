@@ -12,6 +12,8 @@
  * 2025年度入学: 環境科学課程)ため、旧称を `aliases` に持たせる。
  */
 
+import type { StudentProfile } from "@/lib/student";
+
 export type Program = {
   /** 課程コード2桁。シラバスコード先頭4桁(`Y0XX`)と一致する一次識別子(§4.4.2) */
   code: string;
@@ -79,4 +81,22 @@ export function getAdmissionYear(grade: number): number {
   const month = now.getMonth() + 1;
   const academicYear = month >= 4 ? now.getFullYear() : now.getFullYear() - 1;
   return academicYear - grade + 1;
+}
+
+/**
+ * プロファイルから入学年度を決める。**入学年度が要る箇所はすべてこれを通す。**
+ *
+ * 優先順位は「PDF 由来の `admissionYear` → 学年からの推定」で固定する。パーサーが
+ * 入学日欄から読んだ値のほうが正確で、今日基準の `getAdmissionYear()` は過年度の
+ * 成績表・留年で外れるためである(§4.4.2)。
+ *
+ * 同じ式が `curricula.ts` / `useTagMap.ts` / `ProposalLoader.tsx` に複製されていた。
+ * 優先順位を変えるときの取りこぼしを防ぐため1本に集約する。
+ */
+export function resolveAdmissionYear(
+  profile: Pick<StudentProfile, "grade" | "admissionYear"> | null | undefined,
+): number | null {
+  if (!profile) return null;
+  if (profile.admissionYear != null) return profile.admissionYear;
+  return profile.grade != null ? getAdmissionYear(profile.grade) : null;
 }
