@@ -6,6 +6,7 @@ import { SlidersHorizontal } from "lucide-react";
 import { OFFERING_YEAR, FACULTY, type Masters } from "@/lib/syllabus-api";
 import { CATEGORY_CHOICES } from "@/lib/syllabusUI";
 import { useFilterControls } from "@/lib/useFilterControls";
+import { CategoryFilterHint } from "./SyllabusProfileNotice";
 
 const DAYS = ["月", "火", "水", "木", "金", "土"];
 
@@ -96,9 +97,8 @@ export default function SyllabusFilters({ masters }: Props) {
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
-          <span className="text-[11px] leading-snug text-[#6B7280]">
-            学生情報を取り込むと絞れます
-          </span>
+          {/* 11px のグレー1行では気づけなかった。地色を敷き、取り込み済みなら消す */}
+          <CategoryFilterHint />
         </>
       ),
     },

@@ -22,6 +22,7 @@ import { useFilterControls } from "@/lib/useFilterControls";
 import { useTaggedResults } from "@/lib/useTaggedResults";
 import { detailHref } from "@/lib/syllabusQuery";
 import CourseTags from "./CourseTags";
+import SyllabusProfileNotice, { CategoryFilterHint } from "./SyllabusProfileNotice";
 
 const DAYS = ["月", "火", "水", "木", "金", "土"];
 
@@ -140,15 +141,19 @@ export default function MobileSyllabusPage({
       // 投げる検索条件ではない。URL のクエリではなくクライアント状態に持つ(§8)
       label: "区分",
       node: (
-        <select
-          value={activeCategory}
-          onChange={(e) => setActiveCategory(e.target.value)}
-          className={selectClass}
-        >
-          {CATEGORY_CHOICES.map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
+        <>
+          <select
+            value={activeCategory}
+            onChange={(e) => setActiveCategory(e.target.value)}
+            className={selectClass}
+          >
+            {CATEGORY_CHOICES.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          {/* PC の絞り込みパネルと同じ注記を出す(§8) */}
+          <CategoryFilterHint />
+        </>
       ),
     },
     {
@@ -257,6 +262,9 @@ export default function MobileSyllabusPage({
           );
         })}
       </div>
+
+      {/* タグが付く条件は、絞り込みを試す前に見えるところへ出す(§8) */}
+      <SyllabusProfileNotice />
 
       {/* Results header */}
       <div className="flex items-center justify-between px-4 pt-2.5 pb-1.5 bg-white">

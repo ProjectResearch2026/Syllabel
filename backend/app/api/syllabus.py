@@ -13,6 +13,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["syllabus"])
 
 
+# **この口は api-clean の `/syllabi` を素通しする(§6.1)。教員名の表記ゆれは埋めない。**
+# 埋めるには書き換えた語で引き直して束ねる必要があり(`agents/instructor_name.py`)、
+# 束ねた並びに対して `limit` / `offset` を意味づけられない(語ごとに `offset` の
+# 指す位置が違う)。**検索画面はこの口をページ送りに使わず全件を引くため、引き直しは
+# frontend 側で閉じる**(`lib/instructorName.ts`)。表記ゆれを埋めるのは、ページ送りを
+# 持たないシラバスチャットの検索ツール(`agents/chat_agent.py`)である。
 @router.get("/syllabi")
 async def api_search_syllabi(
     q: str | None = Query(default=None),
