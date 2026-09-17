@@ -40,7 +40,11 @@ export default function ManualInputForm({
   const [courseForm, setCourseForm] = useState<CourseFormState>(DEFAULT_COURSE);
   const [errors, setErrors] = useState<{ grade?: boolean; program?: boolean }>({});
 
-  const totalCredits = courses.reduce((s, c) => s + c.credits, 0);
+  // 成績表から取り込んだ一覧には不合格・履修辞退も並ぶ。
+  // 単位に数えるのは合格したものだけ(要件§4.2)。手入力で足した科目は合格扱い。
+  const totalCredits = courses
+    .filter((c) => c.status === "passed")
+    .reduce((s, c) => s + c.credits, 0);
 
   const handleSubmit = () => {
     const e: typeof errors = {};
@@ -127,13 +131,13 @@ export default function ManualInputForm({
           </div>
         </section>
 
-        {/* 修得科目 */}
+        {/* 科目一覧。編集時は成績表から取り込んだ未修得の科目も並ぶ */}
         <section className="px-5 pt-4 pb-5">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-[13px] font-bold text-[#1A2B4E]">
-              修得科目
+              {mode === "edit" ? "取り込んだ科目" : "修得科目"}
               <span className="ml-2 text-[11px] font-normal text-[#9CA3AF]">
-                {courses.length}科目 · {totalCredits}単位
+                {courses.length}科目 · 修得{totalCredits}単位
               </span>
             </h2>
             <span className="text-[11px] text-[#9CA3AF]">任意</span>
@@ -154,6 +158,11 @@ export default function ManualInputForm({
                       {c.year} {c.term} · {c.credits}単位
                     </span>
                   </div>
+                  {c.status !== "passed" && (
+                    <span className="shrink-0 px-1.5 py-0.5 rounded bg-[#FEE2E2] text-[10px] font-bold text-[#991B1B]">
+                      未修得
+                    </span>
+                  )}
                   <button
                     onClick={() => removeCourse(i)}
                     aria-label="削除"

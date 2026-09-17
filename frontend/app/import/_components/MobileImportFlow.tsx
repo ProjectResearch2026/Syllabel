@@ -117,10 +117,14 @@ export default function MobileImportFlow() {
     }
   };
 
-  const totalCredits = pending?.completedCourses.reduce((sum, c) => sum + c.credits, 0) ?? 0;
-  const remaining = Math.max(0, GRADUATION_CREDITS - totalCredits);
   const courses = pending?.completedCourses ?? [];
-  const failCourses = courses.filter((c) => c.status === "failed");
+  // 取り込みは不合格・履修辞退も含む全科目。単位に数えるのは合格したものだけ(要件§4.2)
+  const totalCredits = courses
+    .filter((c) => c.status === "passed")
+    .reduce((sum, c) => sum + c.credits, 0);
+  const remaining = Math.max(0, GRADUATION_CREDITS - totalCredits);
+  // 不合格と履修辞退は「未修得」に丸める(設計書 §6.1。再履修の対象として同じ扱い)
+  const unearnedCourses = courses.filter((c) => c.status !== "passed");
 
   const handleConfirm = () => {
     if (pending) setProfile(pending);
@@ -336,8 +340,8 @@ export default function MobileImportFlow() {
               <span className="text-[11px] text-[#E60012] font-mono">全{courses.length}件 →</span>
             </div>
             {courses.slice(0, 5).map((c, i) => {
-              const fail = c.status === "failed";
-              const scoreLabel = c.rawScore ?? (fail ? "不合格" : "合格");
+              const fail = c.status !== "passed";
+              const scoreLabel = c.rawScore ?? (fail ? "未修得" : "合格");
               return (
                 <div
                   key={`${c.title}-${i}`}
@@ -359,11 +363,11 @@ export default function MobileImportFlow() {
           </div>
 
           {/* Warning */}
-          {failCourses.length > 0 && (
+          {unearnedCourses.length > 0 && (
             <div className="flex items-center gap-2 px-3 py-2.5 bg-[#FFF3CD] border-l-[3px] border-[#F59E0B] rounded-r">
               <TriangleAlert size={16} className="text-[#F59E0B] shrink-0" />
               <span className="flex-1 text-[11px] text-[#92400E]">
-                不合格科目（{failCourses.map((c) => c.title).join("・")}）が{failCourses.length}件含まれています。再履修の提案に活用されます。
+                未修得科目（{unearnedCourses.map((c) => c.title).join("・")}）が{unearnedCourses.length}件含まれています。再履修の提案に活用されます。
               </span>
             </div>
           )}
