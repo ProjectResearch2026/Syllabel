@@ -352,7 +352,7 @@ export default async function SyllabusDetailPage({
   );
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 gap-4">
+    <div className="flex min-h-0 min-w-0 flex-1 gap-4 md:pc-viewport">
       {/*
         ui-design_pc.pen 06_講義詳細 MainArea。
         見出しカードは固定、タブの中身だけが縦に伸びる。
