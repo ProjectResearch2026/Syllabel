@@ -35,12 +35,12 @@ export default function CreditBar() {
     {
       val: completedCredits !== null ? String(completedCredits) : "—",
       label: "取得済み単位",
-      color: "text-[#1A2B4E]",
+      color: "text-fg-primary",
     },
     {
       val: currentCredits !== null ? String(currentCredits) : "—",
       label: "今期登録単位",
-      color: "text-[#E60012]",
+      color: "text-accent",
     },
     {
       val: remainingCredits !== null ? String(remainingCredits) : "—",
@@ -50,18 +50,19 @@ export default function CreditBar() {
   ];
 
   return (
-    <div className="flex items-center justify-between px-8 h-12 bg-white border-b border-[#D1D5DB] shrink-0">
+    /* ヘッダーカードの直下に貼り付き、下だけ角を丸めて1枚のカードに見せる */
+    <div className="flex h-12 shrink-0 items-center justify-between rounded-b-lg bg-surface-primary px-8">
       <div className="flex items-center gap-8">
         {items.map(({ val, label, color }) => (
           <div key={label} className="flex items-center gap-1.5">
-            <span className={`text-xl font-bold font-mono ${color}`}>{val}</span>
-            <span className="text-[#6B7280] text-xs">{label}</span>
+            <span className={`font-mono text-xl font-bold ${color}`}>{val}</span>
+            <span className="text-xs text-fg-tertiary">{label}</span>
           </div>
         ))}
       </div>
       <div className="flex items-center gap-2">
-        <Calendar size={16} className="text-[#E60012]" />
-        <span className="text-[#1A2B4E] text-sm font-semibold">{currentSemesterLabel()}</span>
+        <Calendar size={16} className="text-accent" />
+        <span className="text-[13px] font-semibold text-fg-primary">{currentSemesterLabel()}</span>
       </div>
     </div>
   );

@@ -2,11 +2,17 @@
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useTransition } from "react";
-import { Search, Sparkles } from "lucide-react";
+import { Search } from "lucide-react";
 import { TAG_CHIPS } from "@/lib/syllabusUI";
 import { useFilterControls } from "@/lib/useFilterControls";
-import SyllabusProfileNotice from "./SyllabusProfileNotice";
 
+/**
+ * シラバス一覧の検索バー（ui-design_pc.pen 05_シラバス一覧 SearchBar）。
+ *
+ * ヘッダーカードの直下に貼り付き、下だけ角を丸めて1枚のカードに見せる。
+ * 「AIに相談」ボタンは無くなった。AIは右のパネルに常駐しており、
+ * 押して飛ぶ先がもう無いため（ui-design_pc.pen ChatPanel）。
+ */
 export default function SyllabusTopBar() {
   const router = useRouter();
   const pathname = usePathname();
@@ -30,52 +36,37 @@ export default function SyllabusTopBar() {
   );
 
   return (
-    <div className="shrink-0">
-      <div className="flex items-center gap-4 h-16 px-4 md:px-8 bg-white border-b border-[#D1D5DB] overflow-x-auto">
-        {/* Search input */}
-        <div className="flex items-center gap-2 h-10 w-full max-w-[420px] shrink-0 bg-[#F8F9FA] border border-[#D1D5DB] rounded-full px-3.5">
-          <Search size={18} className="text-[#9CA3AF] shrink-0" />
-          <input
-            type="search"
-            defaultValue={q}
-            onChange={(e) => updateQ(e.target.value)}
-            placeholder="科目名・教員名で検索"
-            className="flex-1 bg-transparent text-sm text-[#1A2B4E] placeholder-[#9CA3AF] outline-none"
-          />
-        </div>
-
-        {/* Filter chips */}
-        <div className="flex items-center gap-2 shrink-0">
-          {TAG_CHIPS.map((chip) => {
-            const active = activeTag === chip;
-            return (
-              <button
-                key={chip}
-                onClick={() => selectTag(chip)}
-                className={`rounded-full px-3.5 py-1.5 text-xs whitespace-nowrap transition-colors ${
-                  active
-                    ? "bg-[#1A2B4E] text-white font-semibold"
-                    : "bg-white border border-[#D1D5DB] text-[#4B5563] hover:border-[#1A2B4E]"
-                }`}
-              >
-                {chip}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* AI button */}
-        <a
-          href="#ai-chat"
-          className="flex items-center gap-1.5 h-10 px-4 rounded-full bg-[#E60012] hover:bg-[#b7000c] transition-colors shrink-0 ml-auto"
-        >
-          <Sparkles size={16} className="text-white" />
-          <span className="text-white text-[13px] font-semibold whitespace-nowrap">AIに相談</span>
-        </a>
+    <div className="flex h-16 shrink-0 items-center gap-4 overflow-x-auto rounded-b-lg bg-surface-primary px-8">
+      {/* 科目名と教員名を1つの入力で受ける（§6.1） */}
+      <div className="flex h-10 w-[420px] shrink-0 items-center gap-2 rounded-full bg-surface-gray px-3">
+        <Search size={18} className="shrink-0 text-fg-faint" aria-hidden="true" />
+        <input
+          type="search"
+          defaultValue={q}
+          onChange={(e) => updateQ(e.target.value)}
+          placeholder="科目名・教員名で検索"
+          className="min-w-0 flex-1 bg-transparent text-sm text-fg-primary outline-none placeholder:text-fg-faint"
+        />
       </div>
 
-      {/* タグが付く条件は、絞り込みを試す前に見えるところへ出す(§8) */}
-      <SyllabusProfileNotice />
+      <div className="flex shrink-0 items-center gap-2">
+        {TAG_CHIPS.map((chip) => {
+          const active = activeTag === chip;
+          return (
+            <button
+              key={chip}
+              onClick={() => selectTag(chip)}
+              className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs transition-colors ${
+                active
+                  ? "bg-fg-primary font-semibold text-fg-inverse"
+                  : "border border-border-primary bg-surface-primary text-fg-secondary hover:border-fg-primary"
+              }`}
+            >
+              {chip}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

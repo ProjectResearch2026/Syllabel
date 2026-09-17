@@ -7,7 +7,7 @@ export default function ImportPage() {
       <div className="md:hidden flex-1">
         <MobileImportFlow />
       </div>
-      <div className="hidden md:flex md:flex-col md:flex-1">
+      <div className="hidden min-h-0 md:flex md:flex-1 md:flex-col">
         <PcImportPage />
       </div>
     </>

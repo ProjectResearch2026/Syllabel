@@ -13,7 +13,6 @@ import {
   ChevronLeft,
   CircleCheck,
   ArrowRight,
-  BookOpen,
   AlertCircle,
   Loader2,
   ChevronDown,
@@ -24,6 +23,14 @@ import PrivacyConsentModal from "./PrivacyConsentModal";
 import { useStudentStore, type StudentProfile } from "@/lib/student";
 import { DUMMY_PROFILES } from "@/lib/dummy/profiles";
 
+/**
+ * 成績表の取り込み（ui-design_pc.pen 01〜03_Import）。
+ *
+ * 3段（アップロード → 確認 → 完了）を1つのコンポーネントで持つ。
+ * 1段目だけ左に「なぜ安全か」の説明パネルを置き、2・3段目は中央1カラムにする。
+ * **説明を読むのは最初の1回だけ**で、確認や完了の画面で左半分を占め続ける理由が無い。
+ */
+
 const TERM_PLANNED_CREDITS = 18;
 const GRADUATION_CREDITS = 124;
 
@@ -32,6 +39,15 @@ type ImportState =
   | { type: "consent"; file: File }
   | { type: "parsing" }
   | { type: "error"; message: string };
+
+/** グレーの地に浮かぶ中央カラム。2・3段目の骨格 */
+function CenterColumn({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-8 px-16 py-12">
+      {children}
+    </div>
+  );
+}
 
 export default function PcImportPage() {
   const router = useRouter();
@@ -128,6 +144,7 @@ export default function PcImportPage() {
     setStep(2);
   };
 
+  // ---- 1段目: アップロード ----
   if (step === 0) {
     return (
       <>
@@ -138,52 +155,54 @@ export default function PcImportPage() {
           />
         )}
 
-        <div className="flex flex-1 min-h-[calc(100vh-60px)]">
-          <div className="w-[480px] shrink-0 bg-white flex flex-col items-center justify-center gap-8 px-[60px] py-[60px]">
+        <div className="flex min-h-0 flex-1 gap-4">
+          {/* 左: なぜ安全か（ui-design_pc.pen LeftPanel） */}
+          <div className="flex w-[480px] shrink-0 flex-col items-center justify-center gap-8 rounded-lg bg-surface-primary p-12">
             <div className="flex flex-col items-center gap-5">
-              <ShieldCheck size={64} className="text-[#1A2B4E]" />
+              <ShieldCheck size={64} className="text-fg-primary" aria-hidden="true" />
               <div className="flex flex-col items-center gap-3">
-                <h2 className="text-[#1A2B4E] text-[22px] font-bold text-center w-[320px]">
+                <h2 className="w-80 text-center text-[22px] font-bold text-fg-primary">
                   安心のプライバシー設計
                 </h2>
-                <p className="text-[#4c5663] text-sm text-center leading-[1.7] w-[320px]">
+                <p className="w-80 text-center text-sm leading-6 text-fg-secondary">
                   成績表はブラウザ上でのみ処理されます。外部のAIサービスには送信されず、ページを閉じると即時に消去されます。
                 </p>
               </div>
             </div>
 
-            <div className="flex flex-col gap-4 w-full">
+            <div className="flex flex-col gap-4">
               {[
                 { icon: Lock, label: "学内サーバーのみで処理" },
                 { icon: WifiOff, label: "外部AI不使用" },
                 { icon: Trash2, label: "閉じると即時消去" },
               ].map(({ icon: Icon, label }) => (
                 <div key={label} className="flex items-center gap-3">
-                  <Icon size={16} className="text-[#1a2c4f] shrink-0" />
-                  <span className="text-[#4c5663] text-[13px]">{label}</span>
+                  <Icon size={16} className="shrink-0 text-fg-primary" aria-hidden="true" />
+                  <span className="text-[13px] text-fg-secondary">{label}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="flex-1 bg-[#F8F9FA] flex flex-col items-center justify-center gap-8 px-[80px] py-[48px]">
+          {/* 右: 取り込みフォーム（ui-design_pc.pen RightPanel） */}
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-8 px-20 py-12">
             <StepBar current={0} />
 
-            <div className="w-[480px] bg-white rounded-xl border border-[#D1D5DB] p-8 flex flex-col gap-6">
-              <h3 className="text-[#1A2B4E] text-base font-bold">成績表PDFを選択</h3>
+            <div className="flex w-[480px] flex-col gap-6 rounded-lg border border-border-primary bg-surface-primary p-8">
+              <h3 className="text-base font-bold text-fg-primary">成績表PDFを選択</h3>
 
               {importState.type === "parsing" ? (
-                <div className="w-full h-[160px] bg-[#FAFAFA] rounded-lg border border-[#D1D5DB] flex flex-col items-center justify-center gap-3">
-                  <Loader2 size={32} className="text-[#1A2B4E] animate-spin" />
-                  <p className="text-[#6B7280] text-sm">PDFを読み取っています…</p>
+                <div className="flex h-40 flex-col items-center justify-center gap-3 rounded border border-border-primary bg-[#FAFAFA]">
+                  <Loader2 size={32} className="animate-spin text-fg-primary" aria-hidden="true" />
+                  <p className="text-sm text-fg-tertiary">PDFを読み取っています…</p>
                 </div>
               ) : importState.type === "error" ? (
-                <div className="w-full h-[160px] bg-[#FFF8F8] rounded-lg border border-[#FCA5A5] flex flex-col items-center justify-center gap-3 px-6 text-center">
-                  <AlertCircle size={28} className="text-[#EF4444]" />
-                  <p className="text-[#EF4444] text-sm font-medium">{importState.message}</p>
+                <div className="flex h-40 flex-col items-center justify-center gap-3 rounded border border-[#FCA5A5] bg-[#FFF8F8] px-6 text-center">
+                  <AlertCircle size={28} className="text-[#EF4444]" aria-hidden="true" />
+                  <p className="text-sm font-medium text-[#EF4444]">{importState.message}</p>
                   <button
                     onClick={handleRetry}
-                    className="text-xs text-[#1A2B4E] underline underline-offset-2"
+                    className="text-xs text-fg-primary underline underline-offset-2"
                   >
                     もう一度選択する
                   </button>
@@ -194,19 +213,19 @@ export default function PcImportPage() {
                   onDrop={handleDrop}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
-                  className={`w-full h-[160px] rounded-lg border flex flex-col items-center justify-center gap-3 cursor-pointer transition-colors ${
+                  className={`flex h-40 cursor-pointer flex-col items-center justify-center gap-3 rounded border transition-colors ${
                     isDragOver
-                      ? "bg-[#EEF1F8] border-[#1A2B4E]"
-                      : "bg-[#FAFAFA] border-[#D1D5DB] hover:border-[#1A2B4E]"
+                      ? "border-fg-primary bg-surface-soft"
+                      : "border-border-primary bg-[#FAFAFA] hover:border-fg-primary"
                   }`}
                 >
-                  <div className="w-12 h-12 rounded-full bg-[#1A2B4E] flex items-center justify-center">
-                    <Upload size={22} className="text-white" />
-                  </div>
-                  <p className="text-[#1A2B4E] text-sm font-semibold text-center w-[360px]">
+                  <span className="grid size-12 place-items-center rounded-full bg-surface-soft">
+                    <Upload size={22} className="text-fg-primary" aria-hidden="true" />
+                  </span>
+                  <p className="text-center text-sm font-semibold text-fg-primary">
                     PDFファイルをクリックして選択 またはドラッグ&ドロップ
                   </p>
-                  <p className="text-[#6B7280] text-xs text-center w-[360px]">
+                  <p className="text-center text-xs text-fg-secondary">
                     龍谷大学ポータルからダウンロードした成績表PDF
                   </p>
                 </div>
@@ -221,35 +240,35 @@ export default function PcImportPage() {
               />
 
               <div className="flex items-center gap-3">
-                <div className="flex-1 h-px bg-[#E5E7EB]" />
-                <span className="text-[#9CA3AF] text-xs">または</span>
-                <div className="flex-1 h-px bg-[#E5E7EB]" />
+                <div className="h-px flex-1 bg-[#E5E7EB]" />
+                <span className="text-xs text-fg-faint">または</span>
+                <div className="h-px flex-1 bg-[#E5E7EB]" />
               </div>
 
               <div className="relative">
                 <button
                   onClick={() => setDemoOpen((o) => !o)}
-                  className="w-full h-11 rounded-lg border border-[#1A2B4E] flex items-center justify-center gap-2 hover:bg-[#EEF1F8] transition-colors"
+                  className="flex h-11 w-full items-center justify-center gap-2 rounded border border-fg-primary transition-colors hover:bg-surface-soft"
                 >
-                  <Play size={16} className="text-[#1A2B4E]" />
-                  <span className="text-[#1A2B4E] text-sm font-semibold">
+                  <Play size={16} className="text-fg-primary" aria-hidden="true" />
+                  <span className="text-sm font-semibold text-fg-primary">
                     ダミーデータで試す（展示用）
                   </span>
                   {demoOpen ? (
-                    <ChevronUp size={15} className="text-[#1A2B4E]" />
+                    <ChevronUp size={15} className="text-fg-primary" aria-hidden="true" />
                   ) : (
-                    <ChevronDown size={15} className="text-[#1A2B4E]" />
+                    <ChevronDown size={15} className="text-fg-primary" aria-hidden="true" />
                   )}
                 </button>
                 {demoOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#D1D5DB] rounded-lg shadow-md overflow-hidden z-10">
+                  <div className="absolute inset-x-0 top-full z-10 mt-1 overflow-hidden rounded border border-border-primary bg-surface-primary shadow-popover">
                     {DUMMY_PROFILES.map((p, i) => (
                       <button
                         key={p.label}
                         onClick={() => handleDemoLoad(i)}
-                        className="w-full h-11 px-4 flex items-center gap-2 text-left hover:bg-[#EEF1F8] transition-colors border-b border-[#E5E7EB] last:border-b-0"
+                        className="flex h-11 w-full items-center gap-2 border-b border-[#E5E7EB] px-4 text-left transition-colors last:border-b-0 hover:bg-surface-soft"
                       >
-                        <span className="text-[#1A2B4E] text-sm">{p.label}</span>
+                        <span className="text-sm text-fg-primary">{p.label}</span>
                       </button>
                     ))}
                   </div>
@@ -262,6 +281,7 @@ export default function PcImportPage() {
     );
   }
 
+  // ---- 2段目: 確認 ----
   if (step === 1) {
     const rows = [
       { label: "学年", value: `${pending?.grade ?? "-"}回生` },
@@ -270,19 +290,21 @@ export default function PcImportPage() {
       { label: "判定科目数", value: `${pending?.completedCourses.length ?? 0}科目` },
     ];
     return (
-      <div className="flex-1 bg-[#F8F9FA] flex flex-col items-center justify-center gap-8 px-[80px] py-[48px]">
+      <CenterColumn>
         <StepBar current={1} />
 
-        <div className="w-[480px] flex flex-col gap-4">
-          <h3 className="text-[#1A2B4E] text-base font-bold">取り込み内容の確認</h3>
+        <div className="flex w-[480px] flex-col gap-4">
+          <h3 className="text-base font-bold text-fg-primary">取り込み内容の確認</h3>
 
-          <div className="bg-white rounded-lg border border-[#D1D5DB] overflow-hidden">
-            <div className="flex items-center justify-between h-12 px-4 border-b border-[#E5E7EB]">
-              <div className="flex items-center gap-2">
-                <FileCheck size={18} className="text-[#E60012]" />
-                <span className="text-[#1A2B4E] text-[13px] font-semibold">{fileName}</span>
+          <div className="overflow-hidden rounded-lg border border-border-primary bg-surface-primary">
+            <div className="flex h-12 items-center justify-between border-b border-[#E5E7EB] px-4">
+              <div className="flex min-w-0 items-center gap-2">
+                <FileCheck size={18} className="shrink-0 text-accent" aria-hidden="true" />
+                <span className="truncate text-[13px] font-semibold text-fg-primary">
+                  {fileName}
+                </span>
               </div>
-              <span className="bg-[#D1FAE5] text-[#065F46] text-[11px] font-semibold rounded px-2 py-0.5">
+              <span className="shrink-0 rounded bg-[#D1FAE5] px-2 py-[3px] text-[11px] font-semibold text-[#065F46]">
                 読み込み完了
               </span>
             </div>
@@ -290,12 +312,12 @@ export default function PcImportPage() {
             {rows.map((row, i) => (
               <div
                 key={row.label}
-                className={`flex items-center justify-between h-10 px-4 ${
-                  i % 2 === 0 ? "bg-[#F8F9FA]" : "bg-white"
+                className={`flex h-10 items-center justify-between px-4 ${
+                  i % 2 === 0 ? "bg-surface-gray" : "bg-surface-primary"
                 } ${i < rows.length - 1 ? "border-b border-[#E5E7EB]" : ""}`}
               >
-                <span className="text-[#4B5563] text-xs">{row.label}</span>
-                <span className="text-[#1A2B4E] text-[13px] font-semibold font-mono">
+                <span className="text-xs text-fg-secondary">{row.label}</span>
+                <span className="font-mono text-[13px] font-semibold text-fg-primary">
                   {row.value}
                 </span>
               </div>
@@ -305,49 +327,50 @@ export default function PcImportPage() {
           <div className="flex gap-3">
             <button
               onClick={() => setStep(0)}
-              className="h-11 px-5 rounded border border-[#1A2B4E] flex items-center justify-center gap-2 hover:bg-[#EEF1F8] transition-colors"
+              className="flex h-11 items-center justify-center gap-2 rounded border border-fg-primary px-5 transition-colors hover:bg-surface-soft"
             >
-              <ChevronLeft size={16} className="text-[#1A2B4E]" />
-              <span className="text-[#1A2B4E] text-sm font-semibold">戻る</span>
+              <ChevronLeft size={16} className="text-fg-primary" aria-hidden="true" />
+              <span className="text-sm font-semibold text-fg-primary">戻る</span>
             </button>
             <button
               onClick={handleConfirm}
-              className="flex-1 h-11 rounded bg-[#E60012] flex items-center justify-center hover:bg-[#b7000c] transition-colors"
+              className="flex h-11 flex-1 items-center justify-center rounded bg-accent transition-colors hover:bg-primary-dark"
             >
-              <span className="text-white text-sm font-semibold">この内容で取り込む</span>
+              <span className="text-sm font-semibold text-fg-inverse">この内容で取り込む</span>
             </button>
           </div>
         </div>
-      </div>
+      </CenterColumn>
     );
   }
 
+  // ---- 3段目: 完了 ----
   const stats = [
-    { val: totalCredits, label: "取得済み単位", color: "text-[#1A2B4E]" },
-    { val: TERM_PLANNED_CREDITS, label: "今期登録予定", color: "text-[#E60012]" },
-    { val: remaining, label: "卒業残り単位", color: "text-[#4B5563]" },
+    { val: totalCredits, label: "取得済み単位", color: "text-fg-primary" },
+    { val: TERM_PLANNED_CREDITS, label: "今期登録予定", color: "text-accent" },
+    { val: remaining, label: "卒業残り単位", color: "text-fg-secondary" },
   ];
   return (
-    <div className="flex-1 bg-[#F8F9FA] flex flex-col items-center justify-center gap-8 px-[80px] py-[48px]">
+    <CenterColumn>
       <StepBar current={2} />
 
       <div className="flex flex-col items-center gap-4">
-        <div className="w-20 h-20 rounded-full bg-[#EEF0F5] flex items-center justify-center">
-          <CircleCheck size={40} className="text-[#E60012]" />
-        </div>
-        <h2 className="text-[#1A2B4E] text-2xl font-bold">インポート完了！</h2>
-        <p className="text-[#4B5563] text-sm text-center leading-[1.7] w-[360px]">
+        <span className="grid size-20 place-items-center rounded-full bg-surface-soft">
+          <CircleCheck size={40} className="text-accent" aria-hidden="true" />
+        </span>
+        <h2 className="text-2xl font-bold text-fg-primary">インポート完了！</h2>
+        <p className="w-90 text-center text-sm leading-6 text-fg-secondary">
           成績データが正常に取り込まれました。
           <br />
           AIアシスタントが履修分析を開始できます。
         </p>
       </div>
 
-      <div className="w-[520px] bg-white rounded-lg border border-[#D1D5DB] flex justify-around py-5">
+      <div className="flex w-[520px] justify-around rounded-lg border border-border-primary bg-surface-primary py-6">
         {stats.map(({ val, label, color }) => (
           <div key={label} className="flex flex-col items-center gap-1">
-            <span className={`text-2xl font-bold font-mono ${color}`}>{val}</span>
-            <span className="text-[#4B5563] text-[11px]">{label}</span>
+            <span className={`font-mono text-2xl font-bold ${color}`}>{val}</span>
+            <span className="text-[11px] text-fg-secondary">{label}</span>
           </div>
         ))}
       </div>
@@ -355,22 +378,22 @@ export default function PcImportPage() {
       {/* 取り込み後の行き先は履修提案だけではない。**シラバス検索も同じ画面から出す**
           (§8)。取り込んだプロファイルは検索結果のタグ付けに効くため、ここが
           タグ付きのシラバス検索への入口になる */}
-      <div className="flex w-[520px] flex-col gap-3">
+      <div className="flex w-[520px] flex-col gap-4">
         <button
           onClick={() => router.push("/proposal")}
-          className="h-12 rounded bg-[#E60012] flex items-center justify-center gap-2 hover:bg-[#b7000c] transition-colors"
+          className="flex h-12 items-center justify-center gap-2 rounded bg-accent transition-colors hover:bg-primary-dark"
         >
-          <span className="text-white text-[15px] font-bold">履修提案を見る</span>
-          <ArrowRight size={18} className="text-white" />
+          <span className="text-[15px] font-bold text-fg-inverse">履修提案を見る</span>
+          <ArrowRight size={18} className="text-fg-inverse" aria-hidden="true" />
         </button>
         <button
           onClick={() => router.push("/syllabus")}
-          className="h-12 rounded border border-[#1A2B4E] bg-white flex items-center justify-center gap-2 hover:bg-[#EEF1F8] transition-colors"
+          className="flex h-12 items-center justify-center gap-2 rounded border-2 border-fg-primary transition-colors hover:bg-surface-soft"
         >
-          <BookOpen size={18} className="text-[#1A2B4E]" />
-          <span className="text-[#1A2B4E] text-[15px] font-bold">シラバスを検索する</span>
+          <span className="text-[15px] font-bold text-fg-primary">シラバスをみる</span>
+          <ArrowRight size={18} className="text-fg-primary" aria-hidden="true" />
         </button>
       </div>
-    </div>
+    </CenterColumn>
   );
 }

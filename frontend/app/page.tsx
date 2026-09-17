@@ -7,7 +7,7 @@ export default function RootPage() {
       <div className="md:hidden">
         <MobileTimetablePage />
       </div>
-      <div className="hidden md:flex flex-col flex-1">
+      <div className="hidden min-h-0 flex-1 flex-col md:flex">
         <PcImportPage />
       </div>
     </>

@@ -14,7 +14,7 @@ import { useStudentStore } from "@/lib/student";
  * どこにも出ていなかった**。要件§4.5 の主機能(個人の状況に紐づいた検索)が
  * 丸ごと効いていないことに、学生が気づけない。
  *
- * **チップの直下に、絞り込みを試す前に見える形で出す。** 以前は PC の左サイドバー
+ * **結果の直上に、絞り込みを試す前に見える形で出す。** 以前は PC の左サイドバー
  * 「区分」の下に 11px のグレーで1行あるだけで(`SyllabusFilters.tsx`)、モバイルには
  * それすら無かった。
  *
@@ -31,7 +31,7 @@ export default function SyllabusProfileNotice() {
   return (
     <Link
       href="/import"
-      className="group flex items-center gap-2.5 border-b border-[#D1D5DB] bg-[#EEF1F8] px-4 py-2.5 transition-colors hover:bg-[#E2E8F4] md:px-8"
+      className="group flex shrink-0 items-center gap-2.5 rounded-lg border border-[#D1D5DB] bg-[#EEF1F8] px-4 py-2.5 transition-colors hover:bg-[#E2E8F4]"
     >
       <FileUp size={17} aria-hidden="true" className="shrink-0 text-[#1A2B4E]" />
       <p className="min-w-0 text-[12px] leading-snug text-[#1A2B4E] md:text-[13px]">
