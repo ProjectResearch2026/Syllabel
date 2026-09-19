@@ -137,7 +137,7 @@ backend/
 - **`--reasoning-parser qwen3`** を指定(思考(reasoning)モデルのため必須。無いと思考トークンが本文に混ざり、PydanticAI の構造化出力が壊れる)
 - 思考を**出させるかどうかはサーバ側では固定しない**。上記のパーサは思考と本文を分離するためのものであり、思考の有無はリクエストごとに `chat_template_kwargs.enable_thinking` で決める。履修提案は思考を切り、チャット系は既定のまま有効とする(理由と実機計測は §6.3.1)
 - tool calling は **`--enable-auto-tool-choice` + `--tool-call-parser qwen3_coder`** で対応(公式モデルカード指定。`hermes` ではこのモデルの出力書式と合わず、ツール呼び出しがエラーにならず**サイレントに無視される**。`--tool-call-parser` 自体がないと vLLM は起動時にエラーで停止する)。**より頑健とされる `qwen3_xml` への変更は、実機でツール呼び出しが `tool_calls` として返ることを確認したうえで判断する**(§13)
-- **`--served-model-name qwen3.8-27b-fp8`** を指定し、§6.3 の `OpenAIChatModel('qwen3.8-27b-fp8', ...)` と一致させる(不一致だと 404)
+- **`--served-model-name qwen3.8-27b-fp8`** を指定し、§6.3 の `OpenAIChatModel('qwen3.8-27b-fp8', ...)` と一致させる(不一致だと 404)。**モデル名は backend・トークンゲートウェイ・vllm の3箇所で一致していなければならず、差し替えるときは3つを揃えて動かす**(§3.4.3.1)
 - `--max-model-len 131072`(既定 262,144 はメモリ過大。公式は思考能力維持のため最低 128K の確保を推奨。OOM 時はさらに削減)
 - DGX Spark は**単GPU**のため tensor parallel は使わない(=1)。`--gpu-memory-utilization` は同一GPUを共有する他ワークロードがある前提で 121GiB のユニファイドメモリに収めるため **0.4** とする。**3.6 での実測(2026-09-19)は本コンテナ 47,645 MiB、KV cache 16.77 GiB = 68,208 tokens(`--max-model-len 131072` に対し同時実行 2.05x)**であり、重みがほぼ同じ 3.8 でも同水準を見込む(§3.2.3)
 - モデルは**事前に取得**して `/srv/qwen3.8/models/Qwen3.8-27B-FP8` に置き、`-v .../Qwen3.8-27B-FP8:/models:ro` で**読み取り専用 bind mount** する(`--model /models`)。取得は `hf download Qwen/Qwen3.8-27B-FP8 --revision <commit SHA> --local-dir ...` で**リビジョンを固定**する(移行時に用いた SHA は `017b9c7af6b5689d5dd426a76e0bc077eb5ca20a`)。`--model` がローカルパスを指すため起動時に HF から重みを取得せず、再現性を確保する(コンテナ起動時に都度DLしない。なお現状 `HF_HUB_OFFLINE` 等の環境変数までは設定していない)
