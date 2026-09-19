@@ -126,7 +126,9 @@ backend/
 ### 4.3 vllm(LLM 推論サーバ)
 
 - vLLM を Docker(**`vllm/vllm-openai:v0.27.1`**)で起動する。**タグを固定する** — 従来の `latest` は次の pull で実体が黙って変わり、本書に記した実測値と対応しなくなる。既存の qwen-ocr も `v0.24.0` でピン留めされており(§3.2.3)、運用を揃える。移行前の実体は vLLM 0.20.0 / transformers 5.6.2 であった(2026-09-19 実測)
-- **v0.27.1 では起動オプションの再確認を要する。** 0.20.0 との間でコマンドラインの構成が変わっており、`vllm serve --help` の出力形式と内部のパーサ登録のモジュールパスがいずれも一致しない(2026-09-19 確認)。下記9個のオプションがそのまま通ること、とくに `--language-model-only` が残っていることを実機で確かめてから切り替える(§13)
+- **下記の起動オプションが v0.27.1 でそのまま通ることは検証済みである**(2026-09-19)。存在しないモデルパスを与えて `vllm serve` を起動し、`unrecognized arguments` も `invalid choice` も出ずにモデルの解決段階まで到達することを確認した。`--language-model-only` は残っており、`--reasoning-parser qwen3` と `--tool-call-parser qwen3_coder` は値ごと受理される
+- **`vllm` の CLI は GPU が見えないと、引数を解釈する前に `RuntimeError: Failed to infer device type` で落ちる。** `VllmConfig` の既定値の計算がデバイス判定に依存するためで、`--help` すら印字されない。**この挙動は 0.20.0 も v0.27.1 も同じ**であり、`docker run` でオプションを確認するときは `--gpus all` を付ける。compose 経由の起動では `deploy.resources.reservations.devices` が GPU を渡すため問題にならない
+- **`vllm serve --help` の出力形式は 0.20.0 から変わっている。** v0.27.1 は設定セクションの一覧のみを出し、全オプションは `--help=all`、個別のフラグは `--help=<フラグ名>` で引く
 - **Qwen3.8-27B-FP8 と Qwen3.6-27B-FP8 の差は重みだけである。** 両者の `config.json` は `transformers_version`(`4.57.1` → `5.8.0.dev0`)の1行を除いて完全に一致する(2026-09-19 差分確認)。64層(`linear_attention` 48 + `full_attention` 16)・`max_position_embeddings` 262144・ビジョンエンコーダ付き・FP8(e4m3、`weight_block_size` [128,128])の量子化設定まで同一であり、**モデルの側から起動オプションを変える理由は無い**。新しい `transformers_version` で書かれた config は移行前の 0.20.0(transformers 5.6.2)でも読めており(`AutoConfig.from_pretrained` で確認、同日)、**モデル側のバージョン要求のためにイメージを上げる必要は無かった**。上げるのはタグ固定と将来の可搬性のためである
 - `--model /models`(暫定モデル Qwen3.8-27B-FP8 を事前DLしたローカルパスを指す。リポジトリ名は起動時に使わない)。FP8 量子化済み、約 30.9 GB(3.6 の約 29 GiB とほぼ同じで、GPU の取り分は据え置きでよい)
 - このモデルは**ビジョンエンコーダ付き(画像/動画対応)**だが、本プロジェクトはテキスト用途のため **`--language-model-only`** を付け、ビジョンを無効化してメモリを KV cache に回す
