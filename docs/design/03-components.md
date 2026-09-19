@@ -68,7 +68,7 @@ frontend/
 - **生の HTML は描かない。** `rehype-raw` を入れなければ `react-markdown` はタグを文字として出す。モデルの出力を DOM に流す口を開けないため、入れない
 - 描くのは **AI側の吹き出しだけ**。学生が入力した文は Markdown として解釈せず、そのまま文字として出す
 - 表は**吹き出しの中で横スクロールさせる**。吹き出しの幅(280〜290px。`ui-ux/ui-design_*.pen`)は設計どおりに保ち、表のために広げない
-- 3つの吹き出し(モバイルのシート `AiMessageArea`、PC のパネル `AiChatPanel`、`/chat` の `MessageList`)で**同じ描き方**を共有する。字の大きさ・行間・色だけを吹き出しごとに外から与える
+- 会話を描く4か所(モバイルのシート `AiMessageArea`、PC のパネル `AiChatPanel`、モバイルの履修提案チャット `MobileProposalPage`、`/chat` の `MessageList`)で**同じ描き方**を共有する。字の大きさ・行間・色だけを吹き出しごとに外から与える
 
 ### 4.2 backend(FastAPI)
 
