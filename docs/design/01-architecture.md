@@ -137,6 +137,7 @@ flowchart TB
 | クライアント状態管理 | Zustand | 永続化機能はオフ(要件§5.2) |
 | サーバ通信 | `fetch`(SSE は `ReadableStream` を自前で読む) | |
 | PDF解析 | pdfjs-dist(PDF.js) | クライアント側で実行 |
+| AI回答の描画 | react-markdown(+ remark-gfm / remark-breaks) | 生の HTML は描かない(§4.1.5) |
 | LLMオーケストレーション | PydanticAI | 構造化出力・ツール呼び出し |
 | LLM推論サーバ | vLLM | OpenAI 互換 API を提供 |
 | ストリーミング | SSE(Server-Sent Events) | vLLM のストリーミングをそのまま中継 |

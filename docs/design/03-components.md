@@ -61,6 +61,15 @@ frontend/
 - backend からの SSE を `fetch` + `ReadableStream` で受信
 - 受信した chunk を逐次 React state に反映、画面に追記表示
 
+#### 4.1.5 AI回答のMarkdown表示
+
+- AI の回答は **Markdown として描く**(`components/ai/MarkdownText.tsx`)。モデルは太字・箇条書き・表を混ぜて返すため、素のテキストとして描くと `**必修**` の `**` や `|---|---|` の罫線がそのまま学生に見える。科目の比較や条件の列挙では表と箇条書きのほうが読みやすく、モデル側で禁じるのではなくフロントで描く
+- 使うのは `react-markdown` と remark プラグイン2つ。`remark-gfm` が表・取り消し線・チェックリストを、`remark-breaks` が**段落内の単独改行**を担う。Markdown の既定では単独改行が消えるが、日本語の回答は1文ずつ改行して返ってくることが多く、消すと読みにくい
+- **生の HTML は描かない。** `rehype-raw` を入れなければ `react-markdown` はタグを文字として出す。モデルの出力を DOM に流す口を開けないため、入れない
+- 描くのは **AI側の吹き出しだけ**。学生が入力した文は Markdown として解釈せず、そのまま文字として出す
+- 表は**吹き出しの中で横スクロールさせる**。吹き出しの幅(280〜290px。`ui-ux/ui-design_*.pen`)は設計どおりに保ち、表のために広げない
+- 3つの吹き出し(モバイルのシート `AiMessageArea`、PC のパネル `AiChatPanel`、`/chat` の `MessageList`)で**同じ描き方**を共有する。字の大きさ・行間・色だけを吹き出しごとに外から与える
+
 ### 4.2 backend(FastAPI)
 
 #### 4.2.1 ディレクトリ構成

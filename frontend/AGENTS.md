@@ -28,6 +28,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 | Zustand | — | クライアント状態管理(永続化オフ) |
 | pdfjs-dist | — | 成績表PDFのクライアント側解析 |
 | lucide-react | ^1.23.0 | アイコン |
+| react-markdown | ^10.1.0 | AI回答のMarkdown描画(+ remark-gfm / remark-breaks) |
 
 ## ディレクトリ構成
 
@@ -130,6 +131,18 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 | 履修提案(`/api/proposal`) | `{"snapshot": {...}}` / `{"result": {...}}` に加えて `error` / `done` |
 
 チャット系リクエストには**学生プロファイルと対話履歴を毎回含める**(サーバー側で永続化しないため)。
+
+## AIの回答の描き方
+
+**AIの回答は Markdown として描く**(design.md §4.1.5)。モデルは太字・箇条書き・表を混ぜて返すため、素のテキストとして描くと `**必修**` の `**` や `|---|---|` の罫線がそのまま学生に見える。
+
+実体は `components/ai/MarkdownText.tsx` ひとつで、**3つの吹き出しが共有する** — モバイルのシート(`components/ai/AiMessageArea.tsx`)、PCのパネル(`components/pc/AiChatPanel.tsx`)、`/chat`(`app/chat/_components/MessageList.tsx`)。**吹き出しごとに描き方を写さない。** 字の大きさ・行間・色だけを `className` で外から与える。
+
+- `react-markdown` + `remark-gfm`(表・取り消し線・チェックリスト)+ `remark-breaks`(段落内の単独改行)。**`remark-breaks` を外さない** — Markdown の既定では単独改行が消えるが、日本語の回答は1文ずつ改行して返ってくる
+- **`rehype-raw` を入れてはならない。** 生のHTMLを描かないことで、モデルの出力がDOMに流れる口を塞いでいる
+- **描くのはAI側の吹き出しだけ。** 学生が入力した文は Markdown として解釈しない
+- **表のために吹き出しを広げない。** 幅は設計(`ui-ux/ui-design_*.pen`、280〜290px)どおりに保ち、表は中で横スクロールさせる
+- Tailwind の preflight が `ul` / `ol` の記号と字下げを消すため、リストの見た目は `MarkdownText` の `components` で自分で付けている
 
 履修提案の科目スキーマは design.md §5.3 に従う(`syllabusCode` / `title` / `day` / `period` / `term` / `credits` / `category` / `reason`)。必須は `title` と `reason` だけで、**集中講義の曜日・時限や特定できないシラバスコードは null** で来る。
 

@@ -3,6 +3,7 @@
 import { motion } from "motion/react";
 import type { ChatMessage } from "@/lib/chat";
 import AiProposalCard from "./AiProposalCard";
+import MarkdownText from "./MarkdownText";
 import { useScrollToBottom } from "@/lib/useScrollToBottom";
 
 /**
@@ -31,9 +32,9 @@ export default function AiMessageArea({ messages }: { messages: ChatMessage[] })
             className="flex flex-col gap-3"
           >
             <div className="w-[288px] rounded-[4px_16px_16px_16px] bg-surface-gray px-3.5 py-[11px]">
-              <p className="whitespace-pre-wrap text-[13px] leading-[1.65] text-fg-primary">
+              <MarkdownText className="text-[13px] leading-[1.65] text-fg-primary">
                 {message.content}
-              </p>
+              </MarkdownText>
               {message.streaming && (
                 <span className="mt-1.5 flex items-center gap-1">
                   <span className="size-1.5 animate-bounce rounded-full bg-fg-primary" />
