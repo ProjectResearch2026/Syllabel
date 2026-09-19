@@ -3,16 +3,21 @@
 # ここでは定義しない(§3.2.1)。起動は `docker compose up -d vllm`。
 services:
   vllm:
-    image: vllm/vllm-openai:latest   # vLLM >= 0.19.0 が必須(Qwen3.6対応)。DGX 上の現行は 0.20.0
+    # **タグを固定する。** `latest` は次の pull で実体が黙って変わり、設計書に
+    # 記した実測値と合わなくなる(移行前の実体は 0.20.0 / transformers 5.6.2)。
+    # 既存の qwen-ocr も v0.24.0 でピン留めされており、運用を揃える(§4.3)
+    image: vllm/vllm-openai:v0.27.1
     networks: [app-net]
     ports:
       # 全公開を避け 127.0.0.1 バインド。**この公開は外せない**: DGX の
       # socat-qwen36.service がこのポートへ転送し、教員側のトークンゲートウェイの
-      # qwen upstream になっている(§3.4.1、§3.4.3)
+      # qwen upstream になっている(§3.4.1、§3.4.3)。
+      # ユニット名はモデル名由来のため 3.8 化で実態とずれるが、systemd ユニットは
+      # 本リポジトリの管理外であり改名しない(§3.4.1)
       - "127.0.0.1:8001:8000"
     ipc: host                        # vLLM のマルチプロセス共有メモリ用
     volumes:
-      - /srv/qwen3.6/models/Qwen3.6-27B-FP8:/models:ro   # 事前DL済みモデルを読み取り専用で渡す
+      - /srv/qwen3.8/models/Qwen3.8-27B-FP8:/models:ro   # 事前DL済みモデルを読み取り専用で渡す
     deploy:
       resources:
         reservations:
@@ -29,8 +34,8 @@ services:
     command:
       - --model
       - /models                       # 事前DLしたローカルパス。起動時に HF からは取得しない
-      - --served-model-name           # §6.3 の OpenAIModel(model=...) と一致させ 404 を防ぐ
-      - qwen3.6-27b-fp8
+      - --served-model-name           # §6.3 の OpenAIChatModel(model=...) と一致させ 404 を防ぐ
+      - qwen3.8-27b-fp8
       - --language-model-only          # テキスト専用。ビジョンを省きメモリを KV cache に回す
       - --reasoning-parser             # 思考モデルのため必須。無いと思考が本文に漏れ構造化出力が壊れる
       - qwen3

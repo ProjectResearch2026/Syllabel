@@ -6,7 +6,7 @@ from app.settings import Settings, get_settings
 def test_defaults():
     s = Settings()
     assert s.vllm_base_url == "http://vllm:8000/v1"
-    assert s.llm_model_id == "qwen3.6-27b-fp8"
+    assert s.llm_model_id == "qwen3.8-27b-fp8"
     assert s.api_clean_base_url == "http://api-clean:5000"
 
 

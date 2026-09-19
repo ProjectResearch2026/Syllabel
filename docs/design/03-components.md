@@ -125,19 +125,26 @@ backend/
 
 ### 4.3 vllm(LLM 推論サーバ)
 
-- vLLM を Docker(`vllm/vllm-openai:latest`)で起動。Qwen3.6 対応には **vLLM >= 0.19.0** が必要(DGX 上の現行イメージは 0.20.0 で対応済み、アーキ `Qwen3_5ForConditionalGeneration` をサポート確認済み)
-- `--model /models`(暫定モデル Qwen3.6-27B-FP8 を事前DLしたローカルパスを指す。リポジトリ名は起動時に使わない)。FP8(e4m3)量子化済み、約 31GB
-- このモデルは**ビジョンエンコーダ付き(画像/動画対応)**だが、本プロジェクトはテキスト用途のため **`--language-model-only`** を付け、ビジョンを無効化してメモリを KV cache に回す
+- vLLM を Docker(**`vllm/vllm-openai:v0.27.1`**)で起動する。**タグを固定する** — 従来の `latest` は次の pull で実体が黙って変わり、本書に記した実測値と対応しなくなる。既存の qwen-ocr も `v0.24.0` でピン留めされており(§3.2.3)、運用を揃える。移行前の実体は vLLM 0.20.0 / transformers 5.6.2 であった(2026-09-19 実測)
+- **下記の起動オプションが v0.27.1 でそのまま通ることは検証済みである**(2026-09-19)。存在しないモデルパスを与えて `vllm serve` を起動し、`unrecognized arguments` も `invalid choice` も出ずにモデルの解決段階まで到達することを確認した。`--language-model-only` は残っており、`--reasoning-parser qwen3` と `--tool-call-parser qwen3_coder` は値ごと受理される
+- **`vllm` の CLI は GPU が見えないと、引数を解釈する前に `RuntimeError: Failed to infer device type` で落ちる。** `VllmConfig` の既定値の計算がデバイス判定に依存するためで、`--help` すら印字されない。**この挙動は 0.20.0 も v0.27.1 も同じ**であり、`docker run` でオプションを確認するときは `--gpus all` を付ける。compose 経由の起動では `deploy.resources.reservations.devices` が GPU を渡すため問題にならない
+- **`vllm serve --help` の出力形式は 0.20.0 から変わっている。** v0.27.1 は設定セクションの一覧のみを出し、全オプションは `--help=all`、個別のフラグは `--help=<フラグ名>` で引く
+- **Qwen3.8-27B-FP8 と Qwen3.6-27B-FP8 の差は重みだけである。** 両者の `config.json` は `transformers_version`(`4.57.1` → `5.8.0.dev0`)の1行を除いて完全に一致する(2026-09-19 差分確認)。64層(`linear_attention` 48 + `full_attention` 16)・`max_position_embeddings` 262144・ビジョンエンコーダ付き・FP8(e4m3、`weight_block_size` [128,128])の量子化設定まで同一であり、**モデルの側から起動オプションを変える理由は無い**。新しい `transformers_version` で書かれた config は移行前の 0.20.0(transformers 5.6.2)でも読めており(`AutoConfig.from_pretrained` で確認、同日)、**モデル側のバージョン要求のためにイメージを上げる必要は無かった**。上げるのはタグ固定と将来の可搬性のためである
+- `--model /models`(暫定モデル Qwen3.8-27B-FP8 を事前DLしたローカルパスを指す。リポジトリ名は起動時に使わない)。FP8 量子化済みで、**重みのロードは実測 27.64 GiB**(2026-09-19 起動ログ)。3.6 とほぼ同じであり、GPU の取り分は据え置いた(§3.2.3)
+- **`--model` は将来の vLLM で削除される。** v0.27.1 は起動時に「モデルは位置引数か設定ファイルで渡すべきで、`--model` は将来の版で削除される」と警告する。**いまは動くが、次にイメージを上げたときに壊れうる**ため、位置引数への移行を §13 に置く
+- このモデルは**ビジョンエンコーダ付き(画像/動画対応)**だが、本プロジェクトはテキスト用途のため **`--language-model-only`** を付け、ビジョンを無効化してメモリを KV cache に回す。効いていることは起動ログの `All limits of multimodal modalities supported by the model are set to 0, running in text-only mode.` で確認する
+- **Blackwell(GB10)では vLLM が DeepGemm を自動で無効化し、CUTLASS へ退避する。** 起動ログに `Auto-disabled DeepGemm for model_type=qwen3_5_text on Blackwell. DeepGemm E8M0 scale format causes accuracy degradation for this architecture.` が出る。**精度に関わる退避を vLLM 側が行っている**ので、`VLLM_USE_DEEP_GEMM` を触って上書きしない
 - **`--reasoning-parser qwen3`** を指定(思考(reasoning)モデルのため必須。無いと思考トークンが本文に混ざり、PydanticAI の構造化出力が壊れる)
 - 思考を**出させるかどうかはサーバ側では固定しない**。上記のパーサは思考と本文を分離するためのものであり、思考の有無はリクエストごとに `chat_template_kwargs.enable_thinking` で決める。履修提案は思考を切り、チャット系は既定のまま有効とする(理由と実機計測は §6.3.1)
-- tool calling は **`--enable-auto-tool-choice` + `--tool-call-parser qwen3_coder`** で対応(公式モデルカード指定。`hermes` ではこのモデルの出力書式と合わず、ツール呼び出しがエラーにならず**サイレントに無視される**。`--tool-call-parser` 自体がないと vLLM は起動時にエラーで停止する)
-- **`--served-model-name qwen3.6-27b-fp8`** を指定し、§6.3 の `OpenAIChatModel('qwen3.6-27b-fp8', ...)` と一致させる(不一致だと 404)
+- tool calling は **`--enable-auto-tool-choice` + `--tool-call-parser qwen3_coder`** で対応(公式モデルカード指定。`hermes` ではこのモデルの出力書式と合わず、ツール呼び出しがエラーにならず**サイレントに無視される**。`--tool-call-parser` 自体がないと vLLM は起動時にエラーで停止する)。**より頑健とされる `qwen3_xml` への変更は、実機でツール呼び出しが `tool_calls` として返ることを確認したうえで判断する**(§13)
+- **`--served-model-name qwen3.8-27b-fp8`** を指定し、§6.3 の `OpenAIChatModel('qwen3.8-27b-fp8', ...)` と一致させる(不一致だと 404)。**モデル名は backend・トークンゲートウェイ・vllm の3箇所で一致していなければならず、差し替えるときは3つを揃えて動かす**(§3.4.3.1)
 - `--max-model-len 131072`(既定 262,144 はメモリ過大。公式は思考能力維持のため最低 128K の確保を推奨。OOM 時はさらに削減)
-- DGX Spark は**単GPU**のため tensor parallel は使わない(=1)。`--gpu-memory-utilization` は同一GPUを共有する他ワークロードがある前提で 121GiB のユニファイドメモリに収めるため **0.4(≒48GB)** を起点とする(起動ログの KV cache サイズを見て余裕があれば 0.45 まで上げてよい)
-- モデルは**事前に取得**して `/srv/qwen3.6/models/Qwen3.6-27B-FP8` に置き、`-v .../Qwen3.6-27B-FP8:/models:ro` で**読み取り専用 bind mount** する(`--model /models`)。取得は `hf download Qwen/Qwen3.6-27B-FP8 --revision <commit SHA> --local-dir ...` で**リビジョンを固定**する。`--model` がローカルパスを指すため起動時に HF から重みを取得せず、再現性を確保する(コンテナ起動時に都度DLしない。なお現状 `HF_HUB_OFFLINE` 等の環境変数までは設定していない)
+- DGX Spark は**単GPU**のため tensor parallel は使わない(=1)。`--gpu-memory-utilization` は同一GPUを共有する他ワークロードがある前提で 121GiB のユニファイドメモリに収めるため **0.4** とする。**3.6 での実測(2026-09-19)は本コンテナ 47,645 MiB、KV cache 16.77 GiB = 68,208 tokens(`--max-model-len 131072` に対し同時実行 2.05x)**であり、重みがほぼ同じ 3.8 でも同水準を見込む(§3.2.3)
+- モデルは**事前に取得**して `/srv/qwen3.8/models/Qwen3.8-27B-FP8` に置き、`-v .../Qwen3.8-27B-FP8:/models:ro` で**読み取り専用 bind mount** する(`--model /models`)。取得は `hf download Qwen/Qwen3.8-27B-FP8 --revision <commit SHA> --local-dir ...` で**リビジョンを固定**する(移行時に用いた SHA は `017b9c7af6b5689d5dd426a76e0bc077eb5ca20a`)。`--model` がローカルパスを指すため起動時に HF から重みを取得せず、再現性を確保する(コンテナ起動時に都度DLしない。なお現状 `HF_HUB_OFFLINE` 等の環境変数までは設定していない)
+- **旧モデルは消さずに残す。** `/srv` に十分な空きがあり(2026-09-19 時点で 2.8 TB)、`/srv/qwen3.6/models/Qwen3.6-27B-FP8` を残しておけば bind mount 元とモデル ID を戻すだけで切り戻せる
 - OpenAI 互換 API を `/v1/chat/completions` で公開
-- **DGX Spark 上でホストの loopback にのみバインドする。** backend は別ホスト(公開 VM)にあり、教員側のトークンゲートウェイ経由で到達する(§3.4.3、§6.3)。frontend からは直接呼ばない
-- **本プロジェクト以外の利用者がいる。** 教員側のトークンゲートウェイが中継する先がこの vllm であり、停止・再起動・起動オプションの変更は他の利用者に影響する(§3.2.2、§3.5.3)
+- **初回起動は約6分半かかる**(2026-09-19 実測。重みのロード 203 秒 + `torch.compile` 71.5 秒 + ウォームアップ 36.5 秒 + CUDA graph キャプチャ)。`docker-compose.yml` の `start_period: 900s` はこれを見込んだ値である。2回目以降は `/root/.cache/vllm/torch_compile_cache` が効くため短くなる
+- **DGX Spark 上でホストの loopback にのみバインドする。** backend は別ホスト(公開 VM)にあり、教員側のトークンゲートウェイ経由で到達する(§3.4.3、§6.3)。frontend からは直接呼ばない。**この経路は発行されたトークンを用いて利用する**(§3.4.3)
 
 ### 4.4 履修要項データ層
 

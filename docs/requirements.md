@@ -1,4 +1,4 @@
-# 履修登録支援AIチャットボット 要件定義書(v0.8.4)
+# 履修登録支援AIチャットボット 要件定義書(v0.8.5)
 
 ## 0. この文書について
 
@@ -69,7 +69,7 @@
 
 | 要素 | 内容 |
 |---|---|
-| ローカルLLM | Qwen3.6-27B-FP8 を vLLM で推論。学内DGX Sparkサーバー上で稼働させる。学外のクラウドAIサービスは利用しない |
+| ローカルLLM | Qwen3.8-27B-FP8 を vLLM で推論。学内DGX Sparkサーバー上で稼働させる。学外のクラウドAIサービスは利用しない |
 | トークンゲートウェイ | アドバイザー教員が学内で運用する OpenAI 互換のゲートウェイ。発行されたトークンを検証してローカルLLMへ中継する。本サービスはこれを経由してローカルLLMを利用する(利用ログの扱いは§5.2・§5.5) |
 | シラバスバックエンドAPI | シラバスバックエンドシステム([ProjectResearch2026/syllabus_backend](https://github.com/ProjectResearch2026/syllabus_backend)。[RyukokuDX/syllabus_backend](https://github.com/RyukokuDX/syllabus_backend) のフォーク)が提供するAPIを利用する(科目情報の参照)。学内DGX Sparkサーバー上で稼働させる。**本サービスが必要とするデータと機能は当該リポジトリ側で用意されるため、「手を加えない外部システム」ではない**(設計書§1.1.1) |
 

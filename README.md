@@ -2,7 +2,7 @@
 
 龍谷大学先端理工学部の学生に向けた**履修登録支援AIチャットボット**。学年・課程・既修得科目から次学期の時間割を提案し、シラバスについての質問に答える。龍谷大学プロジェクトリサーチの成果物として開発しているプロトタイプであり、龍谷祭での展示を当面のゴールとする。
 
-推論には学内サーバ(DGX Spark)上のローカル LLM(vLLM + Qwen3.6-27B-FP8)を使う。**学外のクラウドAIサービスは利用せず、成績データを学外へ出さない。**
+推論には学内サーバ(DGX Spark)上のローカル LLM(vLLM + Qwen3.8-27B-FP8)を使う。**学外のクラウドAIサービスは利用せず、成績データを学外へ出さない。**
 
 - 要件定義書: [docs/requirements.md](docs/requirements.md)
 - 設計書: [docs/design.md](docs/design.md)(目次と改訂履歴。本文は `docs/design/01-07`)
@@ -71,7 +71,7 @@ uvicorn app.main:app --reload      # 開発サーバ(http://localhost:8000)
 | 環境変数 | 既定 | 用途 |
 |---|---|---|
 | `VLLM_BASE_URL` | `http://vllm:8000/v1` | LLM(OpenAI 互換)の宛先。トークンゲートウェイ経由の場合はその URL(設計§3.4.3) |
-| `LLM_MODEL_ID` | `qwen3.6-27b-fp8` | 接続先が返すモデル ID と一致させる(不一致で 404) |
+| `LLM_MODEL_ID` | `qwen3.8-27b-fp8` | 接続先が返すモデル ID と一致させる(不一致で 404) |
 | `LLM_API_KEY` | `EMPTY` | ゲートウェイが要求するトークン。`Authorization: Bearer <値>` として送られる(設計§6.3)。認証なしの vllm を直接叩くときは既定のまま |
 | `API_CLEAN_BASE_URL` | `http://api-clean:5000` | 既存シラバス API の宛先。トークンゲートウェイ経由の場合はその URL(設計§3.4.4) |
 | `API_CLEAN_API_KEY` | (空) | ゲートウェイが要求するトークン。`Authorization: Bearer <値>` として送られる(設計§6.2)。認証なしの api-clean を直接叩くときは空のまま(ヘッダを付けない) |
