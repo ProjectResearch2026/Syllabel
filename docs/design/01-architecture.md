@@ -14,7 +14,7 @@
 |---|---|---|---|
 | frontend | 学生が触れる Web UI | Next.js(React + TypeScript) | 本リポジトリ(新規開発) |
 | backend | フロントと LLM/シラバスAPI を仲介し、履修提案ロジックを担う | FastAPI(Python)+ PydanticAI | 本リポジトリ(新規開発) |
-| vllm | ローカル LLM 推論サーバ | vLLM、Qwen3.6-27B-FP8 | 既製品(設定のみ) |
+| vllm | ローカル LLM 推論サーバ | vLLM、Qwen3.8-27B-FP8 | 既製品(設定のみ) |
 | api-clean | シラバス情報提供 API | FastAPI | シラバスバックエンド(§1.1.1) |
 | postgres-clean | シラバス DB | PostgreSQL | シラバスバックエンド(§1.1.1) |
 
@@ -89,7 +89,7 @@ flowchart TB
     end
 
     subgraph DGX["DGX Spark(学内)"]
-      VLLM["vllm<br/>Qwen3.6-27B-FP8"]
+      VLLM["vllm<br/>Qwen3.8-27B-FP8"]
       APIClean["api-clean<br/>FastAPI(シラバスBE)"]
       PG["postgres-clean<br/>PostgreSQL(シラバスBE)"]
     end
@@ -147,6 +147,6 @@ flowchart TB
 
 ### 2.1 LLMモデル
 
-- 暫定: Qwen3.6-27B-FP8(vLLM 経由)
+- 暫定: Qwen3.8-27B-FP8(vLLM 経由)
 - API形式: OpenAI 互換 ChatCompletion(`/v1/chat/completions`、stream 対応、tool calling 対応)
 - モデルは確定次第、本節と§4.3を更新する

@@ -266,12 +266,14 @@ backend から以下の3つを利用する。**これがシラバスバックエ
 
 #### 6.3.1 リクエスト単位の推論設定(思考の有無)
 
-Qwen3.6 は**思考(reasoning)モデル**であり、本文の前に思考トークンを生成する。サーバ側は `--reasoning-parser qwen3` で思考と本文を分離しており(§4.3)、思考をクライアントへ流すことはない。**思考を出させるかどうかはリクエストごとに** `chat_template_kwargs.enable_thinking` で決める。PydanticAI からは `OpenAIChatModelSettings(extra_body={"chat_template_kwargs": {"enable_thinking": False}})` を `Agent(model_settings=...)` に渡す形で指定する。
+Qwen3.8 は**思考(reasoning)モデル**であり、本文の前に思考トークンを生成する。サーバ側は `--reasoning-parser qwen3` で思考と本文を分離しており(§4.3)、思考をクライアントへ流すことはない。**思考を出させるかどうかはリクエストごとに** `chat_template_kwargs.enable_thinking` で決める。PydanticAI からは `OpenAIChatModelSettings(extra_body={"chat_template_kwargs": {"enable_thinking": False}})` を `Agent(model_settings=...)` に渡す形で指定する。
 
 | 呼び出し | 思考 | 理由 |
 |---|---|---|
 | 履修提案(§7.2 / `POST /api/proposal`) | **切る** | 下記の実機計測による |
 | チャット系(§7.3〜§7.5) | 既定のまま(**有効**) | 自由文の対話であり、ツール呼び出しの要否判断を含む。1回のモデル呼び出しに100秒超かかることがあるが現状は許容している(§13) |
+
+**以下の計測は Qwen3.6 で採ったものであり、Qwen3.8 では取り直す**(§13)。3.8 は 3.6 と同一アーキ・同一構成(§4.3)のため判断そのものは変わらないと見込むが、生成速度と思考の長さは重みに依存するため、本節末尾の `max_tokens` と `timeout` の妥当性は実測で確かめる。
 
 **履修提案で思考を切る理由(2026-09-09 実機計測。DGX Spark + Qwen3.6-27B-FP8)。** 候補科目643行・約39,000トークンのプロンプトに対し、思考を有効にすると900秒経っても提案が返らなかった。このとき vLLM は 7.3 tokens/s で生成を続けており(`GPU KV cache usage` 17.5%、preemption なし)、停止や資源不足ではなく**思考が終わっていなかった**。600トークンで打ち切って観測しても本文には到達していない。`enable_thinking: false` を渡すと `final_result` の生成が即座に始まり、候補科目からの転記・不足要件枠への言及・希望条件の反映を含む提案が得られた。
 
