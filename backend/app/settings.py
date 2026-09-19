@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     # llm_model_id は接続先が返すモデル ID と一致必須(不一致で404)
     # vllm_base_url にはトークンゲートウェイの base_url を与える場合がある(§3.4.3)
     vllm_base_url: str = "http://vllm:8000/v1"
-    llm_model_id: str = "qwen3.6-27b-fp8"
+    llm_model_id: str = "qwen3.8-27b-fp8"
     # ゲートウェイが要求するトークン。Authorization: Bearer <値> として送られる(§6.3)。
     # 既定の "EMPTY" は認証なしの vllm を直接叩く開発環境向けのダミー値
     # (OpenAI クライアントは非空の api_key を要求するため空にはできない)
