@@ -9,6 +9,7 @@ import { useGraduationCredits } from "@/lib/curricula";
 import { streamProposalChat } from "@/lib/chatApi";
 import { useScrollToBottom } from "@/lib/useScrollToBottom";
 import type { ChatMessage } from "@/lib/chat";
+import MarkdownText from "@/components/ai/MarkdownText";
 
 export default function MobileProposalPage() {
   const profile = useStudentStore((s) => s.profile);
@@ -215,7 +216,15 @@ export default function MobileProposalPage() {
                   : "bg-white border border-[#D1D5DB] text-[#1A2B4E]"
               }`}
             >
-              {msg.content || (msg.streaming ? <span className="animate-pulse">▌</span> : "")}
+              {msg.role === "assistant" ? (
+                msg.content ? (
+                  <MarkdownText>{msg.content}</MarkdownText>
+                ) : msg.streaming ? (
+                  <span className="animate-pulse">▌</span>
+                ) : null
+              ) : (
+                msg.content
+              )}
             </div>
           </div>
         ))}

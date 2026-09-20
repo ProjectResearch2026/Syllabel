@@ -6,6 +6,7 @@ import type { ChatMessage } from "@/lib/chat";
 import type { ArchivedChat } from "@/lib/chatHistory";
 import { titleOf } from "@/lib/chatHistory";
 import { useScrollToBottom } from "@/lib/useScrollToBottom";
+import MarkdownText from "../ai/MarkdownText";
 import ChatHistoryMenu from "./ChatHistoryMenu";
 
 /**
@@ -116,10 +117,12 @@ export default function AiChatPanel({
               key={msg.id}
               className="flex max-w-[280px] flex-col gap-2 rounded-[2px_12px_12px_12px] border border-border-primary bg-surface-primary p-3"
             >
-              <p className="whitespace-pre-wrap text-[13px] leading-[21px] text-fg-primary">
+              <MarkdownText
+                className="text-[13px] leading-[21px] text-fg-primary"
+                caret={msg.streaming}
+              >
                 {msg.content}
-                {msg.streaming && <span className="animate-pulse">▌</span>}
-              </p>
+              </MarkdownText>
               {/* 提案カード。AIが差し替え案を返したときだけ出る */}
               {msg.items?.map((item) => (
                 <p

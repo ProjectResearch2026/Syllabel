@@ -1,5 +1,6 @@
 import { Bot } from "lucide-react";
 import { motion } from "motion/react";
+import MarkdownText from "@/components/ai/MarkdownText";
 import type { Message } from "./types";
 
 export default function MessageList({
@@ -35,9 +36,9 @@ export default function MessageList({
                   : "border border-[#D1D5DB]"
               }`}
             >
-              <p className="text-[#1A2B4E] text-[13px] leading-snug whitespace-pre-wrap">
+              <MarkdownText className="text-[#1A2B4E] text-[13px] leading-snug">
                 {msg.content}
-              </p>
+              </MarkdownText>
               {msg.items && (
                 <div className="space-y-2 mt-1">
                   {msg.items.map((item) => (
