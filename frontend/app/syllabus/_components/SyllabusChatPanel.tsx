@@ -5,7 +5,7 @@ import AiChatPanel from "@/components/pc/AiChatPanel";
 import { useChatStore, type ChatMessage } from "@/lib/chat";
 import { useChatHistory } from "@/lib/chatHistory";
 import { useStudentStore } from "@/lib/student";
-import { streamCourseChat } from "@/lib/chatApi";
+import { streamSyllabusChat } from "@/lib/chatApi";
 
 /** シラバス全体に対する質問（ui-design_pc.pen 05_シラバス一覧 ChatPanel）。 */
 const QUICK_ASKS = ["1年次でも取れる科目は？", "抽選のある科目を教えて"];
@@ -65,8 +65,10 @@ export default function SyllabusChatPanel() {
 
       try {
         let accumulated = "";
-        await streamCourseChat(
-          "__syllabus__",
+        // シラバス全体への質問なので、講義単位(§7.5)ではなく全体の口(§7.4)を叩く。
+        // 以前は講義単位の口に "__syllabus__" という架空のコードを渡しており、
+        // backend が実在確認(`get_syllabus`)で 404 を返すため常に失敗していた。
+        await streamSyllabusChat(
           { profile, history, message: text },
           (delta) => {
             accumulated += delta;
