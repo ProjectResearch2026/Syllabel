@@ -92,7 +92,7 @@ npm run dev                        # http://localhost:3000/syllabel
 
 | 環境変数 | 既定 | 用途 |
 |---|---|---|
-| `BACKEND_ORIGIN` | 開発時 `http://localhost:8000` / 本番 `http://pr2026-backend:8000` | サーバ側描画から引く backend のオリジン。公開 VM では Quadlet の環境ファイルで与える(設計§3.2.1)。**渡さないと既定にフォールバックする** |
+| `BACKEND_ORIGIN` | 開発時 `http://localhost:8000` / 本番 `http://syllabel-backend:8000` | サーバ側描画から引く backend のオリジン。公開 VM では Quadlet の環境ファイルで与える(設計§3.2.1)。**渡さないと既定にフォールバックする** |
 
 開発時はゲートウェイが居ないため、ブラウザからの `/syllabel/api/*` は `next.config.ts` の `rewrites()` が `BACKEND_ORIGIN` へ中継する(本番ではゲートウェイが振り分けるため無効)。上の backend 開発サーバを立てておけば、そのまま疎通する。
 
@@ -153,7 +153,7 @@ python -m scripts.smoke_chat_syllabus <講義コード>
 python -m scripts.smoke_proposal
 
 # 公開 VM の backend コンテナ内で動かす
-podman exec -it pr2026-backend python -m scripts.smoke_api_clean
+podman exec -it syllabel-backend python -m scripts.smoke_api_clean
 ```
 
 履修提案は1回に4〜5分かかる。応答時間は出力トークン数でほぼ決まる(設計§7.2)。

@@ -20,8 +20,8 @@ export const BASE_PATH = "/syllabel";
 /** ブラウザから叩く公開パス。ゲートウェイが `/syllabel` を剥がして backend へ渡す */
 const BROWSER_API_BASE = `${BASE_PATH}/api`;
 
-/** 公開 VM での backend の宛先。Podman ネットワーク `pr2026` の名前解決による(§3.2.1) */
-const DEFAULT_BACKEND_ORIGIN = "http://pr2026-backend:8000";
+/** 公開 VM での backend の宛先。Podman ネットワーク `syllabel` の名前解決による(§3.2.1) */
+const DEFAULT_BACKEND_ORIGIN = "http://syllabel-backend:8000";
 
 /** 開発時の backend の宛先。`uvicorn app.main:app --reload` の待受(README) */
 const DEV_BACKEND_ORIGIN = "http://localhost:8000";
