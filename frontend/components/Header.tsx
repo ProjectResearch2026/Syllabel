@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import logoMark from "@/public/logo.svg";
 import { RotateCcw } from "lucide-react";
@@ -63,6 +63,7 @@ function isImportFlow(pathname: string): boolean {
 
 export default function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const profile = useStudentStore((s) => s.profile);
   const clearProfile = useStudentStore((s) => s.clearProfile);
   const clearAll = useChatStore((s) => s.clearAll);
@@ -70,12 +71,21 @@ export default function Header() {
   const attached = isAttached(pathname);
   const showNav = !(isImportFlow(pathname) && !profile);
 
+  /*
+   * 消してからトップ(取り込み画面)へ戻す。
+   *
+   * **遷移は `router` で行う。** 以前は `window.location.href = "/"` だったが、
+   * 素のブラウザ遷移には `basePath` が付かないため、アプリのトップではなく
+   * 配信サーバのルートへ飛んでいた(公開環境では別サービスの画面が出る)。
+   * `router.push()` なら basePath が付き、公開パスが変わっても追従する。
+   * マイデータ側のリセット(`PcMyDataPage` / `MobileSettingsPage`)と同じ形である。
+   */
   const handleReset = () => {
     if (confirm("入力データと対話履歴をすべて消去しますか?")) {
       clearProfile();
       clearAll();
       clearHistory();
-      window.location.href = "/";
+      router.push("/");
     }
   };
 
@@ -94,7 +104,7 @@ export default function Header() {
             SVG は最適化の対象外（`dangerouslyAllowSVG` が既定の false のままだと
             /_next/image が 400 を返す）ので `unoptimized` を付ける。ただし
             `unoptimized` は src をそのまま出すため、`"/logo.svg"` と書くと
-            basePath（/pr-2026）が付かず 404 になる。**静的 import で渡すこと。**
+            basePath（/syllabel）が付かず 404 になる。**静的 import で渡すこと。**
           */}
           <Image
             src={logoMark}
