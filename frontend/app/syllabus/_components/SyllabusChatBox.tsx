@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback } from "react";
 import { Sparkles, Send } from "lucide-react";
 import { useStudentStore } from "@/lib/student";
-import { streamCourseChat } from "@/lib/chatApi";
+import { streamCourseChat, streamSyllabusChat } from "@/lib/chatApi";
 
 type Message = { role: "user" | "assistant"; content: string; streaming?: boolean };
 
@@ -50,19 +50,21 @@ export default function SyllabusChatBox({
 
     try {
       let accumulated = "";
-      await streamCourseChat(
-        code ?? "__syllabus__",
-        { profile, history, message: text },
-        (delta) => {
-          accumulated += delta;
-          setMessages((prev) =>
-            prev.map((m, i) =>
-              i === prev.length - 1 ? { ...m, content: accumulated } : m,
-            ),
-          );
-        },
-        ctrl.signal,
-      );
+      const onDelta = (delta: string) => {
+        accumulated += delta;
+        setMessages((prev) =>
+          prev.map((m, i) =>
+            i === prev.length - 1 ? { ...m, content: accumulated } : m,
+          ),
+        );
+      };
+      const body = { profile, history, message: text };
+
+      // code が無ければシラバス全体への質問(§7.4)。講義単位の口(§7.5)は
+      // 実在する講義コードしか受けないため、架空のコードで代用してはならない。
+      await (code
+        ? streamCourseChat(code, body, onDelta, ctrl.signal)
+        : streamSyllabusChat(body, onDelta, ctrl.signal));
     } catch (err) {
       if ((err as Error).name !== "AbortError") {
         setMessages((prev) =>
