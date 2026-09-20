@@ -65,7 +65,7 @@ rootless Podman で3つのコンテナを、Podman ネットワーク `syllabel`
 
 | コンテナ | イメージ | 公開 | 役割 |
 |---|---|---|---|
-| gateway | `caddy:alpine` | `0.0.0.0:8080` | 振り分け。`/syllabel/api/*` を backend、`/syllabel`・`/syllabel/*` を frontend へ |
+| gateway | `caddy:alpine` | `0.0.0.0:8080` | 振り分け。`/syllabel/api/*` を backend、`/syllabel`・`/syllabel/*` を frontend へ。**入口が書き換えて渡す `/pr-2026*` も同じ宛先で受ける**(§3.5.1) |
 | frontend | 自ビルド(`frontend/Containerfile`) | なし(ネットワーク経由でのみ到達) | Next.js standalone(`PORT=3000`、`NODE_ENV=production`) |
 | backend | 自ビルド(`backend/Dockerfile`、x86_64) | なし | FastAPI + PydanticAI。トークンゲートウェイ経由で vllm(§6.3)と api-clean(§3.4.4)を呼ぶ |
 
@@ -95,6 +95,20 @@ rootless Podman で3つのコンテナを、Podman ネットワーク `syllabel`
       # /syllabel と /syllabel/* の両方をフロントへ渡す
       @app path /syllabel /syllabel/*
       handle @app {
+              reverse_proxy syllabel-frontend:3000
+      }
+
+      # 入口は /syllabel/* を /pr-2026/* に書き換えて渡してくる(§3.5.1)。
+      # ここで /syllabel に戻してからアプリへ渡す。入口が素通しになれば不要。
+      handle_path /pr-2026/api/* {
+              reverse_proxy {$BACKEND_ADDR}
+      }
+      handle_path /pr-2026/* {
+              rewrite * /syllabel{uri}
+              reverse_proxy syllabel-frontend:3000
+      }
+      handle /pr-2026 {
+              rewrite * /syllabel
               reverse_proxy syllabel-frontend:3000
       }
 
@@ -400,6 +414,10 @@ api-clean は DGX Spark の loopback にあり、そのままでは公開 VM か
 
 TLS 終端と証明書の管理は GW ホスト側の Incus コンテナが担う。公開 VM の gateway はその後段にあり、HTTP で受ける。
 
+**入口は公開 URI を書き換えてから公開 VM へ渡す。** ブラウザが見る `/syllabel/*` を、入口の Caddy が `uri replace` で **`/pr-2026/*` に直して**公開 VM の gateway へ転送する(あわせて旧 URI `/pr-2026*` は入口が 308 で `/syllabel` へ寄せる)。公開パスを `/pr-2026` から `/syllabel` へ改める際、入口を先に改名しアプリが追いつくまでの橋渡しとして置かれたものである。**アプリが `/syllabel` 配信になった今、この書き換えは不要だが、入口は他プロジェクトと共用で所有者が管理するため(§3.1)、こちらからは外さない。** 代わりに**公開 VM の gateway が `/pr-2026*` を受けて `/syllabel*` に戻す**(§3.2.1)。ブラウザから見える URL は一貫して `/syllabel` であり、`/pr-2026` が外に出ることはない。
+
+**この2段の書き換えは、どちらか一方だけを変えると壊れる。** 入口が素通しに変われば公開 VM 側の受けは不要になり、逆に公開 VM 側の受けを先に外すと公開 URL が 404 になる(実際に起きた。§13)。
+
 **GW ホストの `ss` に 80/443 は現れない。** DNAT された通信は転送されるだけでホストへローカル配送されないためである。同じ理由で、公開 VM から GW ホストの公開アドレスへ向けた通信は DNAT の対象とならず到達しない。**外部からの到達性を公開 VM の内側から検証することはできない。**
 
 `/syllabel/api/*` の振り分けは公開入口から公開 VM の gateway まで成立しており、gateway → backend は同一 Podman ネットワーク内で閉じる(§3.2.1)。
@@ -410,12 +428,13 @@ TLS 終端と証明書の管理は GW ホスト側の Incus コンテナが担�
 
 公開 URL は **`/syllabel` 配下のサブパス配信**とする。frontend は `next.config.ts` の `basePath: "/syllabel"` でビルドされており、gateway の振り分けもこれに合わせている(§3.2.1)。
 
-**パスの名はサービス名 `Syllabel` から採る。** 名称が決まるまでは `/pr-2026` を使っていたが、決定に伴い `/syllabel` に改めた。本書は `/syllabel` だけを正とし、旧パスを残すかはゲートウェイ側の設定の問題として扱う(§13)。
+**パスの名はサービス名 `Syllabel` から採る。** 名称が決まるまでは `/pr-2026` を使っていたが、決定に伴い `/syllabel` に改めた。**公開 URI は `/syllabel` だけである。** 旧 `/pr-2026` は入口が 308 で `/syllabel` へ寄せるため、外から見える口としては存在しない。公開 VM の gateway が `/pr-2026*` を受けるのは入口の書き換え(§3.5.1)を戻すためであり、公開パスではない。
 
 | 公開パス | 転送先 | 備考 |
 |---|---|---|
 | `/syllabel`、`/syllabel/*` | frontend | Next.js が `basePath` で受ける |
 | `/syllabel/api/*` | backend | gateway が `/syllabel` を剥がし、backend には `/api/*` として届く |
+| `/pr-2026`、`/pr-2026/*` | frontend / backend | **公開パスではない。** 入口の書き換え(§3.5.1)を gateway が戻して振り分ける |
 | 上記以外 | 404 | gateway が返す |
 
 **内部 API の公開パスは `/syllabel/api/*` であり、`/api/*` ではない。** Next.js の `basePath` はページとアセットの生成先を変えるだけで、アプリケーションコードが呼ぶ `fetch()` のパスには前置されない。したがって **frontend は自身の呼び出し先に `/syllabel` を明示的に含める必要がある**(§6.1)。
