@@ -49,11 +49,23 @@ GW ホストには本プロジェクト以外の VM(トークンゲートウェ�
 
 #### 3.2.1 公開 VM
 
-rootless Podman で3つのコンテナを、Podman ネットワーク `pr2026` 上で名前解決させて動かす。定義は **Quadlet** で、`~/.config/containers/systemd/` に置いた `pr2026.network` と3つの `.container` から systemd ユーザユニットが生成される(§3.3)。
+rootless Podman で3つのコンテナを、Podman ネットワーク `syllabel` 上で名前解決させて動かす。定義は **Quadlet** で、`~/.config/containers/systemd/` に置いた `syllabel.network` と3つの `.container` から systemd ユーザユニットが生成される(§3.3)。
+
+**名前はサービス名 `Syllabel` で揃える。** 名称が決まるまでは `pr2026` を接頭辞にしていたが、ネットワーク `syllabel`、コンテナとユニット `syllabel-{backend,frontend,gateway}`、イメージ `localhost/syllabel-{backend,frontend}:latest` に改めた。**コンテナ名はネットワーク内の名前解決の宛先そのもの**であり、gateway の `BACKEND_ADDR`、frontend の `BACKEND_ORIGIN`、`lib/api_base.ts` の既定値(§6.1)がこの名前を指す。
+
+**稼働中の VM では、リポジトリを更新しただけでは改名は反映されない。** Quadlet のユニットは `~/.config/containers/systemd/` にあり本リポジトリの管理外だからである。次の順で行う。
+
+1. `systemctl --user stop pr2026-{gateway,frontend,backend}.service`
+2. Quadlet のファイル名と中身を改める(`pr2026.network` → `syllabel.network`、各 `.container` の `ContainerName=`・`Network=`・`Image=`)
+3. gateway の環境ファイルの `BACKEND_ADDR` と frontend の `BACKEND_ORIGIN` を新しいコンテナ名に直す
+4. 新しいタグでイメージをビルドし直す(§3.3)
+5. `systemctl --user daemon-reload` してから起動する
+
+**古いネットワークとイメージは、新しい構成が上がってから消す。** 先に消すと戻せない。
 
 | コンテナ | イメージ | 公開 | 役割 |
 |---|---|---|---|
-| gateway | `caddy:alpine` | `0.0.0.0:8080` | 振り分け。`/pr-2026/api/*` を backend、`/pr-2026`・`/pr-2026/*` を frontend へ |
+| gateway | `caddy:alpine` | `0.0.0.0:8080` | 振り分け。`/syllabel/api/*` を backend、`/syllabel`・`/syllabel/*` を frontend へ |
 | frontend | 自ビルド(`frontend/Containerfile`) | なし(ネットワーク経由でのみ到達) | Next.js standalone(`PORT=3000`、`NODE_ENV=production`) |
 | backend | 自ビルド(`backend/Dockerfile`、x86_64) | なし | FastAPI + PydanticAI。トークンゲートウェイ経由で vllm(§6.3)と api-clean(§3.4.4)を呼ぶ |
 
@@ -73,17 +85,17 @@ rootless Podman で3つのコンテナを、Podman ネットワーク `pr2026` �
 
 ```caddyfile
 :8080 {
-      # /pr-2026/api/* → バックエンド(/pr-2026 だけ剥がす)
-      handle /pr-2026/api/* {
-              uri strip_prefix /pr-2026
+      # /syllabel/api/* → バックエンド(/syllabel だけ剥がす)
+      handle /syllabel/api/* {
+              uri strip_prefix /syllabel
               reverse_proxy {$BACKEND_ADDR}
       }
 
       # Next.js は basePath 使用時に末尾スラッシュ無しを正規とするため、
-      # /pr-2026 と /pr-2026/* の両方をフロントへ渡す
-      @app path /pr-2026 /pr-2026/*
+      # /syllabel と /syllabel/* の両方をフロントへ渡す
+      @app path /syllabel /syllabel/*
       handle @app {
-              reverse_proxy pr2026-frontend:3000
+              reverse_proxy syllabel-frontend:3000
       }
 
       handle {
@@ -92,13 +104,13 @@ rootless Podman で3つのコンテナを、Podman ネットワーク `pr2026` �
 }
 ```
 
-`BACKEND_ADDR` は gateway の Quadlet が読む環境ファイルで与え、**同一 Podman ネットワーク上の `pr2026-backend:8000` を指す**。この振り分けが §3.5.2 の URL 構造を決めている。
+`BACKEND_ADDR` は gateway の Quadlet が読む環境ファイルで与え、**同一 Podman ネットワーク上の `syllabel-backend:8000` を指す**。この振り分けが §3.5.2 の URL 構造を決めている。
 
 **Quadlet 管理下のコンテナは、`podman run` で作り直しても定義から作り直される。** 環境変数を変えるときは環境ファイルを直して `systemctl --user restart` を行う。コンテナを直接作り直すと、数秒後に systemd が定義どおりのコンテナへ置き換えるため、変更は反映されない。
 
 **SSE のために読み取りタイムアウトを明示する。** Caddy の `reverse_proxy` は既定でレスポンスをバッファリングしないため逐次配信自体は通るが、チャット系は1回のモデル呼び出しに100秒超かかることがあるため、既定のタイムアウトに委ねない(§13)。
 
-**frontend コンテナには backend の宛先を `BACKEND_ORIGIN` で渡す。** サーバ側描画から backend を引く経路(§6.1)が宛先を解決できるようにするためである。渡さない場合は本番既定の `http://pr2026-backend:8000` にフォールバックするため、コンテナ名を変えたときはこの環境変数で合わせる。
+**frontend コンテナには backend の宛先を `BACKEND_ORIGIN` で渡す。** サーバ側描画から backend を引く経路(§6.1)が宛先を解決できるようにするためである。渡さない場合は本番既定の `http://syllabel-backend:8000` にフォールバックするため、コンテナ名を変えたときはこの環境変数で合わせる。
 
 **backend コンテナには、トークンゲートウェイへの接続情報を渡す**(§6.3)。トークンは環境ファイル(パーミッション 600)に置き `--env-file` で与え、イメージには焼き込まない。あわせて、ゲートウェイの FQDN を公開入口コンテナの私設アドレスへ向けるため `--add-host` を与える(理由は §3.4.3)。接続情報は **vllm 向けと api-clean 向けの2組**(base_url とトークン)になる(§3.4.4、§6.2)。
 
@@ -173,16 +185,16 @@ GB10 の統合メモリ(121 GiB)上で **vLLM のエンジンが2基動いてい
 1. (DGX Spark)`docker compose -f docker-compose.clean.yml up -d` で postgres-clean → api-clean を起動する(既存スタック。初回は `bin/init_clean.sh` でデータ投入込みの構築)
 2. (DGX Spark)`docker compose up -d vllm`
 3. (公開 VM・初回のみ) backend と frontend のイメージを x86_64 でビルドする(§3.2)
-4. (公開 VM)Quadlet のユニットが `default.target` から起動する。個別に操作する場合は `systemctl --user start pr2026-{backend,frontend,gateway}.service`
+4. (公開 VM)Quadlet のユニットが `default.target` から起動する。個別に操作する場合は `systemctl --user start syllabel-{backend,frontend,gateway}.service`
 
 backend は起動時に履修要項 YAML をロードし、api-clean へ疎通する。api-clean へ到達できなくても backend 自体は上がるが、シラバス参照を伴う機能が失敗する(§3.4.4)。**vllm は公開 VM 側の起動順序に関与しない**(トークンゲートウェイ経由で呼ぶため、backend は起動時に vllm へ接続しない)。ただし vllm が停止していると、提案・チャットは `502 upstream_unavailable` で失敗する(§6.3)。
 
 **frontend と backend は揃えて入れ替える。** 両者の間には API の契約があり(§6.1)、片方だけ新しくすると呼び出しが噛み合わない。**実際に事故が起きた** — frontend だけを入れ替えたところ、新しい frontend が呼ぶ `GET /api/course-targets`(§6.1.3)を古い backend が持たず 404 を返し、検索画面が `error.tsx` に落ちた。デプロイは両方を建て直してから両方を再起動する。
 
 ```bash
-podman build -t localhost/pr2026-backend:latest ./backend
-podman build -t localhost/pr2026-frontend:latest ./frontend
-systemctl --user restart pr2026-backend.service pr2026-frontend.service
+podman build -t localhost/syllabel-backend:latest ./backend
+podman build -t localhost/syllabel-frontend:latest ./frontend
+systemctl --user restart syllabel-backend.service syllabel-frontend.service
 ```
 
 **API を足した側だけを先に入れるのは安全側である**(使われない口が増えるだけ)。逆順(呼ぶ側を先)は落ちる。判断に迷うときは backend を先に入れる。
@@ -206,7 +218,7 @@ systemctl --user restart pr2026-backend.service pr2026-frontend.service
 | frontend | 3000 | 公開しない(Podman ネットワーク経由で gateway から参照) |
 | backend | 8000 | 公開しない(同上) |
 
-**公開 VM でホストに公開するのは gateway の 8080 のみとする。** コンテナ間の通信は Podman ネットワーク経由(サービス名:コンテナ内ポート、例 `http://pr2026-backend:8000`)で行う。
+**公開 VM でホストに公開するのは gateway の 8080 のみとする。** コンテナ間の通信は Podman ネットワーク経由(サービス名:コンテナ内ポート、例 `http://syllabel-backend:8000`)で行う。
 
 **DGX Spark**
 
@@ -365,7 +377,7 @@ api-clean は DGX Spark の loopback にあり、そのままでは公開 VM か
 
 #### 3.5.1 公開経路
 
-**frontend は学外から HTTPS で到達できる。** 公開 URL は §3.5.2 のとおり `/pr-2026` 配下のサブパスである(実 URL は運用メモ)。
+**frontend は学外から HTTPS で到達できる。** 公開 URL は §3.5.2 のとおり `/syllabel` 配下のサブパスである(実 URL は運用メモ)。
 
 ```
 学生ブラウザ ──HTTPS──> GW ホストの公開アドレス :443
@@ -384,27 +396,29 @@ api-clean は DGX Spark の loopback にあり、そのままでは公開 VM か
 
 **backend からトークンゲートウェイへ向かう通信は、公開アドレスではなく Incus コンテナの私設アドレスへ直接向ける**(§3.4.3)。VM の内側から公開アドレスを叩いても DNAT の対象とならず到達しないためである。
 
-**★1・★2 はいずれも backend からトークンゲートウェイへ向かう通信であり、学生のブラウザは使わない。** ブラウザが触れるのは `/pr-2026` 配下だけである(§3.5.2)。
+**★1・★2 はいずれも backend からトークンゲートウェイへ向かう通信であり、学生のブラウザは使わない。** ブラウザが触れるのは `/syllabel` 配下だけである(§3.5.2)。
 
 TLS 終端と証明書の管理は GW ホスト側の Incus コンテナが担う。公開 VM の gateway はその後段にあり、HTTP で受ける。
 
 **GW ホストの `ss` に 80/443 は現れない。** DNAT された通信は転送されるだけでホストへローカル配送されないためである。同じ理由で、公開 VM から GW ホストの公開アドレスへ向けた通信は DNAT の対象とならず到達しない。**外部からの到達性を公開 VM の内側から検証することはできない。**
 
-`/pr-2026/api/*` の振り分けは公開入口から公開 VM の gateway まで成立しており、gateway → backend は同一 Podman ネットワーク内で閉じる(§3.2.1)。
+`/syllabel/api/*` の振り分けは公開入口から公開 VM の gateway まで成立しており、gateway → backend は同一 Podman ネットワーク内で閉じる(§3.2.1)。
 
-**死活確認には `/pr-2026/api/healthz` を用いる。** gateway が `/pr-2026` を剥がすため、backend には `/api/healthz` として届く。backend はルート直下の `/healthz` も持つが、`/pr-2026/*` は frontend へ振り分けられるため、**公開経路からは到達しない**。
+**死活確認には `/syllabel/api/healthz` を用いる。** gateway が `/syllabel` を剥がすため、backend には `/api/healthz` として届く。backend はルート直下の `/healthz` も持つが、`/syllabel/*` は frontend へ振り分けられるため、**公開経路からは到達しない**。
 
 #### 3.5.2 URL 構造
 
-公開 URL は **`/pr-2026` 配下のサブパス配信**とする。frontend は `next.config.ts` の `basePath: "/pr-2026"` でビルドされており、gateway の振り分けもこれに合わせている(§3.2.1)。
+公開 URL は **`/syllabel` 配下のサブパス配信**とする。frontend は `next.config.ts` の `basePath: "/syllabel"` でビルドされており、gateway の振り分けもこれに合わせている(§3.2.1)。
+
+**パスの名はサービス名 `Syllabel` から採る。** 名称が決まるまでは `/pr-2026` を使っていたが、決定に伴い `/syllabel` に改めた。本書は `/syllabel` だけを正とし、旧パスを残すかはゲートウェイ側の設定の問題として扱う(§13)。
 
 | 公開パス | 転送先 | 備考 |
 |---|---|---|
-| `/pr-2026`、`/pr-2026/*` | frontend | Next.js が `basePath` で受ける |
-| `/pr-2026/api/*` | backend | gateway が `/pr-2026` を剥がし、backend には `/api/*` として届く |
+| `/syllabel`、`/syllabel/*` | frontend | Next.js が `basePath` で受ける |
+| `/syllabel/api/*` | backend | gateway が `/syllabel` を剥がし、backend には `/api/*` として届く |
 | 上記以外 | 404 | gateway が返す |
 
-**内部 API の公開パスは `/pr-2026/api/*` であり、`/api/*` ではない。** Next.js の `basePath` はページとアセットの生成先を変えるだけで、アプリケーションコードが呼ぶ `fetch()` のパスには前置されない。したがって **frontend は自身の呼び出し先に `/pr-2026` を明示的に含める必要がある**(§6.1)。
+**内部 API の公開パスは `/syllabel/api/*` であり、`/api/*` ではない。** Next.js の `basePath` はページとアセットの生成先を変えるだけで、アプリケーションコードが呼ぶ `fetch()` のパスには前置されない。したがって **frontend は自身の呼び出し先に `/syllabel` を明示的に含める必要がある**(§6.1)。
 
 `/` をルート配信へ寄せる案は採らない。GW ホストは他用途と共用されており、ルートを本プロジェクトが占有できないためである。
 
