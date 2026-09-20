@@ -100,7 +100,12 @@ rootless Podman で3つのコンテナを、Podman ネットワーク `syllabel`
 
       # 入口は /syllabel/* を /pr-2026/* に書き換えて渡してくる(§3.5.1)。
       # ここで /syllabel に戻してからアプリへ渡す。入口が素通しになれば不要。
-      handle_path /pr-2026/api/* {
+      #
+      # **API は `handle_path` で受けてはならない。** handle_path は一致した
+      # プレフィックス全体(/pr-2026/api)を剥がすため、backend には /chat/... が
+      # 届いて 404 になる。剥がすのは /pr-2026 だけである(実際に踏んだ)
+      handle /pr-2026/api/* {
+              uri strip_prefix /pr-2026
               reverse_proxy {$BACKEND_ADDR}
       }
       handle_path /pr-2026/* {
