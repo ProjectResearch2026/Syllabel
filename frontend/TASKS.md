@@ -103,7 +103,7 @@ systemctl --user restart pr2026-backend.service pr2026-frontend.service
 
 ## メモ
 
-- バックエンドとの通信は **`/pr-2026/api/*`** 経由（ゲートウェイが `/pr-2026` を剥がして backend へ振り分け）— design.md §3.5.2、§6.1。`basePath` は `fetch()` のパスに前置されないため、宛先は `lib/api_base.ts` の `apiBase()` で解決する
+- バックエンドとの通信は **`/syllabel/api/*`** 経由（ゲートウェイが `/syllabel` を剥がして backend へ振り分け）— design.md §3.5.2、§6.1。`basePath` は `fetch()` のパスに前置されないため、宛先は `lib/api_base.ts` の `apiBase()` で解決する
 - `persist` ミドルウェア使用禁止（プライバシー要件）— design.md §9
 - PDFファイル自体をサーバーへ送信しない — 解析はクライアント完結
 - design.md §8 の正規ルート: `/`・`/proposal`・`/syllabus`・`/syllabus/[code]`・`/privacy`

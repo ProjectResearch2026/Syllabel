@@ -53,7 +53,7 @@ rootless Podman で3つのコンテナを、Podman ネットワーク `pr2026` �
 
 | コンテナ | イメージ | 公開 | 役割 |
 |---|---|---|---|
-| gateway | `caddy:alpine` | `0.0.0.0:8080` | 振り分け。`/pr-2026/api/*` を backend、`/pr-2026`・`/pr-2026/*` を frontend へ |
+| gateway | `caddy:alpine` | `0.0.0.0:8080` | 振り分け。`/syllabel/api/*` を backend、`/syllabel`・`/syllabel/*` を frontend へ |
 | frontend | 自ビルド(`frontend/Containerfile`) | なし(ネットワーク経由でのみ到達) | Next.js standalone(`PORT=3000`、`NODE_ENV=production`) |
 | backend | 自ビルド(`backend/Dockerfile`、x86_64) | なし | FastAPI + PydanticAI。トークンゲートウェイ経由で vllm(§6.3)と api-clean(§3.4.4)を呼ぶ |
 
@@ -73,15 +73,15 @@ rootless Podman で3つのコンテナを、Podman ネットワーク `pr2026` �
 
 ```caddyfile
 :8080 {
-      # /pr-2026/api/* → バックエンド(/pr-2026 だけ剥がす)
-      handle /pr-2026/api/* {
-              uri strip_prefix /pr-2026
+      # /syllabel/api/* → バックエンド(/syllabel だけ剥がす)
+      handle /syllabel/api/* {
+              uri strip_prefix /syllabel
               reverse_proxy {$BACKEND_ADDR}
       }
 
       # Next.js は basePath 使用時に末尾スラッシュ無しを正規とするため、
-      # /pr-2026 と /pr-2026/* の両方をフロントへ渡す
-      @app path /pr-2026 /pr-2026/*
+      # /syllabel と /syllabel/* の両方をフロントへ渡す
+      @app path /syllabel /syllabel/*
       handle @app {
               reverse_proxy pr2026-frontend:3000
       }
@@ -365,7 +365,7 @@ api-clean は DGX Spark の loopback にあり、そのままでは公開 VM か
 
 #### 3.5.1 公開経路
 
-**frontend は学外から HTTPS で到達できる。** 公開 URL は §3.5.2 のとおり `/pr-2026` 配下のサブパスである(実 URL は運用メモ)。
+**frontend は学外から HTTPS で到達できる。** 公開 URL は §3.5.2 のとおり `/syllabel` 配下のサブパスである(実 URL は運用メモ)。
 
 ```
 学生ブラウザ ──HTTPS──> GW ホストの公開アドレス :443
@@ -384,27 +384,29 @@ api-clean は DGX Spark の loopback にあり、そのままでは公開 VM か
 
 **backend からトークンゲートウェイへ向かう通信は、公開アドレスではなく Incus コンテナの私設アドレスへ直接向ける**(§3.4.3)。VM の内側から公開アドレスを叩いても DNAT の対象とならず到達しないためである。
 
-**★1・★2 はいずれも backend からトークンゲートウェイへ向かう通信であり、学生のブラウザは使わない。** ブラウザが触れるのは `/pr-2026` 配下だけである(§3.5.2)。
+**★1・★2 はいずれも backend からトークンゲートウェイへ向かう通信であり、学生のブラウザは使わない。** ブラウザが触れるのは `/syllabel` 配下だけである(§3.5.2)。
 
 TLS 終端と証明書の管理は GW ホスト側の Incus コンテナが担う。公開 VM の gateway はその後段にあり、HTTP で受ける。
 
 **GW ホストの `ss` に 80/443 は現れない。** DNAT された通信は転送されるだけでホストへローカル配送されないためである。同じ理由で、公開 VM から GW ホストの公開アドレスへ向けた通信は DNAT の対象とならず到達しない。**外部からの到達性を公開 VM の内側から検証することはできない。**
 
-`/pr-2026/api/*` の振り分けは公開入口から公開 VM の gateway まで成立しており、gateway → backend は同一 Podman ネットワーク内で閉じる(§3.2.1)。
+`/syllabel/api/*` の振り分けは公開入口から公開 VM の gateway まで成立しており、gateway → backend は同一 Podman ネットワーク内で閉じる(§3.2.1)。
 
-**死活確認には `/pr-2026/api/healthz` を用いる。** gateway が `/pr-2026` を剥がすため、backend には `/api/healthz` として届く。backend はルート直下の `/healthz` も持つが、`/pr-2026/*` は frontend へ振り分けられるため、**公開経路からは到達しない**。
+**死活確認には `/syllabel/api/healthz` を用いる。** gateway が `/syllabel` を剥がすため、backend には `/api/healthz` として届く。backend はルート直下の `/healthz` も持つが、`/syllabel/*` は frontend へ振り分けられるため、**公開経路からは到達しない**。
 
 #### 3.5.2 URL 構造
 
-公開 URL は **`/pr-2026` 配下のサブパス配信**とする。frontend は `next.config.ts` の `basePath: "/pr-2026"` でビルドされており、gateway の振り分けもこれに合わせている(§3.2.1)。
+公開 URL は **`/syllabel` 配下のサブパス配信**とする。frontend は `next.config.ts` の `basePath: "/syllabel"` でビルドされており、gateway の振り分けもこれに合わせている(§3.2.1)。
+
+**パスの名はサービス名 `Syllabel` から採る。** 名称が決まるまでは `/pr-2026` を使っていたが、決定に伴い `/syllabel` に改めた。本書は `/syllabel` だけを正とし、旧パスを残すかはゲートウェイ側の設定の問題として扱う(§13)。
 
 | 公開パス | 転送先 | 備考 |
 |---|---|---|
-| `/pr-2026`、`/pr-2026/*` | frontend | Next.js が `basePath` で受ける |
-| `/pr-2026/api/*` | backend | gateway が `/pr-2026` を剥がし、backend には `/api/*` として届く |
+| `/syllabel`、`/syllabel/*` | frontend | Next.js が `basePath` で受ける |
+| `/syllabel/api/*` | backend | gateway が `/syllabel` を剥がし、backend には `/api/*` として届く |
 | 上記以外 | 404 | gateway が返す |
 
-**内部 API の公開パスは `/pr-2026/api/*` であり、`/api/*` ではない。** Next.js の `basePath` はページとアセットの生成先を変えるだけで、アプリケーションコードが呼ぶ `fetch()` のパスには前置されない。したがって **frontend は自身の呼び出し先に `/pr-2026` を明示的に含める必要がある**(§6.1)。
+**内部 API の公開パスは `/syllabel/api/*` であり、`/api/*` ではない。** Next.js の `basePath` はページとアセットの生成先を変えるだけで、アプリケーションコードが呼ぶ `fetch()` のパスには前置されない。したがって **frontend は自身の呼び出し先に `/syllabel` を明示的に含める必要がある**(§6.1)。
 
 `/` をルート配信へ寄せる案は採らない。GW ホストは他用途と共用されており、ルートを本プロジェクトが占有できないためである。
 

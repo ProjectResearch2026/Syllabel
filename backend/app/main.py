@@ -35,7 +35,7 @@ app.include_router(chat_proposal_router)
 app.include_router(curricula_router)
 app.include_router(proposal_router)
 
-# 公開経路から backend へ届くのは `/pr-2026/api/*` だけで、gateway が `/pr-2026`
+# 公開経路から backend へ届くのは `/syllabel/api/*` だけで、gateway が `/syllabel`
 # を剥がすため `/api/healthz` として到達する(§3.2.1、§3.5.1)。`/healthz` は
 # コンテナ内やネットワーク内から直に叩く用に残す。
 @app.get("/healthz")

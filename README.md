@@ -34,7 +34,7 @@
 | 公開 VM(アドバイザー教員研究室の Web サーバ上) | gateway(Caddy。振り分け)、frontend(Next.js)。TLS 終端は VM の外側、教員側の管理範囲 |
 | DGX Spark(学内) | backend(FastAPI + PydanticAI)、vllm、api-clean・postgres-clean(既存のシラバスバックエンド。無変更で利用) |
 
-学生のブラウザは gateway だけにアクセスし、`/pr-2026` と `/pr-2026/*` は frontend、`/pr-2026/api/*` は backend へ振り分けられる(公開パスは `/pr-2026` 配下のサブパス)。シラバス情報は backend が api-clean を中継して返し、api-clean 自体は公開しない。
+学生のブラウザは gateway だけにアクセスし、`/syllabel` と `/syllabel/*` は frontend、`/syllabel/api/*` は backend へ振り分けられる(公開パスは `/syllabel` 配下のサブパス)。シラバス情報は backend が api-clean を中継して返し、api-clean 自体は公開しない。
 
 ## リポジトリ構成
 
@@ -85,16 +85,16 @@ uvicorn app.main:app --reload      # 開発サーバ(http://localhost:8000)
 ```bash
 cd frontend
 npm install
-npm run dev                        # http://localhost:3000/pr-2026
+npm run dev                        # http://localhost:3000/syllabel
 ```
 
-`next.config.ts` の `basePath` によりサブパス配信になっている。`basePath` は `fetch()` のパスには前置されないため、**backend への呼び出しは公開パスの `/pr-2026/api/*` を明示的に含める**(設計§3.5.2、§6.1)。宛先の解決は `lib/api_base.ts` の `apiBase()` に集約してあり、ブラウザからは同一オリジンの `/pr-2026/api`、サーバ側描画(RSC)からは backend のオリジンを直に引く。
+`next.config.ts` の `basePath` によりサブパス配信になっている。`basePath` は `fetch()` のパスには前置されないため、**backend への呼び出しは公開パスの `/syllabel/api/*` を明示的に含める**(設計§3.5.2、§6.1)。宛先の解決は `lib/api_base.ts` の `apiBase()` に集約してあり、ブラウザからは同一オリジンの `/syllabel/api`、サーバ側描画(RSC)からは backend のオリジンを直に引く。
 
 | 環境変数 | 既定 | 用途 |
 |---|---|---|
 | `BACKEND_ORIGIN` | 開発時 `http://localhost:8000` / 本番 `http://pr2026-backend:8000` | サーバ側描画から引く backend のオリジン。公開 VM では Quadlet の環境ファイルで与える(設計§3.2.1)。**渡さないと既定にフォールバックする** |
 
-開発時はゲートウェイが居ないため、ブラウザからの `/pr-2026/api/*` は `next.config.ts` の `rewrites()` が `BACKEND_ORIGIN` へ中継する(本番ではゲートウェイが振り分けるため無効)。上の backend 開発サーバを立てておけば、そのまま疎通する。
+開発時はゲートウェイが居ないため、ブラウザからの `/syllabel/api/*` は `next.config.ts` の `rewrites()` が `BACKEND_ORIGIN` へ中継する(本番ではゲートウェイが振り分けるため無効)。上の backend 開発サーバを立てておけば、そのまま疎通する。
 
 ### ローカル開発環境(シラバス検索まで一式)
 
@@ -125,7 +125,7 @@ cd .. && scripts/dev.sh
 
 | URL | 中身 |
 |---|---|
-| `http://localhost:3000/pr-2026/syllabus` | 画面 |
+| `http://localhost:3000/syllabel/syllabus` | 画面 |
 | `http://localhost:8000/api/healthz` | backend |
 | `http://localhost:5050/docs` | api-clean(Swagger UI) |
 
@@ -134,7 +134,7 @@ cd .. && scripts/dev.sh
 **frontend だけを触るなら backend も要らない。** 公開中の backend を宛先にすれば、DB もシラバスリポジトリも無しで画面の開発ができる(サーバ側描画・ブラウザの両方がこの宛先を使う。設計§6.1)。
 
 ```bash
-cd frontend && BACKEND_ORIGIN="https://<公開ホスト>/pr-2026" npm run dev
+cd frontend && BACKEND_ORIGIN="https://<公開ホスト>/syllabel" npm run dev
 ```
 
 ### 実機スモーク
@@ -169,7 +169,7 @@ podman exec -it pr2026-backend python -m scripts.smoke_api_clean
 | frontend | 全画面を実装済み。backend との接続は設計§6.1 の宛先・SSE 書式・スキーマに準拠(`lib/api_base.ts` / `lib/chatApi.ts` / `lib/syllabus-api.ts`) |
 | 履修要項データ | 2024・2025年度入学の6課程 + 教養教育科目を作成済み。2026年度入学分は転記中 |
 | 開講年度データ | 2026年度分を作成済み。生成スクリプト(`scripts/build_offerings.py`)は未実装 |
-| インフラ | frontend は学外から HTTPS で到達できる。**`/pr-2026/api/*` も公開 URL で疎通済み**(学生ブラウザ → 入口 Caddy → gateway → backend → トークンゲートウェイ → api-clean。設計§3.4.4)。frontend コンテナには `BACKEND_ORIGIN` を環境ファイルで渡す(設計§3.2.1)。CI は未整備 |
+| インフラ | frontend は学外から HTTPS で到達できる。**`/syllabel/api/*` も公開 URL で疎通済み**(学生ブラウザ → 入口 Caddy → gateway → backend → トークンゲートウェイ → api-clean。設計§3.4.4)。frontend コンテナには `BACKEND_ORIGIN` を環境ファイルで渡す(設計§3.2.1)。CI は未整備 |
 
 ## 開発ルール
 

@@ -66,7 +66,7 @@ echo "-> backend  http://localhost:$BACKEND_PORT  (api-clean: $API_CLEAN_BASE_UR
 ) &
 pids+=($!)
 
-echo "-> frontend http://localhost:3000/pr-2026"
+echo "-> frontend http://localhost:3000/syllabel"
 (
   cd "$REPO/frontend"
   BACKEND_ORIGIN="$BACKEND_ORIGIN" npm run dev 2>&1 | sed 's/^/[frontend] /'
@@ -76,7 +76,7 @@ pids+=($!)
 cat <<EOF
 
 起動中。Ctrl-C で両方止まります。
-  画面      : http://localhost:3000/pr-2026/syllabus
+  画面      : http://localhost:3000/syllabel/syllabus
   backend   : http://localhost:$BACKEND_PORT/api/healthz
   api-clean : $API_CLEAN_BASE_URL/docs
 

@@ -96,8 +96,8 @@ flowchart TB
 
     Browser -->|"HTTPS"| Edge
     Edge -->|"HTTP"| Gateway
-    Gateway -->|"HTTP<br/>/pr-2026, /pr-2026/* を VM 内で配信"| Frontend
-    Gateway -->|"HTTP / SSE<br/>/pr-2026/api/* を /api/* に直して VM 内で中継"| Backend
+    Gateway -->|"HTTP<br/>/syllabel, /syllabel/* を VM 内で配信"| Frontend
+    Gateway -->|"HTTP / SSE<br/>/syllabel/api/* を /api/* に直して VM 内で中継"| Backend
     Frontend -.->|"HTTP<br/>サーバ側描画時(§6.1)"| Backend
     Backend -->|"HTTPS + Bearer トークン<br/>★1 / ★2 入口コンテナ経由(§6.3)"| Edge
     Edge -->|"/spark/* を中継"| TokenGW
@@ -106,9 +106,9 @@ flowchart TB
     APIClean --> PG
 ```
 
-ゲートウェイは単一の公開オリジンとして振る舞い、`/pr-2026`・`/pr-2026/*` を frontend へ、`/pr-2026/api/*` を backend へ振り分ける。**いずれも同一 VM 内である**(振り分けの実体は §3.2.1、URL 構造の規定は §3.5.2)。ブラウザから見た通信相手は常にゲートウェイの1オリジンに統一されるため、backend を別オリジンとして直接公開する必要がなく、CORS の考慮も不要になる。
+ゲートウェイは単一の公開オリジンとして振る舞い、`/syllabel`・`/syllabel/*` を frontend へ、`/syllabel/api/*` を backend へ振り分ける。**いずれも同一 VM 内である**(振り分けの実体は §3.2.1、URL 構造の規定は §3.5.2)。ブラウザから見た通信相手は常にゲートウェイの1オリジンに統一されるため、backend を別オリジンとして直接公開する必要がなく、CORS の考慮も不要になる。
 
-**公開パスは `/` ではなく `/pr-2026` 配下である。** GW ホストは他用途と共用されており、ルートを本プロジェクトが占有できないためである。backend へ向かうパスも `/pr-2026/api/*` であり、`/api/*` ではない(§3.5.2)。
+**公開パスは `/` ではなく `/syllabel` 配下である。** GW ホストは他用途と共用されており、ルートを本プロジェクトが占有できないためである。backend へ向かうパスも `/syllabel/api/*` であり、`/api/*` ではない(§3.5.2)。
 
 ### 1.3 データの流れ
 
