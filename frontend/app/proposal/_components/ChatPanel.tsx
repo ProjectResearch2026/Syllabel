@@ -1,160 +1,66 @@
 "use client";
 
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import AiChatPanel from "@/components/pc/AiChatPanel";
-import { useChatStore, type ChatMessage } from "@/lib/chat";
-import { useChatHistory } from "@/lib/chatHistory";
-import { useStudentStore } from "@/lib/student";
-import { useProposalStore } from "@/lib/proposal";
-import { streamProposalChat } from "@/lib/chatApi";
+import {
+  PREFERENCES_NOTE,
+  useProposalConversation,
+} from "@/lib/useProposalConversation";
 
-const FALLBACK_INTRO =
-  "卒業要件から逆算し、今期の履修を提案しました。コマ重複はありません。ご質問があればお気軽にどうぞ。";
-
-/** 会話の1行目。やり直したときも同じ挨拶から始める */
-function introMessage(summary: string | null | undefined): ChatMessage {
-  const now = new Date();
-  return {
-    id: `proposal-init-${Date.now()}`,
-    role: "assistant",
-    content: summary || FALLBACK_INTRO,
-    time: `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`,
-  };
-}
-
-/** 提案画面のAIパネル。見た目は `AiChatPanel`、中身は提案チャットのSSE（§7.2）。 */
+/**
+ * 提案画面のAIパネル。見た目は `AiChatPanel`、中身は `useProposalConversation`
+ * （design.md §8.3）。
+ *
+ * **提案前からこのパネルを使う。** 希望条件のための入力欄を別に設けず、同じ欄が
+ * 提案の有無で `POST /api/proposal` と `POST /api/chat/proposal` に向かう
+ * （§8.3.1）。同じ画面に入力欄を2つ並べると、学生はどちらに書けばよいかを
+ * 画面から判断できないためである。
+ */
 export default function ChatPanel() {
-  const { proposalMessages, setProposalMessages, addProposalMessage } = useChatStore();
-  const profile = useStudentStore((s) => s.profile);
-  const { status, message: proposalMessage } = useProposalStore();
-  const { entries, archive, restore } = useChatHistory("proposal");
+  const {
+    messages,
+    streaming,
+    holdsProposal,
+    canStart,
+    send,
+    startWithoutPreferences,
+    restart,
+    newChat,
+    history,
+    selectHistory,
+  } = useProposalConversation();
   const [input, setInput] = useState("");
-  const [streaming, setStreaming] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
-  const seq = useRef(0);
 
-  /** いまの会話を履歴へどけてから、次の会話に移る */
-  const swapTo = useCallback(
-    (next: ChatMessage[]) => {
-      abortRef.current?.abort();
-      archive("proposal", proposalMessages);
-      setProposalMessages(next);
-    },
-    [archive, proposalMessages, setProposalMessages],
-  );
-
-  // 提案が完了したらその説明を初期メッセージとして設定
-  useEffect(() => {
-    if (status === "done" && proposalMessages.length === 0) {
-      const now = new Date();
-      const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
-      setProposalMessages([
-        {
-          id: "proposal-init-1",
-          role: "assistant",
-          content:
-            proposalMessage ||
-            "卒業要件から逆算し、今期の履修を提案しました。コマ重複はありません。ご質問があればお気軽にどうぞ。",
-          time,
-        },
-      ]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]);
-
-  // 提案生成中の表示
-  useEffect(() => {
-    if (status === "loading" && proposalMessages.length === 0) {
-      const now = new Date();
-      const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
-      setProposalMessages([
-        {
-          id: "proposal-loading",
-          role: "assistant",
-          content: "",
-          time,
-          streaming: true,
-        },
-      ]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]);
-
-  const send = useCallback(
-    async (raw: string) => {
-      const text = raw.trim();
-      if (!text || streaming) return;
-      setInput("");
-
-      const now = new Date();
-      const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
-      const base = seq.current;
-      seq.current += 2;
-      const assistantId = `proposal-a${base + 1}`;
-
-      const history = proposalMessages
-        .filter((m) => !m.streaming)
-        .map((m) => ({ role: m.role, content: m.content }));
-
-      addProposalMessage({ id: `proposal-u${base}`, role: "user", content: text, time });
-      addProposalMessage({ id: assistantId, role: "assistant", content: "", time, streaming: true });
-
-      const ctrl = new AbortController();
-      abortRef.current = ctrl;
-      setStreaming(true);
-
-      try {
-        let accumulated = "";
-        await streamProposalChat(
-          { profile, history, message: text },
-          (delta) => {
-            accumulated += delta;
-            useChatStore.setState((state) => ({
-              proposalMessages: state.proposalMessages.map((m) =>
-                m.id === assistantId ? { ...m, content: accumulated } : m,
-              ),
-            }));
-          },
-          ctrl.signal,
-        );
-      } catch (err) {
-        if ((err as Error).name !== "AbortError") {
-          useChatStore.setState((state) => ({
-            proposalMessages: state.proposalMessages.map((m) =>
-              m.id === assistantId
-                ? { ...m, content: "申し訳ありません。応答の取得に失敗しました。" }
-                : m,
-            ),
-          }));
-        }
-      } finally {
-        useChatStore.setState((state) => ({
-          proposalMessages: state.proposalMessages.map((m) =>
-            m.id === assistantId ? { ...m, streaming: false } : m,
-          ),
-        }));
-        setStreaming(false);
-        abortRef.current = null;
-      }
-    },
-    [streaming, profile, proposalMessages, addProposalMessage],
-  );
+  // 提案を持っていないあいだは、この欄が希望条件の受け口である（§8.3.1）
+  const actions = !canStart
+    ? []
+    : holdsProposal
+      ? [{ label: "条件を変えて提案し直す", onClick: restart }]
+      : [{ label: "希望条件なしで提案する", onClick: startWithoutPreferences }];
 
   return (
     <AiChatPanel
       title="AI履修アシスタント"
-      messages={proposalMessages}
+      messages={messages}
       input={input}
       onInputChange={setInput}
-      onSend={() => send(input)}
-      placeholder="提案について質問する…"
-      streaming={streaming || status === "loading"}
-      history={entries}
-      onSelectHistory={(id) => {
-        const messages = restore("proposal", id);
-        if (messages) swapTo(messages);
+      onSend={() => {
+        // Enter キーは無効なときも届くので、送れるときだけ入力を消す
+        if (!input.trim() || streaming || !canStart) return;
+        send(input);
+        setInput("");
       }}
-      onNewChat={() => swapTo([introMessage(proposalMessage)])}
+      placeholder={
+        holdsProposal ? "提案について質問する…" : "希望条件を入力（例: 午前中を多めに）"
+      }
+      streaming={streaming}
+      inputDisabled={!canStart}
+      actions={actions}
+      // 学生がその場で書く文章が記録されることを、書く場所の傍らで示す（§9.1）
+      note={!holdsProposal && canStart ? PREFERENCES_NOTE : undefined}
+      history={history}
+      onSelectHistory={selectHistory}
+      onNewChat={holdsProposal ? newChat : undefined}
     />
   );
 }

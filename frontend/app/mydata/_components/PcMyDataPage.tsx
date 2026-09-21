@@ -15,6 +15,7 @@ import {
 import { useStudentStore, type Course } from "@/lib/student";
 import { useChatStore } from "@/lib/chat";
 import { useChatHistoryStore } from "@/lib/chatHistory";
+import { useProposalStore } from "@/lib/proposal";
 import { DUMMY_PROFILES } from "@/lib/dummy/profiles";
 
 const GRADUATION_CREDITS = 124;
@@ -26,6 +27,8 @@ export default function PcMyDataPage() {
   const clearProfile = useStudentStore((s) => s.clearProfile);
   const clearAll = useChatStore((s) => s.clearAll);
   const clearHistory = useChatHistoryStore((s) => s.clearAll);
+  // 生成済みの提案と、学生が書いた希望条件もここで消す（要件§4.8、§5.2.3）
+  const clearProposal = useProposalStore((s) => s.clear);
   const [demoMode, setDemoMode] = useState(false);
   const [demoIndex, setDemoIndex] = useState(0);
 
@@ -48,6 +51,7 @@ export default function PcMyDataPage() {
       clearProfile();
       clearAll();
       clearHistory();
+      clearProposal();
       router.push("/");
     }
   };

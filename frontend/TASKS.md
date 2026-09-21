@@ -23,6 +23,9 @@
 - [x] シラバス詳細ページ — `app/syllabus/[code]/page.tsx`
 - [x] シラバス単体チャット UI・API接続 — `_components/CourseChatPanel.tsx`（PCデスクトップ）、`_components/SyllabusChatBox.tsx`（モバイル）。詳細ページに統合済み。`POST /api/chat/syllabus/{code}` SSE接続済み（`feature/syllabus-course-chat-sse` ブランチ）
 - [x] 履修提案ページ（レイアウト・API接続） — `app/proposal/page.tsx` + 各 `_components/`。`POST /api/proposal` SSE + `POST /api/chat/proposal` SSE 接続済み。`lib/proposal.ts` で提案状態管理
+- [x] **履修提案は学生の指示で始める（設計書 v0.9.44 / §8.3）** — `/proposal` に到達した時点で `POST /api/proposal` を撃っていた（`ProposalLoader`）ため、学生が希望条件を書く前に4〜5分かかる提案が始まっていた。ローダーを廃し、対話を `lib/useProposalConversation.ts` に集約。**1つの入力欄が提案の有無で `/api/proposal` と `/api/chat/proposal` に向かう**（§8.3.1）。希望条件なしで始める導線、再提案（§8.3.3）、前提が揃わないときの理由表示（§8.3.2）、入力欄の断り書き（§9.1）を実装
+- [x] **提案チャットのリクエストが backend のスキーマと違っていた** — `streamProposalChat()` が `{profile, history, message}`（シラバスチャットの形）を送っていたが、`POST /api/chat/proposal` は `{studentProfile, proposal, messages}` を受ける（§6.1、`backend/app/schemas/chat.py`）。**`proposal` が無いため常に 422** で、提案画面のチャットもAIシートの時間割文脈も応答を得られていなかった
+- [x] **リセット（要件§4.8）が提案を消していなかった** — `clearProfile()` / 対話履歴の `clearAll()` は呼ぶが `lib/proposal.ts` はそのままで、生成済みの時間割が残っていた。ヘッダー・PCマイデータ・モバイル設定の3か所に `clear()` を追加
 - [x] **エラー・ローディング状態（提案ページ）** — `app/proposal/error.tsx` / `loading.tsx` 追加済み
 - [x] **シラバスへの必修/選択タグ付け** — `SyllabusTagList.tsx` + curricula API 突合。`CourseCard.tsx` バッジ表示、`SyllabusTopBar.tsx` / `MobileSyllabusPage.tsx` 絞り込みロジック実装済み。`lib/syllabusUI.ts` でタグ状態管理
 - [x] **履修可否によるタグ・提案候補の絞り込み（設計書 v0.9.25 / §6.1.3）** — `lib/eligibility.ts` 新設。シラバスの対象課程で「その学生がそのクラスを履修登録できるか」を判定し、できないものはタグを出さず提案の候補にも載せない。検索は誤タグ126件が消え(430→304)、履修提案はプロンプトの履修不可クラス189行が0になった(673→508)。backend 側は `proposal_agent.py` の `fetch_eligibility()`
