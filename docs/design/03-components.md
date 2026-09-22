@@ -1,4 +1,4 @@
-# 履修登録支援AIチャットボット 設計書(v0.9.44)— §4 コンポーネント設計
+# 履修登録支援AIチャットボット 設計書(v0.9.45)— §4 コンポーネント設計
 
 > 本ファイルは [`docs/design.md`](../design.md) の一部である。§番号は設計書全体で通し番号であり、他ファイルの節を `§X.Y` の形で参照する。全ファイルの対応表は [design.md](../design.md) の「0.3 本書の構成」を参照。
 
@@ -19,7 +19,6 @@ frontend/
 │   ├── syllabus/
 │   │   ├── page.tsx              # /syllabus 一覧・検索
 │   │   └── [code]/page.tsx       # /syllabus/[code] 講義詳細
-│   ├── chat/page.tsx             # /chat シラバス全体チャット(§8)
 │   ├── mydata/page.tsx           # /mydata 取り込んだプロファイルの確認・編集(§8)
 │   ├── privacy/page.tsx          # /privacy プライバシーポリシー
 │   ├── _components/              # 画面をまたぐ部品(時間割グリッド・同意モーダル等)
@@ -68,7 +67,7 @@ frontend/
 - **生の HTML は描かない。** `rehype-raw` を入れなければ `react-markdown` はタグを文字として出す。モデルの出力を DOM に流す口を開けないため、入れない
 - 描くのは **AI側の吹き出しだけ**。学生が入力した文は Markdown として解釈せず、そのまま文字として出す
 - 表は**吹き出しの中で横スクロールさせる**。吹き出しの幅(280〜290px。`ui-ux/ui-design_*.pen`)は設計どおりに保ち、表のために広げない
-- 会話を描く4か所(モバイルのシート `AiMessageArea`、PC のパネル `AiChatPanel`、モバイルの履修提案チャット `MobileProposalPage`、`/chat` の `MessageList`)で**同じ描き方**を共有する。字の大きさ・行間・色だけを吹き出しごとに外から与える
+- 会話を描く3か所(モバイルのシート `AiMessageArea`、PC のパネル `AiChatPanel`、モバイルの履修提案チャット `MobileProposalPage`)で**同じ描き方**を共有する。字の大きさ・行間・色だけを吹き出しごとに外から与える
 
 ### 4.2 backend(FastAPI)
 

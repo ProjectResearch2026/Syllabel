@@ -12,9 +12,8 @@ import remarkGfm from "remark-gfm";
  * 素のテキストとして描いていたため `**必修**` の `**` や `|---|---|` の罫線が
  * そのまま見えていた。
  *
- * 会話を描く4か所(モバイルのシート `AiMessageArea`、PCのパネル `AiChatPanel`、
- * モバイルの履修提案 `MobileProposalPage`、`/chat` の `MessageList`)で
- * **同じ描き方**を使う。字の大きさと色は吹き出しごとに違うので `className` で
+ * 会話を描く3か所(モバイルのシート `AiMessageArea`、PCのパネル `AiChatPanel`、
+ * モバイルの履修提案 `MobileProposalPage`)で**同じ描き方**を使う。字の大きさと色は吹き出しごとに違うので `className` で
  * 外から与え、ここでは Markdown の構造だけを持つ。
  *
  * 規則は3つ。
