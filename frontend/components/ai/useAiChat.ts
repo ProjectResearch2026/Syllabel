@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import { useChatStore, type ChatMessage } from "@/lib/chat";
 import { useStudentStore } from "@/lib/student";
 import { useAiStore, type AiContext } from "@/lib/ai";
+import { useProposalStore } from "@/lib/proposal";
 import {
   streamCourseChat,
   streamProposalChat,
@@ -15,7 +16,16 @@ function nowLabel(): string {
   return `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
 }
 
-/** 文脈に応じて叩くSSEエンドポイントを選ぶ */
+/**
+ * 時間割そのものを指す文脈か。**提案チャット(`/api/chat/proposal`)は `proposal` を
+ * 必須とし、無ければ 422 を返す**(design.md §6.1)ため、この文脈は生成済みの提案が
+ * あるときにしか成立しない(§8.3.1 と同じ理由)。
+ */
+function needsProposal(context: AiContext): boolean {
+  return context.kind === "timetable" || context.kind === "slot";
+}
+
+/** シラバス側の文脈に応じて叩くSSEエンドポイントを選ぶ */
 function streamFor(context: AiContext) {
   if (context.kind === "course" && context.code) {
     const code = context.code;
@@ -25,11 +35,7 @@ function streamFor(context: AiContext) {
       signal?: AbortSignal,
     ) => streamCourseChat(code, body, onChunk, signal);
   }
-  if (context.kind === "syllabus" || context.kind === "course") {
-    return streamSyllabusChat;
-  }
-  // 時間割ぜんぶ／空きコマ の文脈は履修提案チャットへ
-  return streamProposalChat;
+  return streamSyllabusChat;
 }
 
 /**
@@ -45,6 +51,7 @@ export function useAiChat() {
   const profile = useStudentStore((s) => s.profile);
   const context = useAiStore((s) => s.context);
   const expand = useAiStore((s) => s.expand);
+  const { status, courses, totalCredits, message: summary } = useProposalStore();
 
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -81,16 +88,36 @@ export function useAiChat() {
 
       try {
         let accumulated = "";
-        const stream = streamFor(context);
-        // 学生プロファイルと対話履歴は毎回送る（サーバー側で永続化しないため）
-        await stream(
-          { profile, history, message },
-          (delta) => {
-            accumulated += delta;
-            patch((m) => ({ ...m, content: accumulated }));
-          },
-          ctrl.signal,
-        );
+        const onDelta = (delta: string) => {
+          accumulated += delta;
+          patch((m) => ({ ...m, content: accumulated }));
+        };
+
+        if (needsProposal(context)) {
+          if (status !== "done") {
+            // **このシートから提案は始めない**（§8.3.1）。提案が無い状態で
+            // 提案チャットは成立しないため、作り方だけを案内する
+            patch((m) => ({
+              ...m,
+              content:
+                "まだ履修提案がありません。時間割の画面でAI履修アシスタントに希望条件を送ると提案を作れます。",
+            }));
+          } else {
+            await streamProposalChat(
+              {
+                studentProfile: profile,
+                proposal: { courses, totalCredits, summary },
+                // 対話全体を1本で送る。末尾が今回の質問（§6.1）
+                messages: [...history, { role: "user", content: message }],
+              },
+              onDelta,
+              ctrl.signal,
+            );
+          }
+        } else {
+          // 学生プロファイルと対話履歴は毎回送る（サーバー側で永続化しないため）
+          await streamFor(context)({ profile, history, message }, onDelta, ctrl.signal);
+        }
       } catch (err) {
         if ((err as Error).name !== "AbortError") {
           patch((m) => ({ ...m, content: "申し訳ありません。応答の取得に失敗しました。" }));
@@ -101,7 +128,7 @@ export function useAiChat() {
         abortRef.current = null;
       }
     },
-    [messages, streaming, profile, context, addMessage, expand],
+    [messages, streaming, profile, context, addMessage, expand, status, courses, totalCredits, summary],
   );
 
   const stop = useCallback(() => abortRef.current?.abort(), []);

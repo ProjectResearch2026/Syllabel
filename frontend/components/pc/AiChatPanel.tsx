@@ -29,11 +29,23 @@ export type AiChatPanelProps = {
   placeholder: string;
   /** 送信中。入力を止め、末尾の吹き出しにキャレットを出す */
   streaming?: boolean;
+  /**
+   * 送信中ではないが入力を受け付けられない（提案の前提が揃っていないなど。
+   * design.md §8.3.2）。押しても何も起きない送信ボタンを出さないために分ける。
+   */
+  inputDisabled?: boolean;
   /** 会話をやり直す。渡さなければ新規ボタンを出さない */
   onNewChat?: () => void;
   /** 定型の質問。送信中は隠す */
   quickAsks?: string[];
   onQuickAsk?: (question: string) => void;
+  /**
+   * 文章を送るのではなく、その場で何かを起こすボタン（履修提案の開始・再提案など。
+   * design.md §8.3）。`quickAsks` と同じ位置に、押せる見た目で並べる。
+   */
+  actions?: { label: string; onClick: () => void }[];
+  /** 入力欄の下に出す断り書き（希望条件の記録についてなど。§9.1） */
+  note?: string;
   /** ハンバーガーから開く「最近のチャット」。新しい順 */
   history?: ArchivedChat[];
   /** 履歴の会話に切り替える */
@@ -48,11 +60,14 @@ export default function AiChatPanel({
   onSend,
   placeholder,
   streaming = false,
+  inputDisabled = false,
   onNewChat,
   quickAsks = [],
   onQuickAsk,
+  actions = [],
   history = [],
   onSelectHistory,
+  note,
 }: AiChatPanelProps) {
   const listRef = useScrollToBottom<HTMLDivElement>(messages);
   const inputId = useId();
@@ -136,16 +151,27 @@ export default function AiChatPanel({
           ),
         )}
 
-        {!streaming && quickAsks.length > 0 && onQuickAsk && (
+        {!streaming && (quickAsks.length > 0 || actions.length > 0) && (
           <div className="flex w-full flex-col items-start gap-2">
-            {quickAsks.map((q) => (
+            {onQuickAsk &&
+              quickAsks.map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  onClick={() => onQuickAsk(q)}
+                  className="rounded-2xl border border-border-primary bg-surface-primary px-3 py-2 text-left text-xs font-medium text-fg-secondary transition-colors hover:border-fg-primary"
+                >
+                  {q}
+                </button>
+              ))}
+            {actions.map(({ label, onClick }) => (
               <button
-                key={q}
+                key={label}
                 type="button"
-                onClick={() => onQuickAsk(q)}
-                className="rounded-2xl border border-border-primary bg-surface-primary px-3 py-2 text-left text-xs font-medium text-fg-secondary transition-colors hover:border-fg-primary"
+                onClick={onClick}
+                className="rounded-2xl border border-accent bg-surface-primary px-3 py-2 text-left text-xs font-bold text-accent transition-colors hover:bg-accent-light"
               >
-                {q}
+                {label}
               </button>
             ))}
           </div>
@@ -167,19 +193,20 @@ export default function AiChatPanel({
               if (e.key === "Enter" && !e.nativeEvent.isComposing) onSend();
             }}
             placeholder={placeholder}
-            disabled={streaming}
+            disabled={streaming || inputDisabled}
             className="h-10 min-w-0 flex-1 bg-transparent px-3 text-[13px] text-fg-primary outline-none placeholder:text-fg-faint disabled:opacity-60"
           />
           <button
             type="button"
             onClick={onSend}
-            disabled={!input.trim() || streaming}
+            disabled={!input.trim() || streaming || inputDisabled}
             aria-label="送信"
             className="grid size-10 shrink-0 place-items-center rounded-full bg-accent transition-opacity hover:bg-primary-dark disabled:opacity-40"
           >
             <ArrowUp size={18} className="text-fg-inverse" aria-hidden="true" />
           </button>
         </div>
+        {note && <p className="px-3 pt-2 text-[11px] leading-4 text-fg-faint">{note}</p>}
       </div>
     </aside>
   );

@@ -20,6 +20,7 @@ import {
 import { useStudentStore } from "@/lib/student";
 import { useChatStore } from "@/lib/chat";
 import { useChatHistoryStore } from "@/lib/chatHistory";
+import { useProposalStore } from "@/lib/proposal";
 import ManualInputForm from "@/app/import/_components/ManualInputForm";
 
 function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
@@ -88,6 +89,8 @@ export default function MobileSettingsPage() {
   const clearProfile = useStudentStore((s) => s.clearProfile);
   const clearAll = useChatStore((s) => s.clearAll);
   const clearHistory = useChatHistoryStore((s) => s.clearAll);
+  // 生成済みの提案と、学生が書いた希望条件もここで消す（要件§4.8、§5.2.3）
+  const clearProposal = useProposalStore((s) => s.clear);
   const [notify, setNotify] = useState(true);
   const [dark, setDark] = useState(false);
   const [editMode, setEditMode] = useState<"grade-program" | "courses" | null>(null);
@@ -97,6 +100,7 @@ export default function MobileSettingsPage() {
       clearProfile();
       clearAll();
       clearHistory();
+      clearProposal();
       router.push("/");
     }
   };

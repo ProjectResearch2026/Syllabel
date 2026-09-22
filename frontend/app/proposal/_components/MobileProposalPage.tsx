@@ -1,20 +1,37 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { Send } from "lucide-react";
 import { DAYS, PERIODS, CELL_STYLES, coursesToTimetable } from "@/lib/timetable";
 import { useStudentStore } from "@/lib/student";
 import { useProposalStore } from "@/lib/proposal";
 import { useGraduationCredits } from "@/lib/curricula";
-import { streamProposalChat } from "@/lib/chatApi";
 import { useScrollToBottom } from "@/lib/useScrollToBottom";
-import type { ChatMessage } from "@/lib/chat";
+import { PREFERENCES_NOTE, useProposalConversation } from "@/lib/useProposalConversation";
 import MarkdownText from "@/components/ai/MarkdownText";
 
+/**
+ * モバイルの履修提案（ui-design_phone.pen 04_履修提案）。
+ *
+ * 対話は PC のパネルと同じ `useProposalConversation`（design.md §8.3）で動く。
+ * **会話は `proposalMessages`（§5.2.2）に置き、画面ごとに持たない** — 提案前の
+ * 案内も、提案の summary も、どちらの画面から送った問答も同じ1本の会話である。
+ */
 export default function MobileProposalPage() {
   const profile = useStudentStore((s) => s.profile);
-  const { status, courses, totalCredits, message: proposalMessage } = useProposalStore();
+  const { status, courses, totalCredits } = useProposalStore();
   const graduationCredits = useGraduationCredits(profile);
+  const {
+    messages,
+    streaming,
+    holdsProposal,
+    canStart,
+    send,
+    startWithoutPreferences,
+    restart,
+  } = useProposalConversation();
+  const [input, setInput] = useState("");
+  const listRef = useScrollToBottom<HTMLDivElement>(messages);
 
   const earnedCredits = profile
     ? profile.completedCourses
@@ -22,122 +39,18 @@ export default function MobileProposalPage() {
         .reduce((sum, c) => sum + c.credits, 0)
     : null;
 
-  const currentCredits = status === "done" ? totalCredits : null;
+  const currentCredits = holdsProposal ? totalCredits : null;
 
   const remainingCredits =
     earnedCredits != null
-      ? Math.max(
-          0,
-          graduationCredits - earnedCredits - (currentCredits ?? 0),
-        )
+      ? Math.max(0, graduationCredits - earnedCredits - (currentCredits ?? 0))
       : null;
 
-  const profileLabel =
-    profile
-      ? `${profile.grade != null ? `${profile.grade}回生` : ""}${profile.program ? `・${profile.program}` : ""}`.replace(/^・|・$/, "")
-      : null;
-
-  const initContent =
-    status === "done"
-      ? (proposalMessage || `${profileLabel ? `${profileLabel}の` : ""}履修提案を生成しました。提案内容についてご質問があればお気軽にどうぞ。`)
-      : status === "loading"
-      ? ""
-      : `${profileLabel ? `${profileLabel}の` : ""}履修提案を生成しました。提案内容についてご質問があればお気軽にどうぞ。`;
-
-  const initMessage: ChatMessage = {
-    id: "1",
-    role: "assistant",
-    content: initContent,
-    time: "9:00",
-    streaming: status === "loading",
-  };
-
-  const [messages, setMessages] = useState<ChatMessage[]>([initMessage]);
-  const [input, setInput] = useState("");
-  const [streaming, setStreaming] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
-  const listRef = useScrollToBottom<HTMLDivElement>(messages);
-  const seq = useRef(0);
-
-  // 提案完了時に初期メッセージを更新
-  useEffect(() => {
-    if (status === "done") {
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === "1"
-            ? {
-                ...m,
-                content:
-                  proposalMessage ||
-                  `${profileLabel ? `${profileLabel}の` : ""}履修提案を生成しました。提案内容についてご質問があればお気軽にどうぞ。`,
-                streaming: false,
-              }
-            : m,
-        ),
-      );
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]);
-
-  const handleSend = useCallback(async () => {
-    const text = input.trim();
-    if (!text || streaming) return;
+  const handleSend = () => {
+    if (!input.trim() || streaming || !canStart) return;
+    send(input);
     setInput("");
-
-    const now = new Date();
-    const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
-    const base = seq.current;
-    seq.current += 2;
-    const assistantId = `mobile-a${base + 1}`;
-
-    const history = messages
-      .filter((m) => !m.streaming)
-      .map((m) => ({ role: m.role, content: m.content }));
-
-    setMessages((prev) => [
-      ...prev,
-      { id: `mobile-u${base}`, role: "user", content: text, time },
-      { id: assistantId, role: "assistant", content: "", time, streaming: true },
-    ]);
-
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
-    setStreaming(true);
-
-    try {
-      let accumulated = "";
-      await streamProposalChat(
-        { profile, history, message: text },
-        (delta) => {
-          accumulated += delta;
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantId ? { ...m, content: accumulated } : m,
-            ),
-          );
-        },
-        ctrl.signal,
-      );
-    } catch (err) {
-      if ((err as Error).name !== "AbortError") {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantId
-              ? { ...m, content: "申し訳ありません。応答の取得に失敗しました。" }
-              : m,
-          ),
-        );
-      }
-    } finally {
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === assistantId ? { ...m, streaming: false } : m,
-        ),
-      );
-      setStreaming(false);
-      abortRef.current = null;
-    }
-  }, [input, messages, profile, streaming]);
+  };
 
   // 生成中に届く snapshot も描く（逐次描画。design.md §6.1.1 / §7.2）
   const timetable = coursesToTimetable(courses);
@@ -159,7 +72,16 @@ export default function MobileProposalPage() {
       </div>
 
       {/* Timetable */}
-      <div className="bg-white border-b border-[#D1D5DB] shrink-0">
+      <div className="relative bg-white border-b border-[#D1D5DB] shrink-0">
+        {/* まだ投げていないこと（§5.2.3 の `idle`）を示す。空の表だけでは、提案が
+            終わって何も無いのか、これからなのかが区別できない（§8.3.2） */}
+        {status === "idle" && (
+          <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-white/80">
+            <p className="max-w-[260px] px-4 text-center text-xs leading-5 text-[#6B7280]">
+              下のAI履修アシスタントに希望条件を送ると、ここに時間割が出ます。
+            </p>
+          </div>
+        )}
         <div className="flex flex-col">
           <div className="flex bg-[#1A2B4E]">
             <div className="w-7 shrink-0" />
@@ -228,26 +150,49 @@ export default function MobileProposalPage() {
             </div>
           </div>
         ))}
+
+        {/* 提案の開始と再提案（§8.3.1 / §8.3.3）。送信中は出さない */}
+        {!streaming && canStart && (
+          <div className="flex">
+            <button
+              type="button"
+              onClick={holdsProposal ? restart : startWithoutPreferences}
+              className="rounded-xl border border-[#E60012] bg-white px-3 py-2 text-xs font-bold text-[#E60012]"
+            >
+              {holdsProposal ? "条件を変えて提案し直す" : "希望条件なしで提案する"}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Input */}
-      <div className="bg-white border-t border-[#D1D5DB] px-4 py-3 shrink-0 flex gap-2">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          placeholder="提案について質問する..."
-          disabled={streaming || status === "loading"}
-          className="flex-1 border border-[#D1D5DB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1A2B4E] transition-colors disabled:opacity-60"
-        />
-        <button
-          onClick={handleSend}
-          disabled={!input.trim() || streaming || status === "loading"}
-          className="w-10 h-10 flex items-center justify-center rounded-lg bg-[#E60012] disabled:opacity-40 hover:bg-[#b7000c]"
-        >
-          <Send size={16} className="text-white" />
-        </button>
+      <div className="bg-white border-t border-[#D1D5DB] px-4 py-3 shrink-0">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) handleSend();
+            }}
+            placeholder={
+              holdsProposal ? "提案について質問する..." : "希望条件を入力（例: 午前中を多めに）"
+            }
+            disabled={streaming || !canStart}
+            className="flex-1 border border-[#D1D5DB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1A2B4E] transition-colors disabled:opacity-60"
+          />
+          <button
+            onClick={handleSend}
+            disabled={!input.trim() || streaming || !canStart}
+            className="w-10 h-10 flex items-center justify-center rounded-lg bg-[#E60012] disabled:opacity-40 hover:bg-[#b7000c]"
+          >
+            <Send size={16} className="text-white" />
+          </button>
+        </div>
+        {/* 学生がその場で書く文章が記録されることを、書く場所の傍らで示す（§9.1） */}
+        {!holdsProposal && canStart && (
+          <p className="pt-2 text-[11px] leading-4 text-[#6B7280]">{PREFERENCES_NOTE}</p>
+        )}
       </div>
     </div>
   );

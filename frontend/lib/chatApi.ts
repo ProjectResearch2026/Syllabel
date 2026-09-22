@@ -121,7 +121,7 @@ async function readSSE(
  */
 async function streamChat(
   path: string,
-  body: ChatRequest,
+  body: unknown,
   onDelta: (delta: string) => void,
   signal?: AbortSignal,
 ): Promise<string> {
@@ -166,12 +166,23 @@ export function streamSyllabusChat(
 }
 
 /**
- * `POST /api/chat/proposal`(履修提案チャット)のSSEを受信する。
+ * `POST /api/chat/proposal` のリクエスト。`backend/app/schemas/chat.py` の
+ * `ProposalChatRequest`。
  *
- * **backend 側は未実装であり、ルートが入るまで 404 を返す**(§6.1)。
+ * **シラバスチャット(`ChatRequest`)と形が違う。** 質問と履歴を分けず、対話全体を
+ * `messages` の1本で受け、末尾(role: user)が今回の質問、それより前が履歴である
+ * (§6.1)。`proposal` は必須で、無ければ 422 になる — **提案を持っていない状態で
+ * この口は成立しない**ため、提案前の入力は `POST /api/proposal` へ向ける(§8.3.1)。
  */
+type ProposalChatRequest = {
+  studentProfile: StudentProfile | null;
+  proposal: TimetableProposal;
+  messages: Pick<ChatMessage, "role" | "content">[];
+};
+
+/** `POST /api/chat/proposal`(履修提案チャット)のSSEを受信する(§7.3)。 */
 export function streamProposalChat(
-  body: ChatRequest,
+  body: ProposalChatRequest,
   onDelta: (delta: string) => void,
   signal?: AbortSignal,
 ): Promise<string> {

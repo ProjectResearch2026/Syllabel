@@ -14,9 +14,12 @@ export default function TimetablePanel() {
   // 生成中に届く snapshot も描く（逐次描画。design.md §6.1.1 / §7.2）
   const timetable = coursesToTimetable(courses);
   const isLoading = status === "loading";
+  // まだ投げていない（§5.2.3 の `idle`）。空の表だけを出すと、提案が終わって
+  // 何も無いのか、これからなのかが区別できない（§8.3.2）
+  const isIdle = status === "idle";
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border-primary bg-surface-primary">
+    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border-primary bg-surface-primary">
       {/* 曜日ヘッダー */}
       <div className="flex h-10 shrink-0 border-b border-border-primary bg-surface-gray">
         <div className="w-11 shrink-0" />
@@ -64,6 +67,14 @@ export default function TimetablePanel() {
           })}
         </div>
       ))}
+
+      {isIdle && (
+        <div className="pointer-events-none absolute inset-0 grid place-items-center bg-surface-primary/80">
+          <p className="max-w-[260px] text-center text-[13px] leading-5 text-fg-tertiary">
+            右のAI履修アシスタントに希望条件を送ると、ここに時間割が出ます。
+          </p>
+        </div>
+      )}
     </div>
   );
 }
