@@ -20,6 +20,7 @@ export default function ChatPanel() {
   const {
     messages,
     streaming,
+    generating,
     holdsProposal,
     canStart,
     send,
@@ -54,6 +55,8 @@ export default function ChatPanel() {
         holdsProposal ? "提案について質問する…" : "希望条件を入力（例: 午前中を多めに）"
       }
       streaming={streaming}
+      // 提案の生成は4〜5分かかり得る（§7.2）ので、待たせる長さを先に伝える（§4.1.4）
+      thinkingLabel={generating ? "提案を作っています。4〜5分ほどかかります" : undefined}
       inputDisabled={!canStart}
       actions={actions}
       // 学生がその場で書く文章が記録されることを、書く場所の傍らで示す（§9.1）

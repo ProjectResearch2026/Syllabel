@@ -7,6 +7,7 @@ import type { ArchivedChat } from "@/lib/chatHistory";
 import { titleOf } from "@/lib/chatHistory";
 import { useScrollToBottom } from "@/lib/useScrollToBottom";
 import MarkdownText from "../ai/MarkdownText";
+import ThinkingIndicator from "../ai/ThinkingIndicator";
 import ChatHistoryMenu from "./ChatHistoryMenu";
 
 /**
@@ -19,6 +20,9 @@ import ChatHistoryMenu from "./ChatHistoryMenu";
  * 幅 344px・高さは親いっぱい。設計上ヘッダーと入力欄の地はグレー、
  * 吹き出しの並ぶ本文もグレーで、カード自体が白い枠として見える。
  */
+/** 本文が届く前に出す既定の文言（design.md §4.1.4）。所要時間は画面ごとに添える */
+const DEFAULT_THINKING_LABEL = "考えています…";
+
 export type AiChatPanelProps = {
   /** ヘッダーに出す一行（例: 「AI履修アシスタント」） */
   title: string;
@@ -29,6 +33,12 @@ export type AiChatPanelProps = {
   placeholder: string;
   /** 送信中。入力を止め、末尾の吹き出しにキャレットを出す */
   streaming?: boolean;
+  /**
+   * 本文が1文字も届いていないあいだ、吹き出しに出す文言（§4.1.4）。
+   * 待ち時間の長さが画面で違うため呼び出し側が渡す — 履修提案の生成は
+   * 4〜5分かかり得る（§7.2）ので所要時間を添える。
+   */
+  thinkingLabel?: string;
   /**
    * 送信中ではないが入力を受け付けられない（提案の前提が揃っていないなど。
    * design.md §8.3.2）。押しても何も起きない送信ボタンを出さないために分ける。
@@ -60,6 +70,7 @@ export default function AiChatPanel({
   onSend,
   placeholder,
   streaming = false,
+  thinkingLabel = DEFAULT_THINKING_LABEL,
   inputDisabled = false,
   onNewChat,
   quickAsks = [],
@@ -132,12 +143,19 @@ export default function AiChatPanel({
               key={msg.id}
               className="flex max-w-[280px] flex-col gap-2 rounded-[2px_12px_12px_12px] border border-border-primary bg-surface-primary p-3"
             >
-              <MarkdownText
-                className="text-[13px] leading-[21px] text-fg-primary"
-                caret={msg.streaming}
-              >
-                {msg.content}
-              </MarkdownText>
+              {/* 本文が来る前は指標を出す。空の吹き出しを置かない（§4.1.4）。
+                  `MarkdownText` のキャレットは最後のブロックの ::after なので、
+                  本文が空だと掛ける先が無く何も見えない */}
+              {msg.streaming && !msg.content ? (
+                <ThinkingIndicator label={thinkingLabel} />
+              ) : (
+                <MarkdownText
+                  className="text-[13px] leading-[21px] text-fg-primary"
+                  caret={msg.streaming}
+                >
+                  {msg.content}
+                </MarkdownText>
+              )}
               {/* 提案カード。AIが差し替え案を返したときだけ出る */}
               {msg.items?.map((item) => (
                 <p

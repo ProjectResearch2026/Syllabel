@@ -101,6 +101,11 @@ export type ProposalConversation = {
   messages: ChatMessage[];
   /** 送信中（提案の生成中、または提案チャットの受信中）。入力欄を止める */
   streaming: boolean;
+  /**
+   * 提案そのものを生成中（`POST /api/proposal`）。チャットの受信中とは分ける —
+   * こちらは4〜5分かかり得る（§7.2）ため、生成中の文言に所要時間を添える（§4.1.4）。
+   */
+  generating: boolean;
   /** 提案を持っている。入力欄の宛先がこれで決まる（§8.3.1） */
   holdsProposal: boolean;
   /** 提案を作れるか。前提が揃わないときは `blockedReason` に理由が入る */
@@ -145,7 +150,8 @@ export function useProposalConversation(): ProposalConversation {
   const canStart = blockedReason === null;
 
   const holdsProposal = status === "done";
-  const streaming = status === "loading" || messages.some((m) => m.streaming);
+  const generating = status === "loading";
+  const streaming = generating || messages.some((m) => m.streaming);
 
   // 1通目の案内（§8.3.2）。提案後の summary と同じ系統の assistant メッセージで
   // あり、別扱いにする理由が無いので `proposalMessages` に置く。
@@ -305,6 +311,7 @@ export function useProposalConversation(): ProposalConversation {
   return {
     messages,
     streaming,
+    generating,
     holdsProposal,
     canStart,
     blockedReason,
