@@ -38,7 +38,6 @@ frontend/
 │   ├── page.tsx                    # / トップページ(学生情報入力)
 │   ├── mydata/page.tsx             # /mydata 学生データ確認
 │   ├── proposal/page.tsx           # /proposal 履修提案・チャット
-│   ├── chat/page.tsx               # /chat チャット画面
 │   ├── syllabus/
 │   │   ├── page.tsx                # /syllabus シラバス一覧・検索
 │   │   └── [code]/page.tsx         # /syllabus/[code] 講義詳細
@@ -136,7 +135,7 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 **AIの回答は Markdown として描く**(design.md §4.1.5)。モデルは太字・箇条書き・表を混ぜて返すため、素のテキストとして描くと `**必修**` の `**` や `|---|---|` の罫線がそのまま学生に見える。
 
-実体は `components/ai/MarkdownText.tsx` ひとつで、**会話を描く4か所すべてが共有する** — モバイルのシート(`components/ai/AiMessageArea.tsx`)、PCのパネル(`components/pc/AiChatPanel.tsx`)、モバイルの履修提案チャット(`app/proposal/_components/MobileProposalPage.tsx`)、`/chat`(`app/chat/_components/MessageList.tsx`)。**会話の吹き出しを新しく作るときはここを通す。****吹き出しごとに描き方を写さない。** 字の大きさ・行間・色だけを `className` で外から与える。
+実体は `components/ai/MarkdownText.tsx` ひとつで、**会話を描く3か所すべてが共有する** — モバイルのシート(`components/ai/AiMessageArea.tsx`)、PCのパネル(`components/pc/AiChatPanel.tsx`)、モバイルの履修提案チャット(`app/proposal/_components/MobileProposalPage.tsx`)。**会話の吹き出しを新しく作るときはここを通す。****吹き出しごとに描き方を写さない。** 字の大きさ・行間・色だけを `className` で外から与える。
 
 - `react-markdown` + `remark-gfm`(表・取り消し線・チェックリスト)+ `remark-breaks`(段落内の単独改行)。**`remark-breaks` を外さない** — Markdown の既定では単独改行が消えるが、日本語の回答は1文ずつ改行して返ってくる
 - **`rehype-raw` を入れてはならない。** 生のHTMLを描かないことで、モデルの出力がDOMに流れる口を塞いでいる
