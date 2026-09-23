@@ -1693,3 +1693,105 @@ def test_instructions_forbid_credit_arithmetic_in_summary():
     """説明文に単位数の合計や内訳を書かせない(2026-09-23 の実機で合計を誤った)。"""
     assert "単位数の合計や内訳の計算を書かない" in pa._INSTRUCTIONS
     assert "単位数の合計や内訳の計算を書かない" in pa._SUMMARY_INSTRUCTIONS
+
+
+# ---------------------------------------------------------------------------
+# 9. 単位が入る要件枠(§7.2.1)
+# ---------------------------------------------------------------------------
+
+
+def _real_smoke():
+    """実データ(2024年度入学・知能情報メディア課程)とスモークの合成プロファイル。"""
+    from pathlib import Path
+
+    import importlib.util
+
+    from app.curricula.loader import load_curricula
+    from app.settings import Settings
+
+    root = Path(__file__).resolve().parents[2]
+    spec = importlib.util.spec_from_file_location(
+        "smoke_proposal", root / "backend" / "scripts" / "smoke_proposal.py"
+    )
+    smoke = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(smoke)
+    loaded = load_curricula(
+        Settings(curricula_dir=root / "curricula", offerings_dir=root / "offerings")
+    )[("02", 2024)]
+    completed = [StudentCourse.model_validate(c) for c in smoke._default_completed()]
+    return loaded.curriculum, completed
+
+
+def test_slot_destinations_follow_kikan_and_overflow():
+    """〈基幹〉でない社会科学系科目は基幹・社会の枠に入らない(2026-09-23 の実機で誤った)。
+
+    合成プロファイルは基幹・社会が2単位不足、教養教育科目(選択)が2単位不足。
+    """
+    from app.curricula.requirements import judge
+
+    curriculum, completed = _real_smoke()
+    index = {c.title: c for c in curriculum.own_courses}
+    titles = ["法学のすすめ", "現代社会と労働", "英語総合4", "知能情報メディアセミナー"]
+
+    got = pa.slot_destinations(
+        curriculum, completed, judge(curriculum, completed), [index[t] for t in titles]
+    )
+
+    assert got["法学のすすめ"] == "教養教育科目(選択必修〈基幹〉・社会)"
+    assert got["現代社会と労働"] == "教養教育科目(選択)"
+    assert got["英語総合4"] == "教養教育科目(必修・言語)"
+    assert got["知能情報メディアセミナー"] == "専門応用科目(必修)"
+
+
+def test_placed_slots_reflect_competition_between_courses():
+    """同じ枠の科目を不足より多く選ぶと、超えた分は下流の枠(オールフリー)に入る。"""
+    curriculum, completed = _real_smoke()
+    index = {c.title: c for c in curriculum.own_courses}
+    titles = ["アジアの文学B", "現代社会と労働", "現代社会とメディア"]
+    courses = [ProposedCourse(title=t, credits=index[t].credits, reason="r") for t in titles]
+
+    placed = pa.placed_slots(curriculum, completed, courses)
+
+    assert sorted(placed.values()) == [
+        "オールフリーゾーン", "オールフリーゾーン", "教養教育科目(選択)"
+    ]
+
+
+def test_candidate_lines_carry_destination():
+    """候補の行に「入る枠」を添え、規則5で推測させないと書く。"""
+    loaded = _loaded()
+    profile = _profile()
+    selected = select_candidates(loaded, profile)
+    index = {code: _offered(code) for candidate in selected for code in candidate.codes}
+    attached = attach_offerings(selected, index)
+    requirements = judge_requirements(loaded, profile)
+    destinations = pa.slot_destinations(
+        loaded.curriculum, [], requirements, (c.course for c in attached)
+    )
+
+    prompt = render_prompt(loaded, profile, requirements, attached, destinations=destinations)
+
+    assert "| 配当年次 | 入る枠 | 学期" in prompt
+    assert "微分積分 | 専門基礎科目 | 必修 | 2単位 | 配当1年〜 | 入る枠: basic.required |" in prompt
+    assert "「入る枠」に従い、区分や科目名から推測しない" in pa._INSTRUCTIONS
+
+
+@pytest.mark.asyncio
+async def test_rewrite_summary_gets_placed_slots(summary_agent_cache):
+    seen = {}
+
+    def model(messages, info: AgentInfo) -> ModelResponse:
+        seen["prompt"] = messages[-1].parts[-1].content
+        return ModelResponse(parts=[TextPart("書き直した。")])
+
+    base = _context({"A": _cls("A", "線形代数", "月", 1)})
+    ctx = ProposalContext(
+        prompt="", classes=base.classes, budget=None, output_type=TimetableProposal,
+        place=lambda courses: {pa.normalize_title(c.title): "専門基礎科目(必修)" for c in courses},
+    )
+    proposal, _ = assemble_proposal([("A", "理由A")], "元の方針。", ctx)
+
+    with pa.build_summary_agent().override(model=FunctionModel(model)):
+        await pa.rewrite_summary(proposal, "元の方針。", ctx)
+
+    assert "- 線形代数 | 選択 | 2単位 | 入る枠: 専門基礎科目(必修) | 後期 月1" in seen["prompt"]
