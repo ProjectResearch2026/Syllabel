@@ -296,6 +296,7 @@ async def stream(client: httpx.AsyncClient, body: dict) -> None:
     snapshots = 0
     shown = 0
     result: dict | None = None
+    adjustments: list[str] = []
     done = False
     try:
         async with client.stream(
@@ -322,6 +323,7 @@ async def stream(client: httpx.AsyncClient, body: dict) -> None:
                     shown = len(settled)
                 elif "result" in payload:
                     result = payload["result"]
+                    adjustments = payload.get("adjustments") or []
                 elif "error" in payload:
                     state["started"] = True
                     print(f"[error] {payload['error']}")
@@ -343,6 +345,14 @@ async def stream(client: httpx.AsyncClient, body: dict) -> None:
         print(_grid(courses))
         print(f"\n合計 {result.get('totalCredits')}単位 / {len(courses)}科目")
         print(f"\n{result.get('summary')}")
+        print(RULE)
+        # backend が外した科目・打ち切りの記録。画面には出ない(§7.2.2)
+        if adjustments:
+            print("[backend の調整(学生には表示しない)]")
+            for note in adjustments:
+                print(f"  - {note}")
+        else:
+            print("backend の調整: なし")
         print(RULE)
         problems = _check(result, body)
         if problems:

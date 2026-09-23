@@ -8,9 +8,11 @@
 - `{"snapshot": <組み立て途中の TimetableProposal>}` — 生成中に何度も流れる。
   §7.2 の「時間割表を逐次描画」に対応する
 - `{"result": <完成した TimetableProposal>}` — 確定版。1度だけ流れる。同じ科目・
-  コマ重複・登録できる単位の上限を超えた分は backend が外し、外した旨を summary に
-  書き足す(作り直しはさせない。§7.2)。出力の上限などで生成が途中で切れた場合も、
-  書き終えた科目が1つでもあればそこまでで確定版にする
+  コマ重複・登録できる単位の上限を超えた分は backend が外し、外した旨を
+  記録する(作り直しはさせない。§7.2)。出力の上限などで生成が途中で切れた場合も、
+  書き終えた科目が1つでもあればそこまでで確定版にする。**外した科目・打ち切りの
+  記録は summary に混ぜず、同じイベントの `adjustments`(文字列の配列)に載せる。**
+  frontend はこれを読まず、学生には見せない(確認用のスクリプトが表示する)
 - `{"done": true}` — 終端。エラー時も必ず最後に流れる
 
 `snapshot` と `result` はどちらも `app/schemas/proposal.py` のスキーマの形
@@ -165,6 +167,11 @@ def _delta_text(delta: ModelResponsePartDelta) -> str:
     return ""
 
 
+def _result_event(result, adjustments: list[str]) -> dict:
+    """確定版のイベント。調整の記録は提案の外(`adjustments`)に載せ、画面には出さない。"""
+    return {"result": result.model_dump(by_alias=True), "adjustments": adjustments}
+
+
 def _stream_proposal(context: ProposalContext):
     """提案の生成を SSE ストリームとして返す。"""
     agent = build_proposal_agent()
@@ -197,12 +204,12 @@ def _stream_proposal(context: ProposalContext):
                         buffer += _delta_text(event.delta)
                     elif isinstance(event, AgentRunResultEvent):
                         draft = event.result.output
-                        result = assemble_proposal(
+                        result, adjustments = assemble_proposal(
                             [(c.syllabus_code, c.reason) for c in draft.courses],
                             draft.summary,
                             context,
                         )
-                        yield format_sse({"result": result.model_dump(by_alias=True)})
+                        yield format_sse(_result_event(result, adjustments))
                         continue
                     else:
                         continue
@@ -222,9 +229,9 @@ def _stream_proposal(context: ProposalContext):
             # 書き終えた科目が1つでもあれば、そこまでで確定版にする。出力の上限
             # (max_tokens)で切れた場合、作り直すと4〜5分がもう一度かかるため
             if parsed is not None and parsed[0]:
-                result = assemble_proposal(*parsed, context, truncated=True)
+                result, adjustments = assemble_proposal(*parsed, context, truncated=True)
                 if result.courses:
-                    yield format_sse({"result": result.model_dump(by_alias=True)})
+                    yield format_sse(_result_event(result, adjustments))
                     yield format_sse({"done": True})
                     return
             yield format_sse({"error": "提案の生成中にエラーが発生しました"})

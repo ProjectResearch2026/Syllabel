@@ -1333,19 +1333,35 @@ def test_assemble_respects_remaining_credits():
     assert notes == ["「b」は対象学期に登録できる残り単位(4単位)を超えるため外しました。"]
 
 
-def test_assemble_limits_the_number_of_notes():
+def test_assemble_records_every_dropped_course_once():
+    """外した科目は科目名ごとに1件ずつ、件数で打ち切らずにすべて記録する。"""
     classes = {"X": _cls("X", "基準", "月", 1)}
     classes |= {f"C{i}": _cls(f"C{i}", f"科目{i}", "月", 1) for i in range(8)}
-    _, notes = assemble_courses([("X", "r")] + [(f"C{i}", "r") for i in range(8)], _context(classes))
+    classes |= {"C0b": _cls("C0b", "科目0", "月", 1)}
+    drafts = [("X", "r")] + [(f"C{i}", "r") for i in range(8)] + [("C0b", "r")]
+    _, notes = assemble_courses(drafts, _context(classes))
 
-    assert len(notes) == pa.MAX_NOTES + 1
-    assert notes[-1] == "ほか3科目もコマの重なりか単位の上限のため外しました。"
+    assert len(notes) == 8
+    assert sum("「科目0」" in n for n in notes) == 1
 
 
-def test_assemble_proposal_writes_notes_into_summary():
+def test_assemble_proposal_keeps_adjustments_out_of_summary():
+    """外した科目・打ち切りの記録は summary に混ぜず、別に返す(学生に見せない)。"""
     ctx = _context({"A": _cls("A", "a", "月", 1), "B": _cls("B", "b", "月", 1)})
-    proposal = assemble_proposal([("A", "r"), ("B", "r")], "方針。", ctx, truncated=True)
+    proposal, adjustments = assemble_proposal(
+        [("A", "r"), ("B", "r")], "方針。", ctx, truncated=True
+    )
 
     assert proposal.total_credits == 2
-    assert proposal.summary.startswith("方針。\n\n(自動調整)「b」は「a」と月1限")
-    assert proposal.summary.endswith("書き終えた科目までで提案しています。")
+    assert proposal.summary == "方針。"
+    assert adjustments == [
+        "「b」は「a」と月1限で開講期間が重なるため外しました。",
+        "生成が最後まで完了しなかったため、書き終えた科目までで提案した。",
+    ]
+
+
+def test_assemble_proposal_uses_a_fixed_summary_when_none_was_written():
+    ctx = _context({"A": _cls("A", "a", "月", 1)})
+    proposal, _ = assemble_proposal([("A", "r")], None, ctx, truncated=True)
+
+    assert proposal.summary == "時間割を提案しました。各科目の理由を確認してください。"

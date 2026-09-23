@@ -566,7 +566,11 @@ def test_duplicates_conflicts_and_over_cap_are_removed_without_retry():
     result = _events(resp.text)[-2]["result"]
     assert [c["title"] for c in result["courses"]] == ["微分積分"]
     assert result["totalCredits"] == 4.0
-    assert "「解析学」は「微分積分」と月2限で開講期間が重なるため外しました。" in result["summary"]
+    # 外した記録は summary に混ぜず(画面に出さない)、adjustments に載せる
+    assert result["summary"] == "方針。"
+    assert _events(resp.text)[-2]["adjustments"] == [
+        "「解析学」は「微分積分」と月2限で開講期間が重なるため外しました。"
+    ]
     assert "重複" not in json.dumps(result, ensure_ascii=False)
 
 
@@ -584,13 +588,13 @@ def test_courses_over_the_credit_cap_are_removed(monkeypatch):
     resp = _post(
         completed=completed, target_term={"year": 2026, "term": "前期", "grade": 2}
     )
-    result = _events(resp.text)[-2]["result"]
+    event = _events(resp.text)[-2]
 
     # 上限 22 − 登録済み 20 = 残り 2。微分積分(4単位)は入らず、解析学(2単位)は入る
-    assert [c["title"] for c in result["courses"]] == ["解析学"]
-    assert "「微分積分」は対象学期に登録できる残り単位(2単位)を超えるため外しました。" in (
-        result["summary"]
-    )
+    assert [c["title"] for c in event["result"]["courses"]] == ["解析学"]
+    assert event["adjustments"] == [
+        "「微分積分」は対象学期に登録できる残り単位(2単位)を超えるため外しました。"
+    ]
 
 
 def test_prompt_states_the_remaining_credits(spy_prompt):
@@ -626,7 +630,8 @@ def test_truncated_generation_returns_the_courses_written_so_far():
     assert [next(iter(e)) for e in events][-2:] == ["result", "done"]
     result = events[-2]["result"]
     assert [c["title"] for c in result["courses"]] == ["微分積分"]
-    assert "最後まで完了しなかった" in result["summary"]
+    assert "最後まで完了しなかった" not in result["summary"]
+    assert any("最後まで完了しなかった" in a for a in events[-2]["adjustments"])
 
 
 def test_truncated_before_any_course_is_an_error():

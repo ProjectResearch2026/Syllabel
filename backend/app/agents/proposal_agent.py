@@ -164,8 +164,9 @@ MAX_CLASSES_PER_COURSE = 6
 # 「上限単位 ÷ 候補の最小単位」で計算し、これを超えないようにする(§7.2)
 MAX_DRAFT_ITEMS = 30
 
-# 提案の summary に書き足す「外した科目」の注記の件数。超えた分は件数だけ書く
-MAX_NOTES = 5
+# 件数の上限に足す余裕。上限単位 ÷ 最小単位ちょうどだと、上限を超える科目や重なる
+# 科目を書いた分だけ(backend が外すので)提案が細る。外される分を見込んで数件足す
+DRAFT_ITEMS_SLACK = 3
 
 _INSTRUCTIONS = (
     "あなたは龍谷大学先端理工学部の履修登録を支援するAIアシスタントです。\n"
@@ -892,11 +893,12 @@ _DAYS = ("月", "火", "水", "木", "金", "土")
 
 
 def _max_items(classes: dict[str, ProposedCourse], budget: CreditBudget | None) -> int:
-    """下書きの件数の上限(暴走止め)。上限単位 ÷ 候補の最小単位で求める。"""
+    """下書きの件数の上限(暴走止め)。上限単位 ÷ 候補の最小単位 + 余裕で求める。"""
     if budget is None:
         return MAX_DRAFT_ITEMS
     smallest = min((c.credits for c in classes.values() if c.credits), default=1.0)
-    return max(1, min(MAX_DRAFT_ITEMS, int(budget.remaining // smallest)))
+    fits = int(budget.remaining // smallest)
+    return max(1, min(MAX_DRAFT_ITEMS, fits + DRAFT_ITEMS_SLACK))
 
 
 async def build_proposal_context(
@@ -1016,9 +1018,9 @@ def assemble_courses(
     - 先に採った科目と同じ曜日・時限で開講期間が重なるもの
     - 採ると対象学期に登録できる残り単位を超えるもの
 
-    後の2つは外したことを返し、呼び出し側が summary に書き足す。注記は科目名ごとに
-    1件で、同名の別クラスを後で採った科目には付けない。`MAX_NOTES` を超えた分は
-    件数だけを書く。
+    後の2つは外した理由(調整の記録)を返す。記録は科目名ごとに1件で、同名の
+    別クラスを後で採った科目には付けない。**記録は学生に見せない**(summary に
+    混ぜない。`assemble_proposal()`)。
     """
     accepted: list[ProposedCourse] = []
     titles: set[str] = set()
@@ -1058,11 +1060,7 @@ def assemble_courses(
         titles.add(key)
         total += course.credits or 0
 
-    reasons = [text for key, text in dropped.items() if key not in titles]
-    notes = reasons[:MAX_NOTES]
-    if len(reasons) > MAX_NOTES:
-        notes.append(f"ほか{len(reasons) - MAX_NOTES}科目もコマの重なりか単位の上限のため外しました。")
-    return accepted, notes
+    return accepted, [text for key, text in dropped.items() if key not in titles]
 
 
 def assemble_proposal(
@@ -1071,14 +1069,19 @@ def assemble_proposal(
     context: ProposalContext,
     *,
     truncated: bool = False,
-) -> TimetableProposal:
-    """下書きから確定版の提案を組み上げる。外した科目と打ち切りは summary に書き足す。"""
+) -> tuple[TimetableProposal, list[str]]:
+    """下書きから確定版の提案を組み上げ、調整の記録と一緒に返す。
+
+    **調整の記録(外した科目と打ち切り)は summary に混ぜない。** summary は画面の
+    吹き出しにそのまま出るため、backend の都合を学生に見せないためである。記録は
+    SSE の result イベントに `adjustments` として別に載せる(frontend は読まない。
+    確認用のスクリプトが表示する)。summary はモデルが書いたままで、書き終える前に
+    切れたときだけ定型文にする。
+    """
     courses, notes = assemble_courses(drafts, context)
     if truncated:
-        notes.append("生成が最後まで完了しなかったため、書き終えた科目までで提案しています。")
-    text = (summary or "").strip() or "提案を作成しました。"
-    if notes:
-        text += "\n\n(自動調整)" + "".join(notes)
+        notes.append("生成が最後まで完了しなかったため、書き終えた科目までで提案した。")
+    text = (summary or "").strip() or "時間割を提案しました。各科目の理由を確認してください。"
     credits = [c.credits for c in courses]
     total = sum(credits) if None not in credits else None
-    return TimetableProposal(courses=courses, total_credits=total, summary=text)
+    return TimetableProposal(courses=courses, total_credits=total, summary=text), notes
