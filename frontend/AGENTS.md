@@ -116,6 +116,7 @@ Zustand store を2本使用する。**どちらも永続化機能は意図的に
 | `GET /api/syllabi/{code}` | JSON | シラバス詳細 |
 | `GET /api/masters` | JSON | 検索絞り込み用マスタ |
 | `GET /api/curricula/{program}/{year}` | JSON | 履修要項データ |
+| `POST /api/requirements` | JSON | 卒業要件の充足判定(要件枠ごとの修得済み・不足単位) |
 | `GET /api/course-targets?year=&faculty=` | JSON | シラバスコード → 対象課程（タグの履修可否判定用） |
 
 **backend 以外に1つだけ外部の口がある。** 講義詳細の書影と書誌の詳細(内容紹介・目次・ページ数)は openBD(`https://api.openbd.jp/v1/get`、認証不要)から ISBN で引く(`lib/openbd.ts`、design.md §6.4)。**宛先が固定の学外サービスなので、ここだけは `apiBase()` を通さず URL をモジュール内に持つ。** 規則は3つ。**1科目ぶんを1リクエストにまとめる**(`isbn` はカンマ区切りで複数取れ、応答は要求した順の配列)、**失敗は空の対応表に畳んで講義詳細を落とさない**(3秒で打ち切る。サーバ側描画なのでこの待ちがそのままページの表示を止める)、**書影が引けない本のほうが多い前提で作る**(版元ドットコム登録分にしか書影が無く、指定図書の多くは空文字で返る)。**学生データは送らない**(送るのは ISBN だけ。画像を引くときは `referrerPolicy="no-referrer"` で閲覧中の講義のURLを渡さない)。
@@ -146,6 +147,10 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 履修提案の科目スキーマは design.md §5.3 に従う(`syllabusCode` / `title` / `day` / `period` / `term` / `slots` / `credits` / `category` / `reason`)。必須は `title` と `reason` だけで、**集中講義の曜日・時限や特定できないシラバスコードは null** で来る。
 
 **`day` / `period` / `term` は1コマ目だけである。** 「後期 金4・金5」のように複数のコマを持つ科目の全コマは `slots` にある。時間割に置くときは `lib/timetable.ts` の `occupiedSlots()` を通し、`day` / `period` を直接使わない(1コマ目だけを見ていた頃は、金4・金5 の科目の金5 が空いて見えた)。`coursesToTimetable()` は複数コマの科目の**同じセル**を全部のマスに入れ、`toCourseList()` はそれを1科目1行に数える(マスごとに数えると単位が2倍になる)。**PC の時間割表は `coursesToSlotTable()` を使う**(design.md §8.3.4)。1マスに複数の科目(3Q と 4Q)を持ち、クォーターの印を付け、曜日・時限の無い科目を `unscheduled` に分ける。**提案の科目は画面から落とさない** — 落とすと表の単位の和が「今期登録単位」と合わなくなる。モバイルの `coursesToTimetable()` は1マス1科目のままである(§13)。シラバス一覧の曜日時限も api-clean の `slots` から `lib/schedule.ts` の `formatSlots()` で作る。
+
+## 卒業要件枠の内訳
+
+履修提案の画面(PC)は単位バーの下に要件枠ごとの充足状況を出す(design.md §8.3.5、`app/proposal/_components/RequirementsPanel.tsx`)。**数字は `lib/requirements.ts` の `useRequirements()` から採り、画面で足し算しない。** 枠への割り当て・溢れ・算入上限は backend の `requirements.py` が判定する(同じ枠の科目を不足より多く取った分は下流の枠に回る)。今期の時間割(提案の `courses` と登録済みの科目)の分は、それを修得したとみなして2回目を引いた差で出す。提案の store の `courses` に追従するので、時間割を変える経路を足すときは store を書き換えればよい。`profile.program` は課程**コード**で送る(`fetchRequirements()` が差し替える)。
 
 ## 課程コードの解決
 
