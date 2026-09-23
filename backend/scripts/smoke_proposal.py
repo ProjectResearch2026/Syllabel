@@ -5,11 +5,20 @@
 
    向き先は SMOKE_BASE_URL、無通信の打ち切り秒数は SMOKE_READ_TIMEOUT、
    対象の学生は SMOKE_PROGRAM_CODE / SMOKE_ADMISSION_YEAR / SMOKE_GRADE で変えられる。
+   **提案する学期**(§7.2)は SMOKE_TARGET_YEAR(年度)/ SMOKE_TARGET_TERM(前期・後期)で
+   与え、省略時は今日の日付から frontend と同じ規則で決める(4月 → 同年度の前期、
+   5〜9月 → 同年度の後期、10〜3月 → 翌年度の前期。`frontend/lib/targetTerm.ts`)。
+   SMOKE_GRADE は今日時点の学年であり、提案する学期が次の年度に入るぶん繰り上げて送る。
 
-   確かめるのは design.md §7.2 の3点:
+   確かめるのは design.md §7.2 の次の点:
    - snapshot が時間割を**逐次**組み上げていくこと(確定を待たずに描画できる)
    - result がコマ重複のない、候補科目から採った提案になっていること
+   - result の科目が**すべて提案する学期のもの**であること(前期・後期が混ざらない)
+   - 修得済み・登録済みの科目を提案していないこと
    - done で締めること
+
+   別の学生データで試すときは、このモジュールの `main()` に履修科目の一覧を渡す
+   (`completed=[{"title": ..., "year": ..., "term": ..., "credits": ..., "status": ...}]`)。
 
    httpx.ASGITransport は使わない。応答を最後まで溜めてから返すため本文が
    逐次見えず、かつ timeout が一切効かない(生成が詰まると止められない)。
@@ -22,8 +31,12 @@ import os
 import sys
 import time
 import unicodedata
+from datetime import date
 
 import httpx
+
+from app.agents.proposal_agent import registration_half
+from app.curricula.requirements import normalize_title
 
 BASE_URL = os.environ.get("SMOKE_BASE_URL", "http://localhost:8000")
 # トークン間の無通信がこれを超えたら打ち切る。提案の生成は候補科目を載せた長い
@@ -35,10 +48,14 @@ HEARTBEAT = 30.0
 STARTUP_WAIT = 60.0
 
 PROGRAM_CODE = os.environ.get("SMOKE_PROGRAM_CODE", "02")
+PROGRAM_NAME = os.environ.get("SMOKE_PROGRAM_NAME", "知能情報メディア課程")
 ADMISSION_YEAR = int(os.environ.get("SMOKE_ADMISSION_YEAR", "2024"))
 GRADE = int(os.environ.get("SMOKE_GRADE", "3"))
+TARGET_YEAR = os.environ.get("SMOKE_TARGET_YEAR")
+TARGET_TERM = os.environ.get("SMOKE_TARGET_TERM")
 
-DAYS = ["月", "火", "水", "木", "金"]
+# 土曜も開講がある(教職・学芸員課程や教養の特別講義。§5.3)
+DAYS = ["月", "火", "水", "木", "金", "土"]
 PERIODS = [1, 2, 3, 4, 5]
 RULE = "-" * 60
 
@@ -65,26 +82,61 @@ COMPLETED = [
 ]
 
 
-def _request_body(preferences: str | None) -> dict:
-    """`POST /api/proposal` の本文(§6.1)。課程コードは profile と別に送る。"""
+def _default_completed() -> list[dict]:
+    """埋め込みの合成プロファイル(全科目合格)を `completedCourses` の形にする。"""
+    return [
+        {"title": title, "year": year, "term": term, "credits": credits, "status": "passed"}
+        for title, year, term, credits in COMPLETED
+    ]
+
+
+def _fiscal_year(today: date) -> int:
+    """年度(4月始まり)。"""
+    return today.year if today.month >= 4 else today.year - 1
+
+
+def target_term_for(today: date) -> tuple[int, str]:
+    """今日に次に登録する学期。frontend の `termFromDate()` と同じ規則。"""
+    fiscal = _fiscal_year(today)
+    if today.month == 4:
+        return fiscal, "前期"
+    if 5 <= today.month <= 9:
+        return fiscal, "後期"
+    return fiscal + 1, "前期"
+
+
+def _target(grade_now: int, today: date) -> dict:
+    """提案する学期(§6.1 の `targetTerm`)。学年は提案する学期の時点に繰り上げる。"""
+    year, term = target_term_for(today)
+    if TARGET_YEAR:
+        year = int(TARGET_YEAR)
+    if TARGET_TERM:
+        term = TARGET_TERM
+    grade = min(4, max(1, grade_now + (year - _fiscal_year(today))))
+    return {"year": year, "term": term, "grade": grade}
+
+
+def request_body(
+    preferences: str | None,
+    *,
+    completed: list[dict],
+    grade: int,
+    target: dict,
+    program_code: str = PROGRAM_CODE,
+    program_name: str = PROGRAM_NAME,
+    admission_year: int = ADMISSION_YEAR,
+) -> dict:
+    """`POST /api/proposal` の本文(§6.1)。課程コードと提案する学期は profile と別に送る。"""
     return {
         "studentProfile": {
-            "grade": GRADE,
-            "program": "知能情報メディア課程",
-            "completedCourses": [
-                {
-                    "title": title,
-                    "year": year,
-                    "term": term,
-                    "credits": credits,
-                    "status": "passed",
-                }
-                for title, year, term, credits in COMPLETED
-            ],
+            "grade": grade,
+            "program": program_name,
+            "completedCourses": completed,
         },
-        "programCode": PROGRAM_CODE,
-        "admissionYear": ADMISSION_YEAR,
+        "programCode": program_code,
+        "admissionYear": admission_year,
         "preferences": preferences,
+        "targetTerm": target,
     }
 
 
@@ -143,14 +195,20 @@ def _grid(courses: list[dict]) -> str:
     for course in courses:
         day, period = course.get("day"), course.get("period")
         if day in DAYS and period in PERIODS:
-            cells.setdefault((day, period), []).append(course.get("title") or "?")
+            # クォーター科目は学期を添える。1Q と 2Q が同じコマに並ぶのは重複ではない
+            title = course.get("title") or "?"
+            term = course.get("term")
+            if term and term not in ("前期", "後期"):
+                title += f"({term})"
+            cells.setdefault((day, period), []).append(title)
 
-    lines = ["    " + "".join(_pad(day, 16) for day in DAYS)]
+    # 1マス15桁+区切り1桁。溢れた科目名は切るが、隣のマスとくっつかないようにする
+    lines = ["    " + "".join(_pad(day, 15) + " " for day in DAYS)]
     for period in PERIODS:
         row = f"{period}限 "
         for day in DAYS:
             # 重複は「A / B」と並べて出す。1コマに2つ入っていれば異常
-            row += _pad(" / ".join(cells.get((day, period), [])), 16)
+            row += _pad(" / ".join(cells.get((day, period), [])), 15) + " "
         lines.append(row.rstrip())
 
     undecided = [c for c in courses if _slot(c) == "未定"]
@@ -159,6 +217,44 @@ def _grid(courses: list[dict]) -> str:
             "曜日時限未定: " + "、".join(c.get("title") or "?" for c in undecided)
         )
     return "\n".join(lines)
+
+
+def _check(result: dict, body: dict) -> list[str]:
+    """提案が §7.2 の約束を守っているかを確かめ、守れていない点を返す。
+
+    コマ重複は backend の検証(§5.3)が弾くのでここでは見ない。見るのは、
+    提案する学期以外の科目が混ざっていないか、修得済み・登録済みの科目を
+    提案していないか、合計単位が各科目の和と合うか、の3点である。
+    """
+    problems: list[str] = []
+    courses = result.get("courses") or []
+    target = body["targetTerm"]["term"]
+
+    for course in courses:
+        half = registration_half(course.get("term"))
+        if half is not None and half != target:
+            problems.append(
+                f"提案する学期({target})以外の科目: {course.get('title')}({course.get('term')})"
+            )
+        elif half is None:
+            problems.append(f"学期が判定できない科目: {course.get('title')}({course.get('term')})")
+
+    taken = {
+        normalize_title(c["title"]): c["status"]
+        for c in body["studentProfile"]["completedCourses"]
+        if c["status"] in ("passed", "registered")
+    }
+    for course in courses:
+        status = taken.get(normalize_title(course.get("title") or ""))
+        if status:
+            label = "修得済み" if status == "passed" else "登録済み"
+            problems.append(f"{label}の科目を提案: {course.get('title')}")
+
+    credits = [c.get("credits") for c in courses]
+    if None not in credits and result.get("totalCredits") is not None:
+        if abs(sum(credits) - result["totalCredits"]) > 1e-6:
+            problems.append(f"合計単位の食い違い: totalCredits={result['totalCredits']} / 各科目の和={sum(credits)}")
+    return problems
 
 
 async def _wait_notice(started: float, state: dict) -> None:
@@ -174,16 +270,26 @@ async def _wait_notice(started: float, state: dict) -> None:
         print(f"… 待機 {time.monotonic() - started:.0f}秒", flush=True)
 
 
-async def stream(client: httpx.AsyncClient, preferences: str | None) -> None:
+async def stream(client: httpx.AsyncClient, body: dict) -> None:
     """SSE を受け、途中経過と確定版を表示する。
 
     snapshot は値が1つ完成するたびに届き、全文を出すと読めないため、
     **新しく確定した科目の行だけ**を出す。逐次描画が成立しているか
     (確定を待たずに時間割が埋まっていくか)はこれで見る。
     """
+    target = body["targetTerm"]
+    completed = body["studentProfile"]["completedCourses"]
+    counts = {s: sum(c["status"] == s for c in completed) for s in ("passed", "failed", "withdrawn", "registered")}
     print(f"=== POST {BASE_URL}/api/proposal ===")
-    print(f"対象: 課程コード {PROGRAM_CODE} / {ADMISSION_YEAR}年度入学 / {GRADE}回生")
-    print(f"希望条件: {preferences or '(なし)'}")
+    print(
+        f"対象: 課程コード {body['programCode']} / {body['admissionYear']}年度入学"
+        f" / 提案する学期 {target['year']}年度 {target['term']}({target['grade']}回生)"
+    )
+    print(
+        f"履修科目: 合格 {counts['passed']} / 不合格 {counts['failed']}"
+        f" / 辞退 {counts['withdrawn']} / 登録済み {counts['registered']}"
+    )
+    print(f"希望条件: {body['preferences'] or '(なし)'}")
     started = time.monotonic()
     state = {"started": False}
     notice = asyncio.create_task(_wait_notice(started, state))
@@ -193,7 +299,7 @@ async def stream(client: httpx.AsyncClient, preferences: str | None) -> None:
     done = False
     try:
         async with client.stream(
-            "POST", "/api/proposal", json=_request_body(preferences)
+            "POST", "/api/proposal", json=body
         ) as resp:
             print("status:", resp.status_code, resp.headers.get("content-type"))
             if resp.status_code != 200:
@@ -238,6 +344,14 @@ async def stream(client: httpx.AsyncClient, preferences: str | None) -> None:
         print(f"\n合計 {result.get('totalCredits')}単位 / {len(courses)}科目")
         print(f"\n{result.get('summary')}")
         print(RULE)
+        problems = _check(result, body)
+        if problems:
+            print("[要確認]")
+            for problem in problems:
+                print(f"  - {problem}")
+        else:
+            print("確認: 提案する学期以外の科目なし / 修得済み・登録済みの科目なし / 合計単位一致")
+        print(RULE)
     print(
         f"snapshot {snapshots}件 / result {'あり' if result else 'なし'}"
         f" / done {'あり' if done else 'なし'}"
@@ -269,14 +383,36 @@ async def _wait_for_server(client: httpx.AsyncClient) -> bool:
         await asyncio.sleep(1.0)
 
 
-async def main() -> None:
-    preferences = " ".join(sys.argv[1:]) or None
+async def main(
+    preferences: str | None = None,
+    *,
+    completed: list[dict] | None = None,
+    grade: int = GRADE,
+    target: dict | None = None,
+    today: date | None = None,
+    **profile,
+) -> None:
+    """提案を1回頼んで表示する。
+
+    Args:
+        completed: 履修科目(`completedCourses`)。省略時は埋め込みの合成プロファイル。
+        grade: 今日(`today`)時点の学年。
+        target: 提案する学期 `{"year", "term", "grade"}`。省略時は今日から決める。
+        profile: `program_code` / `program_name` / `admission_year` の上書き。
+    """
+    body = request_body(
+        preferences,
+        completed=completed if completed is not None else _default_completed(),
+        grade=grade,
+        target=target or _target(grade, today or date.today()),
+        **profile,
+    )
     timeout = httpx.Timeout(READ_TIMEOUT, connect=5.0)
     async with httpx.AsyncClient(base_url=BASE_URL, timeout=timeout) as client:
         if not await _wait_for_server(client):
             return
-        await stream(client, preferences)
+        await stream(client, body)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main(" ".join(sys.argv[1:]) or None))
