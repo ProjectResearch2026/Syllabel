@@ -50,6 +50,38 @@ export function formatSchedule(syllabus: {
   return fallback ? [fallback] : [];
 }
 
+/**
+ * 一覧の曜日時限の表示。一覧は生値を持たないので、開講コマの一覧 `slots`
+ * (api-clean 0.3.0 以降)から作る。無ければ1コマ目の `day_of_week` / `period`。
+ *
+ * @param weekday 曜日に「曜」を添えるか(`金曜4・5限` / `金4・5限`)
+ * @returns 例 `金4・5限` / `月1限・木4限`。コマが無ければ `未定`
+ */
+export function formatSlots(
+  syllabus: {
+    day_of_week?: string | null;
+    period?: number | null;
+    slots?: { day: string; period: number }[];
+  },
+  { weekday = false }: { weekday?: boolean } = {},
+): string {
+  const slots =
+    syllabus.slots && syllabus.slots.length > 0
+      ? syllabus.slots
+      : syllabus.day_of_week && syllabus.period != null
+        ? [{ day: syllabus.day_of_week, period: syllabus.period }]
+        : [];
+  if (slots.length === 0) return "未定";
+  const suffix = weekday ? "曜" : "";
+  const days = [...new Set(slots.map((s) => s.day))];
+  if (days.length === 1) {
+    // 学期違いで同じコマ(3Q 金3・4Q 金3)は時限が重なるので1つにまとめる
+    const periods = [...new Set(slots.map((s) => s.period))];
+    return `${days[0]}${suffix}${periods.join("・")}限`;
+  }
+  return slots.map((s) => `${s.day}${suffix}${s.period}限`).join("・");
+}
+
 /** `1年次～4年次` のような生値を `1〜4年次` に詰める。無ければ min/max から作る */
 export function formatGrade(syllabus: {
   grade_raw?: string | null;

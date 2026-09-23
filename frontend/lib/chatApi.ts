@@ -20,11 +20,23 @@ type ChatRequest = {
   message: string;
 };
 
+/** 開講コマ1つ。design.md §5.3(`backend/app/schemas/proposal.py` の `CourseSlot`) */
+export type CourseSlot = {
+  /** そのコマの開講学期(後期 / 3Q など) */
+  term: string | null;
+  day: "月" | "火" | "水" | "木" | "金" | "土";
+  period: number;
+};
+
 /**
  * 提案する1科目。design.md §5.3(`backend/app/schemas/proposal.py`)。
  *
  * 必須は `title` と `reason` だけである。集中講義のように曜日・時限が定まらない
  * 科目と、開講情報を突合できなかった科目を、値の捏造ではなく null で表すため。
+ *
+ * `day` / `period` / `term` は**1コマ目**である。「後期 金4・金5」のように複数の
+ * コマを持つ科目の全コマは `slots` にある(時間割に置くときは `lib/timetable.ts` の
+ * `occupiedSlots()` を通す)。
  */
 export type ProposedCourse = {
   /** シラバスコード。api-clean で特定できた場合のみ */
@@ -35,6 +47,8 @@ export type ProposedCourse = {
   period: number | null;
   /** 開講学期(前期 / 後期 / 通年 / 1Q など) */
   term: string | null;
+  /** 開講コマのすべて(原文の順)。集中講義は空。slots を返さない旧い backend では無い */
+  slots?: CourseSlot[];
   credits: number | null;
   /** 履修区分(必修 / 選択必修 / 選択) */
   category: string | null;

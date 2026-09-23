@@ -554,6 +554,46 @@ async def test_fetch_offering_index_matches_by_code(monkeypatch):
     assert calls[0]["year"] == OFFERING_YEAR
 
 
+def test_to_offered_class_reads_every_slot():
+    """api-clean 0.3.0 の slots から全コマを読む。day_of_week / period は1コマ目だけ(§6.2)。"""
+    offered = pa._to_offered_class(_row(
+        "A000000001", day="金", period=4, term="後期",
+        slots=[
+            {"term": "後期", "day": "金", "period": 4},
+            {"term": "後期", "day": "金", "period": 5},
+        ],
+    ))
+    assert [(s.term, s.day, s.period) for s in offered.slots] == [
+        ("後期", "金", 4), ("後期", "金", 5),
+    ]
+
+
+def test_to_offered_class_without_slots_uses_first_slot():
+    """slots を返さない api-clean(0.2.0 以前)では、1コマ目だけを使う。"""
+    offered = pa._to_offered_class(_row("A000000001", day="火", period=2))
+    assert [(s.term, s.day, s.period) for s in offered.slots] == [("前期", "火", 2)]
+
+
+def test_to_offered_class_with_empty_slots_has_no_slot():
+    """slots が空(集中講義など)なら、コマを持たない。"""
+    offered = pa._to_offered_class(_row("A000000001", day=None, period=None, slots=[]))
+    assert offered.slots == ()
+
+
+def test_format_class_writes_every_slot():
+    """プロンプトの候補の行に全コマを書く。学期が違えばコマごとに学期を添える。"""
+    consecutive = pa._to_offered_class(_row(
+        "A000000001", term="後期",
+        slots=[{"term": "後期", "day": "金", "period": 4}, {"term": "後期", "day": "金", "period": 5}],
+    ))
+    assert pa._format_class(consecutive) == "後期 / 金4・金5 / 1-101"
+    two_terms = pa._to_offered_class(_row(
+        "A000000002", term="3Q",
+        slots=[{"term": "3Q", "day": "金", "period": 3}, {"term": "4Q", "day": "金", "period": 3}],
+    ))
+    assert pa._format_class(two_terms) == "3Q・4Q / 3Q金3・4Q金3 / 1-101"
+
+
 @pytest.mark.asyncio
 async def test_fetch_offering_index_paginates_until_short_page(monkeypatch):
     """返却件数が limit に満たなくなるまでページを辿る。"""

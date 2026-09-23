@@ -12,7 +12,8 @@
 
    確かめるのは design.md §7.2 の次の点:
    - snapshot が時間割を**逐次**組み上げていくこと(確定を待たずに描画できる)
-   - result がコマ重複のない、候補科目から採った提案になっていること
+   - result がコマ重複のない、候補科目から採った提案になっていること(複数コマの
+     科目は全コマで見る。§5.3)
    - result の科目が**すべて提案する学期のもの**であること(前期・後期が混ざらない)
    - 修得済み・登録済みの科目を提案していないこと
    - done で締めること
@@ -37,6 +38,7 @@ import httpx
 
 from app.agents.proposal_agent import registration_half
 from app.curricula.requirements import normalize_title
+from app.schemas.proposal import CourseSlot, slots_clash
 
 BASE_URL = os.environ.get("SMOKE_BASE_URL", "http://localhost:8000")
 # トークン間の無通信がこれを超えたら打ち切る。提案の生成は候補科目を載せた長い
@@ -186,12 +188,29 @@ def _payload(line: str) -> dict | None:
     return json.loads(line.removeprefix("data: "))
 
 
-def _slot(course: dict) -> str:
-    """科目1件の開講コマ。曜日・時限が無いものは「未定」と書く。"""
+def _slots(course: dict) -> list[tuple[str | None, str, int]]:
+    """科目1件が占めるコマ (学期, 曜日, 時限) の全部。
+
+    `slots`(全コマ。§5.3)を使い、無ければ `day` / `period`(1コマ目)の1コマとする。
+    """
+    slots = [
+        (s.get("term"), s["day"], s["period"])
+        for s in course.get("slots") or []
+        if s.get("day") and s.get("period")
+    ]
+    if slots:
+        return slots
     day, period = course.get("day"), course.get("period")
-    if day and period:
-        return f"{day}{period}"
-    return "未定"
+    return [(course.get("term"), day, period)] if day and period else []
+
+
+def _slot(course: dict) -> str:
+    """科目1件の開講コマ(「金4・金5」)。学期の違うコマは学期を添える。無ければ「未定」。"""
+    slots = _slots(course)
+    if not slots:
+        return "未定"
+    with_term = len({term for term, _, _ in slots}) > 1
+    return "・".join(f"{term if with_term else ''}{day}{period}" for term, day, period in slots)
 
 
 def _width(text: str) -> int:
@@ -210,7 +229,7 @@ def _line(course: dict) -> str:
     """科目1件を1行にする。"""
     credits = course.get("credits")
     return (
-        f"{_pad(_slot(course), 5)}{course.get('title') or '(名称未定)'}"
+        f"{_pad(_slot(course), 10)}{course.get('title') or '(名称未定)'}"
         f" [{course.get('syllabusCode') or 'コード無'}]"
         f" {course.get('term') or '学期未定'}"
         f" {'?' if credits is None else credits}単位"
@@ -230,24 +249,34 @@ def _settled(snapshot: dict) -> list[dict]:
 
 def _grid(courses: list[dict]) -> str:
     """曜日×時限の表。コマ重複(§7.2)を目で確かめるために出す。"""
-    cells: dict[tuple[str, int], list[str]] = {}
+    # マス → 科目名 → その科目がそのマスを占める学期
+    cells: dict[tuple[str, int], dict[str, list[str]]] = {}
     for course in courses:
-        day, period = course.get("day"), course.get("period")
-        if day in DAYS and period in PERIODS:
-            # クォーター科目は学期を添える。1Q と 2Q が同じコマに並ぶのは重複ではない
-            title = course.get("title") or "?"
-            term = course.get("term")
-            if term and term not in ("前期", "後期"):
-                title += f"({term})"
-            cells.setdefault((day, period), []).append(title)
+        # 複数コマの科目(「金4・金5」)は全部のマスに置く
+        for term, day, period in _slots(course):
+            if day not in DAYS or period not in PERIODS:
+                continue
+            terms = cells.setdefault((day, period), {}).setdefault(course.get("title") or "?", [])
+            if term and term not in terms:
+                terms.append(term)
+
+    def _cell(entries: dict[str, list[str]]) -> str:
+        # クォーター科目は学期を科目名より先に書く(マスの幅で後ろが切れても見えるように)。
+        # 同じ科目の 3Q・4Q は1つにまとめる。1Q と 2Q が同じマスに並ぶのは重複ではない
+        names = []
+        for title, terms in entries.items():
+            quarters = [t for t in terms if t not in ("前期", "後期")]
+            names.append(f"({'・'.join(quarters)}){title}" if quarters else title)
+        # 2科目以上は件数を先頭に出す。幅で切れても複数入っていることが見える
+        text = " / ".join(names)
+        return f"[{len(names)}]{text}" if len(names) > 1 else text
 
     # 1マス15桁+区切り1桁。溢れた科目名は切るが、隣のマスとくっつかないようにする
     lines = ["    " + "".join(_pad(day, 15) + " " for day in DAYS)]
     for period in PERIODS:
         row = f"{period}限 "
         for day in DAYS:
-            # 重複は「A / B」と並べて出す。1コマに2つ入っていれば異常
-            row += _pad(" / ".join(cells.get((day, period), [])), 15) + " "
+            row += _pad(_cell(cells.get((day, period), {})), 15) + " "
         lines.append(row.rstrip())
 
     undecided = [c for c in courses if _slot(c) == "未定"]
@@ -261,13 +290,26 @@ def _grid(courses: list[dict]) -> str:
 def _check(result: dict, body: dict) -> list[str]:
     """提案が §7.2 の約束を守っているかを確かめ、守れていない点を返す。
 
-    コマ重複は backend の検証(§5.3)が弾くのでここでは見ない。見るのは、
-    提案する学期以外の科目が混ざっていないか、修得済み・登録済みの科目を
-    提案していないか、合計単位が各科目の和と合うか、の3点である。
+    見るのは、全コマどうしでコマが重なっていないか(1コマ目だけを見ていた頃は
+    「金4・金5」の科目と金5の科目を並べていた)、提案する学期以外の科目が
+    混ざっていないか、修得済み・登録済みの科目を提案していないか、合計単位が
+    各科目の和と合うか、の4点である。
     """
     problems: list[str] = []
     courses = result.get("courses") or []
     target = body["targetTerm"]["term"]
+
+    placed: list[tuple[str, CourseSlot]] = []
+    for course in courses:
+        title = course.get("title") or "?"
+        mine = [CourseSlot(term=t, day=d, period=p) for t, d, p in _slots(course)]
+        for slot in mine:
+            for other_title, other in placed:
+                if slots_clash(slot, other):
+                    problems.append(
+                        f"コマ重複: {title} と {other_title}({slot.day}{slot.period}限)"
+                    )
+        placed.extend((title, slot) for slot in mine)
 
     for course in courses:
         half = registration_half(course.get("term"))
@@ -399,7 +441,10 @@ async def stream(client: httpx.AsyncClient, body: dict) -> None:
             for problem in problems:
                 print(f"  - {problem}")
         else:
-            print("確認: 提案する学期以外の科目なし / 修得済み・登録済みの科目なし / 合計単位一致")
+            print(
+                "確認: コマ重複なし(全コマ) / 提案する学期以外の科目なし / "
+                "修得済み・登録済みの科目なし / 合計単位一致"
+            )
         print(RULE)
     print(
         f"snapshot {snapshots}件 / result {'あり' if result else 'なし'}"

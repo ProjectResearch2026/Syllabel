@@ -56,6 +56,8 @@ EXPECTED = {
             "day": "月",
             "period": 2,
             "term": "通年",
+            # SYLLABI は slots を持たない(api-clean 0.2.0 の形)ので、1コマ目だけになる
+            "slots": [{"term": "通年", "day": "月", "period": 2}],
             "credits": 4.0,
             "category": "必修",
             "reason": "専門基礎科目の必修が未修得のため。",
@@ -66,6 +68,7 @@ EXPECTED = {
             "day": "火",
             "period": 3,
             "term": "前期",
+            "slots": [{"term": "前期", "day": "火", "period": 3}],
             "credits": 2.0,
             "category": "選択",
             "reason": "専門応用科目の不足を埋めるため。",
@@ -589,6 +592,88 @@ def test_duplicates_conflicts_and_over_cap_are_removed_without_retry():
         "「解析学」は「微分積分」と月2限で開講期間が重なるため外しました。"
     ]
     assert "重複" not in json.dumps(result, ensure_ascii=False)
+
+
+def test_course_clashing_in_its_second_slot_is_removed(fake_rewrite):
+    """2コマ目で重なる科目も外すこと(api-clean 0.3.0 の slots。§5.3)。
+
+    1コマ目(`day_of_week` / `period`)だけで比べていた頃は、「後期　金4・金5」の科目と
+    金5の科目を同じ時間割に並べていた(2026-09-23 の実機)。
+    """
+    draft = {
+        "courses": [
+            {"syllabusCode": "Y001006010", "reason": "必修のため。"},
+            {"syllabusCode": "Y001006011", "reason": "選択のため。"},
+        ],
+        "summary": "2科目を選んだ。",
+    }
+
+    async def stream_fn(
+        messages: list[ModelMessage], info: AgentInfo
+    ) -> AsyncIterator[str | DeltaToolCalls]:
+        name = info.output_tools[0].name
+        for i, chunk in enumerate(_chunks(draft)):
+            yield {0: DeltaToolCall(name=name if i == 0 else None, json_args=chunk)}
+
+    # 解析学は「前期　火3・月2」。1コマ目の火3は空いているが、2コマ目の月2 が
+    # 微分積分(通年・月2)と重なる
+    rows = [
+        dict(
+            r,
+            slots=[
+                {"term": "前期", "day": "火", "period": 3},
+                {"term": "前期", "day": "月", "period": 2},
+            ],
+        )
+        if r["syllabus_code"] == "Y001006011"
+        else r
+        for r in SYLLABI
+    ]
+
+    async def fake_search_syllabi(**kwargs) -> dict:
+        return {"count": len(rows), "limit": kwargs.get("limit"), "results": rows}
+
+    agent = build_proposal_agent()
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(pa, "search_syllabi", fake_search_syllabi)
+        with agent.override(model=FunctionModel(stream_function=stream_fn)):
+            resp = client.post("/api/proposal", json=_body())
+
+    event = _events(resp.text)[-2]
+    assert [c["title"] for c in event["result"]["courses"]] == ["微分積分"]
+    # 重なったコマ(2コマ目の月2)を書く
+    assert event["adjustments"] == [
+        "「解析学」は「微分積分」と月2限で開講期間が重なるため外しました。"
+    ]
+
+
+def test_result_carries_every_slot(monkeypatch):
+    """確定版の科目は、複数コマのクラスの全コマを slots に持つこと(§5.3)。"""
+    rows = [
+        dict(
+            r,
+            slots=[
+                {"term": "前期", "day": "火", "period": 3},
+                {"term": "前期", "day": "火", "period": 4},
+            ],
+        )
+        if r["syllabus_code"] == "Y001006011"
+        else r
+        for r in SYLLABI
+    ]
+
+    async def fake_search_syllabi(**kwargs) -> dict:
+        return {"count": len(rows), "limit": kwargs.get("limit"), "results": rows}
+
+    monkeypatch.setattr(pa, "search_syllabi", fake_search_syllabi)
+    result = _events(_post().text)[-2]["result"]
+    analysis = next(c for c in result["courses"] if c["title"] == "解析学")
+    # day / period / term は従来どおり1コマ目
+    assert (analysis["day"], analysis["period"], analysis["term"]) == ("火", 3, "前期")
+    assert analysis["slots"] == [
+        {"term": "前期", "day": "火", "period": 3},
+        {"term": "前期", "day": "火", "period": 4},
+    ]
 
 
 def test_courses_over_the_credit_cap_are_removed(monkeypatch):

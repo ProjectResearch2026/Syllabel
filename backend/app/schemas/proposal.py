@@ -38,9 +38,9 @@ class TargetTerm(BaseModel):
 # サ集)である(2025・2026年度のデータを投入した api-clean で確認)。**サ集(夏期集中)は
 # クォーターに属さない**ため載せない。集中講義は曜日・時限が null で、重複の検査対象外。
 #
-# なお api-clean の `term` は1つしか持たず、「3Q　金2、4Q　金2」のように2つの
-# クォーターにまたがる科目も `3Q` になる(2026年度で約40件)。一覧 API は開講の生値
-# (`term_schedule_raw`)を返さないため、ここでは見分けられない
+# api-clean の `term` / `day_of_week` / `period` は**1コマ目だけ**であり、「後期　金4・金5」は
+# 金4、「3Q　金2、4Q　金2」は 3Q になる。重複は開講コマの一覧(`slots`。api-clean 0.3.0 以降。
+# §6.2)の**コマどうし**で判定する(`CourseSlot` / `slots_clash()`)
 _QUARTERS: dict[str, frozenset[int]] = {
     "前期": frozenset({1, 2}),
     "後期": frozenset({3, 4}),
@@ -60,6 +60,38 @@ def quarters_of(term: str | None) -> frozenset[int] | None:
     return _QUARTERS.get(key)
 
 
+# 土曜は教職・学芸員課程や教養の特別講義で開講される(2026年度で16クラス)。
+# 月〜金に限ると、土曜のクラスを選んだときに曜日を null にするしかなくなる
+Day = Literal["月", "火", "水", "木", "金", "土"]
+
+
+class CourseSlot(BaseModel):
+    """開講コマ1つ(学期・曜日・時限)。api-clean の `slots` の1要素(§6.2)。
+
+    1つのクラスが複数のコマを持つ(「後期　金4・金5」「3Q　金3、4Q　金3」)。
+    """
+
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, frozen=True)
+
+    term: str | None = Field(default=None, description="そのコマの開講学期(例: 後期・3Q)。")
+    day: Day = Field(description="曜日。")
+    period: int = Field(description="時限。")
+
+
+def slots_clash(a: CourseSlot, b: CourseSlot) -> bool:
+    """2つのコマが重なるか。同じ曜日・時限で、占めるクォーターが重なるとき。
+
+    前期と1Q、通年と後期は文字列が違っても重なる。クォーターが分からない学期どうしは、
+    文字列が同じときだけ重なるとみなす。
+    """
+    if (a.day, a.period) != (b.day, b.period):
+        return False
+    qa, qb = quarters_of(a.term), quarters_of(b.term)
+    if qa is not None and qb is not None:
+        return bool(qa & qb)
+    return a.term == b.term
+
+
 class ProposedCourse(BaseModel):
     """提案する1科目。"""
 
@@ -72,9 +104,8 @@ class ProposedCourse(BaseModel):
     title: str = Field(
         description="科目名。シラバスに記載された正式名称を使うこと。",
     )
-    # 土曜は教職・学芸員課程や教養の特別講義で開講される(2026年度で16クラス)。
-    # 月〜金に限ると、土曜のクラスを選んだときに曜日を null にするしかなくなる
-    day: Literal["月", "火", "水", "木", "金", "土"] | None = Field(
+    # day / period / term は**1コマ目**。複数コマの科目の全コマは slots に入る
+    day: Day | None = Field(
         default=None,
         description="開講曜日。集中講義・曜日未定の場合はnullにすること。",
     )
@@ -85,6 +116,13 @@ class ProposedCourse(BaseModel):
     term: str | None = Field(
         default=None,
         description="開講学期（例: 前期・後期・通年・1Q）。不明な場合はnullにすること。",
+    )
+    slots: list[CourseSlot] = Field(
+        default_factory=list,
+        description=(
+            "開講コマのすべて(原文の順)。day / period / term は1コマ目と同じ。"
+            "集中講義など曜日・時限の無い科目は空。"
+        ),
     )
     credits: float | None = Field(
         default=None,
@@ -97,6 +135,27 @@ class ProposedCourse(BaseModel):
     reason: str = Field(
         description="この科目を推薦する理由を1文で説明すること。学生のプロファイルや希望条件との関連を明記すること。",
     )
+
+    def occupied_slots(self) -> list[CourseSlot]:
+        """その科目が占めるコマ。
+
+        `slots` が空で `day` / `period` があれば、その1コマとみなす(`slots` を持たない
+        旧い提案・api-clean 0.2.0 以前から作った提案)。
+        """
+        if self.slots:
+            return list(self.slots)
+        if self.day is not None and self.period is not None:
+            return [CourseSlot(term=self.term, day=self.day, period=self.period)]
+        return []
+
+
+def course_clash(a: ProposedCourse, b: ProposedCourse) -> CourseSlot | None:
+    """2科目が重なるコマ(`a` 側)。重ならなければ None。"""
+    others = b.occupied_slots()
+    for slot in a.occupied_slots():
+        if any(slots_clash(slot, other) for other in others):
+            return slot
+    return None
 
 
 class TimetableProposal(BaseModel):
@@ -119,30 +178,22 @@ class TimetableProposal(BaseModel):
     def check_no_time_conflict(self) -> "TimetableProposal":
         """同じ曜日・時限で、開講期間が重なる科目が無いか。
 
-        学期の文字列の一致ではなく**占めるクォーターの重なり**で判定する。前期と
-        1Q、通年と後期は文字列が違っても同じコマを取り合う。クォーターが分からない
-        学期どうしは、従来どおり文字列が同じときだけ重複とみなす。
+        各科目の**すべてのコマ**(`occupied_slots()`)どうしを比べる。「金4・金5」の
+        科目と金5の科目は重なる。学期の文字列の一致ではなく占めるクォーターの重なりで
+        判定する(`slots_clash()`)。
         """
-        seen: list[tuple[str, int, str | None, frozenset[int] | None]] = []
+        seen: list[CourseSlot] = []
         for course in self.courses:
-            if course.day is None or course.period is None:
-                continue
-            quarters = quarters_of(course.term)
-            for day, period, term, other in seen:
-                if (day, period) != (course.day, course.period):
-                    continue
-                overlaps = (
-                    bool(quarters & other)
-                    if quarters is not None and other is not None
-                    else term == course.term
-                )
-                if overlaps:
-                    raise ValueError(
-                        f"コマが重複しています: {course.day}{course.period}限 "
-                        f"({term} と {course.term}) — 同じ曜日・時限で開講期間が重なる"
-                        f"科目を複数割り当てないこと。"
-                    )
-            seen.append((course.day, course.period, course.term, quarters))
+            mine = course.occupied_slots()
+            for slot in mine:
+                for other in seen:
+                    if slots_clash(slot, other):
+                        raise ValueError(
+                            f"コマが重複しています: {slot.day}{slot.period}限 "
+                            f"({other.term} と {slot.term}) — 同じ曜日・時限で開講期間が重なる"
+                            f"科目を複数割り当てないこと。"
+                        )
+            seen.extend(mine)
         return self
 
 

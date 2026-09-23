@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { User, Award, Clock, GraduationCap, ArrowUpRight } from "lucide-react";
 import type { SyllabusListItem } from "@/lib/syllabus-api";
+import { formatSlots } from "@/lib/schedule";
 import type { CourseTags as CourseTagsType } from "@/lib/syllabusUI";
 import CourseTags from "./CourseTags";
 
@@ -70,7 +71,7 @@ export default function CourseCard({
         </span>
         <span className="flex items-center gap-1 px-2">
           <Clock size={13} className="shrink-0 text-fg-icon" />
-          {course.day_of_week}{course.period}限
+          {formatSlots(course)}
         </span>
         <span className="flex min-w-0 items-center gap-1 pl-2">
           <GraduationCap size={13} className="shrink-0 text-fg-icon" />

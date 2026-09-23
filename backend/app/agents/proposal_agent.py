@@ -98,12 +98,13 @@ from app.curricula.requirements import (
     normalize_title,
 )
 from app.schemas.proposal import (
+    CourseSlot,
     HalfTerm,
     ProposedCourse,
     TargetTerm,
     TimetableProposal,
+    course_clash,
     proposal_draft_model,
-    quarters_of,
 )
 from app.schemas.student import Course as StudentCourse
 from app.schemas.student import StudentProfile
@@ -184,6 +185,7 @@ _INSTRUCTIONS = (
     "同じ科目(同名の別クラスを含む)を2回入れない。\n"
     "3. 同じ曜日・時限で開講期間が重なる2科目を割り当ててはならない"
     "(前期と1Q・2Q、通年と前期・後期は重なる)。"
+    "「金4・金5」のように複数のコマが書かれたクラスは、そのすべてのコマを占める。"
     "曜日・時限が「未定」の科目(集中講義など)はこの制約の対象外とする。\n"
     "4. 提案する科目の単位の合計は、【履修登録単位数の上限】の"
     "「対象学期に登録できる残り単位」を超えてはならない。\n"
@@ -286,14 +288,10 @@ def render_summary_prompt(
             if placed is not None
             else ""
         )
-        slot = (
-            f"{course.day}{course.period}"
-            if course.day and course.period is not None
-            else "曜日時限未定"
-        )
         lines.append(
             f"- {course.title} | {course.category or '区分不明'} | "
-            f"{_credits(course.credits or 0)}単位{into} | {course.term or '学期未定'} {slot}"
+            f"{_credits(course.credits or 0)}単位{into} | "
+            f"{_slots_label(course.occupied_slots(), course.term, sep=' ')}"
             f" | 理由: {course.reason}"
         )
     total = proposal.total_credits
@@ -458,7 +456,10 @@ def placed_slots(
 
 @dataclass(frozen=True)
 class OfferedClass:
-    """api-clean の `GET /syllabi` が返す開講クラス1件のうち、時間割に要る値(§6.2)。"""
+    """api-clean の `GET /syllabi` が返す開講クラス1件のうち、時間割に要る値(§6.2)。
+
+    `term` / `day_of_week` / `period` は1コマ目、`slots` は全コマ(`_read_slots()`)。
+    """
 
     syllabus_code: str
     course_title: str
@@ -466,6 +467,7 @@ class OfferedClass:
     day_of_week: str | None = None
     period: int | None = None
     room: str | None = None
+    slots: tuple[CourseSlot, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -763,6 +765,39 @@ def _to_str(value: object) -> str | None:
     return text or None
 
 
+_DAYS = ("月", "火", "水", "木", "金", "土")
+
+
+def _to_slot(term: object, day: object, period: object) -> CourseSlot | None:
+    """学期・曜日・時限を `CourseSlot` にする。曜日か時限が読めなければ None。"""
+    day_text = _to_str(day)
+    period_number = _to_int(period)
+    if day_text not in _DAYS or period_number is None:
+        return None
+    return CourseSlot(term=_to_str(term), day=day_text, period=period_number)
+
+
+def _read_slots(row: dict) -> tuple[CourseSlot, ...]:
+    """`GET /syllabi` の1件から開講コマを全部読む(§6.2)。
+
+    api-clean 0.3.0 以降は `slots`(原文の全コマ)を返す。「後期　金4・金5」の金5 や
+    「3Q　金3、4Q　金3」の 4Q は `day_of_week` / `period` / `term`(1コマ目)には無い。
+    `slots` を返さない api-clean(0.2.0 以前)では、従来どおり1コマ目だけを使う。
+    """
+    raw = row.get("slots")
+    if raw is None:
+        first = _to_slot(row.get("term"), row.get("day_of_week"), row.get("period"))
+        return (first,) if first else ()
+    slots: list[CourseSlot] = []
+    for item in raw if isinstance(raw, list) else []:
+        if not isinstance(item, dict):
+            continue
+        slot = _to_slot(item.get("term"), item.get("day"), item.get("period"))
+        if slot is not None and slot not in slots:
+            slots.append(slot)
+    return tuple(slots)
+
+
 def _to_offered_class(row: dict) -> OfferedClass | None:
     """`GET /syllabi` の1件を `OfferedClass` にする。コードが無い行は捨てる。"""
     code = _to_str(row.get("syllabus_code"))
@@ -775,6 +810,7 @@ def _to_offered_class(row: dict) -> OfferedClass | None:
         day_of_week=_to_str(row.get("day_of_week")),
         period=_to_int(row.get("period")),
         room=_to_str(row.get("room")),
+        slots=_read_slots(row),
     )
 
 
@@ -1114,8 +1150,29 @@ def _format_registration_limits(
     return lines
 
 
+def _slots_label(slots: Sequence[CourseSlot], term: str | None, *, sep: str = " / ") -> str:
+    """開講学期とコマを「後期 / 金4・金5」の形にする。
+
+    コマごとに学期が違えば「3Q・4Q / 3Q金3・4Q金3」と、どのコマがどの学期かを書く。
+    コマが無ければ「後期 / 曜日時限未定」。
+    """
+    if not slots:
+        return f"{term or '学期未定'}{sep}曜日時限未定"
+    terms = list(dict.fromkeys(slot.term for slot in slots))
+    if len(terms) == 1:
+        periods = "・".join(f"{slot.day}{slot.period}" for slot in slots)
+        return f"{terms[0] or term or '学期未定'}{sep}{periods}"
+    periods = "・".join(f"{slot.term or ''}{slot.day}{slot.period}" for slot in slots)
+    return f"{'・'.join(t or '学期未定' for t in terms)}{sep}{periods}"
+
+
 def _format_class(offered: OfferedClass) -> str:
-    """開講クラス1件を「前期 / 月2 / 1-101」の形にする。欠測は「未定」と書く。"""
+    """開講クラス1件を「前期 / 月2 / 1-101」の形にする。欠測は「未定」と書く。
+
+    複数コマのクラスは全コマを書く(「後期 / 金4・金5 / 教室未定」)。
+    """
+    if offered.slots:
+        return f"{_slots_label(offered.slots, offered.term)} / {offered.room or '教室未定'}"
     if offered.day_of_week and offered.period is not None:
         slot = f"{offered.day_of_week}{offered.period}"
     elif offered.day_of_week:
@@ -1321,13 +1378,11 @@ def _proposed_course(candidate: Candidate, offered: OfferedClass) -> ProposedCou
         day=day,
         period=offered.period if day else None,
         term=offered.term,
+        slots=list(offered.slots),
         credits=candidate.course.credits,
         category=student_type(candidate.course),
         reason="",
     )
-
-
-_DAYS = ("月", "火", "水", "木", "金", "土")
 
 
 def _max_items(classes: dict[str, ProposedCourse], budget: CreditBudget | None) -> int:
@@ -1458,14 +1513,10 @@ def _weight(course: ProposedCourse) -> int:
     return _WEIGHT.get(course.category or "", 3)
 
 
-def _overlaps(a: ProposedCourse, b: ProposedCourse) -> bool:
-    """同じ曜日・時限で開講期間が重なるか(§5.3 の検証と同じ規則)。"""
-    if a.day is None or a.period is None or (a.day, a.period) != (b.day, b.period):
-        return False
-    qa, qb = quarters_of(a.term), quarters_of(b.term)
-    if qa is not None and qb is not None:
-        return bool(qa & qb)
-    return a.term == b.term
+def _clash_label(a: ProposedCourse, b: ProposedCourse) -> str:
+    """`a` と `b` が重なるコマを「金5」の形で。「金4・金5」の科目は重なった方のコマを書く。"""
+    slot = course_clash(a, b)
+    return f"{slot.day}{slot.period}" if slot else "同じコマ"
 
 
 def assemble_courses(
@@ -1506,14 +1557,15 @@ def assemble_courses(
         key = normalize_title(course.title)
         if key in titles:
             continue
-        clashes = [c for c in accepted if _overlaps(c, course)]
+        # 全コマどうしで比べる(「金4・金5」の科目は金5の科目とも重なる。§5.3)
+        clashes = [c for c in accepted if course_clash(c, course)]
         # 重なった相手より重い(必修 > 選択必修 > 選択)なら、相手を外して入れ替える。
         # 同じ重さなら先に書いた方を残す(モデルが先に挙げた方を優先したとみなす)
         if clashes and not all(_weight(course) < _weight(c) for c in clashes):
             clash = clashes[0]
             dropped.setdefault(
                 key,
-                f"「{course.title}」は「{clash.title}」と{course.day}{course.period}限で"
+                f"「{course.title}」は「{clash.title}」と{_clash_label(course, clash)}限で"
                 "開講期間が重なるため外しました。",
             )
             continue
@@ -1532,7 +1584,7 @@ def assemble_courses(
             total -= clash.credits or 0
             dropped.setdefault(
                 clash_key,
-                f"「{clash.title}」は「{course.title}」と{clash.day}{clash.period}限で"
+                f"「{clash.title}」は「{course.title}」と{_clash_label(clash, course)}限で"
                 f"開講期間が重なり、{course.category}の「{course.title}」を優先したため"
                 "外しました。",
             )

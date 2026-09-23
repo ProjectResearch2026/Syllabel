@@ -143,7 +143,9 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 - **表のために吹き出しを広げない。** 幅は設計(`ui-ux/ui-design_*.pen`、280〜290px)どおりに保ち、表は中で横スクロールさせる
 - Tailwind の preflight が `ul` / `ol` の記号と字下げを消すため、リストの見た目は `MarkdownText` の `components` で自分で付けている
 
-履修提案の科目スキーマは design.md §5.3 に従う(`syllabusCode` / `title` / `day` / `period` / `term` / `credits` / `category` / `reason`)。必須は `title` と `reason` だけで、**集中講義の曜日・時限や特定できないシラバスコードは null** で来る。
+履修提案の科目スキーマは design.md §5.3 に従う(`syllabusCode` / `title` / `day` / `period` / `term` / `slots` / `credits` / `category` / `reason`)。必須は `title` と `reason` だけで、**集中講義の曜日・時限や特定できないシラバスコードは null** で来る。
+
+**`day` / `period` / `term` は1コマ目だけである。** 「後期 金4・金5」のように複数のコマを持つ科目の全コマは `slots` にある。時間割に置くときは `lib/timetable.ts` の `occupiedSlots()` を通し、`day` / `period` を直接使わない(1コマ目だけを見ていた頃は、金4・金5 の科目の金5 が空いて見えた)。`coursesToTimetable()` は複数コマの科目の**同じセル**を全部のマスに入れ、`toCourseList()` はそれを1科目1行に数える(マスごとに数えると単位が2倍になる)。シラバス一覧の曜日時限も api-clean の `slots` から `lib/schedule.ts` の `formatSlots()` で作る。
 
 ## 課程コードの解決
 
