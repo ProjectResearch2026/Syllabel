@@ -1488,3 +1488,123 @@ def test_related_course_is_elective_for_the_student():
     assert pa.student_type(course) == "選択"
     assert pa._proposed_course(candidate, candidate.classes[0]).category == "選択"
     assert f"{course.title} | 専門関連科目 | 選択 |" in "\n".join(pa._format_candidates([candidate]))
+
+
+# ---------------------------------------------------------------------------
+# 8. 先修条件(§5.1.5 `prerequisites`)
+# ---------------------------------------------------------------------------
+
+from app.schemas.curriculum import Prerequisite  # noqa: E402
+
+
+def _rule(**kw) -> Prerequisite:
+    return Prerequisite.model_validate({"title": "数値解析", "notes": "原文。", **kw})
+
+
+def _taken(title: str, year: int = 2024, term: str = "前期", status: str = "passed", credits: float = 2) -> StudentCourse:
+    return StudentCourse(title=title, year=year, term=term, credits=credits, status=status)
+
+
+def test_prerequisite_any_of_and_all_of():
+    curriculum = _loaded().curriculum
+    done = [_taken("微分積分")]
+
+    assert pa.check_prerequisite(_rule(any_of=["微分積分", "線形代数"]), curriculum, done) == "met"
+    assert pa.check_prerequisite(_rule(any_of=["線形代数"]), curriculum, done) == "unmet"
+    assert pa.check_prerequisite(_rule(all_of=["微分積分", "線形代数"]), curriculum, done) == "unmet"
+    # 不合格は修得ではない
+    failed = [_taken("線形代数", status="failed")]
+    assert pa.check_prerequisite(_rule(any_of=["線形代数"]), curriculum, failed) == "unmet"
+
+
+def test_prerequisite_min_credits_total_and_by_category():
+    curriculum = _loaded().curriculum
+    done = [_taken("微分積分"), _taken("線形代数")]
+
+    # accepts 省略は卒業要件総修得単位数
+    assert pa.check_prerequisite(_rule(min_credits=[{"credits": 4}]), curriculum, done) == "met"
+    assert pa.check_prerequisite(_rule(min_credits=[{"credits": 5}]), curriculum, done) == "unmet"
+    by_category = {"credits": 4, "accepts": {"category": "専門基礎科目", "type": "必修"}}
+    assert pa.check_prerequisite(_rule(min_credits=[by_category]), curriculum, done) == "met"
+    other = {"credits": 2, "accepts": {"category": "専門応用科目"}}
+    assert pa.check_prerequisite(_rule(min_credits=[other]), curriculum, done) == "unmet"
+
+
+def test_prerequisite_as_of_counts_only_courses_until_then():
+    """判定時点(as_of)の学期末までに修得した科目だけで数える。"""
+    curriculum = _loaded().curriculum  # 2024年度入学
+    done = [_taken("微分積分", 2024, "前期"), _taken("線形代数", 2025, "前期")]
+    rule = _rule(as_of={"grade": 1, "term": "後期"}, min_credits=[{"credits": 4}])
+
+    # 1年後期(2024年度後期)末までに修得したのは微分積分の2単位だけ
+    assert pa.check_prerequisite(rule, curriculum, done) == "unmet"
+    later = _rule(as_of={"grade": 2, "term": "前期"}, min_credits=[{"credits": 4}])
+    assert pa.check_prerequisite(later, curriculum, done) == "met"
+
+
+def test_prerequisite_is_unknown_when_not_decidable():
+    curriculum = _loaded().curriculum
+    # 原文しか無い条件
+    assert pa.check_prerequisite(_rule(), curriculum, []) == "unknown"
+    # 判定時点が提案する学期以降(まだ成績が出ていない)
+    rule = _rule(as_of={"grade": 2, "term": "前期"}, min_credits=[{"credits": 2}])
+    target = TargetTerm(year=2025, term="前期", grade=2)
+    assert pa.check_prerequisite(rule, curriculum, [], target=target) == "unknown"
+
+
+def test_check_prerequisites_drops_unmet_and_reports_all():
+    loaded = _loaded()
+    rules = [
+        _rule(title="微分積分", any_of=["線形代数"], notes="線形代数を修得していること。"),
+        _rule(title="線形代数", notes="原文のみの条件。"),
+    ]
+    curriculum = loaded.curriculum.model_copy(update={"prerequisites": rules})
+    candidates = select_candidates(loaded, _profile())
+
+    kept, results = pa.check_prerequisites(candidates, curriculum, [])
+
+    assert "微分積分" not in _titles(kept)
+    assert "線形代数" in _titles(kept)
+    assert {(r.title, r.status) for r in results} == {("微分積分", "unmet"), ("線形代数", "unknown")}
+    lines = pa._format_prerequisites(results)
+    assert "- 微分積分: 満たしていない(候補から外した)。条件: 線形代数を修得していること。" in lines
+    assert "- 線形代数: 確認が要る(システムでは判定できない)。条件: 原文のみの条件。" in lines
+
+
+def test_seminar_prerequisite_on_real_data():
+    """知能情報メディアセミナー(3年前期終了時点で80単位以上、専門基礎科目(必修)20単位以上)。
+
+    スモークの合成プロファイル(83単位・専門基礎科目(必修)28単位)は満たし、
+    3年前期の科目を落として78単位にすると満たさない。
+    """
+    from pathlib import Path
+
+    import importlib.util
+
+    from app.curricula.loader import load_curricula
+    from app.settings import Settings
+
+    root = Path(__file__).resolve().parents[2]
+    spec = importlib.util.spec_from_file_location(
+        "smoke_proposal", root / "backend" / "scripts" / "smoke_proposal.py"
+    )
+    smoke = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(smoke)
+    _default_completed = smoke._default_completed
+    loaded = load_curricula(
+        Settings(curricula_dir=root / "curricula", offerings_dir=root / "offerings")
+    )[("02", 2024)]
+    seminar = next(p for p in loaded.curriculum.prerequisites if p.title == "知能情報メディアセミナー")
+    target = TargetTerm(year=2026, term="後期", grade=3)
+    completed = [StudentCourse.model_validate(c) for c in _default_completed()]
+
+    assert pa.check_prerequisite(seminar, loaded.curriculum, completed, target=target) == "met"
+
+    fewer = [c for c in completed if not (c.year == 2026 and c.status == "passed")]
+    assert pa.check_prerequisite(seminar, loaded.curriculum, fewer, target=target) == "unmet"
+
+
+def test_instructions_forbid_credit_arithmetic_in_summary():
+    """説明文に単位数の合計や内訳を書かせない(2026-09-23 の実機で合計を誤った)。"""
+    assert "単位数の合計や内訳の計算を書かない" in pa._INSTRUCTIONS
+    assert "単位数の合計や内訳の計算を書かない" in pa._SUMMARY_INSTRUCTIONS

@@ -76,6 +76,7 @@ api-clean の `program` は `cp.name = %s` の完全一致であり、対象課�
 
 import logging
 import unicodedata
+from typing import Literal
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
@@ -88,8 +89,11 @@ from app.agents import build_model
 from app.agents.tools import get_masters, search_syllabi
 from app.curricula.loader import LoadedCurriculum, get_curricula
 from app.curricula.merge import MergedCourse, MergedCurriculum
+from app.schemas.curriculum import Prerequisite
 from app.curricula.requirements import (
     RequirementsResult,
+    _course_index,
+    accepts_course,
     judge,
     normalize_title,
 )
@@ -193,7 +197,10 @@ _INSTRUCTIONS = (
     "8. reason には、その科目を勧める理由(どの要件枠を埋めるか、"
     "希望条件のどれに合うか)を40字以内の1文で書く。\n"
     "9. summary には提案全体の方針と履修上の注意点を2〜4文で書く。"
-    "先修要件・進級要件・抽選科目など確認が要る点があれば触れる。"
+    "【先修条件】で「確認が要る」とされた科目、進級要件・抽選科目など確認が要る点が"
+    "あれば触れる。【先修条件】で満たしているとされた条件について、不確かな書き方をしない。\n"
+    "10. summary に単位数の合計や内訳の計算を書かない。単位数はシステムが計算して"
+    "画面に表示する。"
 )
 
 
@@ -242,7 +249,8 @@ _SUMMARY_INSTRUCTIONS = (
     "2. 【卒業要件の充足状況】を踏まえ、提案全体の方針と履修上の注意点を2〜4文で書く。\n"
     "3. 元の説明文の方針や注意点のうち、確定した時間割と矛盾しないものは生かす。\n"
     "4. 科目を入れ替えた・外したといった作成の経緯には触れない。\n"
-    "5. 説明文の本文だけを出力する。見出しや前置きを付けない。"
+    "5. 単位数の合計や内訳の計算を書かない。単位数はシステムが計算して画面に表示する。\n"
+    "6. 説明文の本文だけを出力する。見出しや前置きを付けない。"
 )
 
 
@@ -424,6 +432,150 @@ def select_candidates(
     ordered = sorted(candidates.values(), key=lambda c: (c.course.grade, c.course.title))
     logger.info("候補科目を抽出しました: %d件", len(ordered))
     return ordered
+
+
+# --- 3b. 先修条件(§5.1.5 `prerequisites`) ---
+#
+# 履修要項の先修制(「ある科目を履修するには、指定された科目・単位数の修得が要る」)を
+# backend が判定する。2026-09-23 の実機では、判定材料を渡していなかったため、モデルが
+# 「先修要件がある場合があり」と一般論で書いた。判定の結果は3つに分ける:
+#
+# - met: 満たしている。プロンプトに明記し、不確かな書き方をさせない
+# - unmet: 満たしていない。候補から外し、外したことをプロンプトに書く
+# - unknown: 原文(notes)しか無く機械的に判定できない、または判定時点(as_of)が
+#   提案する学期以降でまだ決まらない。候補に残し「確認が要る」と書く
+
+
+PrerequisiteStatus = Literal["met", "unmet", "unknown"]
+
+
+def _half_index(term: str) -> int:
+    """学期を年度内の前半(0)・後半(1)に寄せる。通年は後期に終わるので後半とする。"""
+    return 0 if term in ("前期", "1Q", "2Q", "サ集") else 1
+
+
+def check_prerequisite(
+    prerequisite: Prerequisite,
+    curriculum: MergedCurriculum,
+    completed: Sequence[StudentCourse],
+    *,
+    target: TargetTerm | None = None,
+) -> PrerequisiteStatus:
+    """先修条件1件を判定する。`min_credits` / `all_of` / `any_of` は AND で結ぶ。
+
+    `as_of`(判定時点)があれば、その学期末までに修得した科目だけで数える。判定時点が
+    提案する学期(`target`)以降なら、まだ成績が出ていないので unknown とする。
+    `min_credits` の `accepts` 省略は卒業要件総修得単位数(要件充足判定の
+    `earned_credits`)、`accepts` ありは当該区分に当たる修得科目の単位の合計で比べる。
+    """
+    if not (prerequisite.min_credits or prerequisite.all_of or prerequisite.any_of):
+        return "unknown"
+
+    passed = [c for c in completed if c.status == "passed"]
+    if prerequisite.as_of is not None:
+        as_of = (
+            curriculum.admission_year + prerequisite.as_of.grade - 1,
+            0 if prerequisite.as_of.term == "前期" else 1,
+        )
+        if target is not None and as_of >= (target.year, 0 if target.term == "前期" else 1):
+            return "unknown"
+        passed = [c for c in passed if (c.year, _half_index(c.term)) <= as_of]
+
+    titles = {normalize_title(c.title) for c in passed}
+    if prerequisite.all_of and not all(normalize_title(t) in titles for t in prerequisite.all_of):
+        return "unmet"
+    if prerequisite.any_of and not any(normalize_title(t) in titles for t in prerequisite.any_of):
+        return "unmet"
+    if prerequisite.min_credits:
+        index = _course_index(curriculum)
+        total = None
+        for threshold in prerequisite.min_credits:
+            if threshold.accepts is None:
+                if total is None:
+                    total = judge(curriculum, passed).earned_credits
+                earned = total
+            else:
+                earned = sum(
+                    c.credits
+                    for c in passed
+                    if (course := index.get(normalize_title(c.title))) is not None
+                    and accepts_course(threshold.accepts, course)
+                )
+            if earned < threshold.credits:
+                return "unmet"
+    return "met"
+
+
+@dataclass(frozen=True)
+class PrerequisiteResult:
+    """候補科目1件の先修条件の判定結果。`notes` は履修要項の原文。"""
+
+    title: str
+    status: PrerequisiteStatus
+    notes: str
+
+
+def check_prerequisites(
+    candidates: Sequence[Candidate],
+    curriculum: MergedCurriculum,
+    completed: Sequence[StudentCourse],
+    *,
+    target: TargetTerm | None = None,
+) -> tuple[list[Candidate], list[PrerequisiteResult]]:
+    """候補科目の先修条件を判定し、満たさない科目を外す。
+
+    同じ科目に条件が複数あれば、1つでも unmet なら unmet、そうでなく1つでも
+    unknown なら unknown とする。先修条件の無い科目はそのまま残し、結果にも載せない。
+    """
+    by_title: dict[str, list[Prerequisite]] = {}
+    for prerequisite in curriculum.prerequisites:
+        by_title.setdefault(normalize_title(prerequisite.title), []).append(prerequisite)
+
+    kept: list[Candidate] = []
+    results: list[PrerequisiteResult] = []
+    for candidate in candidates:
+        rules = by_title.get(normalize_title(candidate.course.title))
+        if not rules:
+            kept.append(candidate)
+            continue
+        statuses = [
+            check_prerequisite(rule, curriculum, completed, target=target) for rule in rules
+        ]
+        status: PrerequisiteStatus = (
+            "unmet" if "unmet" in statuses else "unknown" if "unknown" in statuses else "met"
+        )
+        results.append(
+            PrerequisiteResult(
+                title=candidate.course.title,
+                status=status,
+                notes=" / ".join(_oneline(rule.notes) for rule in rules),
+            )
+        )
+        if status != "unmet":
+            kept.append(candidate)
+    logger.info(
+        "先修条件を判定しました: 満たす %d件 / 満たさない %d件 / 要確認 %d件",
+        sum(r.status == "met" for r in results),
+        sum(r.status == "unmet" for r in results),
+        sum(r.status == "unknown" for r in results),
+    )
+    return kept, results
+
+
+def _format_prerequisites(results: Sequence[PrerequisiteResult]) -> list[str]:
+    """【先修条件】の中身。候補に関係する先修条件だけを、判定結果ごとに並べる。"""
+    if not results:
+        return ["候補科目に先修条件のある科目はない。"]
+    labels = {
+        "met": "満たしている",
+        "unmet": "満たしていない(候補から外した)",
+        "unknown": "確認が要る(システムでは判定できない)",
+    }
+    lines: list[str] = []
+    for status in ("met", "unmet", "unknown"):
+        for result in (r for r in results if r.status == status):
+            lines.append(f"- {result.title}: {labels[status]}。条件: {result.notes}")
+    return lines
 
 
 # --- 4. 開講情報の突合(§7.2 / §6.2) ---
@@ -910,6 +1062,7 @@ def render_prompt(
     wishes: str | None = None,
     target: TargetTerm | None = None,
     budget: CreditBudget | None = None,
+    prerequisites: Sequence[PrerequisiteResult] = (),
 ) -> str:
     """組み立て済みの材料を1つのプロンプトにする(§7.2)。
 
@@ -951,6 +1104,7 @@ def render_prompt(
         ),
         _section("修得済み科目", _format_completed(profile.completed_courses)),
         _section("登録済み科目", _format_registered(profile.completed_courses)),
+        _section("先修条件", _format_prerequisites(prerequisites)),
         _section(
             "候補科目",
             [
@@ -1052,6 +1206,11 @@ async def build_proposal_context(
         eligibility=eligibility,
         term=target.term if target else None,
     )
+    # 先修条件を満たさない科目は候補から外す。対象学期に開講される候補にだけ掛け、
+    # プロンプトの【先修条件】に載るのも実際に選べる科目の条件だけにする
+    attached, prerequisites = check_prerequisites(
+        attached, loaded.curriculum, profile.completed_courses, target=target
+    )
     classes = {
         offered.syllabus_code: _proposed_course(candidate, offered)
         for candidate in attached
@@ -1081,6 +1240,7 @@ async def build_proposal_context(
         wishes=wishes,
         target=target,
         budget=budget,
+        prerequisites=prerequisites,
     )
     return ProposalContext(
         prompt=prompt,
