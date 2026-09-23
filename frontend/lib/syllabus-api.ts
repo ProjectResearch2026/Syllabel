@@ -19,8 +19,14 @@ export type SyllabusListItem = {
   subtitle: string | null;
   campus: string;
   term: string;
+  /** 1コマ目の曜日・時限。全コマは `slots` にある */
   day_of_week: string;
   period: number;
+  /**
+   * 開講コマのすべて(原文の順。api-clean 0.3.0 以降。design.md §6.2)。
+   * 「後期 金4・金5」の金5 は `day_of_week` / `period` には無い。集中講義は空
+   */
+  slots?: { term: string | null; day: string; period: number }[];
   room: string | null;
   grade_min: number;
   grade_max: number;

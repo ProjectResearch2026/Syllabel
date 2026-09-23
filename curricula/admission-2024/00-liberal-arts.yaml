@@ -18,26 +18,32 @@ duplicate_of: null                  # 複製元。このファイルが原本の
 # 教養教育科目の卒業要件枠(合計28単位)。accepts の記法は §5.1.5
 requirement_slots:
   - key: "liberal.buddhism"
+    name: "教養教育科目(必修・仏教)"
     credits: 4
     accepts: {subcategory: "「仏教の思想」科目", type: "必修"}
   - key: "liberal.language.required"
+    name: "教養教育科目(必修・言語)"
     credits: 6
     accepts: {subcategory: "必修外国語科目"}
     overflow_to: "liberal.elective"           # 履修要項 注記A
   - key: "liberal.general.humanities"
+    name: "教養教育科目(選択必修〈基幹〉・人文)"
     credits: 2
     accepts: {subcategory: "人文科学系科目", kikan: true}
     overflow_to: "liberal.elective"
     notes: "基幹科目に指定された科目から1科目(2単位)以上"
   - key: "liberal.general.social"
+    name: "教養教育科目(選択必修〈基幹〉・社会)"
     credits: 2
     accepts: {subcategory: "社会科学系科目", kikan: true}
     overflow_to: "liberal.elective"
     notes: "基幹科目に指定された科目から1科目(2単位)以上"
   - key: "liberal.general.sports"
+    name: "教養教育科目(必修・スポーツ)"
     credits: 2
     accepts: {subcategory: "スポーツ科学系科目", type: "必修"}
   - key: "liberal.elective"
+    name: "教養教育科目(選択)"
     credits: 12
     accepts: {category: "教養教育科目"}       # 上位枠に収まらない教養教育科目の受け皿
     overflow_to: "free.all"                   # 参照先は課程ファイル。解決はマージ後(§4.4.3)

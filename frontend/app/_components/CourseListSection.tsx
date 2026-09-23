@@ -3,7 +3,7 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { motion } from "motion/react";
-import { CELL_STYLES, toCourseList, type Timetable } from "@/lib/timetable";
+import { CELL_STYLES, slotBadge, toCourseList, type Timetable } from "@/lib/timetable";
 
 const MotionLink = motion.create(Link);
 
@@ -40,14 +40,20 @@ export default function CourseListSection({ timetable }: { timetable: Timetable 
         const meta = [course.code, course.teacher, course.credits && `${course.credits}単位`]
           .filter(Boolean)
           .join(" ・ ");
+        // 複数コマの科目は「金 / 4・5」と全コマを書く(1行にまとめてある。toCourseList)
+        const badge = slotBadge(course.slots ?? [{ day, period }]) ?? { day, period: String(period) };
         const row = (
           <>
             <span
               className={`flex size-10 shrink-0 flex-col items-center justify-center rounded-[10px] ${style.badge}`}
             >
-              <span className="text-[9px] font-bold text-fg-secondary">{day}</span>
-              <span className="tabular-nums text-[15px] font-bold leading-[1.2] text-fg-primary">
-                {period}
+              <span className="text-[9px] font-bold text-fg-secondary">{badge.day}</span>
+              <span
+                className={`tabular-nums font-bold leading-[1.2] text-fg-primary ${
+                  badge.period.length > 1 ? "text-[11px]" : "text-[15px]"
+                }`}
+              >
+                {badge.period}
               </span>
             </span>
             <span className="flex min-w-0 flex-1 flex-col gap-[3px]">

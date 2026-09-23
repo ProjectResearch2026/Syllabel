@@ -12,7 +12,8 @@
 
    確かめるのは design.md §7.2 の次の点:
    - snapshot が時間割を**逐次**組み上げていくこと(確定を待たずに描画できる)
-   - result がコマ重複のない、候補科目から採った提案になっていること
+   - result がコマ重複のない、候補科目から採った提案になっていること(複数コマの
+     科目は全コマで見る。§5.3)
    - result の科目が**すべて提案する学期のもの**であること(前期・後期が混ざらない)
    - 修得済み・登録済みの科目を提案していないこと
    - done で締めること
@@ -37,6 +38,7 @@ import httpx
 
 from app.agents.proposal_agent import registration_half
 from app.curricula.requirements import normalize_title
+from app.schemas.proposal import CourseSlot, slots_clash
 
 BASE_URL = os.environ.get("SMOKE_BASE_URL", "http://localhost:8000")
 # トークン間の無通信がこれを超えたら打ち切る。提案の生成は候補科目を載せた長い
@@ -59,34 +61,73 @@ DAYS = ["月", "火", "水", "木", "金", "土"]
 PERIODS = [1, 2, 3, 4, 5]
 RULE = "-" * 60
 
-# 2024年度入学・知能情報メディア課程の3回生を想定した合成プロファイル。
-# frontend の `lib/dummy/profiles.ts` と同じ内容(成績表取り込みの出力を模したもの)
+# 2024年度入学・知能情報メディア課程の3回生(2026年前期まで履修済み)を想定した
+# 合成プロファイル。実在の成績ではない。科目名・単位・学期は履修要項データ
+# (`curricula/admission-2024/`)の設置科目から採り、年度は配当年次から決めた。
+#
+# 実物の3回生の成績表(2026年9月作成)と同程度の約85単位とし、次を作り込んでいる:
+# - 教養教育科目の必修・専門基礎科目の必修は、英語総合4 を除いて修得済み
+# - 専門応用科目の必修は2年後期の「知能情報メディア演習」まで。3年後期の
+#   「ネットワークシステム・演習」「知能情報メディアセミナー」が未修得で残る
+# - 不合格(再履修の対象)が2科目: 英語総合4(2年後期)、画像メディア処理論(3年前期)
+# - 教養教育科目(選択必修〈基幹〉・社会)は未修得
 COMPLETED = [
-    ("仏教の思想A", 2024, "前期", 2),
-    ("仏教の思想B", 2024, "後期", 2),
-    ("英語総合1(A)", 2024, "前期", 1),
-    ("英語総合1(B)", 2024, "後期", 1),
-    ("英語総合2(A)", 2025, "前期", 1),
-    ("英語総合2(B)", 2025, "後期", 1),
-    ("スポーツ技術学A", 2024, "前期", 1),
-    ("情報基礎", 2024, "前期", 2),
-    ("メディア処理基礎", 2024, "後期", 2),
-    ("ネットワーク基礎", 2024, "前期", 2),
-    ("微分積分・演習", 2024, "通年", 4),
-    ("情報システム基礎", 2025, "前期", 2),
-    ("プログラミング基礎演習Ⅰ", 2024, "前期", 2),
-    ("プログラミング基礎演習Ⅱ", 2025, "前期", 2),
-    ("ソフトウェア基礎", 2025, "前期", 2),
-    ("ハードウェア基礎", 2025, "後期", 2),
-    ("データ構造とアルゴリズム・演習", 2025, "後期", 4),
+    # 教養教育科目(必修)
+    ("仏教の思想A", 2024, "前期", 2, "passed"),
+    ("仏教の思想B", 2024, "後期", 2, "passed"),
+    ("英語総合1(A)", 2024, "前期", 1, "passed"),
+    ("英語総合1(B)", 2024, "前期", 1, "passed"),
+    ("英語総合2(A)", 2024, "後期", 1, "passed"),
+    ("英語総合2(B)", 2024, "後期", 1, "passed"),
+    ("英語総合3", 2025, "前期", 1, "passed"),
+    ("英語総合4", 2025, "後期", 1, "failed"),
+    ("スポーツ技術学A", 2024, "前期", 1, "passed"),
+    ("スポーツ技術学B", 2024, "後期", 1, "passed"),
+    # 教養教育科目(選択必修〈基幹〉・人文)/(選択)
+    ("哲学入門", 2024, "前期", 2, "passed"),
+    ("データサイエンス・AI入門", 2024, "前期", 2, "passed"),
+    ("情報社会とメディア", 2024, "前期", 2, "passed"),
+    ("生活の中の物理", 2024, "前期", 2, "passed"),
+    ("人権論B", 2024, "後期", 2, "passed"),
+    ("情報と人間", 2024, "後期", 2, "passed"),
+    # 専門基礎科目(必修)
+    ("情報基礎", 2024, "前期", 2, "passed"),
+    ("メディア処理基礎", 2024, "前期", 2, "passed"),
+    ("ネットワーク基礎", 2024, "前期", 2, "passed"),
+    ("微分積分・演習", 2024, "前期", 4, "passed"),
+    ("ソフトウェア基礎", 2024, "後期", 2, "passed"),
+    ("プログラミング基礎演習Ⅰ", 2024, "後期", 2, "passed"),
+    ("プログラミング基礎演習Ⅱ", 2024, "後期", 2, "passed"),
+    ("情報システム基礎", 2025, "前期", 2, "passed"),
+    ("ハードウェア基礎", 2025, "前期", 2, "passed"),
+    ("線形代数・演習", 2025, "前期", 4, "passed"),
+    ("データ構造とアルゴリズム・演習", 2025, "前期", 4, "passed"),
+    # 専門基礎科目(選択)
+    ("フレッシャーズセミナー", 2024, "前期", 2, "passed"),
+    ("理工学のすすめ", 2024, "後期", 2, "passed"),
+    ("確率・統計", 2024, "後期", 2, "passed"),
+    ("情報数学基礎", 2024, "後期", 2, "passed"),
+    ("システムソフトウェア", 2025, "前期", 2, "passed"),
+    ("データベース", 2025, "前期", 2, "passed"),
+    ("情報とセキュリティ", 2025, "前期", 2, "passed"),
+    # 専門応用科目(必修)/(選択)
+    ("知能情報メディア演習", 2025, "後期", 4, "passed"),
+    ("コンピュータビジョン", 2025, "前期", 2, "passed"),
+    ("CGとVR", 2025, "後期", 2, "passed"),
+    ("データインテリジェンス", 2025, "後期", 2, "passed"),
+    ("ニューロとAI", 2025, "後期", 2, "passed"),
+    ("言語メディア処理論", 2025, "後期", 2, "passed"),
+    ("実践プログラミング・演習", 2026, "前期", 2, "passed"),
+    ("応用アルゴリズム", 2026, "前期", 2, "passed"),
+    ("画像メディア処理論", 2026, "前期", 2, "failed"),
 ]
 
 
 def _default_completed() -> list[dict]:
-    """埋め込みの合成プロファイル(全科目合格)を `completedCourses` の形にする。"""
+    """埋め込みの合成プロファイルを `completedCourses` の形にする。"""
     return [
-        {"title": title, "year": year, "term": term, "credits": credits, "status": "passed"}
-        for title, year, term, credits in COMPLETED
+        {"title": title, "year": year, "term": term, "credits": credits, "status": status}
+        for title, year, term, credits, status in COMPLETED
     ]
 
 
@@ -147,12 +188,29 @@ def _payload(line: str) -> dict | None:
     return json.loads(line.removeprefix("data: "))
 
 
-def _slot(course: dict) -> str:
-    """科目1件の開講コマ。曜日・時限が無いものは「未定」と書く。"""
+def _slots(course: dict) -> list[tuple[str | None, str, int]]:
+    """科目1件が占めるコマ (学期, 曜日, 時限) の全部。
+
+    `slots`(全コマ。§5.3)を使い、無ければ `day` / `period`(1コマ目)の1コマとする。
+    """
+    slots = [
+        (s.get("term"), s["day"], s["period"])
+        for s in course.get("slots") or []
+        if s.get("day") and s.get("period")
+    ]
+    if slots:
+        return slots
     day, period = course.get("day"), course.get("period")
-    if day and period:
-        return f"{day}{period}"
-    return "未定"
+    return [(course.get("term"), day, period)] if day and period else []
+
+
+def _slot(course: dict) -> str:
+    """科目1件の開講コマ(「金4・金5」)。学期の違うコマは学期を添える。無ければ「未定」。"""
+    slots = _slots(course)
+    if not slots:
+        return "未定"
+    with_term = len({term for term, _, _ in slots}) > 1
+    return "・".join(f"{term if with_term else ''}{day}{period}" for term, day, period in slots)
 
 
 def _width(text: str) -> int:
@@ -171,7 +229,7 @@ def _line(course: dict) -> str:
     """科目1件を1行にする。"""
     credits = course.get("credits")
     return (
-        f"{_pad(_slot(course), 5)}{course.get('title') or '(名称未定)'}"
+        f"{_pad(_slot(course), 10)}{course.get('title') or '(名称未定)'}"
         f" [{course.get('syllabusCode') or 'コード無'}]"
         f" {course.get('term') or '学期未定'}"
         f" {'?' if credits is None else credits}単位"
@@ -191,24 +249,34 @@ def _settled(snapshot: dict) -> list[dict]:
 
 def _grid(courses: list[dict]) -> str:
     """曜日×時限の表。コマ重複(§7.2)を目で確かめるために出す。"""
-    cells: dict[tuple[str, int], list[str]] = {}
+    # マス → 科目名 → その科目がそのマスを占める学期
+    cells: dict[tuple[str, int], dict[str, list[str]]] = {}
     for course in courses:
-        day, period = course.get("day"), course.get("period")
-        if day in DAYS and period in PERIODS:
-            # クォーター科目は学期を添える。1Q と 2Q が同じコマに並ぶのは重複ではない
-            title = course.get("title") or "?"
-            term = course.get("term")
-            if term and term not in ("前期", "後期"):
-                title += f"({term})"
-            cells.setdefault((day, period), []).append(title)
+        # 複数コマの科目(「金4・金5」)は全部のマスに置く
+        for term, day, period in _slots(course):
+            if day not in DAYS or period not in PERIODS:
+                continue
+            terms = cells.setdefault((day, period), {}).setdefault(course.get("title") or "?", [])
+            if term and term not in terms:
+                terms.append(term)
+
+    def _cell(entries: dict[str, list[str]]) -> str:
+        # クォーター科目は学期を科目名より先に書く(マスの幅で後ろが切れても見えるように)。
+        # 同じ科目の 3Q・4Q は1つにまとめる。1Q と 2Q が同じマスに並ぶのは重複ではない
+        names = []
+        for title, terms in entries.items():
+            quarters = [t for t in terms if t not in ("前期", "後期")]
+            names.append(f"({'・'.join(quarters)}){title}" if quarters else title)
+        # 2科目以上は件数を先頭に出す。幅で切れても複数入っていることが見える
+        text = " / ".join(names)
+        return f"[{len(names)}]{text}" if len(names) > 1 else text
 
     # 1マス15桁+区切り1桁。溢れた科目名は切るが、隣のマスとくっつかないようにする
     lines = ["    " + "".join(_pad(day, 15) + " " for day in DAYS)]
     for period in PERIODS:
         row = f"{period}限 "
         for day in DAYS:
-            # 重複は「A / B」と並べて出す。1コマに2つ入っていれば異常
-            row += _pad(" / ".join(cells.get((day, period), [])), 15) + " "
+            row += _pad(_cell(cells.get((day, period), {})), 15) + " "
         lines.append(row.rstrip())
 
     undecided = [c for c in courses if _slot(c) == "未定"]
@@ -222,13 +290,26 @@ def _grid(courses: list[dict]) -> str:
 def _check(result: dict, body: dict) -> list[str]:
     """提案が §7.2 の約束を守っているかを確かめ、守れていない点を返す。
 
-    コマ重複は backend の検証(§5.3)が弾くのでここでは見ない。見るのは、
-    提案する学期以外の科目が混ざっていないか、修得済み・登録済みの科目を
-    提案していないか、合計単位が各科目の和と合うか、の3点である。
+    見るのは、全コマどうしでコマが重なっていないか(1コマ目だけを見ていた頃は
+    「金4・金5」の科目と金5の科目を並べていた)、提案する学期以外の科目が
+    混ざっていないか、修得済み・登録済みの科目を提案していないか、合計単位が
+    各科目の和と合うか、の4点である。
     """
     problems: list[str] = []
     courses = result.get("courses") or []
     target = body["targetTerm"]["term"]
+
+    placed: list[tuple[str, CourseSlot]] = []
+    for course in courses:
+        title = course.get("title") or "?"
+        mine = [CourseSlot(term=t, day=d, period=p) for t, d, p in _slots(course)]
+        for slot in mine:
+            for other_title, other in placed:
+                if slots_clash(slot, other):
+                    problems.append(
+                        f"コマ重複: {title} と {other_title}({slot.day}{slot.period}限)"
+                    )
+        placed.extend((title, slot) for slot in mine)
 
     for course in courses:
         half = registration_half(course.get("term"))
@@ -296,6 +377,7 @@ async def stream(client: httpx.AsyncClient, body: dict) -> None:
     snapshots = 0
     shown = 0
     result: dict | None = None
+    adjustments: list[str] = []
     done = False
     try:
         async with client.stream(
@@ -322,6 +404,7 @@ async def stream(client: httpx.AsyncClient, body: dict) -> None:
                     shown = len(settled)
                 elif "result" in payload:
                     result = payload["result"]
+                    adjustments = payload.get("adjustments") or []
                 elif "error" in payload:
                     state["started"] = True
                     print(f"[error] {payload['error']}")
@@ -344,13 +427,24 @@ async def stream(client: httpx.AsyncClient, body: dict) -> None:
         print(f"\n合計 {result.get('totalCredits')}単位 / {len(courses)}科目")
         print(f"\n{result.get('summary')}")
         print(RULE)
+        # backend が外した科目・打ち切りの記録。画面には出ない(§7.2.2)
+        if adjustments:
+            print("[backend の調整(学生には表示しない)]")
+            for note in adjustments:
+                print(f"  - {note}")
+        else:
+            print("backend の調整: なし")
+        print(RULE)
         problems = _check(result, body)
         if problems:
             print("[要確認]")
             for problem in problems:
                 print(f"  - {problem}")
         else:
-            print("確認: 提案する学期以外の科目なし / 修得済み・登録済みの科目なし / 合計単位一致")
+            print(
+                "確認: コマ重複なし(全コマ) / 提案する学期以外の科目なし / "
+                "修得済み・登録済みの科目なし / 合計単位一致"
+            )
         print(RULE)
     print(
         f"snapshot {snapshots}件 / result {'あり' if result else 'なし'}"

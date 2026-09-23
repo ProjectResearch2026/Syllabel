@@ -44,7 +44,7 @@ def _liberal_arts(admission_year: int = 2024) -> dict:
         "liberal_arts_version": "until-2025",
         "requirement_slots": [
             {
-                "key": "liberal.elective",
+                "key": "liberal.elective", "name": "liberal.elective",
                 "credits": 4,
                 "accepts": {"category": "教養教育科目"},
                 "overflow_to": "free.all",
@@ -81,8 +81,8 @@ def _program(code: str = "01", admission_year: int = 2024) -> dict:
         "admission_year": admission_year,
         "graduation": {"total_credits": 10, "excluded_types": ["随意"]},
         "requirement_slots": [
-            {"key": "basic.required", "credits": 6, "accepts": {"type": "必修"}},
-            {"key": "free.all", "credits": 0, "accepts": {"category": "any"}},
+            {"key": "basic.required", "name": "basic.required", "credits": 6, "accepts": {"type": "必修"}},
+            {"key": "free.all", "name": "free.all", "credits": 0, "accepts": {"category": "any"}},
         ],
         "registration_limits": {},
         "courses": [

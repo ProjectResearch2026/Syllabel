@@ -10,14 +10,19 @@ from functools import lru_cache
 
 import pytest
 from pydantic_ai import Agent
-from pydantic_ai.messages import ModelResponse, ToolCallPart
+from pydantic_ai.exceptions import UnexpectedModelBehavior
+from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
 from app.agents import proposal_agent as pa
 from app.agents.proposal_agent import (
     Candidate,
+    CreditBudget,
     OfferedClass,
+    ProposalContext,
     ProposalError,
+    assemble_courses,
+    assemble_proposal,
     attach_offerings,
     build_proposal_agent,
     build_proposal_prompt,
@@ -31,7 +36,7 @@ from app.curricula.loader import LoadedCurriculum
 from app.curricula.merge import MergedCurriculum, merge
 from app.schemas.curriculum import Curriculum, LiberalArtsCurriculum
 from app.schemas.offering import Offering
-from app.schemas.proposal import TargetTerm, TimetableProposal
+from app.schemas.proposal import ProposedCourse, TargetTerm, TimetableProposal
 from app.schemas.student import Course as StudentCourse
 from app.schemas.student import StudentProfile
 
@@ -87,12 +92,12 @@ def _liberal_arts() -> LiberalArtsCurriculum:
             "liberal_arts_version": "until-2025",
             "requirement_slots": [
                 {
-                    "key": "liberal.buddhism",
+                    "key": "liberal.buddhism", "name": "liberal.buddhism",
                     "credits": 2,
                     "accepts": {"subcategory": "「仏教の思想」科目", "type": "必修"},
                 },
                 {
-                    "key": "liberal.elective",
+                    "key": "liberal.elective", "name": "liberal.elective",
                     "credits": 4,
                     "accepts": {"category": "教養教育科目"},
                     "overflow_to": "free.all",
@@ -131,31 +136,31 @@ def _program(code: str = "01") -> Curriculum:
             ],
             "requirement_slots": [
                 {
-                    "key": "basic.required",
+                    "key": "basic.required", "name": "basic.required",
                     "credits": 4,
                     "accepts": {"category": "専門基礎科目", "type": "必修"},
                 },
                 {
-                    "key": "applied.elective",
+                    "key": "applied.elective", "name": "applied.elective",
                     "credits": 2,
                     "accepts": {"category": "専門応用科目", "type": "選択"},
                     "overflow_to": "free.faculty",
                 },
                 {
-                    "key": "related",
+                    "key": "related", "name": "related",
                     "credits": 0,
                     "accepts": {"category": "専門関連科目"},
                     "overflow_to": "free.faculty",
                 },
                 {
-                    "key": "free.faculty",
+                    "key": "free.faculty", "name": "free.faculty",
                     "credits": 2,
                     "accepts": {
                         "category": ["専門基礎科目", "専門応用科目", "専門関連科目"]
                     },
                     "overflow_to": "free.all",
                 },
-                {"key": "free.all", "credits": 2, "accepts": {"category": "any"}},
+                {"key": "free.all", "name": "free.all", "credits": 2, "accepts": {"category": "any"}},
             ],
             "registration_limits": {
                 "by_semester": [
@@ -285,8 +290,8 @@ def test_model_settings_disable_thinking():
 def test_model_settings_bound_the_response():
     """出力の打ち切りと待ち時間に上限を置くこと。
 
-    `max_tokens` が小さいと構造化出力が途中で切れ、検証に落ちて作り直し
-    (`OUTPUT_RETRIES`)が走り、所要時間が倍以上になる。
+    `max_tokens` が小さいと構造化出力が途中で切れ、書き終えた科目までの
+    提案になってしまう。
     """
     settings = build_proposal_agent().model_settings
     assert settings["max_tokens"] >= 4000
@@ -371,41 +376,43 @@ async def test_model_settings_reach_the_model():
 
 
 @pytest.mark.asyncio
-async def test_agent_retries_on_time_conflict():
-    """コマ重複は `TimetableProposal` の検証で弾かれ、モデルに作り直させる(§7.2)。"""
+async def test_agent_does_not_retry_invalid_output():
+    """検証に落ちた出力で作り直しをさせない(§7.2)。
+
+    作り直しは1回4〜5分かかる。下書きの形式は vLLM が縛るため、検証に落ちるのは
+    出力の上限で途中で切れたときであり、そのときは書き終えた科目までで確定版に
+    する(`app/api/proposal.py`)。整理は backend が行う(`assemble_courses()`)。
+    """
     calls = {"n": 0}
 
-    def conflicting_then_valid(messages, info: AgentInfo) -> ModelResponse:
+    def conflicting(messages, info: AgentInfo) -> ModelResponse:
         calls["n"] += 1
-        if calls["n"] == 1:
-            course = {
-                "title": "微分積分",
-                "day": "月",
-                "period": 1,
-                "term": "前期",
-                "credits": 2,
-                "reason": "必修のため。",
-            }
-            return ModelResponse(
-                parts=[
-                    ToolCallPart(
-                        info.output_tools[0].name,
-                        {
-                            "courses": [course, {**course, "title": "線形代数"}],
-                            "totalCredits": 4,
-                            "summary": "コマが重複した提案。検証で弾かれる。",
-                        },
-                    )
-                ]
-            )
-        return _proposal_response(messages, info)
+        course = {
+            "title": "微分積分",
+            "day": "月",
+            "period": 1,
+            "term": "前期",
+            "credits": 2,
+            "reason": "必修のため。",
+        }
+        return ModelResponse(
+            parts=[
+                ToolCallPart(
+                    info.output_tools[0].name,
+                    {
+                        "courses": [course, {**course, "title": "線形代数"}],
+                        "summary": "コマが重複した提案。",
+                    },
+                )
+            ]
+        )
 
     agent = build_proposal_agent()
-    with agent.override(model=FunctionModel(conflicting_then_valid)):
-        result = await agent.run("提案して")
+    with agent.override(model=FunctionModel(conflicting)):
+        with pytest.raises(UnexpectedModelBehavior):
+            await agent.run("提案して")
 
-    assert calls["n"] == 2
-    assert len(result.output.courses) == 1
+    assert calls["n"] == 1
 
 
 # ---------------------------------------------------------------------------
@@ -545,6 +552,46 @@ async def test_fetch_offering_index_matches_by_code(monkeypatch):
     assert index["A000000001"].period == 1
     assert index["A000000001"].room == "1-101"
     assert calls[0]["year"] == OFFERING_YEAR
+
+
+def test_to_offered_class_reads_every_slot():
+    """api-clean 0.3.0 の slots から全コマを読む。day_of_week / period は1コマ目だけ(§6.2)。"""
+    offered = pa._to_offered_class(_row(
+        "A000000001", day="金", period=4, term="後期",
+        slots=[
+            {"term": "後期", "day": "金", "period": 4},
+            {"term": "後期", "day": "金", "period": 5},
+        ],
+    ))
+    assert [(s.term, s.day, s.period) for s in offered.slots] == [
+        ("後期", "金", 4), ("後期", "金", 5),
+    ]
+
+
+def test_to_offered_class_without_slots_uses_first_slot():
+    """slots を返さない api-clean(0.2.0 以前)では、1コマ目だけを使う。"""
+    offered = pa._to_offered_class(_row("A000000001", day="火", period=2))
+    assert [(s.term, s.day, s.period) for s in offered.slots] == [("前期", "火", 2)]
+
+
+def test_to_offered_class_with_empty_slots_has_no_slot():
+    """slots が空(集中講義など)なら、コマを持たない。"""
+    offered = pa._to_offered_class(_row("A000000001", day=None, period=None, slots=[]))
+    assert offered.slots == ()
+
+
+def test_format_class_writes_every_slot():
+    """プロンプトの候補の行に全コマを書く。学期が違えばコマごとに学期を添える。"""
+    consecutive = pa._to_offered_class(_row(
+        "A000000001", term="後期",
+        slots=[{"term": "後期", "day": "金", "period": 4}, {"term": "後期", "day": "金", "period": 5}],
+    ))
+    assert pa._format_class(consecutive) == "後期 / 金4・金5 / 1-101"
+    two_terms = pa._to_offered_class(_row(
+        "A000000002", term="3Q",
+        slots=[{"term": "3Q", "day": "金", "period": 3}, {"term": "4Q", "day": "金", "period": 3}],
+    ))
+    assert pa._format_class(two_terms) == "3Q・4Q / 3Q金3・4Q金3 / 1-101"
 
 
 @pytest.mark.asyncio
@@ -1064,7 +1111,9 @@ async def test_build_proposal_prompt_uses_settings_offering_year(
     calls: list[dict] = []
     monkeypatch.setattr(pa, "search_syllabi", _fake_search([[]], calls))
 
-    await build_proposal_prompt(_profile(), ADMISSION_YEAR)
+    # api-clean が空を返すので候補は無く、提案の前提が揃わない(ProposalError)
+    with pytest.raises(ProposalError, match="候補科目がありません"):
+        await build_proposal_prompt(_profile(), ADMISSION_YEAR)
 
     assert calls[0]["year"] == pa.get_settings().offering_year
 
@@ -1253,3 +1302,536 @@ def test_render_prompt_without_target_term_marks_both_semesters():
 
     assert "【対象学期】\n指定なし" in prompt
     assert "【登録済み科目】\nなし" in prompt
+
+
+# ---------------------------------------------------------------------------
+# 7. 下書きから提案を組み上げる(§7.2)
+# ---------------------------------------------------------------------------
+
+
+def _context(classes: dict[str, ProposedCourse], remaining: float | None = None) -> ProposalContext:
+    budget = CreditBudget(cap=remaining, registered=0) if remaining is not None else None
+    return ProposalContext(prompt="", classes=classes, budget=budget, output_type=TimetableProposal)
+
+
+def _cls(code: str, title: str, day: str | None, period: int | None, term: str = "後期", credits: float = 2) -> ProposedCourse:
+    return ProposedCourse(
+        syllabus_code=code, title=title, day=day, period=period, term=term,
+        credits=credits, category="選択", reason="",
+    )
+
+
+def test_assemble_fills_values_from_candidates_and_keeps_order():
+    ctx = _context({"A": _cls("A", "線形代数", "月", 1), "B": _cls("B", "統計", "火", 2)})
+    courses, notes = assemble_courses([("B", "理由B"), ("A", "理由A")], ctx)
+
+    assert [(c.syllabus_code, c.title, c.day, c.reason) for c in courses] == [
+        ("B", "統計", "火", "理由B"),
+        ("A", "線形代数", "月", "理由A"),
+    ]
+    assert notes == []
+
+
+def test_assemble_drops_same_course_silently_and_ignores_unknown_codes():
+    ctx = _context({"A1": _cls("A1", "英語", "月", 1), "A2": _cls("A2", "英語", "水", 1)})
+    courses, notes = assemble_courses([("A1", "r"), ("A2", "r"), ("ZZ", "r"), ("A1", "r")], ctx)
+
+    assert [c.syllabus_code for c in courses] == ["A1"]
+    assert notes == []
+
+
+def test_assemble_drops_overlapping_quarters():
+    """後期と 3Q は同じコマを取り合う。1Q と 2Q は取り合わない(§5.3)。"""
+    ctx = _context({
+        "A": _cls("A", "後期の科目", "月", 1, "後期"),
+        "B": _cls("B", "3Qの科目", "月", 1, "3Q"),
+    })
+    courses, notes = assemble_courses([("A", "r"), ("B", "r")], ctx)
+
+    assert [c.syllabus_code for c in courses] == ["A"]
+    assert notes == ["「3Qの科目」は「後期の科目」と月1限で開講期間が重なるため外しました。"]
+
+
+def test_assemble_does_not_note_a_course_taken_in_another_class():
+    """同名の別クラスを後で採った科目には「外した」と書かない。"""
+    ctx = _context({
+        "A": _cls("A", "線形代数", "月", 1),
+        "B1": _cls("B1", "英語", "月", 1),
+        "B2": _cls("B2", "英語", "火", 1),
+    })
+    courses, notes = assemble_courses([("A", "r"), ("B1", "r"), ("B2", "r")], ctx)
+
+    assert [c.syllabus_code for c in courses] == ["A", "B2"]
+    assert notes == []
+
+
+def test_assemble_respects_remaining_credits():
+    ctx = _context({"A": _cls("A", "a", "月", 1, credits=4), "B": _cls("B", "b", "火", 1, credits=2)}, remaining=4)
+    courses, notes = assemble_courses([("A", "r"), ("B", "r")], ctx)
+
+    assert [c.syllabus_code for c in courses] == ["A"]
+    assert notes == ["「b」は対象学期に登録できる残り単位(4単位)を超えるため外しました。"]
+
+
+def test_assemble_records_every_dropped_course_once():
+    """外した科目は科目名ごとに1件ずつ、件数で打ち切らずにすべて記録する。"""
+    classes = {"X": _cls("X", "基準", "月", 1)}
+    classes |= {f"C{i}": _cls(f"C{i}", f"科目{i}", "月", 1) for i in range(8)}
+    classes |= {"C0b": _cls("C0b", "科目0", "月", 1)}
+    drafts = [("X", "r")] + [(f"C{i}", "r") for i in range(8)] + [("C0b", "r")]
+    _, notes = assemble_courses(drafts, _context(classes))
+
+    assert len(notes) == 8
+    assert sum("「科目0」" in n for n in notes) == 1
+
+
+def test_assemble_proposal_keeps_adjustments_out_of_summary():
+    """外した科目・打ち切りの記録は summary に混ぜず、別に返す(学生に見せない)。"""
+    ctx = _context({"A": _cls("A", "a", "月", 1), "B": _cls("B", "b", "月", 1)})
+    proposal, adjustments = assemble_proposal(
+        [("A", "r"), ("B", "r")], "方針。", ctx, truncated=True
+    )
+
+    assert proposal.total_credits == 2
+    assert proposal.summary == "方針。"
+    assert adjustments == [
+        "「b」は「a」と月1限で開講期間が重なるため外しました。",
+        "生成が最後まで完了しなかったため、書き終えた科目までで提案した。",
+    ]
+
+
+def test_assemble_proposal_uses_a_fixed_summary_when_none_was_written():
+    ctx = _context({"A": _cls("A", "a", "月", 1)})
+    proposal, _ = assemble_proposal([("A", "r")], None, ctx, truncated=True)
+
+    assert proposal.summary == "時間割を提案しました。各科目の理由を確認してください。"
+
+
+def test_render_prompt_uses_official_slot_names_not_keys():
+    """【卒業要件の充足状況】には要件枠の公式の名前を書き、内部の key を出さない。"""
+    loaded = _loaded()
+    slots = [
+        s.model_copy(update={"name": f"公式名-{s.key}"})
+        for s in loaded.curriculum.requirement_slots
+    ]
+    renamed = LoadedCurriculum(
+        curriculum=loaded.curriculum.model_copy(update={"requirement_slots": slots}),
+        offerings=loaded.offerings,
+    )
+    profile = _profile()
+    prompt = render_prompt(
+        renamed, profile, judge_requirements(renamed, profile), [], target=None
+    )
+
+    assert "- 公式名-basic.required: 必要 4 / 修得 0 / 不足 4" in prompt
+    assert "- basic.required:" not in prompt
+
+
+def _typed(code: str, title: str, category: str, day: str = "火", period: int = 1, credits: float = 2) -> ProposedCourse:
+    return ProposedCourse(
+        syllabus_code=code, title=title, day=day, period=period, term="後期",
+        credits=credits, category=category, reason="",
+    )
+
+
+def test_assemble_keeps_the_heavier_course_on_overlap():
+    """重なったら必修 > 選択必修 > 選択 の順で重い方を残す(先に書いた方とは限らない)。"""
+    ctx = _context({
+        "E": _typed("E", "英語総合4", "選択"),
+        "A": _typed("A", "アルゴリズム及び演習Ⅰ", "必修"),
+    })
+    courses, notes = assemble_courses([("E", "r"), ("A", "r")], ctx)
+
+    assert [c.syllabus_code for c in courses] == ["A"]
+    assert notes == [
+        "「英語総合4」は「アルゴリズム及び演習Ⅰ」と火1限で開講期間が重なり、"
+        "必修の「アルゴリズム及び演習Ⅰ」を優先したため外しました。"
+    ]
+
+
+def test_assemble_keeps_the_first_course_when_equally_heavy():
+    ctx = _context({"X": _typed("X", "x", "選択"), "Y": _typed("Y", "y", "選択")})
+    courses, _ = assemble_courses([("X", "r"), ("Y", "r")], ctx)
+
+    assert [c.syllabus_code for c in courses] == ["X"]
+
+
+def test_assemble_does_not_swap_when_the_swap_breaks_the_credit_cap():
+    """入れ替えると残り単位を超えるなら入れ替えない。"""
+    ctx = _context(
+        {"E": _typed("E", "e", "選択", credits=1), "A": _typed("A", "a", "必修", credits=4)},
+        remaining=2,
+    )
+    courses, notes = assemble_courses([("E", "r"), ("A", "r")], ctx)
+
+    assert [c.syllabus_code for c in courses] == ["E"]
+    assert "残り単位" in notes[0]
+
+
+# --- 説明文の書き直し(§7.2.2) ---
+
+
+@pytest.fixture
+def summary_agent_cache():
+    pa.build_summary_agent.cache_clear()
+    yield
+    pa.build_summary_agent.cache_clear()
+
+
+@pytest.mark.asyncio
+async def test_rewrite_summary_uses_the_settled_timetable(summary_agent_cache):
+    seen = {}
+
+    def model(messages, info: AgentInfo) -> ModelResponse:
+        seen["prompt"] = messages[-1].parts[-1].content
+        return ModelResponse(parts=[TextPart("  必修を中心に組んだ。  ")])
+
+    ctx = _context({"A": _cls("A", "線形代数", "月", 1)})
+    ctx = ProposalContext(
+        prompt="", classes=ctx.classes, budget=None, output_type=TimetableProposal,
+        requirements_text="- 専門基礎科目(必修): 必要 4 / 修得 0 / 不足 4",
+    )
+    proposal, _ = assemble_proposal([("A", "理由A")], "元の方針。", ctx)
+
+    with pa.build_summary_agent().override(model=FunctionModel(model)):
+        text = await pa.rewrite_summary(proposal, "元の方針。", ctx)
+
+    assert text == "必修を中心に組んだ。"
+    assert "- 線形代数 | 選択 | 2単位 | 後期 月1 | 理由: 理由A" in seen["prompt"]
+    assert "【元の説明文】\n元の方針。" in seen["prompt"]
+    assert "専門基礎科目(必修): 必要 4" in seen["prompt"]
+
+
+@pytest.mark.asyncio
+async def test_rewrite_summary_falls_back_on_failure(summary_agent_cache):
+    def model(messages, info: AgentInfo) -> ModelResponse:
+        raise RuntimeError("down")
+
+    ctx = _context({"A": _cls("A", "a", "月", 1)})
+    proposal, _ = assemble_proposal([("A", "r")], "元の方針。", ctx)
+
+    with pa.build_summary_agent().override(model=FunctionModel(model)):
+        assert await pa.rewrite_summary(proposal, "元の方針。", ctx) == "元の方針。"
+
+
+def test_related_course_is_elective_for_the_student():
+    """他課程の必修(専門関連科目)は、学生にとっては選択として扱う。
+
+    開講元の課程での区分(必修)のまま扱うと、プロンプトでも組み上げでも
+    他課程の必修が自課程の選択より重く見える。
+    """
+    loaded = _loaded()
+    related = next(c for c in loaded.curriculum.courses if not c.own)
+    course = related.model_copy(update={"type": "必修"})
+    candidate = Candidate(course=course, codes=("Y000000005",), classes=(_offered("Y000000005"),), matched=1)
+
+    assert pa.student_type(course) == "選択"
+    assert pa._proposed_course(candidate, candidate.classes[0]).category == "選択"
+    assert f"{course.title} | 専門関連科目 | 選択 |" in "\n".join(pa._format_candidates([candidate]))
+
+
+# ---------------------------------------------------------------------------
+# 8. 先修条件(§5.1.5 `prerequisites`)
+# ---------------------------------------------------------------------------
+
+from app.schemas.curriculum import Prerequisite  # noqa: E402
+
+
+def _rule(**kw) -> Prerequisite:
+    return Prerequisite.model_validate({"title": "数値解析", "notes": "原文。", **kw})
+
+
+def _taken(title: str, year: int = 2024, term: str = "前期", status: str = "passed", credits: float = 2) -> StudentCourse:
+    return StudentCourse(title=title, year=year, term=term, credits=credits, status=status)
+
+
+def test_prerequisite_any_of_and_all_of():
+    curriculum = _loaded().curriculum
+    done = [_taken("微分積分")]
+
+    assert pa.check_prerequisite(_rule(any_of=["微分積分", "線形代数"]), curriculum, done) == "met"
+    assert pa.check_prerequisite(_rule(any_of=["線形代数"]), curriculum, done) == "unmet"
+    assert pa.check_prerequisite(_rule(all_of=["微分積分", "線形代数"]), curriculum, done) == "unmet"
+    # 不合格は修得ではない
+    failed = [_taken("線形代数", status="failed")]
+    assert pa.check_prerequisite(_rule(any_of=["線形代数"]), curriculum, failed) == "unmet"
+
+
+def test_prerequisite_min_credits_total_and_by_category():
+    curriculum = _loaded().curriculum
+    done = [_taken("微分積分"), _taken("線形代数")]
+
+    # accepts 省略は卒業要件総修得単位数
+    assert pa.check_prerequisite(_rule(min_credits=[{"credits": 4}]), curriculum, done) == "met"
+    assert pa.check_prerequisite(_rule(min_credits=[{"credits": 5}]), curriculum, done) == "unmet"
+    by_category = {"credits": 4, "accepts": {"category": "専門基礎科目", "type": "必修"}}
+    assert pa.check_prerequisite(_rule(min_credits=[by_category]), curriculum, done) == "met"
+    other = {"credits": 2, "accepts": {"category": "専門応用科目"}}
+    assert pa.check_prerequisite(_rule(min_credits=[other]), curriculum, done) == "unmet"
+
+
+def test_prerequisite_as_of_counts_only_courses_until_then():
+    """判定時点(as_of)の学期末までに修得した科目だけで数える。"""
+    curriculum = _loaded().curriculum  # 2024年度入学
+    done = [_taken("微分積分", 2024, "前期"), _taken("線形代数", 2025, "前期")]
+    rule = _rule(as_of={"grade": 1, "term": "後期"}, min_credits=[{"credits": 4}])
+
+    # 1年後期(2024年度後期)末までに修得したのは微分積分の2単位だけ
+    assert pa.check_prerequisite(rule, curriculum, done) == "unmet"
+    later = _rule(as_of={"grade": 2, "term": "前期"}, min_credits=[{"credits": 4}])
+    assert pa.check_prerequisite(later, curriculum, done) == "met"
+
+
+def test_prerequisite_is_unknown_when_not_decidable():
+    curriculum = _loaded().curriculum
+    # 原文しか無い条件
+    assert pa.check_prerequisite(_rule(), curriculum, []) == "unknown"
+    # 判定時点が提案する学期以降(まだ成績が出ていない)
+    rule = _rule(as_of={"grade": 2, "term": "前期"}, min_credits=[{"credits": 2}])
+    target = TargetTerm(year=2025, term="前期", grade=2)
+    assert pa.check_prerequisite(rule, curriculum, [], target=target) == "unknown"
+
+
+def test_prerequisite_min_credits_from_listed_courses():
+    """`from` は列挙した科目の単位だけを数える(英語総合のうち4単位以上など)。"""
+    curriculum = _loaded().curriculum
+    done = [_taken("微分積分"), _taken("線形代数"), _taken("プログラミング演習")]
+    listed = {"credits": 4, "from": ["微分積分", "線形代数"]}
+
+    assert pa.check_prerequisite(_rule(min_credits=[listed]), curriculum, done) == "met"
+    # 列挙していない科目の単位は数えない(総単位は6あっても、列挙分は2)
+    narrow = {"credits": 4, "from": ["微分積分", "確率統計"]}
+    assert pa.check_prerequisite(_rule(min_credits=[narrow]), curriculum, done) == "unmet"
+    # 表記の揺れは突合の規則(NFKC・空白除去)で吸収する
+    spaced = {"credits": 2, "from": ["微分 積分"]}
+    assert pa.check_prerequisite(_rule(min_credits=[spaced]), curriculum, done) == "met"
+
+
+def test_prerequisite_one_of_is_or_and_combines_with_and():
+    """`one_of` はどれか1つを満たせばよく、行に直接書いた条件とは AND で結ぶ。"""
+    curriculum = _loaded().curriculum
+    one_of = [
+        {"min_credits": [{"credits": 4, "from": ["微分積分", "線形代数"]}]},
+        {"all_of": ["確率統計"]},
+    ]
+
+    assert pa.check_prerequisite(_rule(one_of=one_of), curriculum, [_taken("確率統計")]) == "met"
+    both = [_taken("微分積分"), _taken("線形代数")]
+    assert pa.check_prerequisite(_rule(one_of=one_of), curriculum, both) == "met"
+    assert pa.check_prerequisite(_rule(one_of=one_of), curriculum, [_taken("微分積分")]) == "unmet"
+
+    # 行の条件(any_of)と AND: one_of を満たしても行の条件が欠ければ満たさない
+    rule = _rule(any_of=["プログラミング演習"], one_of=one_of)
+    assert pa.check_prerequisite(rule, curriculum, [_taken("確率統計")]) == "unmet"
+    done = [_taken("確率統計"), _taken("プログラミング演習")]
+    assert pa.check_prerequisite(rule, curriculum, done) == "met"
+
+
+def test_prerequisite_one_of_unknown_and_as_of_inheritance():
+    """選択肢の判定時点が未到来なら、他が満たさない限り unknown。as_of は行から継ぐ。"""
+    curriculum = _loaded().curriculum  # 2024年度入学
+    target = TargetTerm(year=2025, term="前期", grade=2)
+    one_of = [
+        {"as_of": {"grade": 2, "term": "前期"}, "min_credits": [{"credits": 2}]},
+        {"all_of": ["確率統計"]},
+    ]
+    rule = _rule(one_of=one_of)
+    assert pa.check_prerequisite(rule, curriculum, [], target=target) == "unknown"
+    assert pa.check_prerequisite(rule, curriculum, [_taken("確率統計")], target=target) == "met"
+
+    # 行の as_of(1年前期末)を選択肢が継ぐ: 2024年度後期の修得は数えない
+    inherited = _rule(
+        as_of={"grade": 1, "term": "前期"},
+        one_of=[{"all_of": ["確率統計"]}, {"all_of": ["線形代数"]}],
+    )
+    late = [_taken("確率統計", 2024, "後期")]
+    assert pa.check_prerequisite(inherited, curriculum, late) == "unmet"
+
+
+def test_english_prerequisites_on_2026_data():
+    """2026年度入学の英語3科目は原文だけでなく判定できる(英語総合は各1単位)。"""
+    from pathlib import Path
+
+    from app.curricula.loader import load_curricula
+    from app.settings import Settings
+
+    root = Path(__file__).resolve().parents[2]
+    loaded = load_curricula(
+        Settings(curricula_dir=root / "curricula", offerings_dir=root / "offerings")
+    )[("02", 2026)]
+    rules = {p.title: p for p in loaded.curriculum.prerequisites}
+
+    def english(*titles):
+        return [_taken(t, 2026, "前期", credits=1) for t in titles]
+
+    comm2 = rules["英語コミュニケーションⅡ"]
+    check = lambda rule, done: pa.check_prerequisite(rule, loaded.curriculum, done)  # noqa: E731
+    assert check(comm2, english("英語総合1（Ａ）", "英語総合1（Ｂ）")) == "met"
+    assert check(comm2, english("英語総合1（Ａ）")) == "unmet"
+    assert check(comm2, [_taken("英語コミュニケーションⅠ", 2026, "前期")]) == "met"
+
+    gue = rules["Global Understanding in English"]
+    assert check(gue, english("英語総合1（Ａ）", "英語総合1（Ｂ）", "英語総合2（Ａ）")) == "unmet"
+    four = english("英語総合1（Ａ）", "英語総合1（Ｂ）", "英語総合2（Ａ）", "英語総合3")
+    assert check(gue, four) == "met"
+    assert check(rules["Forum"], four) == "met"
+
+
+def test_check_prerequisites_drops_unmet_and_reports_all():
+    loaded = _loaded()
+    rules = [
+        _rule(title="微分積分", any_of=["線形代数"], notes="線形代数を修得していること。"),
+        _rule(title="線形代数", notes="原文のみの条件。"),
+    ]
+    curriculum = loaded.curriculum.model_copy(update={"prerequisites": rules})
+    candidates = select_candidates(loaded, _profile())
+
+    kept, results = pa.check_prerequisites(candidates, curriculum, [])
+
+    assert "微分積分" not in _titles(kept)
+    assert "線形代数" in _titles(kept)
+    assert {(r.title, r.status) for r in results} == {("微分積分", "unmet"), ("線形代数", "unknown")}
+    lines = pa._format_prerequisites(results)
+    assert "- 微分積分: 満たしていない(候補から外した)。条件: 線形代数を修得していること。" in lines
+    assert "- 線形代数: 確認が要る(システムでは判定できない)。条件: 原文のみの条件。" in lines
+
+
+def test_seminar_prerequisite_on_real_data():
+    """知能情報メディアセミナー(3年前期終了時点で80単位以上、専門基礎科目(必修)20単位以上)。
+
+    スモークの合成プロファイル(83単位・専門基礎科目(必修)28単位)は満たし、
+    3年前期の科目を落として78単位にすると満たさない。
+    """
+    from pathlib import Path
+
+    import importlib.util
+
+    from app.curricula.loader import load_curricula
+    from app.settings import Settings
+
+    root = Path(__file__).resolve().parents[2]
+    spec = importlib.util.spec_from_file_location(
+        "smoke_proposal", root / "backend" / "scripts" / "smoke_proposal.py"
+    )
+    smoke = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(smoke)
+    _default_completed = smoke._default_completed
+    loaded = load_curricula(
+        Settings(curricula_dir=root / "curricula", offerings_dir=root / "offerings")
+    )[("02", 2024)]
+    seminar = next(p for p in loaded.curriculum.prerequisites if p.title == "知能情報メディアセミナー")
+    target = TargetTerm(year=2026, term="後期", grade=3)
+    completed = [StudentCourse.model_validate(c) for c in _default_completed()]
+
+    assert pa.check_prerequisite(seminar, loaded.curriculum, completed, target=target) == "met"
+
+    fewer = [c for c in completed if not (c.year == 2026 and c.status == "passed")]
+    assert pa.check_prerequisite(seminar, loaded.curriculum, fewer, target=target) == "unmet"
+
+
+def test_instructions_forbid_credit_arithmetic_in_summary():
+    """説明文に単位数の合計や内訳を書かせない(2026-09-23 の実機で合計を誤った)。"""
+    assert "単位数の合計や内訳の計算を書かない" in pa._INSTRUCTIONS
+    assert "単位数の合計や内訳の計算を書かない" in pa._SUMMARY_INSTRUCTIONS
+
+
+# ---------------------------------------------------------------------------
+# 9. 単位が入る要件枠(§7.2.1)
+# ---------------------------------------------------------------------------
+
+
+def _real_smoke():
+    """実データ(2024年度入学・知能情報メディア課程)とスモークの合成プロファイル。"""
+    from pathlib import Path
+
+    import importlib.util
+
+    from app.curricula.loader import load_curricula
+    from app.settings import Settings
+
+    root = Path(__file__).resolve().parents[2]
+    spec = importlib.util.spec_from_file_location(
+        "smoke_proposal", root / "backend" / "scripts" / "smoke_proposal.py"
+    )
+    smoke = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(smoke)
+    loaded = load_curricula(
+        Settings(curricula_dir=root / "curricula", offerings_dir=root / "offerings")
+    )[("02", 2024)]
+    completed = [StudentCourse.model_validate(c) for c in smoke._default_completed()]
+    return loaded.curriculum, completed
+
+
+def test_slot_destinations_follow_kikan_and_overflow():
+    """〈基幹〉でない社会科学系科目は基幹・社会の枠に入らない(2026-09-23 の実機で誤った)。
+
+    合成プロファイルは基幹・社会が2単位不足、教養教育科目(選択)が2単位不足。
+    """
+    from app.curricula.requirements import judge
+
+    curriculum, completed = _real_smoke()
+    index = {c.title: c for c in curriculum.own_courses}
+    titles = ["法学のすすめ", "現代社会と労働", "英語総合4", "知能情報メディアセミナー"]
+
+    got = pa.slot_destinations(
+        curriculum, completed, judge(curriculum, completed), [index[t] for t in titles]
+    )
+
+    assert got["法学のすすめ"] == "教養教育科目(選択必修〈基幹〉・社会)"
+    assert got["現代社会と労働"] == "教養教育科目(選択)"
+    assert got["英語総合4"] == "教養教育科目(必修・言語)"
+    assert got["知能情報メディアセミナー"] == "専門応用科目(必修)"
+
+
+def test_placed_slots_reflect_competition_between_courses():
+    """同じ枠の科目を不足より多く選ぶと、超えた分は下流の枠(オールフリー)に入る。"""
+    curriculum, completed = _real_smoke()
+    index = {c.title: c for c in curriculum.own_courses}
+    titles = ["アジアの文学B", "現代社会と労働", "現代社会とメディア"]
+    courses = [ProposedCourse(title=t, credits=index[t].credits, reason="r") for t in titles]
+
+    placed = pa.placed_slots(curriculum, completed, courses)
+
+    assert sorted(placed.values()) == [
+        "オールフリーゾーン", "オールフリーゾーン", "教養教育科目(選択)"
+    ]
+
+
+def test_candidate_lines_carry_destination():
+    """候補の行に「入る枠」を添え、規則5で推測させないと書く。"""
+    loaded = _loaded()
+    profile = _profile()
+    selected = select_candidates(loaded, profile)
+    index = {code: _offered(code) for candidate in selected for code in candidate.codes}
+    attached = attach_offerings(selected, index)
+    requirements = judge_requirements(loaded, profile)
+    destinations = pa.slot_destinations(
+        loaded.curriculum, [], requirements, (c.course for c in attached)
+    )
+
+    prompt = render_prompt(loaded, profile, requirements, attached, destinations=destinations)
+
+    assert "| 配当年次 | 入る枠 | 学期" in prompt
+    assert "微分積分 | 専門基礎科目 | 必修 | 2単位 | 配当1年〜 | 入る枠: basic.required |" in prompt
+    assert "「入る枠」に従い、区分や科目名から推測しない" in pa._INSTRUCTIONS
+
+
+@pytest.mark.asyncio
+async def test_rewrite_summary_gets_placed_slots(summary_agent_cache):
+    seen = {}
+
+    def model(messages, info: AgentInfo) -> ModelResponse:
+        seen["prompt"] = messages[-1].parts[-1].content
+        return ModelResponse(parts=[TextPart("書き直した。")])
+
+    base = _context({"A": _cls("A", "線形代数", "月", 1)})
+    ctx = ProposalContext(
+        prompt="", classes=base.classes, budget=None, output_type=TimetableProposal,
+        place=lambda courses: {pa.normalize_title(c.title): "専門基礎科目(必修)" for c in courses},
+    )
+    proposal, _ = assemble_proposal([("A", "理由A")], "元の方針。", ctx)
+
+    with pa.build_summary_agent().override(model=FunctionModel(model)):
+        await pa.rewrite_summary(proposal, "元の方針。", ctx)
+
+    assert "- 線形代数 | 選択 | 2単位 | 入る枠: 専門基礎科目(必修) | 後期 月1" in seen["prompt"]

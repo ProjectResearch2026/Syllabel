@@ -231,13 +231,13 @@ def _minimal_curriculum(**overrides) -> dict:
         "graduation": {"total_credits": 124, "excluded_types": ["随意"]},
         "requirement_slots": [
             {
-                "key": "applied.required_elective",
+                "key": "applied.required_elective", "name": "applied.required_elective",
                 "credits": 22,
                 "accepts": {"category": "専門応用科目", "type": "選択必修"},
                 "overflow_to": "applied.elective",
             },
             {
-                "key": "applied.elective",
+                "key": "applied.elective", "name": "applied.elective",
                 "credits": 31,
                 "accepts": {"category": "専門応用科目", "type": ["選択必修", "選択"]},
             },
@@ -259,7 +259,7 @@ def _minimal_liberal_arts(**overrides) -> dict:
         "duplicate_of": None,
         "requirement_slots": [
             {
-                "key": "liberal.buddhism",
+                "key": "liberal.buddhism", "name": "liberal.buddhism",
                 "credits": 4,
                 "accepts": {"subcategory": "「仏教の思想」科目", "type": "必修"},
             }
@@ -456,7 +456,7 @@ def test_slot_credits_zero_is_valid():
     """`credits: 0` は「枠を持たず overflow_to 先に計上する」を表す(§5.1.2)。"""
     slot = RequirementSlot.model_validate(
         {
-            "key": "related",
+            "key": "related", "name": "related",
             "credits": 0,
             "accepts": {"category": "専門関連科目"},
             "overflow_to": "free.faculty",
@@ -469,7 +469,7 @@ def test_slot_cannot_overflow_to_itself():
     with pytest.raises(ValidationError, match="自分自身"):
         RequirementSlot.model_validate(
             {
-                "key": "free.all",
+                "key": "free.all", "name": "free.all",
                 "credits": 10,
                 "accepts": {"category": "any"},
                 "overflow_to": "free.all",
@@ -481,7 +481,7 @@ def test_program_file_must_not_define_liberal_slots():
     """`liberal.*` の定義元は教養教育科目ファイルのみ(§5.1.2)。"""
     data = _minimal_curriculum()
     data["requirement_slots"].append(
-        {"key": "liberal.elective", "credits": 12, "accepts": {"category": "教養教育科目"}}
+        {"key": "liberal.elective", "name": "liberal.elective", "credits": 12, "accepts": {"category": "教養教育科目"}}
     )
     with pytest.raises(ValidationError, match="liberal.\\* の要件枠を持ちません"):
         Curriculum.model_validate(data)
@@ -490,7 +490,7 @@ def test_program_file_must_not_define_liberal_slots():
 def test_liberal_arts_file_must_only_define_liberal_slots():
     data = _minimal_liberal_arts()
     data["requirement_slots"].append(
-        {"key": "free.all", "credits": 10, "accepts": {"category": "any"}}
+        {"key": "free.all", "name": "free.all", "credits": 10, "accepts": {"category": "any"}}
     )
     with pytest.raises(ValidationError, match="liberal.\\* の要件枠のみ"):
         LiberalArtsCurriculum.model_validate(data)
@@ -614,6 +614,55 @@ def test_prerequisite_notes_is_required():
     )
     with pytest.raises(ValidationError, match="notes"):
         Curriculum.model_validate(data)
+
+
+def test_prerequisite_min_credits_rejects_accepts_with_from():
+    """`accepts` と `from` は同時に書けない(どちらで数えるか曖昧になる)。"""
+    data = _minimal_curriculum(
+        prerequisites=[
+            {
+                "title": "微積分及び演習Ⅱ",
+                "min_credits": [
+                    {"credits": 2, "accepts": {"type": "必修"}, "from": ["微積分及び演習Ⅰ"]}
+                ],
+                "notes": "原文。",
+            }
+        ]
+    )
+    with pytest.raises(ValidationError, match="accepts と from"):
+        Curriculum.model_validate(data)
+
+
+@pytest.mark.parametrize(
+    "one_of, message",
+    [
+        ([{"all_of": ["A"]}], "at least 2"),
+        ([{"all_of": ["A"]}, {"as_of": {"grade": 1, "term": "前期"}}], "選択肢が空"),
+    ],
+)
+def test_prerequisite_one_of_needs_two_non_empty_alternatives(one_of, message):
+    """`one_of` は選択肢2つ以上、各選択肢は判定できる条件を持つ。"""
+    data = _minimal_curriculum(
+        prerequisites=[{"title": "微積分及び演習Ⅱ", "one_of": one_of, "notes": "原文。"}]
+    )
+    with pytest.raises(ValidationError, match=message):
+        Curriculum.model_validate(data)
+
+
+def test_prerequisite_from_is_read_from_yaml_key():
+    """YAML のキーは `from`(Python の予約語なので属性は `from_`)。"""
+    data = _minimal_curriculum(
+        prerequisites=[
+            {
+                "title": "微積分及び演習Ⅱ",
+                "min_credits": [{"credits": 2, "from": ["微積分及び演習Ⅰ"]}],
+                "notes": "原文。",
+            }
+        ]
+    )
+    rule = Curriculum.model_validate(data).prerequisites[0]
+    assert rule.min_credits[0].from_ == ["微積分及び演習Ⅰ"]
+    assert rule.referenced_titles() == ["微積分及び演習Ⅱ", "微積分及び演習Ⅰ"]
 
 
 def test_old_prerequisite_format_is_rejected():

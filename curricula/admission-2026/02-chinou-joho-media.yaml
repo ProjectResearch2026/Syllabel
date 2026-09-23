@@ -20,28 +20,35 @@ graduation:
 
 requirement_slots:                  # 卒業要件単位（最低）数表から転記
   - key: "basic.required"
+    name: "専門基礎科目(必修)"
     credits: 28
     accepts: {category: "専門基礎科目", type: "必修"}
   - key: "basic.elective"
+    name: "専門基礎科目(選択)"
     credits: 10
     accepts: {category: "専門基礎科目", type: "選択"}
     overflow_to: "free.faculty"
   - key: "applied.required"
+    name: "専門応用科目(必修)"
     credits: 18
     accepts: {category: "専門応用科目", type: "必修"}
   - key: "applied.elective"
+    name: "専門応用科目(選択)"
     credits: 22
     accepts: {category: "専門応用科目", type: "選択"}
     overflow_to: "free.faculty"
   - key: "related"
+    name: "専門関連科目"
     credits: 0
     accepts: {category: "専門関連科目"}
     overflow_to: "free.faculty"           # 注記B
   - key: "free.faculty"
+    name: "学部フリーゾーン"
     credits: 10
     accepts: {category: ["専門基礎科目", "専門応用科目", "専門関連科目"]}
     overflow_to: "free.all"           # 注記C
   - key: "free.all"
+    name: "オールフリーゾーン"
     credits: 8
     accepts: {category: "any"}
     # 注記D

@@ -76,10 +76,12 @@ api-clean の `program` は `cp.name = %s` の完全一致であり、対象課�
 
 import logging
 import unicodedata
-from collections.abc import Iterable, Sequence
+from typing import Literal
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 
+from pydantic import BaseModel
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIChatModelSettings
 
@@ -87,22 +89,41 @@ from app.agents import build_model
 from app.agents.tools import get_masters, search_syllabi
 from app.curricula.loader import LoadedCurriculum, get_curricula
 from app.curricula.merge import MergedCourse, MergedCurriculum
+from app.schemas.curriculum import Prerequisite, PrerequisiteAsOf, PrerequisiteConditions
 from app.curricula.requirements import (
     RequirementsResult,
+    _course_index,
+    accepts_course,
     judge,
     normalize_title,
 )
-from app.schemas.proposal import HalfTerm, TargetTerm, TimetableProposal
+from app.schemas.proposal import (
+    CourseSlot,
+    HalfTerm,
+    ProposedCourse,
+    TargetTerm,
+    TimetableProposal,
+    course_clash,
+    proposal_draft_model,
+)
 from app.schemas.student import Course as StudentCourse
 from app.schemas.student import StudentProfile
 from app.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
-# 構造化出力の検証(コマ重複を含む `TimetableProposal` の model_validator)に落ちたとき、
-# 検証エラーをモデルへ返して作り直させる回数(§7.2)。pydantic-ai 2 系では
-# `Agent(output_retries=...)` が `retries={"output": ...}` に統合されている
-OUTPUT_RETRIES = 2
+# 構造化出力の検証に落ちたとき、検証エラーをモデルへ返して作り直させる回数(§7.2)。
+# pydantic-ai 2 系では `Agent(output_retries=...)` が `retries={"output": ...}` に
+# 統合されている。
+#
+# **0 とする(作り直させない)。** 作り直すと提案1回ぶんがもう一度かかる。提案の下書きは vLLM の
+# 構造化出力が形式を縛るため、検証に落ちるのは実質的に**出力の上限で途中で切れた
+# とき**だけである。pydantic-ai は切れた下書きも「JSON が不正」として作り直しを頼み、
+# 上限に達したと分かるのは作り直しを使い切った後になる(2回なら所要時間が3倍)。
+# 0 にすると切れた時点で例外になり、書き終えた科目までで確定版にできる
+# (`app/api/proposal.py`)。同じ科目・コマ重複・単位の上限超過も作り直させず、
+# backend が外す(`assemble_courses()`)
+OUTPUT_RETRIES = 0
 
 # 実機計測(2026-09-09 / DGX Spark + Qwen3.6-27B-FP8)に基づく推論の設定。
 #
@@ -113,9 +134,15 @@ OUTPUT_RETRIES = 2
 # 【候補科目】からの選択と転記が主で、必要な判断材料は backend が事前に揃えている(§7.2)
 # ため、長い思考を要する課題ではない。
 #
-# **`max_tokens` は出力が途中で切れない大きさにする。** 途中で切れると構造化出力の検証に
-# 落ち、`OUTPUT_RETRIES` の作り直しが走って所要時間が倍以上になる。CAP(各学期22単位)
-# いっぱいの11科目でおよそ1,900トークンであり、2倍の余裕を見る。
+# **`max_tokens` は出力が途中で切れない大きさにする。** 途中で切れると pydantic-ai は
+# 作り直さずに例外を投げる(`IncompleteToolCall`)。その場合は書き終えた科目までで
+# 確定版にする(`app/api/proposal.py`)が、切れないに越したことはない。全項目を
+# 書かせていた頃は CAP いっぱいの11科目でおよそ1,900トークンだった。下書き
+# (コードと理由だけ)になって減っているが、上限は据え置く。
+#
+# 2026-09-23 の実機(Qwen3.8)では、全項目を書かせる形式で**同じ科目の並びを繰り返し
+# 書き続けて**この上限で切れた(620秒)。下書きの件数の上限(`_max_items()`)は、
+# 繰り返しが起きても上限に届く前に書き終わらせるための暴走止めである。
 #
 # **`timeout` を置く。** 上限に達したときに無言で待たせず、502 相当で返せるようにする。
 #
@@ -138,6 +165,14 @@ MAX_PAGES = 40
 # 載せるクラス数を絞る。曜日・時限・コードの昇順で選ぶため候補は毎回同じになる
 MAX_CLASSES_PER_COURSE = 6
 
+# 下書きの `courses` の件数の上限(暴走止め)の天井。単位数の上限(CAP)から
+# 「上限単位 ÷ 候補の最小単位」で計算し、これを超えないようにする(§7.2)
+MAX_DRAFT_ITEMS = 30
+
+# 件数の上限に足す余裕。上限単位 ÷ 最小単位ちょうどだと、上限を超える科目や重なる
+# 科目を書いた分だけ(backend が外すので)提案が細る。外される分を見込んで数件足す
+DRAFT_ITEMS_SLACK = 3
+
 _INSTRUCTIONS = (
     "あなたは龍谷大学先端理工学部の履修登録を支援するAIアシスタントです。\n"
     "与えられた学生の状況から、**【対象学期】に履修する時間割**を提案してください。\n"
@@ -145,14 +180,19 @@ _INSTRUCTIONS = (
     "提案は次の規則に従ってください。\n"
     "1. 提案してよいのは【候補科目】に挙がっている科目だけである。"
     "一覧に無い科目名やシラバスコードを作り出してはならない。\n"
-    "2. 各科目の syllabusCode・title・credits・term・day・period は、"
-    "【候補科目】の行に書かれている値をそのまま転記する。推測して補わない。\n"
+    "2. courses の各要素には syllabusCode(【候補科目】の行の [ ] 内のコード)と"
+    " reason だけを書く。科目名・曜日・時限・学期・単位はシステムが候補一覧から補う。"
+    "同じ科目(同名の別クラスを含む)を2回入れない。\n"
     "3. 同じ曜日・時限で開講期間が重なる2科目を割り当ててはならない"
     "(前期と1Q・2Q、通年と前期・後期は重なる)。"
+    "「金4・金5」のように複数のコマが書かれたクラスは、そのすべてのコマを占める。"
     "曜日・時限が「未定」の科目(集中講義など)はこの制約の対象外とする。\n"
-    "4. 合計単位数は【履修登録単位数の上限】の該当セメスターの上限を超えてはならない。"
-    "【登録済み科目】のうち対象学期のものは、すでに登録済みの単位としてこれに含める。\n"
+    "4. 提案する科目の単位の合計は、【履修登録単位数の上限】の"
+    "「対象学期に登録できる残り単位」を超えてはならない。\n"
     "5. 【卒業要件の充足状況】で不足している要件枠を優先して埋める。"
+    "科目がどの要件枠に入るかは【候補科目】の「入る枠」に従い、区分や科目名から推測しない。"
+    "「入る枠」は科目を1つだけ足したときの値で、同じ枠の科目を不足より多く選ぶと、"
+    "超えた分は別の枠に回る。"
     "不足単位を大きく超える科目数を詰め込まない一方、"
     "卒業に必要な単位を取り残さない。過不足のない分量にすること。\n"
     "6. 【修得済み科目】に挙がっている科目と【登録済み科目】は提案しない。"
@@ -162,7 +202,10 @@ _INSTRUCTIONS = (
     "8. reason には、その科目を勧める理由(どの要件枠を埋めるか、"
     "希望条件のどれに合うか)を40字以内の1文で書く。\n"
     "9. summary には提案全体の方針と履修上の注意点を2〜4文で書く。"
-    "先修要件・進級要件・抽選科目など確認が要る点があれば触れる。"
+    "【先修条件】で「確認が要る」とされた科目、進級要件・抽選科目など確認が要る点が"
+    "あれば触れる。【先修条件】で満たしているとされた条件について、不確かな書き方をしない。\n"
+    "10. summary に単位数の合計や内訳の計算を書かない。単位数はシステムが計算して"
+    "画面に表示する。"
 )
 
 
@@ -185,6 +228,105 @@ def build_proposal_agent() -> Agent[None, TimetableProposal]:
         instructions=_INSTRUCTIONS,
         model_settings=MODEL_SETTINGS,
     )
+
+
+# --- 説明文の書き直し(§7.2.2) ---
+#
+# 説明文(summary)はモデルが下書きを書く時点の、backend が科目を外す**前**の並びを
+# 見て書かれる。2026-09-23 の実機では、外された科目(「アルゴリズム及び演習Ⅰ・Ⅱで
+# 4単位確保」)に触れた説明文が画面の時間割と食い違った。科目を外したときだけ、
+# 確定した時間割を渡して説明文だけを書き直させる。出力は数文なので、提案本体
+# に比べて短い。
+
+# 書き直しの推論設定。思考を切る理由は `MODEL_SETTINGS` と同じ。出力は2〜4文
+SUMMARY_SETTINGS = OpenAIChatModelSettings(
+    extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+    max_tokens=800,
+    timeout=180.0,
+)
+
+_SUMMARY_INSTRUCTIONS = (
+    "あなたは龍谷大学先端理工学部の履修登録を支援するAIアシスタントです。\n"
+    "履修提案の【確定した時間割】について、学生に見せる説明文を書き直してください。\n"
+    "【元の説明文】は、確定した時間割に入っていない科目に触れていることがあります。\n"
+    "\n"
+    "1. 【確定した時間割】にある科目だけに基づいて書く。時間割に無い科目名を書かない。\n"
+    "2. 【卒業要件の充足状況】を踏まえ、提案全体の方針と履修上の注意点を2〜4文で書く。"
+    "科目がどの要件枠を埋めるかは【確定した時間割】の「入る枠」に従い、区分や科目名から推測しない。\n"
+    "3. 元の説明文の方針や注意点のうち、確定した時間割と矛盾しないものは生かす。\n"
+    "4. 科目を入れ替えた・外したといった作成の経緯には触れない。\n"
+    "5. 単位数の合計や内訳の計算を書かない。単位数はシステムが計算して画面に表示する。\n"
+    "6. 説明文の本文だけを出力する。見出しや前置きを付けない。"
+)
+
+
+@lru_cache
+def build_summary_agent() -> Agent[None, str]:
+    """説明文を書き直すエージェント。出力は文字列(説明文の本文)。"""
+    return Agent(
+        build_model(),
+        output_type=str,
+        instructions=_SUMMARY_INSTRUCTIONS,
+        model_settings=SUMMARY_SETTINGS,
+    )
+
+
+def render_summary_prompt(
+    proposal: TimetableProposal,
+    original: str | None,
+    requirements_text: str,
+    placed: dict[str, str] | None = None,
+) -> str:
+    """書き直しのプロンプト。確定した時間割・元の説明文・卒業要件の充足状況。
+
+    `placed`(`placed_slots()`)があれば、科目ごとに単位が入る要件枠を添える。
+    """
+    lines = []
+    for course in proposal.courses:
+        into = (
+            f" | 入る枠: {placed.get(normalize_title(course.title), '不明')}"
+            if placed is not None
+            else ""
+        )
+        lines.append(
+            f"- {course.title} | {course.category or '区分不明'} | "
+            f"{_credits(course.credits or 0)}単位{into} | "
+            f"{_slots_label(course.occupied_slots(), course.term, sep=' ')}"
+            f" | 理由: {course.reason}"
+        )
+    total = proposal.total_credits
+    lines.append(f"合計: {_credits(total) if total is not None else '不明'}単位")
+    return "\n\n".join(
+        [
+            _section("確定した時間割", lines),
+            _section("元の説明文", [(original or "").strip() or "なし"]),
+            _section("卒業要件の充足状況", [requirements_text or "不明"]),
+        ]
+    )
+
+
+async def rewrite_summary(
+    proposal: TimetableProposal, original: str | None, context: "ProposalContext"
+) -> str:
+    """確定した時間割に合わせて説明文を書き直す。失敗したら元の説明文を返す。
+
+    書き直しに失敗しても提案そのものは成立しているため、エラーにはしない。
+    """
+    fallback = proposal.summary
+    try:
+        result = await build_summary_agent().run(
+            render_summary_prompt(
+                proposal,
+                original,
+                context.requirements_text,
+                context.place(proposal.courses) if context.place else None,
+            )
+        )
+    except Exception:  # noqa: BLE001 - 書き直しは付加的な処理であり、提案を落とさない
+        logger.warning("説明文の書き直しに失敗しました。元の説明文を使います")
+        return fallback
+    text = (result.output or "").strip()
+    return text or fallback
 
 
 # --- 1. 履修要項の解決(§4.4.3) ---
@@ -214,12 +356,110 @@ def judge_requirements(
     return judge(loaded.curriculum, profile.completed_courses, track=track)
 
 
+def slot_destinations(
+    curriculum: MergedCurriculum,
+    completed: Sequence[StudentCourse],
+    requirements: RequirementsResult,
+    courses: Iterable[MergedCourse],
+    *,
+    track: str | None = None,
+) -> dict[str, str]:
+    """候補の科目ごとに、その学生が修得したら単位が入る要件枠を求める(§7.2.1)。
+
+    履修要項の科目は区分・履修区分・科目群(`subcategory`)・基幹(`kikan`)を持ち、
+    要件枠は `accepts` でそれを受け入れるが、どの枠に入るかは**その学生の充足状況で
+    変わる**(満たした枠からは `overflow_to` の先へ回る)。モデルに区分から推測させると
+    外れる(2026-09-23 の実機で、〈基幹〉でない社会科学系科目で「教養教育科目
+    (選択必修〈基幹〉・社会)」を埋めると書いた)ため、backend が計算して渡す。
+
+    計算は要件充足判定(`judge()`)をそのまま使う。修得済み科目にその科目を1つ足して
+    判定し直し、修得単位が増えた枠を拾う。割り当て・溢れ・算入上限の規則を
+    二重に実装しないためである。科目ごとに独立に求めるので、同じ枠に入る科目を
+    複数選べば、不足を超えた分は下流の枠に回る(プロンプトの規則5で伝える)。
+
+    Returns:
+        正規化した科目名 → 「教養教育科目(選択)」のような枠の名前。複数の枠に
+        分かれるときは単位数を添えて並べ、どの枠の不足も減らさないときは
+        その旨を書く。
+    """
+    before = {slot.key: slot.earned for slot in requirements.slots}
+    destinations: dict[str, str] = {}
+    for course in courses:
+        key = normalize_title(course.title)
+        if key in destinations or course.credits is None:
+            continue
+        added = StudentCourse(
+            title=course.title, year=9999, term="前期", credits=course.credits, status="passed"
+        )
+        after = judge(curriculum, [*completed, added], track=track)
+        gained = [
+            (slot.name, slot.earned - before[slot.key])
+            for slot in after.slots
+            if slot.earned - before[slot.key] > 1e-9
+        ]
+        if not gained:
+            destinations[key] = "なし(受け入れる枠はすでに満たしている)"
+        elif len(gained) == 1:
+            destinations[key] = gained[0][0]
+        else:
+            destinations[key] = "・".join(f"{name} {_credits(amount)}単位" for name, amount in gained)
+    return destinations
+
+
+def placed_slots(
+    curriculum: MergedCurriculum,
+    completed: Sequence[StudentCourse],
+    courses: Sequence[ProposedCourse],
+    *,
+    track: str | None = None,
+) -> dict[str, str]:
+    """確定した時間割の科目を**すべて**修得したとき、各科目の単位が入る要件枠。
+
+    `slot_destinations()` と違い科目どうしの取り合いまで反映する(同じ枠の科目を
+    不足より多く選んだ分は下流の枠に入る)。説明文の書き直しで、どの科目がどの枠を
+    埋めるかを正しく書かせるのに使う。
+
+    Returns:
+        正規化した科目名 → 枠の名前(複数の枠に分かれるときは単位数を添えて並べる)。
+    """
+    added = [
+        StudentCourse(title=c.title, year=9999, term="前期", credits=c.credits, status="passed")
+        for c in courses
+        if c.credits is not None
+    ]
+    wanted = {normalize_title(c.title) for c in added}
+    before = {
+        (slot.key, normalize_title(a.title))
+        for slot in judge(curriculum, completed, track=track).slots
+        for a in slot.courses
+    }
+    shares: dict[str, list[tuple[str, float]]] = {}
+    for slot in judge(curriculum, [*completed, *added], track=track).slots:
+        for assigned in slot.courses:
+            key = normalize_title(assigned.title)
+            if key in wanted and (slot.key, key) not in before and assigned.credits > 1e-9:
+                shares.setdefault(key, []).append((slot.name, assigned.credits))
+    placed: dict[str, str] = {}
+    for key in wanted:
+        parts = shares.get(key, [])
+        if not parts:
+            placed[key] = "なし(受け入れる枠はすでに満たしている)"
+        elif len(parts) == 1:
+            placed[key] = parts[0][0]
+        else:
+            placed[key] = "・".join(f"{name} {_credits(amount)}単位" for name, amount in parts)
+    return placed
+
+
 # --- 3. 候補科目の抽出(§5.1.5) ---
 
 
 @dataclass(frozen=True)
 class OfferedClass:
-    """api-clean の `GET /syllabi` が返す開講クラス1件のうち、時間割に要る値(§6.2)。"""
+    """api-clean の `GET /syllabi` が返す開講クラス1件のうち、時間割に要る値(§6.2)。
+
+    `term` / `day_of_week` / `period` は1コマ目、`slots` は全コマ(`_read_slots()`)。
+    """
 
     syllabus_code: str
     course_title: str
@@ -227,6 +467,7 @@ class OfferedClass:
     day_of_week: str | None = None
     period: int | None = None
     room: str | None = None
+    slots: tuple[CourseSlot, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -310,6 +551,198 @@ def select_candidates(
     return ordered
 
 
+# --- 3b. 先修条件(§5.1.5 `prerequisites`) ---
+#
+# 履修要項の先修制(「ある科目を履修するには、指定された科目・単位数の修得が要る」)を
+# backend が判定する。2026-09-23 の実機では、判定材料を渡していなかったため、モデルが
+# 「先修要件がある場合があり」と一般論で書いた。判定の結果は3つに分ける:
+#
+# - met: 満たしている。プロンプトに明記し、不確かな書き方をさせない
+# - unmet: 満たしていない。候補から外し、外したことをプロンプトに書く
+# - unknown: 原文(notes)しか無く機械的に判定できない、または判定時点(as_of)が
+#   提案する学期以降でまだ決まらない。候補に残し「確認が要る」と書く
+
+
+PrerequisiteStatus = Literal["met", "unmet", "unknown"]
+
+
+def _half_index(term: str) -> int:
+    """学期を年度内の前半(0)・後半(1)に寄せる。通年は後期に終わるので後半とする。"""
+    return 0 if term in ("前期", "1Q", "2Q", "サ集") else 1
+
+
+def _all(statuses: Sequence[PrerequisiteStatus]) -> PrerequisiteStatus:
+    """AND: 1つでも unmet なら unmet、そうでなく1つでも unknown なら unknown。"""
+    return "unmet" if "unmet" in statuses else "unknown" if "unknown" in statuses else "met"
+
+
+def _any(statuses: Sequence[PrerequisiteStatus]) -> PrerequisiteStatus:
+    """OR: 1つでも met なら met、すべて unmet なら unmet、それ以外は unknown。"""
+    return "met" if "met" in statuses else "unmet" if all(s == "unmet" for s in statuses) else "unknown"
+
+
+def _check_conditions(
+    conditions: PrerequisiteConditions,
+    as_of: PrerequisiteAsOf | None,
+    curriculum: MergedCurriculum,
+    completed: Sequence[StudentCourse],
+    target: TargetTerm | None,
+) -> PrerequisiteStatus:
+    """条件の組1つ(`min_credits` / `all_of` / `any_of` の AND)を判定する。
+
+    `as_of`(判定時点)があれば、その学期末までに修得した科目だけで数える。判定時点が
+    提案する学期(`target`)以降なら、まだ成績が出ていないので unknown とする。
+    """
+    passed = [c for c in completed if c.status == "passed"]
+    if as_of is not None:
+        cutoff = (
+            curriculum.admission_year + as_of.grade - 1,
+            0 if as_of.term == "前期" else 1,
+        )
+        if target is not None and cutoff >= (target.year, 0 if target.term == "前期" else 1):
+            return "unknown"
+        passed = [c for c in passed if (c.year, _half_index(c.term)) <= cutoff]
+
+    titles = {normalize_title(c.title) for c in passed}
+    if conditions.all_of and not all(normalize_title(t) in titles for t in conditions.all_of):
+        return "unmet"
+    if conditions.any_of and not any(normalize_title(t) in titles for t in conditions.any_of):
+        return "unmet"
+    if conditions.min_credits:
+        index = _course_index(curriculum)
+        total = None
+        for threshold in conditions.min_credits:
+            if threshold.from_ is not None:
+                listed = {normalize_title(t) for t in threshold.from_}
+                earned = sum(c.credits for c in passed if normalize_title(c.title) in listed)
+            elif threshold.accepts is not None:
+                earned = sum(
+                    c.credits
+                    for c in passed
+                    if (course := index.get(normalize_title(c.title))) is not None
+                    and accepts_course(threshold.accepts, course)
+                )
+            else:
+                if total is None:
+                    total = judge(curriculum, passed).earned_credits
+                earned = total
+            if earned < threshold.credits:
+                return "unmet"
+    return "met"
+
+
+def check_prerequisite(
+    prerequisite: Prerequisite,
+    curriculum: MergedCurriculum,
+    completed: Sequence[StudentCourse],
+    *,
+    target: TargetTerm | None = None,
+) -> PrerequisiteStatus:
+    """先修条件1件を判定する。
+
+    行に直接書いた条件(`min_credits` / `all_of` / `any_of`)と `one_of` は AND で結ぶ。
+    `one_of` は選択肢のどれか1つを満たせば満たす(OR)。選択肢に `as_of` が無ければ
+    行の `as_of` を使う。`min_credits` は `from` があれば列挙した科目の単位の合計、
+    `accepts` があれば当該区分に当たる修得科目の単位の合計、どちらも無ければ
+    卒業要件総修得単位数(要件充足判定の `earned_credits`)で比べる。
+    判定できる条件を持たない(原文 `notes` だけの)行は unknown とする。
+    """
+    if not prerequisite.has_conditions():
+        return "unknown"
+
+    statuses: list[PrerequisiteStatus] = []
+    if PrerequisiteConditions.has_conditions(prerequisite):
+        statuses.append(
+            _check_conditions(prerequisite, prerequisite.as_of, curriculum, completed, target)
+        )
+    if prerequisite.one_of:
+        statuses.append(
+            _any(
+                [
+                    _check_conditions(
+                        alternative,
+                        alternative.as_of or prerequisite.as_of,
+                        curriculum,
+                        completed,
+                        target,
+                    )
+                    for alternative in prerequisite.one_of
+                ]
+            )
+        )
+    return _all(statuses)
+
+
+@dataclass(frozen=True)
+class PrerequisiteResult:
+    """候補科目1件の先修条件の判定結果。`notes` は履修要項の原文。"""
+
+    title: str
+    status: PrerequisiteStatus
+    notes: str
+
+
+def check_prerequisites(
+    candidates: Sequence[Candidate],
+    curriculum: MergedCurriculum,
+    completed: Sequence[StudentCourse],
+    *,
+    target: TargetTerm | None = None,
+) -> tuple[list[Candidate], list[PrerequisiteResult]]:
+    """候補科目の先修条件を判定し、満たさない科目を外す。
+
+    同じ科目に条件が複数あれば、1つでも unmet なら unmet、そうでなく1つでも
+    unknown なら unknown とする。先修条件の無い科目はそのまま残し、結果にも載せない。
+    """
+    by_title: dict[str, list[Prerequisite]] = {}
+    for prerequisite in curriculum.prerequisites:
+        by_title.setdefault(normalize_title(prerequisite.title), []).append(prerequisite)
+
+    kept: list[Candidate] = []
+    results: list[PrerequisiteResult] = []
+    for candidate in candidates:
+        rules = by_title.get(normalize_title(candidate.course.title))
+        if not rules:
+            kept.append(candidate)
+            continue
+        statuses = [
+            check_prerequisite(rule, curriculum, completed, target=target) for rule in rules
+        ]
+        status = _all(statuses)
+        results.append(
+            PrerequisiteResult(
+                title=candidate.course.title,
+                status=status,
+                notes=" / ".join(_oneline(rule.notes) for rule in rules),
+            )
+        )
+        if status != "unmet":
+            kept.append(candidate)
+    logger.info(
+        "先修条件を判定しました: 満たす %d件 / 満たさない %d件 / 要確認 %d件",
+        sum(r.status == "met" for r in results),
+        sum(r.status == "unmet" for r in results),
+        sum(r.status == "unknown" for r in results),
+    )
+    return kept, results
+
+
+def _format_prerequisites(results: Sequence[PrerequisiteResult]) -> list[str]:
+    """【先修条件】の中身。候補に関係する先修条件だけを、判定結果ごとに並べる。"""
+    if not results:
+        return ["候補科目に先修条件のある科目はない。"]
+    labels = {
+        "met": "満たしている",
+        "unmet": "満たしていない(候補から外した)",
+        "unknown": "確認が要る(システムでは判定できない)",
+    }
+    lines: list[str] = []
+    for status in ("met", "unmet", "unknown"):
+        for result in (r for r in results if r.status == status):
+            lines.append(f"- {result.title}: {labels[status]}。条件: {result.notes}")
+    return lines
+
+
 # --- 4. 開講情報の突合(§7.2 / §6.2) ---
 
 
@@ -332,6 +765,39 @@ def _to_str(value: object) -> str | None:
     return text or None
 
 
+_DAYS = ("月", "火", "水", "木", "金", "土")
+
+
+def _to_slot(term: object, day: object, period: object) -> CourseSlot | None:
+    """学期・曜日・時限を `CourseSlot` にする。曜日か時限が読めなければ None。"""
+    day_text = _to_str(day)
+    period_number = _to_int(period)
+    if day_text not in _DAYS or period_number is None:
+        return None
+    return CourseSlot(term=_to_str(term), day=day_text, period=period_number)
+
+
+def _read_slots(row: dict) -> tuple[CourseSlot, ...]:
+    """`GET /syllabi` の1件から開講コマを全部読む(§6.2)。
+
+    api-clean 0.3.0 以降は `slots`(原文の全コマ)を返す。「後期　金4・金5」の金5 や
+    「3Q　金3、4Q　金3」の 4Q は `day_of_week` / `period` / `term`(1コマ目)には無い。
+    `slots` を返さない api-clean(0.2.0 以前)では、従来どおり1コマ目だけを使う。
+    """
+    raw = row.get("slots")
+    if raw is None:
+        first = _to_slot(row.get("term"), row.get("day_of_week"), row.get("period"))
+        return (first,) if first else ()
+    slots: list[CourseSlot] = []
+    for item in raw if isinstance(raw, list) else []:
+        if not isinstance(item, dict):
+            continue
+        slot = _to_slot(item.get("term"), item.get("day"), item.get("period"))
+        if slot is not None and slot not in slots:
+            slots.append(slot)
+    return tuple(slots)
+
+
 def _to_offered_class(row: dict) -> OfferedClass | None:
     """`GET /syllabi` の1件を `OfferedClass` にする。コードが無い行は捨てる。"""
     code = _to_str(row.get("syllabus_code"))
@@ -344,6 +810,7 @@ def _to_offered_class(row: dict) -> OfferedClass | None:
         day_of_week=_to_str(row.get("day_of_week")),
         period=_to_int(row.get("period")),
         room=_to_str(row.get("room")),
+        slots=_read_slots(row),
     )
 
 
@@ -594,7 +1061,7 @@ def _format_slots(result: RequirementsResult) -> list[str]:
         if slot.required == 0:
             continue
         line = (
-            f"- {slot.key}: 必要 {slot.required} / "
+            f"- {slot.name}: 必要 {slot.required} / "
             f"修得 {_credits(slot.earned)} / 不足 {_credits(slot.shortfall)}"
         )
         if slot.notes:
@@ -603,8 +1070,54 @@ def _format_slots(result: RequirementsResult) -> list[str]:
     return lines
 
 
+def semester_cap(
+    curriculum: MergedCurriculum, semesters: Iterable[int]
+) -> int | None:
+    """セメスターの履修登録単位数の上限(CAP)。§5.1.2 `registration_limits`。
+
+    学期ごとの上限(`max_credits_per_semester`)を持つ枠はその値、年間の上限
+    (`max_credits_per_year`。7・8セメスター)しか持たない枠は年間の値を返す。
+    複数のセメスターを渡したときは大きい方を返す(対象学期が決まらない旧い呼び出し)。
+    該当する枠が無ければ None。
+    """
+    wanted = set(semesters)
+    caps = [
+        limit.max_credits_per_semester or limit.max_credits_per_year
+        for limit in curriculum.registration_limits.by_semester
+        if wanted & set(limit.semesters)
+    ]
+    caps = [c for c in caps if c is not None]
+    return max(caps) if caps else None
+
+
+def registered_credits_in(completed: Sequence[StudentCourse], target: TargetTerm) -> float:
+    """対象学期に登録済みの科目の単位の合計。CAP から差し引く(§5.2.1)。"""
+    return sum(
+        c.credits
+        for c in completed
+        if c.status == "registered"
+        and c.year == target.year
+        and registration_half(c.term) == target.term
+    )
+
+
+@dataclass(frozen=True)
+class CreditBudget:
+    """対象学期に登録できる単位。`cap` から `registered` を引いたものが `remaining`。"""
+
+    cap: float
+    registered: float
+
+    @property
+    def remaining(self) -> float:
+        return max(0.0, self.cap - self.registered)
+
+
 def _format_registration_limits(
-    curriculum: MergedCurriculum, grade: int, target: TargetTerm | None = None
+    curriculum: MergedCurriculum,
+    grade: int,
+    target: TargetTerm | None = None,
+    budget: CreditBudget | None = None,
 ) -> list[str]:
     """CAP制(`registration_limits`)。対象学期のセメスターに印を付ける(§5.1.2)。
 
@@ -629,11 +1142,37 @@ def _format_registration_limits(
         lines.append(f"補足: {_oneline(curriculum.registration_limits.notes)}")
     if curriculum.registration_limits.gpa_exception:
         lines.append(f"例外: {_oneline(curriculum.registration_limits.gpa_exception)}")
+    if budget is not None:
+        lines.append(
+            f"対象学期に登録できる残り単位: {_credits(budget.remaining)}単位"
+            f"(上限 {_credits(budget.cap)} − 登録済み {_credits(budget.registered)})"
+        )
     return lines
 
 
+def _slots_label(slots: Sequence[CourseSlot], term: str | None, *, sep: str = " / ") -> str:
+    """開講学期とコマを「後期 / 金4・金5」の形にする。
+
+    コマごとに学期が違えば「3Q・4Q / 3Q金3・4Q金3」と、どのコマがどの学期かを書く。
+    コマが無ければ「後期 / 曜日時限未定」。
+    """
+    if not slots:
+        return f"{term or '学期未定'}{sep}曜日時限未定"
+    terms = list(dict.fromkeys(slot.term for slot in slots))
+    if len(terms) == 1:
+        periods = "・".join(f"{slot.day}{slot.period}" for slot in slots)
+        return f"{terms[0] or term or '学期未定'}{sep}{periods}"
+    periods = "・".join(f"{slot.term or ''}{slot.day}{slot.period}" for slot in slots)
+    return f"{'・'.join(t or '学期未定' for t in terms)}{sep}{periods}"
+
+
 def _format_class(offered: OfferedClass) -> str:
-    """開講クラス1件を「前期 / 月2 / 1-101」の形にする。欠測は「未定」と書く。"""
+    """開講クラス1件を「前期 / 月2 / 1-101」の形にする。欠測は「未定」と書く。
+
+    複数コマのクラスは全コマを書く(「後期 / 金4・金5 / 教室未定」)。
+    """
+    if offered.slots:
+        return f"{_slots_label(offered.slots, offered.term)} / {offered.room or '教室未定'}"
     if offered.day_of_week and offered.period is not None:
         slot = f"{offered.day_of_week}{offered.period}"
     elif offered.day_of_week:
@@ -645,15 +1184,33 @@ def _format_class(offered: OfferedClass) -> str:
     return f"{term} / {slot} / {room}"
 
 
-def _format_candidates(candidates: Sequence[Candidate]) -> list[str]:
-    """候補科目1行1クラス。モデルが転記するだけで済む並びにする。"""
+def student_type(course: MergedCourse) -> str:
+    """その学生にとっての履修区分。
+
+    他課程から導出した専門関連科目(`own=False`)の `type` は**開講元の課程にとっての**
+    区分であり(地球環境概論A は環境の課程で必修)、閲覧している学生にとっては
+    「専門関連科目 選択」である(履修要項の卒業要件単位数表。frontend のタグ表示と
+    同じ扱い)。開講元の区分のまま扱うと、他課程の必修が自課程の選択より重く見える。
+    """
+    return course.type if course.own else "選択"
+
+
+def _format_candidates(
+    candidates: Sequence[Candidate], destinations: dict[str, str] | None = None
+) -> list[str]:
+    """候補科目1行1クラス。モデルが転記するだけで済む並びにする。
+
+    `destinations`(`slot_destinations()`)があれば、単位が入る要件枠を行に添える。
+    """
     lines: list[str] = []
     for candidate in candidates:
         course = candidate.course
         head = (
-            f"{course.title} | {course.category} | {course.type} | "
+            f"{course.title} | {course.category} | {student_type(course)} | "
             f"{course.credits}単位 | 配当{course.grade}年〜"
         )
+        if destinations is not None:
+            head += f" | 入る枠: {destinations.get(normalize_title(course.title), '不明')}"
         if not course.own:
             head += " | 他課程開講(専門関連科目)"
         for offered in candidate.classes:
@@ -699,6 +1256,26 @@ def _format_registered(completed: Sequence[StudentCourse]) -> list[str]:
     ]
 
 
+def format_requirements(requirements: RequirementsResult) -> list[str]:
+    """【卒業要件の充足状況】の中身。要件枠は公式の名前で書く(§5.1.2)。"""
+    status = [
+        f"卒業必要単位: {requirements.total_credits} / "
+        f"修得済み: {_credits(requirements.earned_credits)} / "
+        f"残り: {_credits(requirements.remaining_credits)}",
+        "要件枠ごとの不足単位:",
+        *_format_slots(requirements),
+    ]
+    slot_names = {slot.key: slot.name for slot in requirements.slots}
+    for constraint in requirements.track_constraints:
+        status.append(
+            f"- コース別下限 {slot_names.get(constraint.slot, constraint.slot)}"
+            f" / {constraint.track_group}: "
+            f"必要 {constraint.required} / 修得 {_credits(constraint.earned)} / "
+            f"不足 {_credits(constraint.shortfall)}"
+        )
+    return status
+
+
 def _section(title: str, lines: Sequence[str]) -> str:
     return f"【{title}】\n" + "\n".join(lines)
 
@@ -711,12 +1288,15 @@ def render_prompt(
     *,
     wishes: str | None = None,
     target: TargetTerm | None = None,
+    budget: CreditBudget | None = None,
+    prerequisites: Sequence[PrerequisiteResult] = (),
+    destinations: dict[str, str] | None = None,
 ) -> str:
     """組み立て済みの材料を1つのプロンプトにする(§7.2)。
 
     学生プロファイル・要件充足状況・CAP・候補科目+開講情報・希望条件を節に分けて
-    並べる。モデルが値を作り出さずに済むよう、単位数・曜日・時限は候補科目の行に
-    書いた値をそのまま転記させる(`_INSTRUCTIONS` 規則2)。
+    並べる。モデルが書くのはシラバスコードと理由だけで、科目名・曜日・時限・単位は
+    backend が候補一覧から補う(`_INSTRUCTIONS` 規則2、`assemble_proposal()`)。
     """
     curriculum = loaded.curriculum
     grade = target.grade if target else (profile.grade or 1)
@@ -732,19 +1312,7 @@ def render_prompt(
         names = "、".join(f"{t.key}({t.name})" for t in requirements.available_tracks)
         student.append(f"コース未選択(選択できるコース: {names})")
 
-    status = [
-        f"卒業必要単位: {requirements.total_credits} / "
-        f"修得済み: {_credits(requirements.earned_credits)} / "
-        f"残り: {_credits(requirements.remaining_credits)}",
-        "要件枠ごとの不足単位:",
-        *_format_slots(requirements),
-    ]
-    for constraint in requirements.track_constraints:
-        status.append(
-            f"- コース別下限 {constraint.slot} / {constraint.track_group}: "
-            f"必要 {constraint.required} / 修得 {_credits(constraint.earned)} / "
-            f"不足 {_credits(constraint.shortfall)}"
-        )
+    status = format_requirements(requirements)
 
     sections = [
         _section(
@@ -759,15 +1327,21 @@ def render_prompt(
         _section("学生情報", student),
         _section("卒業要件の充足状況", status),
         _section(
-            "履修登録単位数の上限", _format_registration_limits(curriculum, grade, target)
+            "履修登録単位数の上限",
+            _format_registration_limits(curriculum, grade, target, budget),
         ),
         _section("修得済み科目", _format_completed(profile.completed_courses)),
         _section("登録済み科目", _format_registered(profile.completed_courses)),
+        _section("先修条件", _format_prerequisites(prerequisites)),
         _section(
             "候補科目",
             [
-                "形式: [シラバスコード] 科目名 | 区分 | 履修区分 | 単位 | 配当年次 | 学期 / 曜日時限 / 教室",
-                *_format_candidates(candidates),
+                (
+                    "形式: [シラバスコード] 科目名 | 区分 | 履修区分 | 単位 | 配当年次"
+                    + (" | 入る枠" if destinations is not None else "")
+                    + " | 学期 / 曜日時限 / 教室"
+                ),
+                *_format_candidates(candidates, destinations),
             ],
         ),
         _section("希望条件", [wishes.strip() if wishes and wishes.strip() else "特になし"]),
@@ -775,7 +1349,52 @@ def render_prompt(
     return "\n\n".join(sections)
 
 
-async def build_proposal_prompt(
+@dataclass(frozen=True)
+class ProposalContext:
+    """1回の提案に要るもの。プロンプトと、モデルの下書きを提案に組み上げる材料。
+
+    `classes` は【候補科目】に載せたクラスをシラバスコードで引く表で、値は理由を
+    空にした `ProposedCourse` である。`output_type` はその回の候補コードだけを
+    選べる下書きの形式(`proposal_draft_model()`)。
+    """
+
+    prompt: str
+    classes: dict[str, ProposedCourse]
+    budget: CreditBudget | None
+    output_type: type[BaseModel]
+    # 【卒業要件の充足状況】の中身。説明文の書き直し(`rewrite_summary()`)に渡す
+    requirements_text: str = ""
+    # 確定した時間割の科目ごとに、単位が入る要件枠を求める(`placed_slots()` を
+    # 学生の成績で閉じたもの)。説明文の書き直しに渡す。無ければ枠を書かない
+    place: Callable[[Sequence[ProposedCourse]], dict[str, str]] | None = None
+
+
+def _proposed_course(candidate: Candidate, offered: OfferedClass) -> ProposedCourse:
+    """候補の1クラスを、理由を空にした提案の1科目にする。値はすべて候補一覧から採る。"""
+    day = offered.day_of_week if offered.day_of_week in _DAYS else None
+    return ProposedCourse(
+        syllabus_code=offered.syllabus_code,
+        title=candidate.course.title,
+        day=day,
+        period=offered.period if day else None,
+        term=offered.term,
+        slots=list(offered.slots),
+        credits=candidate.course.credits,
+        category=student_type(candidate.course),
+        reason="",
+    )
+
+
+def _max_items(classes: dict[str, ProposedCourse], budget: CreditBudget | None) -> int:
+    """下書きの件数の上限(暴走止め)。上限単位 ÷ 候補の最小単位 + 余裕で求める。"""
+    if budget is None:
+        return MAX_DRAFT_ITEMS
+    smallest = min((c.credits for c in classes.values() if c.credits), default=1.0)
+    fits = int(budget.remaining // smallest)
+    return max(1, min(MAX_DRAFT_ITEMS, fits + DRAFT_ITEMS_SLACK))
+
+
+async def build_proposal_context(
     profile: StudentProfile,
     admission_year: int,
     *,
@@ -783,8 +1402,8 @@ async def build_proposal_prompt(
     wishes: str | None = None,
     offering_year: int | None = None,
     target: TargetTerm | None = None,
-) -> str:
-    """履修提案のプロンプトを組み立てる(§7.2 の 1〜5)。
+) -> ProposalContext:
+    """履修提案のプロンプトと、下書きを提案に組み上げる材料を揃える(§7.2 の 1〜5)。
 
     Args:
         profile: 学生プロファイル(§5.2.1)。`program` は課程コード、`grade` は必須。
@@ -796,7 +1415,7 @@ async def build_proposal_prompt(
             CAP の該当セメスターにその学期の学年を使う。
 
     Raises:
-        ProposalError: 課程コードが無い、履修要項が無い、学年が無い場合。
+        ProposalError: 課程コードが無い、履修要項が無い、学年が無い、候補が無い場合。
     """
     program_code = profile.program
     if not program_code:
@@ -814,16 +1433,187 @@ async def build_proposal_prompt(
     # 履修登録できないクラスは候補に載せない(§6.1)。`attach_offerings()` が
     # 1科目あたりのクラス数を絞る**前**に掛かる
     eligibility = await fetch_eligibility(loaded.curriculum, year=year)
-    return render_prompt(
+    attached = attach_offerings(
+        candidates,
+        index,
+        eligibility=eligibility,
+        term=target.term if target else None,
+    )
+    # 先修条件を満たさない科目は候補から外す。対象学期に開講される候補にだけ掛け、
+    # プロンプトの【先修条件】に載るのも実際に選べる科目の条件だけにする
+    attached, prerequisites = check_prerequisites(
+        attached, loaded.curriculum, profile.completed_courses, target=target
+    )
+    classes = {
+        offered.syllabus_code: _proposed_course(candidate, offered)
+        for candidate in attached
+        for offered in candidate.classes
+    }
+    if not classes:
+        raise ProposalError("提案できる候補科目がありません")
+
+    grade = target.grade if target else (profile.grade or 1)
+    semesters = {target.semester} if target else {grade * 2 - 1, grade * 2}
+    cap = semester_cap(loaded.curriculum, semesters)
+    budget = (
+        CreditBudget(
+            cap=cap,
+            registered=(
+                registered_credits_in(profile.completed_courses, target) if target else 0.0
+            ),
+        )
+        if cap is not None
+        else None
+    )
+    prompt = render_prompt(
         loaded,
         profile,
         requirements,
-        attach_offerings(
-            candidates,
-            index,
-            eligibility=eligibility,
-            term=target.term if target else None,
-        ),
+        attached,
         wishes=wishes,
         target=target,
+        budget=budget,
+        prerequisites=prerequisites,
+        destinations=slot_destinations(
+            loaded.curriculum,
+            profile.completed_courses,
+            requirements,
+            (candidate.course for candidate in attached),
+            track=track,
+        ),
     )
+    return ProposalContext(
+        prompt=prompt,
+        classes=classes,
+        budget=budget,
+        output_type=proposal_draft_model(list(classes), _max_items(classes, budget)),
+        requirements_text="\n".join(format_requirements(requirements)),
+        place=lambda courses: placed_slots(
+            loaded.curriculum, profile.completed_courses, courses, track=track
+        ),
+    )
+
+
+async def build_proposal_prompt(
+    profile: StudentProfile, admission_year: int, **kwargs
+) -> str:
+    """履修提案のプロンプトだけを返す(`build_proposal_context()` の `prompt`)。"""
+    return (await build_proposal_context(profile, admission_year, **kwargs)).prompt
+
+
+# --- 6. 下書きから提案を組み上げる(§7.2) ---
+
+
+# コマが重なったときにどちらを残すかの重さ。小さいほど重い(§7.2.2)
+_WEIGHT = {"必修": 0, "選択必修": 1, "選択": 2}
+
+
+def _weight(course: ProposedCourse) -> int:
+    """履修区分の重さ。必修 > 選択必修 > 選択 > それ以外。"""
+    return _WEIGHT.get(course.category or "", 3)
+
+
+def _clash_label(a: ProposedCourse, b: ProposedCourse) -> str:
+    """`a` と `b` が重なるコマを「金5」の形で。「金4・金5」の科目は重なった方のコマを書く。"""
+    slot = course_clash(a, b)
+    return f"{slot.day}{slot.period}" if slot else "同じコマ"
+
+
+def assemble_courses(
+    drafts: Iterable[tuple[str, str]],
+    context: ProposalContext,
+) -> tuple[list[ProposedCourse], list[str]]:
+    """下書き(シラバスコード, 理由)の並びを提案の科目にし、外した理由を返す。
+
+    **作り直しをさせず、backend が確実な処理で整える**(作り直すと提案1回ぶんがもう一度かかる)。
+    モデルの書いた順に1件ずつ見て、次のものを外す:
+
+    - 候補に無いコード(下書きの形式が列挙で縛るので通常は起きない)
+    - 同じ科目の2件目以降(同名の別クラスを含む)。情報が失われないので黙って外す
+    - 先に採った科目と同じ曜日・時限で開講期間が重なるもの。ただし後から来た科目の
+      方が重い(必修 > 選択必修 > 選択)なら、先に採った方を外して入れ替える
+    - 採ると対象学期に登録できる残り単位を超えるもの
+
+    後の2つは外した理由(調整の記録)を返す。記録は科目名ごとに1件で、同名の
+    別クラスを後で採った科目には付けない。**記録は学生に見せない**(summary に
+    混ぜない。`assemble_proposal()`)。
+    """
+    accepted: list[ProposedCourse] = []
+    titles: set[str] = set()
+    # 外した科目の理由。科目名ごとに最初の1件だけを持ち、同名の別クラスが後で
+    # 採られた科目は最後に除く(採った科目を「外した」と書かないため)
+    dropped: dict[str, str] = {}
+    # 一度見たコード。同じ並びを繰り返し書く暴走(2026-09-23 の実機)で、外した
+    # 科目の注記が繰り返されないよう、2回目以降は採否にかかわらず黙って飛ばす
+    seen: set[str] = set()
+    total = 0.0
+    remaining = context.budget.remaining if context.budget else None
+    for code, reason in drafts:
+        base = context.classes.get(code)
+        if base is None or code in seen:
+            continue
+        seen.add(code)
+        course = base.model_copy(update={"reason": reason})
+        key = normalize_title(course.title)
+        if key in titles:
+            continue
+        # 全コマどうしで比べる(「金4・金5」の科目は金5の科目とも重なる。§5.3)
+        clashes = [c for c in accepted if course_clash(c, course)]
+        # 重なった相手より重い(必修 > 選択必修 > 選択)なら、相手を外して入れ替える。
+        # 同じ重さなら先に書いた方を残す(モデルが先に挙げた方を優先したとみなす)
+        if clashes and not all(_weight(course) < _weight(c) for c in clashes):
+            clash = clashes[0]
+            dropped.setdefault(
+                key,
+                f"「{course.title}」は「{clash.title}」と{_clash_label(course, clash)}限で"
+                "開講期間が重なるため外しました。",
+            )
+            continue
+        freed = sum(c.credits or 0 for c in clashes)
+        if remaining is not None and total - freed + (course.credits or 0) > remaining:
+            dropped.setdefault(
+                key,
+                f"「{course.title}」は対象学期に登録できる残り単位"
+                f"({_credits(remaining)}単位)を超えるため外しました。",
+            )
+            continue
+        for clash in clashes:
+            accepted.remove(clash)
+            clash_key = normalize_title(clash.title)
+            titles.discard(clash_key)
+            total -= clash.credits or 0
+            dropped.setdefault(
+                clash_key,
+                f"「{clash.title}」は「{course.title}」と{_clash_label(clash, course)}限で"
+                f"開講期間が重なり、{course.category}の「{course.title}」を優先したため"
+                "外しました。",
+            )
+        accepted.append(course)
+        titles.add(key)
+        total += course.credits or 0
+
+    return accepted, [text for key, text in dropped.items() if key not in titles]
+
+
+def assemble_proposal(
+    drafts: Iterable[tuple[str, str]],
+    summary: str | None,
+    context: ProposalContext,
+    *,
+    truncated: bool = False,
+) -> tuple[TimetableProposal, list[str]]:
+    """下書きから確定版の提案を組み上げ、調整の記録と一緒に返す。
+
+    **調整の記録(外した科目と打ち切り)は summary に混ぜない。** summary は画面の
+    吹き出しにそのまま出るため、backend の都合を学生に見せないためである。記録は
+    SSE の result イベントに `adjustments` として別に載せる(frontend は読まない。
+    確認用のスクリプトが表示する)。summary はモデルが書いたままで、書き終える前に
+    切れたときだけ定型文にする。
+    """
+    courses, notes = assemble_courses(drafts, context)
+    if truncated:
+        notes.append("生成が最後まで完了しなかったため、書き終えた科目までで提案した。")
+    text = (summary or "").strip() or "時間割を提案しました。各科目の理由を確認してください。"
+    credits = [c.credits for c in courses]
+    total = sum(credits) if None not in credits else None
+    return TimetableProposal(courses=courses, total_credits=total, summary=text), notes

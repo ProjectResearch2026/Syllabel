@@ -16,6 +16,7 @@ from collections.abc import Sequence
 
 from pydantic import BaseModel, ConfigDict
 
+from app.curricula.titles import normalize_title
 from app.schemas.curriculum import (
     CreditCap,
     Curriculum,
@@ -124,7 +125,8 @@ def merge(
     slots = [*program.requirement_slots, *liberal.requirement_slots]
     credit_caps = [*program.credit_caps, *liberal.credit_caps]
     # 決定事項: 先修制は課程ファイルと教養教育科目ファイルの双方が同じ形で持ち(§5.1.5)、
-    # いずれも規則レイヤとして充足判定に用いるため、1つのリストに保持する(§4.4.3)
+    # いずれも規則レイヤとして履修提案の先修条件の判定(§7.2.1)に用いるため、
+    # 1つのリストに保持する(§4.4.3)
     prerequisites = [*program.prerequisites, *liberal.prerequisites]
 
     courses = [
@@ -165,21 +167,27 @@ def merge(
         prerequisites=prerequisites,
         courses=courses,
     )
-    _validate(merged)
+    # 先修要件の科目名は、当該課程に取り込まなかった教養教育科目(履修不可の科目)も
+    # 指し得る。転記ミスの検出が目的なので、同じ年度のファイルに在る全科目名と照らす
+    known_titles = [
+        c.title for c in [*program.courses, *liberal.courses, *(c for o in others for c in o.courses)]
+    ]
+    _validate(merged, known_titles)
     return merged
 
 
 # --- マージ後の整合性検査(§4.4.3) ---
 
 
-def _validate(merged: MergedCurriculum) -> None:
-    """マージ後にしか成立しない4件を検査する。違反は `CurriculumMergeError`。"""
+def _validate(merged: MergedCurriculum, known_titles: Sequence[str]) -> None:
+    """マージ後にしか成立しない5件を検査する。違反は `CurriculumMergeError`。"""
     where = f"{merged.program.code}({merged.program.name}) / {merged.admission_year}年度入学"
     try:
         _check_slot_keys_unique(merged)
         _check_slot_credits_total(merged)
         _check_overflow_to(merged)
         _check_own_course_titles_unique(merged)
+        _check_prerequisite_titles(merged, known_titles)
     except CurriculumMergeError as exc:
         raise CurriculumMergeError(f"{where}: {exc}") from exc
 
@@ -242,4 +250,26 @@ def _check_own_course_titles_unique(merged: MergedCurriculum) -> None:
     if duplicated:
         raise CurriculumMergeError(
             f"設置科目の courses[].title が重複しています: {', '.join(duplicated)}"
+        )
+
+
+def _check_prerequisite_titles(merged: MergedCurriculum, known_titles: Sequence[str]) -> None:
+    """先修要件に書いた科目名が、同じ年度の履修要項の科目一覧に存在すること(§4.4.3)。
+
+    判定は科目名で修得科目と突き合わせるため、表記の違う科目名は黙って「未修得」と
+    判定されてしまう。転記ミスをロード時に止める。表記の揺れ(全角・半角、空白)は
+    判定と同じ規則(`normalize_title()`)で吸収する。
+    """
+    titles = {normalize_title(t) for t in known_titles}
+    missing = sorted(
+        {
+            f"{p.title} → {title}"
+            for p in merged.prerequisites
+            for title in p.referenced_titles()
+            if normalize_title(title) not in titles
+        }
+    )
+    if missing:
+        raise CurriculumMergeError(
+            f"prerequisites の科目名が courses[].title に存在しません: {', '.join(missing)}"
         )

@@ -165,6 +165,55 @@ def test_timetable_proposal_no_conflict_when_terms_do_not_overlap(first, second)
     assert len(p.courses) == 2
 
 
+# --- 複数コマの科目は全コマで重複を判定する(slots。§5.3)---
+
+
+def _slot(term: str, day: str, period: int) -> dict:
+    return {"term": term, "day": day, "period": period}
+
+
+def test_timetable_proposal_conflict_in_second_slot():
+    """「後期　金4・金5」の科目と金5の科目は重なる(2026-09-23 の実機で起きた重複)。"""
+    with pytest.raises(ValidationError, match="金5限"):
+        TimetableProposal(**make_proposal(
+            make_course(
+                title="ネットワークシステム・演習", day="金", period=4, term="後期",
+                slots=[_slot("後期", "金", 4), _slot("後期", "金", 5)],
+            ),
+            make_course(title="クリティカル・シンキング", day="金", period=5, term="後期"),
+        ))
+
+
+def test_timetable_proposal_conflict_in_second_term():
+    """「3Q　金3、4Q　金3」の科目は、1コマ目の学期(3Q)に無い4Qの金3とも重なる。"""
+    with pytest.raises(ValidationError, match="コマが重複"):
+        TimetableProposal(**make_proposal(
+            make_course(
+                title="記号処理", day="金", period=3, term="3Q",
+                slots=[_slot("3Q", "金", 3), _slot("4Q", "金", 3)],
+            ),
+            make_course(title="進化学", day="金", period=3, term="4Q"),
+        ))
+
+
+def test_timetable_proposal_own_slots_do_not_conflict():
+    """1つの科目のコマどうし(金4・金5、3Q金3・4Q金3)は重複ではない。"""
+    p = TimetableProposal(**make_proposal(
+        make_course(
+            day="金", period=4, term="後期",
+            slots=[_slot("後期", "金", 4), _slot("後期", "金", 5)],
+        ),
+    ))
+    assert len(p.courses[0].slots) == 2
+
+
+def test_occupied_slots_falls_back_to_first_slot():
+    """slots を持たない科目(旧い提案)は day / period / term の1コマを占める。"""
+    course = ProposedCourse(**make_course(day="火", period=2, term="前期"))
+    assert [(s.term, s.day, s.period) for s in course.occupied_slots()] == [("前期", "火", 2)]
+    assert ProposedCourse(**make_course(day=None, period=None)).occupied_slots() == []
+
+
 # --- TargetTerm ---
 
 

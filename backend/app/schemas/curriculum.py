@@ -8,11 +8,13 @@
 - `requirement_slots[].credits` の合計が `graduation.total_credits` に一致すること
 - `overflow_to` の参照解決と循環検査(`liberal.elective → free.all` はファイルをまたぐ)
 - マージ後の `requirement_slots[].key` / `courses[].title` の一意性
-- `prerequisites[].title` / `all_of` / `any_of` / `credit_caps[].titles` /
+- `prerequisites[]` の科目名(`title` / `all_of` / `any_of` / `from` / `one_of`)、
+  `credit_caps[].titles` /
   `tracks[].constraints[].slot` / `track_group` の参照解決
 - `admission_year` とディレクトリ名の一致
 
-YAML は snake_case のまま扱う(alias は付けない)。camelCase への変換は
+YAML は snake_case のまま扱う(alias は付けない。例外は Python の予約語と
+衝突する `min_credits[].from` だけ)。camelCase への変換は
 API のレスポンスモデル側の責務である(§6.1)。全モデルで `extra="forbid"` とし、
 転記時の typo キーを黙って捨てずに検出する。
 """
@@ -122,6 +124,11 @@ class RequirementSlot(_YamlModel):
     """
 
     key: str = Field(min_length=1)
+    # 学生・モデルに見せる名前。履修要項の「卒業要件単位（最低）数表」の区分を
+    # 「科目区分(履修区分)」の形でつないだ公式の表記(例: 専門応用科目(必修)、
+    # 教養教育科目(選択必修〈基幹〉・人文)、学部フリーゾーン)。`key` は内部の
+    # 識別子であり、プロンプトや画面に出してはならない(§5.1.2)
+    name: str = Field(min_length=1)
     credits: int = Field(ge=0)
     accepts: Accepts
     overflow_to: str | None = None
@@ -263,29 +270,90 @@ class PrerequisiteAsOf(_YamlModel):
 class MinCredits(_YamlModel):
     """先修要件の単位数閾値(§5.1.5)。
 
-    `accepts` を省略した要素は**卒業要件総修得単位数**を指す。
+    数える科目の指定は次の3通りで、`accepts` と `from` は同時に書けない:
+
+    - どちらも省略: **卒業要件総修得単位数**
+    - `accepts`: 区分などの条件に当たる修得科目の単位の合計
+    - `from`: **列挙した科目**の修得単位の合計(「英語総合1(A), 1(B), 2(A), 2(B), 3 の
+      うち4単位以上」のような指定科目群からの単位数)。科目名の参照解決はマージ後に行う
     """
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     credits: int = Field(ge=1)
     accepts: Accepts | None = None
+    # `from` は Python の予約語なので属性名は from_ とし、YAML のキーは from で受ける
+    from_: list[str] | None = Field(default=None, alias="from", min_length=1)
+
+    @model_validator(mode="after")
+    def check_source(self) -> "MinCredits":
+        if self.accepts is not None and self.from_ is not None:
+            raise ValueError(
+                "min_credits に accepts と from は同時に書けません"
+                "(区分で数えるか、列挙した科目で数えるかのどちらか)"
+            )
+        return self
 
 
-class Prerequisite(_YamlModel):
-    """先修制の表の1行(§5.1.5)。
+class PrerequisiteConditions(_YamlModel):
+    """先修要件の条件の組(§5.1.5)。書いた条件はすべて AND で結ぶ。
 
-    `title` は**要件が課される側の科目**。`min_credits` / `all_of` / `any_of` /
-    `as_of` は任意で、複数あれば AND で結合する。`notes` は履修要項の
-    「履修の要件」欄の原文であり必ず書く。構造化できない条件は `notes` のみで表す。
-    参照(`title` / `all_of` / `any_of` が同一ファイルの `courses[].title` に
-    存在すること)の解決はローダの責務(§4.4.3)。
+    `as_of` は判定時点(その学期末までに修得した科目で判定する)。
     """
 
-    title: str = Field(min_length=1)
     as_of: PrerequisiteAsOf | None = None
     min_credits: list[MinCredits] | None = Field(default=None, min_length=1)
     all_of: list[str] | None = Field(default=None, min_length=1)
     any_of: list[str] | None = Field(default=None, min_length=1)
+
+    def has_conditions(self) -> bool:
+        """判定できる条件(`as_of` 以外)を1つでも持つか。"""
+        return bool(self.min_credits or self.all_of or self.any_of)
+
+    def referenced_titles(self) -> list[str]:
+        """条件が参照する科目名(`all_of` / `any_of` / `min_credits[].from`)。"""
+        titles = [*(self.all_of or []), *(self.any_of or [])]
+        for threshold in self.min_credits or []:
+            titles.extend(threshold.from_ or [])
+        return titles
+
+
+class PrerequisiteAlternative(PrerequisiteConditions):
+    """`one_of` の選択肢1つ(§5.1.5)。空の選択肢は常に満たされてしまうので拒否する。"""
+
+    @model_validator(mode="after")
+    def check_not_empty(self) -> "PrerequisiteAlternative":
+        if not self.has_conditions():
+            raise ValueError(
+                "one_of の選択肢が空です: min_credits / all_of / any_of のいずれかを書いてください"
+            )
+        return self
+
+
+class Prerequisite(PrerequisiteConditions):
+    """先修制の表の1行(§5.1.5)。
+
+    `title` は**要件が課される側の科目**。`min_credits` / `all_of` / `any_of` /
+    `one_of` は任意で、複数あれば AND で結合する。`one_of` は「または」で、
+    選択肢(条件の組)の**どれか1つ**を満たせばよい。選択肢に `as_of` が無ければ
+    この行の `as_of` を使う。`notes` は履修要項の「履修の要件」欄の原文であり
+    必ず書く。構造化できない条件(「研究室に配属されていること」)は `notes` のみで表す。
+    参照(`title` と条件中の科目名がマージ後の `courses[].title` に存在すること)の
+    解決はマージの責務(§4.4.3)。
+    """
+
+    title: str = Field(min_length=1)
+    one_of: list[PrerequisiteAlternative] | None = Field(default=None, min_length=2)
     notes: str = Field(min_length=1)
+
+    def has_conditions(self) -> bool:
+        return super().has_conditions() or bool(self.one_of)
+
+    def referenced_titles(self) -> list[str]:
+        titles = [self.title, *super().referenced_titles()]
+        for alternative in self.one_of or []:
+            titles.extend(alternative.referenced_titles())
+        return titles
 
 
 # --- 課程固有の規定(§5.1.2) ---

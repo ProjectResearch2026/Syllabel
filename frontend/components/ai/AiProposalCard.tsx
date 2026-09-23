@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ChevronDown, Plus } from "lucide-react";
-import { CELL_STYLES, categoryToCourseType } from "@/lib/timetable";
+import { CELL_STYLES, categoryToCourseType, occupiedSlots, slotBadge } from "@/lib/timetable";
 import type { ProposedCourse } from "@/lib/chatApi";
 
 const VISIBLE = 2;
@@ -26,8 +26,9 @@ export default function AiProposalCard({
     <div className="w-[308px] overflow-hidden rounded-[14px] border border-border-primary bg-surface-primary">
       {shown.map((course) => {
         const style = CELL_STYLES[categoryToCourseType(course.category)];
-        // 曜日・時限は集中講義などで null になる（design.md §5.3）
-        const slot = course.day && course.period != null;
+        // 曜日・時限は集中講義などで null になる（design.md §5.3）。
+        // 複数コマの科目は「金 / 4・5」と全コマを書く
+        const badge = slotBadge(occupiedSlots(course));
         return (
           <div
             key={`${course.syllabusCode ?? course.title}-${course.day ?? ""}${course.period ?? ""}`}
@@ -36,11 +37,15 @@ export default function AiProposalCard({
             <span
               className={`flex size-9 shrink-0 flex-col items-center justify-center rounded-[10px] ${style.badge}`}
             >
-              {slot ? (
+              {badge ? (
                 <>
-                  <span className="text-[9px] font-bold text-fg-secondary">{course.day}</span>
-                  <span className="tabular-nums text-[14px] font-bold leading-[1.2] text-fg-primary">
-                    {course.period}
+                  <span className="text-[9px] font-bold text-fg-secondary">{badge.day}</span>
+                  <span
+                    className={`tabular-nums font-bold leading-[1.2] text-fg-primary ${
+                      badge.period.length > 1 ? "text-[10px]" : "text-[14px]"
+                    }`}
+                  >
+                    {badge.period}
                   </span>
                 </>
               ) : (

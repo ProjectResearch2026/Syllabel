@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import type { SyllabusListItem, Masters, MatchedBy } from "@/lib/syllabus-api";
 import { OFFERING_YEAR, FACULTY } from "@/lib/syllabus-api";
+import { formatSlots } from "@/lib/schedule";
 import { SYLLABUS_CONTEXT, useAiStore } from "@/lib/ai";
 import AskBar from "@/components/ai/AskBar";
 import SyllabusPagination from "./SyllabusPagination";
@@ -338,7 +339,7 @@ export default function MobileSyllabusPage({
                     <CourseTags tags={tags} />
                     <span className="flex items-center gap-1 px-2 py-[3px] rounded bg-[#EFF6FF] text-[11px] text-[#3B82F6]">
                       <Timer size={11} />
-                      {c.day_of_week}曜{c.period}限
+                      {formatSlots(c, { weekday: true })}
                     </span>
                     <span className="px-2 py-[3px] rounded bg-[#F8F9FA] text-[11px] text-[#4B5563]">
                       {c.credits}単位

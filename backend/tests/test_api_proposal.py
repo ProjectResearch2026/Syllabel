@@ -37,8 +37,18 @@ client = TestClient(app)
 
 DONE_EVENT = 'data: {"done": true}\n\n'
 
-# モデルが返す提案。`TimetableProposal` の検証を通る値にする(§7.2)
+# モデルが返す下書き。シラバスコードと理由だけを書く(§7.2)
 PROPOSAL = {
+    "courses": [
+        {"syllabusCode": "Y001006010", "reason": "専門基礎科目の必修が未修得のため。"},
+        {"syllabusCode": "Y001006011", "reason": "専門応用科目の不足を埋めるため。"},
+    ],
+    "summary": "卒業要件の不足枠から2科目を選んだ。先修要件を履修要項で確認すること。",
+}
+
+# 下書きから backend が組み上げる確定版。科目名・曜日・時限・学期・単位・履修区分は
+# 履修要項と開講情報(下の SYLLABI)から補う
+EXPECTED = {
     "courses": [
         {
             "syllabusCode": "Y001006010",
@@ -46,7 +56,9 @@ PROPOSAL = {
             "day": "月",
             "period": 2,
             "term": "通年",
-            "credits": 4,
+            # SYLLABI は slots を持たない(api-clean 0.2.0 の形)ので、1コマ目だけになる
+            "slots": [{"term": "通年", "day": "月", "period": 2}],
+            "credits": 4.0,
             "category": "必修",
             "reason": "専門基礎科目の必修が未修得のため。",
         },
@@ -56,13 +68,14 @@ PROPOSAL = {
             "day": "火",
             "period": 3,
             "term": "前期",
-            "credits": 2,
+            "slots": [{"term": "前期", "day": "火", "period": 3}],
+            "credits": 2.0,
             "category": "選択",
             "reason": "専門応用科目の不足を埋めるため。",
         },
     ],
-    "totalCredits": 6,
-    "summary": "卒業要件の不足枠から2科目を選んだ。先修要件を履修要項で確認すること。",
+    "totalCredits": 6.0,
+    "summary": PROPOSAL["summary"],
 }
 
 # 開講情報(api-clean の `GET /syllabi` が返す行。§6.2)
@@ -103,7 +116,7 @@ def _liberal_arts() -> dict:
         "liberal_arts_version": "until-2025",
         "requirement_slots": [
             {
-                "key": "liberal.elective",
+                "key": "liberal.elective", "name": "liberal.elective",
                 "credits": 4,
                 "accepts": {"category": "教養教育科目"},
                 "overflow_to": "free.all",
@@ -131,17 +144,17 @@ def _program() -> dict:
         "graduation": {"total_credits": 12, "excluded_types": ["随意"]},
         "requirement_slots": [
             {
-                "key": "basic.required",
+                "key": "basic.required", "name": "basic.required",
                 "credits": 4,
                 "accepts": {"category": "専門基礎科目", "type": "必修"},
             },
             {
-                "key": "applied.elective",
+                "key": "applied.elective", "name": "applied.elective",
                 "credits": 2,
                 "accepts": {"category": "専門応用科目", "type": "選択"},
                 "overflow_to": "free.all",
             },
-            {"key": "free.all", "credits": 2, "accepts": {"category": "any"}},
+            {"key": "free.all", "name": "free.all", "credits": 2, "accepts": {"category": "any"}},
         ],
         "registration_limits": {
             "by_semester": [{"semesters": [1, 2, 3, 4], "max_credits_per_semester": 22}]
@@ -230,15 +243,31 @@ def stub_api_clean(monkeypatch):
     monkeypatch.setattr(pa, "search_syllabi", fake_search_syllabi)
 
 
+REWRITTEN = "確定した時間割に合わせて書き直した説明。"
+
+
+@pytest.fixture(autouse=True)
+def fake_rewrite(monkeypatch):
+    """説明文の書き直し(§7.2.2)を差し替え、呼ばれた回数を記録する。"""
+    calls: list[dict] = []
+
+    async def fake(proposal, original, context):
+        calls.append({"proposal": proposal, "original": original})
+        return REWRITTEN
+
+    monkeypatch.setattr(mod, "rewrite_summary", fake)
+    return calls
+
+
 @pytest.fixture
 def spy_prompt(monkeypatch):
     """エージェントに渡されたプロンプトを記録する。処理はそのまま通す。"""
     captured = {}
     original = mod._stream_proposal
 
-    def spy(prompt: str):
-        captured["prompt"] = prompt
-        return original(prompt)
+    def spy(context):
+        captured["prompt"] = context.prompt
+        return original(context)
 
     monkeypatch.setattr(mod, "_stream_proposal", spy)
     return captured
@@ -334,11 +363,10 @@ def test_streams_snapshot_then_result_then_done():
 
 
 def test_result_is_the_complete_proposal():
-    """result は検証を通った完全な提案であること。"""
+    """result は、下書きのコードに候補一覧の値を補った完全な提案であること。"""
     result = _events(_post().text)[-2]["result"]
-    assert result == TimetableProposal.model_validate(PROPOSAL).model_dump(
-        by_alias=True
-    )
+    assert result == EXPECTED
+    TimetableProposal.model_validate(result)
 
 
 def test_snapshot_has_the_proposal_schema_shape():
@@ -513,102 +541,269 @@ def test_does_not_log_student_data(caplog):
     assert "テスト課程01" not in caplog.text
 
 
-# --- 出力の作り直し(§7.2 の output retries)---
+# --- 下書きの整理(§7.2。作り直しはさせない)---
 
 
-def test_retry_after_invalid_output_streams_the_second_attempt():
-    """検証に落ちて作り直した場合、確定版は2回目の出力になること。
+def test_duplicates_conflicts_and_over_cap_are_removed_without_retry():
+    """同じ科目・コマ重複・上限超過は backend が外し、作り直しをさせないこと。
 
-    コマ重複は `TimetableProposal` の検証で弾かれ、pydantic-ai がモデルに作り直しを
-    要求する(`retries={"output": ...}`)。1回目の断片を引きずったまま溜め続けると
-    JSON が壊れるため、snapshot は作り直しのたびに溜め直す。
+    作り直しは1回4〜5分かかるため、書き終えた下書きを確実な処理で整える。
+    外した科目(同じ科目の2件目を除く)は summary に書き足す。
     """
-    conflicting = {
+    calls = {"n": 0}
+    draft = {
         "courses": [
-            dict(PROPOSAL["courses"][0]),
-            # 1科目目と同じ曜日・時限・学期。`check_no_time_conflict` に落ちる
-            dict(PROPOSAL["courses"][1], day="月", period=2, term="通年"),
+            {"syllabusCode": "Y001006010", "reason": "必修のため。"},
+            # 同じ科目の2件目。黙って外す
+            {"syllabusCode": "Y001006010", "reason": "重複。"},
+            {"syllabusCode": "Y001006011", "reason": "選択のため。"},
         ],
-        "totalCredits": 6,
-        "summary": "コマが重複した提案。",
+        "summary": "方針。",
     }
-    attempts: list[dict] = [conflicting, PROPOSAL]
 
     async def stream_fn(
         messages: list[ModelMessage], info: AgentInfo
     ) -> AsyncIterator[str | DeltaToolCalls]:
-        payload = attempts.pop(0) if attempts else PROPOSAL
+        calls["n"] += 1
         name = info.output_tools[0].name
-        for i, chunk in enumerate(_chunks(payload)):
+        for i, chunk in enumerate(_chunks(draft)):
             yield {0: DeltaToolCall(name=name if i == 0 else None, json_args=chunk)}
+
+    # 微分積分(通年・月2)と同じコマに解析学を置き、コマ重複を起こす
+    rows = [dict(r, day_of_week="月", period=2) if r["syllabus_code"] == "Y001006011" else r for r in SYLLABI]
+
+    async def fake_search_syllabi(**kwargs) -> dict:
+        return {"count": len(rows), "limit": kwargs.get("limit"), "results": rows}
+
+    agent = build_proposal_agent()
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(pa, "search_syllabi", fake_search_syllabi)
+        with agent.override(model=FunctionModel(stream_function=stream_fn)):
+            resp = client.post("/api/proposal", json=_body())
+
+    assert calls["n"] == 1, "作り直しが走っている"
+    result = _events(resp.text)[-2]["result"]
+    assert [c["title"] for c in result["courses"]] == ["微分積分"]
+    assert result["totalCredits"] == 4.0
+    # 外した記録は summary に混ぜず(画面に出さない)、adjustments に載せる。
+    # 科目を外したので、説明文は確定した時間割に合わせて書き直す
+    assert result["summary"] == REWRITTEN
+    assert _events(resp.text)[-2]["adjustments"] == [
+        "「解析学」は「微分積分」と月2限で開講期間が重なるため外しました。"
+    ]
+    assert "重複" not in json.dumps(result, ensure_ascii=False)
+
+
+def test_course_clashing_in_its_second_slot_is_removed(fake_rewrite):
+    """2コマ目で重なる科目も外すこと(api-clean 0.3.0 の slots。§5.3)。
+
+    1コマ目(`day_of_week` / `period`)だけで比べていた頃は、「後期　金4・金5」の科目と
+    金5の科目を同じ時間割に並べていた(2026-09-23 の実機)。
+    """
+    draft = {
+        "courses": [
+            {"syllabusCode": "Y001006010", "reason": "必修のため。"},
+            {"syllabusCode": "Y001006011", "reason": "選択のため。"},
+        ],
+        "summary": "2科目を選んだ。",
+    }
+
+    async def stream_fn(
+        messages: list[ModelMessage], info: AgentInfo
+    ) -> AsyncIterator[str | DeltaToolCalls]:
+        name = info.output_tools[0].name
+        for i, chunk in enumerate(_chunks(draft)):
+            yield {0: DeltaToolCall(name=name if i == 0 else None, json_args=chunk)}
+
+    # 解析学は「前期　火3・月2」。1コマ目の火3は空いているが、2コマ目の月2 が
+    # 微分積分(通年・月2)と重なる
+    rows = [
+        dict(
+            r,
+            slots=[
+                {"term": "前期", "day": "火", "period": 3},
+                {"term": "前期", "day": "月", "period": 2},
+            ],
+        )
+        if r["syllabus_code"] == "Y001006011"
+        else r
+        for r in SYLLABI
+    ]
+
+    async def fake_search_syllabi(**kwargs) -> dict:
+        return {"count": len(rows), "limit": kwargs.get("limit"), "results": rows}
+
+    agent = build_proposal_agent()
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(pa, "search_syllabi", fake_search_syllabi)
+        with agent.override(model=FunctionModel(stream_function=stream_fn)):
+            resp = client.post("/api/proposal", json=_body())
+
+    event = _events(resp.text)[-2]
+    assert [c["title"] for c in event["result"]["courses"]] == ["微分積分"]
+    # 重なったコマ(2コマ目の月2)を書く
+    assert event["adjustments"] == [
+        "「解析学」は「微分積分」と月2限で開講期間が重なるため外しました。"
+    ]
+
+
+def test_result_carries_every_slot(monkeypatch):
+    """確定版の科目は、複数コマのクラスの全コマを slots に持つこと(§5.3)。"""
+    rows = [
+        dict(
+            r,
+            slots=[
+                {"term": "前期", "day": "火", "period": 3},
+                {"term": "前期", "day": "火", "period": 4},
+            ],
+        )
+        if r["syllabus_code"] == "Y001006011"
+        else r
+        for r in SYLLABI
+    ]
+
+    async def fake_search_syllabi(**kwargs) -> dict:
+        return {"count": len(rows), "limit": kwargs.get("limit"), "results": rows}
+
+    monkeypatch.setattr(pa, "search_syllabi", fake_search_syllabi)
+    result = _events(_post().text)[-2]["result"]
+    analysis = next(c for c in result["courses"] if c["title"] == "解析学")
+    # day / period / term は従来どおり1コマ目
+    assert (analysis["day"], analysis["period"], analysis["term"]) == ("火", 3, "前期")
+    assert analysis["slots"] == [
+        {"term": "前期", "day": "火", "period": 3},
+        {"term": "前期", "day": "火", "period": 4},
+    ]
+
+
+def test_courses_over_the_credit_cap_are_removed(monkeypatch):
+    """対象学期に登録できる残り単位を超える科目は外すこと。登録済みの単位を差し引く。"""
+    completed = [
+        {
+            "title": "登録済みの科目",
+            "year": 2026,
+            "term": "前期",
+            "credits": 20,
+            "status": "registered",
+        }
+    ]
+    resp = _post(
+        completed=completed, target_term={"year": 2026, "term": "前期", "grade": 2}
+    )
+    event = _events(resp.text)[-2]
+
+    # 上限 22 − 登録済み 20 = 残り 2。微分積分(4単位)は入らず、解析学(2単位)は入る
+    assert [c["title"] for c in event["result"]["courses"]] == ["解析学"]
+    assert event["adjustments"] == [
+        "「微分積分」は対象学期に登録できる残り単位(2単位)を超えるため外しました。"
+    ]
+
+
+def test_prompt_states_the_remaining_credits(spy_prompt):
+    completed = [
+        {"title": "登録済みの科目", "year": 2026, "term": "前期", "credits": 4, "status": "registered"}
+    ]
+    _post(completed=completed, target_term={"year": 2026, "term": "前期", "grade": 2})
+    assert "対象学期に登録できる残り単位: 18単位(上限 22 − 登録済み 4)" in spy_prompt["prompt"]
+
+
+def test_truncated_generation_returns_the_courses_written_so_far():
+    """生成が途中で切れても、書き終えた科目までで確定版を返すこと。
+
+    出力の上限(max_tokens)で切れると pydantic-ai は例外を投げる。作り直すと
+    4〜5分がもう一度かかるため、そこまでの下書きで提案にする。
+    """
+    text = json.dumps(PROPOSAL, ensure_ascii=False)
+    # 2科目目の理由を書いている途中で切る
+    cut = text.index("専門応用科目")
+
+    async def stream_fn(
+        messages: list[ModelMessage], info: AgentInfo
+    ) -> AsyncIterator[str | DeltaToolCalls]:
+        name = info.output_tools[0].name
+        yield {0: DeltaToolCall(name=name, json_args=text[:cut])}
+        raise RuntimeError("length")
 
     agent = build_proposal_agent()
     with agent.override(model=FunctionModel(stream_function=stream_fn)):
         resp = client.post("/api/proposal", json=_body())
 
-    assert resp.status_code == 200
-    assert not attempts, "作り直しが行われていない"
-
     events = _events(resp.text)
     assert [next(iter(e)) for e in events][-2:] == ["result", "done"]
-    assert events[-2]["result"] == TimetableProposal.model_validate(
-        PROPOSAL
-    ).model_dump(by_alias=True)
+    result = events[-2]["result"]
+    assert [c["title"] for c in result["courses"]] == ["微分積分"]
+    assert "最後まで完了しなかった" not in result["summary"]
+    assert any("最後まで完了しなかった" in a for a in events[-2]["adjustments"])
 
-    # 作り直しの時点で snapshot は空の提案から積み直され、科目数が一度戻る
-    snapshots = [e["snapshot"] for e in events if "snapshot" in e]
-    assert snapshots[-1] == events[-2]["result"]
-    counts = [len(s["courses"] or []) for s in snapshots]
-    assert counts != sorted(counts), "溜め直していない"
+
+def test_truncated_before_any_course_is_an_error():
+    """書き終えた科目が1つも無いまま切れたら error で締めること。"""
+
+    async def stream_fn(
+        messages: list[ModelMessage], info: AgentInfo
+    ) -> AsyncIterator[str | DeltaToolCalls]:
+        name = info.output_tools[0].name
+        yield {0: DeltaToolCall(name=name, json_args='{"courses": [{"syllabusCode": "Y0')}
+        raise RuntimeError("length")
+
+    agent = build_proposal_agent()
+    with agent.override(model=FunctionModel(stream_function=stream_fn)):
+        resp = client.post("/api/proposal", json=_body())
+
+    assert '"error"' in resp.text
+    assert resp.text.endswith(DONE_EVENT)
+
+
+def test_draft_codes_are_limited_to_the_candidates():
+    """下書きの形式は、その回の候補コードだけを選べる列挙になっていること。"""
+    seen = {}
+
+    async def stream_fn(
+        messages: list[ModelMessage], info: AgentInfo
+    ) -> AsyncIterator[str | DeltaToolCalls]:
+        seen["schema"] = info.output_tools[0].parameters_json_schema
+        name = info.output_tools[0].name
+        for i, chunk in enumerate(_chunks(PROPOSAL)):
+            yield {0: DeltaToolCall(name=name if i == 0 else None, json_args=chunk)}
+
+    agent = build_proposal_agent()
+    with agent.override(model=FunctionModel(stream_function=stream_fn)):
+        client.post("/api/proposal", json=_body())
+
+    schema = json.dumps(seen["schema"], ensure_ascii=False)
+    assert '"enum": ["G260110004", "Y001006010", "Y001006011"]' in schema or (
+        "Y001006010" in schema and '"enum"' in schema
+    )
+    assert '"maxItems"' in schema
 
 
 # --- snapshot の組み立て ---
 
 
-def test_snapshot_returns_none_for_unreadable_fragments():
-    """JSON として読めない断片では snapshot を作らないこと。"""
-    assert mod._snapshot("") is None
-    assert mod._snapshot("申し訳ありませんが") is None
-    assert mod._snapshot('{"courses": 3') is None
-    # 形は読めても値が型に合わないものは載せない
-    assert mod._snapshot('{"courses": [{"period": "月曜"}]}') is None
+def test_parse_draft_returns_none_for_unreadable_fragments():
+    """JSON として読めない断片では下書きを読まないこと。"""
+    assert mod._parse_draft("申し訳ありませんが") is None
 
 
-def test_snapshot_keeps_partial_courses():
-    """途中まで届いた科目も、届いた値だけを載せて snapshot に含めること。"""
-    snapshot = mod._snapshot('{"courses": [{"title": "微分積分", "day": "月"')
-    assert snapshot == {
-        "courses": [
-            {
-                "syllabusCode": None,
-                "title": "微分積分",
-                "day": "月",
-                "period": None,
-                "term": None,
-                "credits": None,
-                "category": None,
-                "reason": None,
-            }
-        ],
-        "totalCredits": None,
-        "summary": None,
-    }
+def test_parse_draft_keeps_only_finished_courses():
+    """理由(reason)まで書き終えた科目だけを取り出すこと。"""
+    assert mod._parse_draft(
+        '{"courses": [{"syllabusCode": "A1", "reason": "理由。"}, {"syllabusCode": "B2", "reason": "書きか'
+    ) == ([("A1", "理由。")], None)
 
 
 # --- 対象学期(§7.2)---
 
 
-def test_target_term_narrows_candidates_to_its_term(spy_prompt):
+def test_target_term_narrows_candidates_to_its_term():
     """targetTerm を送ると、候補がその学期のクラスに絞られること。
 
-    後期の登録では前期・通年のクラス(哲学・微分積分・解析学)は候補に載らない。
+    この最小構成の開講クラスは前期・通年だけなので、後期を指定すると候補が
+    無くなり、モデルを呼ぶ前に 400 で返る(提案の前提が揃わない)。
     """
     resp = _post(target_term={"year": 2026, "term": "後期", "grade": 2})
-    assert resp.status_code == 200
-    prompt = spy_prompt["prompt"]
-    assert "2026年度 後期(第4セメスター)" in prompt
-    assert "G260110004" not in prompt
-    assert "Y001006010" not in prompt
+    assert resp.status_code == 400
+    assert "候補科目がありません" in resp.json()["detail"]
 
 
 def test_target_term_spring_keeps_full_year_classes(spy_prompt):
@@ -619,3 +814,25 @@ def test_target_term_spring_keeps_full_year_classes(spy_prompt):
 
 def test_invalid_target_term_is_rejected():
     assert _post(target_term={"year": 2026, "term": "通年", "grade": 2}).status_code == 422
+
+
+def test_summary_is_not_rewritten_when_nothing_was_removed(fake_rewrite):
+    """科目を外していなければ説明文を書き直さない(待ち時間を増やさない)。"""
+    result = _events(_post().text)[-2]["result"]
+
+    assert fake_rewrite == []
+    assert result["summary"] == PROPOSAL["summary"]
+
+
+def test_summary_is_rewritten_from_the_settled_timetable(fake_rewrite):
+    """外したときは、確定した時間割と元の説明文を渡して書き直す。"""
+    completed = [
+        {"title": "登録済みの科目", "year": 2026, "term": "前期", "credits": 20, "status": "registered"}
+    ]
+    resp = _post(completed=completed, target_term={"year": 2026, "term": "前期", "grade": 2})
+    result = _events(resp.text)[-2]["result"]
+
+    assert len(fake_rewrite) == 1
+    assert [c.title for c in fake_rewrite[0]["proposal"].courses] == ["解析学"]
+    assert fake_rewrite[0]["original"] == PROPOSAL["summary"]
+    assert result["summary"] == REWRITTEN
