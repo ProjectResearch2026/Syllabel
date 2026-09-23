@@ -90,6 +90,26 @@ function assistant(id: string, content: string, streaming = false): ChatMessage 
   return { id, role: "assistant", content, time: hhmm(), streaming };
 }
 
+/**
+ * 生成・受信の途中で会話を退避するとき、本文の無い吹き出しを中断の旨に置き換える
+ * （§4.1.4）。`archive()` は `streaming` を下ろして保存するため、そのままでは
+ * 戻したときに指標も本文も無い空の吹き出しになる。
+ */
+function settle(messages: ChatMessage[]): ChatMessage[] {
+  return messages.map((m) =>
+    m.streaming && !m.content
+      ? {
+          ...m,
+          streaming: false,
+          content:
+            m.id === GENERATING_ID
+              ? "提案の作成を中断しました。"
+              : "応答の途中で会話を切り替えました。",
+        }
+      : m,
+  );
+}
+
 /** 吹き出し1件だけを書き換える。会話は store にあるので id で引く */
 function patchMessage(id: string, patch: Partial<ChatMessage>): void {
   useChatStore.setState((state) => ({
@@ -202,7 +222,12 @@ export function useProposalConversation(): ProposalConversation {
           });
         })
         .catch((err) => {
-          if ((err as Error).name === "AbortError") return;
+          if ((err as Error).name === "AbortError") {
+            // 会話を切り替えて生成を捨てた（§8.3.3）。`loading` のまま残すと
+            // `generating` が真のままになり、入力欄も開始の導線も戻らない
+            discard();
+            return;
+          }
           setStatus("error");
           patchMessage(GENERATING_ID, {
             content: "提案を作れませんでした。もう一度お試しください。",
@@ -221,6 +246,7 @@ export function useProposalConversation(): ProposalConversation {
       setSnapshot,
       setResult,
       setStatus,
+      discard,
     ],
   );
 
@@ -243,6 +269,7 @@ export function useProposalConversation(): ProposalConversation {
       abortRef.current = ctrl;
 
       let accumulated = "";
+      let failed = false;
       streamProposalChat(
         {
           studentProfile: profile,
@@ -258,9 +285,17 @@ export function useProposalConversation(): ProposalConversation {
       )
         .catch((err) => {
           if ((err as Error).name === "AbortError") return;
+          failed = true;
           patchMessage(assistantId, { content: "申し訳ありません。応答の取得に失敗しました。" });
         })
-        .finally(() => patchMessage(assistantId, { streaming: false }));
+        .finally(() =>
+          patchMessage(assistantId, {
+            streaming: false,
+            // delta も error も来ずに終わると本文が空のまま残る（§4.1.4）。
+            // 失敗の文言は catch が入れているので上書きしない
+            ...(accumulated || failed ? {} : { content: "応答を受け取れませんでした。" }),
+          }),
+        );
     },
     [messages, setMessages, profile, courses, totalCredits, summary],
   );
@@ -285,7 +320,7 @@ export function useProposalConversation(): ProposalConversation {
    */
   const restart = useCallback(() => {
     abortRef.current?.abort();
-    archive(SCOPE, messages);
+    archive(SCOPE, settle(messages));
     discard();
     setMessages([assistant(INTRO_ID, restartText(preferences))]);
   }, [archive, messages, discard, setMessages, preferences]);
@@ -293,7 +328,7 @@ export function useProposalConversation(): ProposalConversation {
   /** 提案はそのままに、質問のやりとりだけをやり直す */
   const newChat = useCallback(() => {
     abortRef.current?.abort();
-    archive(SCOPE, messages);
+    archive(SCOPE, settle(messages));
     setMessages([assistant(INTRO_ID, summary || FALLBACK_SUMMARY)]);
   }, [archive, messages, setMessages, summary]);
 
@@ -302,7 +337,7 @@ export function useProposalConversation(): ProposalConversation {
       const restored = restore(SCOPE, id);
       if (!restored) return;
       abortRef.current?.abort();
-      archive(SCOPE, messages);
+      archive(SCOPE, settle(messages));
       setMessages(restored);
     },
     [restore, archive, messages, setMessages],

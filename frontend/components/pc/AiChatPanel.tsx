@@ -10,6 +10,9 @@ import MarkdownText from "../ai/MarkdownText";
 import ThinkingIndicator from "../ai/ThinkingIndicator";
 import ChatHistoryMenu from "./ChatHistoryMenu";
 
+/** 本文が届く前に出す既定の文言（design.md §4.1.4）。所要時間は画面ごとに添える */
+const DEFAULT_THINKING_LABEL = "考えています…";
+
 /**
  * PC版のAIチャットパネル（ui-design_pc.pen ChatPanel）。
  *
@@ -20,9 +23,6 @@ import ChatHistoryMenu from "./ChatHistoryMenu";
  * 幅 344px・高さは親いっぱい。設計上ヘッダーと入力欄の地はグレー、
  * 吹き出しの並ぶ本文もグレーで、カード自体が白い枠として見える。
  */
-/** 本文が届く前に出す既定の文言（design.md §4.1.4）。所要時間は画面ごとに添える */
-const DEFAULT_THINKING_LABEL = "考えています…";
-
 export type AiChatPanelProps = {
   /** ヘッダーに出す一行（例: 「AI履修アシスタント」） */
   title: string;
