@@ -62,6 +62,11 @@ type ProposalRequest = {
   admissionYear: number;
   /** 希望条件。自由記述 */
   preferences?: string | null;
+  /**
+   * 提案する学期(次に登録する学期。`lib/targetTerm.ts`)。`grade` はその学期の
+   * 学年で、backend は配当年次の絞り込みと CAP の該当セメスターにこれを使う
+   */
+  targetTerm: { year: number; term: "前期" | "後期"; grade: 1 | 2 | 3 | 4 };
 };
 
 type SseEvent = Record<string, unknown>;

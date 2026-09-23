@@ -16,7 +16,10 @@ class Course(BaseModel):
     year: int
     term: Literal["前期", "後期", "通年", "1Q", "2Q", "3Q", "4Q", "サ集"]
     credits: float
-    status: Literal["passed", "failed", "withdrawn"]
+    # `registered` は成績表の `***`(登録科目)/ `*`(継続履修中)。登録済みで成績が
+    # 未確定の科目であり、修得でも未修得でもない。単位計算には数えず(`passed` のみ)、
+    # 履修提案では候補から外す(§5.2.1 / §7.2)
+    status: Literal["passed", "failed", "withdrawn", "registered"]
     raw_score: str | None = None
 
 

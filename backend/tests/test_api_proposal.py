@@ -282,8 +282,9 @@ def _body(
     grade: int | None = 2,
     preferences: str | None = None,
     completed: list[dict] | None = None,
+    target_term: dict | None = None,
 ) -> dict:
-    return {
+    body = {
         "studentProfile": {
             # frontend が持つのは課程名であり、課程コードではない(§4.4.2)
             "grade": grade,
@@ -294,6 +295,9 @@ def _body(
         "admissionYear": admission_year,
         "preferences": preferences,
     }
+    if target_term is not None:
+        body["targetTerm"] = target_term
+    return body
 
 
 def _post(**kwargs):
@@ -589,3 +593,29 @@ def test_snapshot_keeps_partial_courses():
         "totalCredits": None,
         "summary": None,
     }
+
+
+# --- 対象学期(§7.2)---
+
+
+def test_target_term_narrows_candidates_to_its_term(spy_prompt):
+    """targetTerm を送ると、候補がその学期のクラスに絞られること。
+
+    後期の登録では前期・通年のクラス(哲学・微分積分・解析学)は候補に載らない。
+    """
+    resp = _post(target_term={"year": 2026, "term": "後期", "grade": 2})
+    assert resp.status_code == 200
+    prompt = spy_prompt["prompt"]
+    assert "2026年度 後期(第4セメスター)" in prompt
+    assert "G260110004" not in prompt
+    assert "Y001006010" not in prompt
+
+
+def test_target_term_spring_keeps_full_year_classes(spy_prompt):
+    """前期の登録では通年科目(微分積分)も候補に載ること。"""
+    assert _post(target_term={"year": 2026, "term": "前期", "grade": 2}).status_code == 200
+    assert "Y001006010" in spy_prompt["prompt"]
+
+
+def test_invalid_target_term_is_rejected():
+    assert _post(target_term={"year": 2026, "term": "通年", "grade": 2}).status_code == 422

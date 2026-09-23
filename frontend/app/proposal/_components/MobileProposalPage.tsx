@@ -9,6 +9,7 @@ import { useGraduationCredits } from "@/lib/curricula";
 import { useScrollToBottom } from "@/lib/useScrollToBottom";
 import { PREFERENCES_NOTE, useProposalConversation } from "@/lib/useProposalConversation";
 import MarkdownText from "@/components/ai/MarkdownText";
+import TargetTermSelect from "./TargetTermSelect";
 
 /**
  * モバイルの履修提案（ui-design_phone.pen 04_履修提案）。
@@ -69,6 +70,11 @@ export default function MobileProposalPage() {
             <span className="text-[#6B7280] text-[10px]">{label}</span>
           </div>
         ))}
+      </div>
+
+      {/* 提案する学期(lib/targetTerm.ts)。推定は外れ得るので見える場所で直せるようにする */}
+      <div className="flex justify-center bg-white border-b border-[#D1D5DB] shrink-0 px-4 py-1.5">
+        <TargetTermSelect compact disabled={status === "loading"} />
       </div>
 
       {/* Timetable */}

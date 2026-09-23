@@ -6,6 +6,7 @@ import { useChatStore, type ChatMessage } from "@/lib/chat";
 import { useChatHistory } from "@/lib/chatHistory";
 import { programCodeOf, resolveAdmissionYear } from "@/lib/programs";
 import { useProposalStore } from "@/lib/proposal";
+import { useTargetTerm } from "@/lib/targetTerm";
 import { useStudentStore } from "@/lib/student";
 
 /**
@@ -151,6 +152,8 @@ export function useProposalConversation(): ProposalConversation {
   const setMessages = useChatStore((s) => s.setProposalMessages);
   const { entries, archive, restore } = useChatHistory(SCOPE);
   const abortRef = useRef<AbortController | null>(null);
+  // 提案する学期(次に登録する学期)。画面の選択(`TargetTermSelect`)と共有する
+  const { target, grade: targetGrade } = useTargetTerm();
 
   // 履修要項を引くキーは (課程コード, 入学年度)。プロファイルの `program` は課程名
   // なのでコードに解決する（§4.4.2）。学年でガードするのは、backend の配当年次
@@ -183,7 +186,8 @@ export function useProposalConversation(): ProposalConversation {
   /** 提案の生成（§7.2）。`wishes` が空文字なら希望条件なしで投げる */
   const start = useCallback(
     (wishes: string) => {
-      if (!profile || !programCode || admissionYear == null || streaming) return;
+      if (!profile || !programCode || admissionYear == null || targetGrade == null || streaming)
+        return;
 
       const trimmed = wishes.trim();
       const next = [...messages];
@@ -204,6 +208,7 @@ export function useProposalConversation(): ProposalConversation {
           programCode,
           admissionYear,
           preferences: trimmed || null,
+          targetTerm: { ...target, grade: targetGrade },
         },
         // 組み立て途中の提案。時間割表を逐次描画するために反映する（§6.1.1 / §7.2）
         (snapshot) =>
@@ -239,6 +244,8 @@ export function useProposalConversation(): ProposalConversation {
       profile,
       programCode,
       admissionYear,
+      target,
+      targetGrade,
       streaming,
       messages,
       setMessages,

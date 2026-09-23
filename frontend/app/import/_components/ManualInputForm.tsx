@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ChevronLeft, Plus, Trash2 } from "lucide-react";
-import type { StudentProfile, Course, CourseTerm } from "@/lib/student";
+import { isUnearned, type StudentProfile, type Course, type CourseTerm } from "@/lib/student";
 // 課程の正本は `curricula/admission-<年度>/` の課程ファイル（design.md §4.4.2）。
 // 履修要項を引けない課程名を選ばせないため、一覧はそこから引く
 import { PROGRAM_NAMES as PROGRAMS, getAdmissionYear } from "@/lib/programs";
@@ -167,9 +167,14 @@ export default function ManualInputForm({
                       {c.year} {c.term} · {c.credits}単位
                     </span>
                   </div>
-                  {c.status !== "passed" && (
+                  {isUnearned(c) && (
                     <span className="shrink-0 px-1.5 py-0.5 rounded bg-[#FEE2E2] text-[10px] font-bold text-[#991B1B]">
                       未修得
+                    </span>
+                  )}
+                  {c.status === "registered" && (
+                    <span className="shrink-0 px-1.5 py-0.5 rounded bg-[#EFF6FF] text-[10px] font-bold text-fg-primary">
+                      登録中
                     </span>
                   )}
                   <button

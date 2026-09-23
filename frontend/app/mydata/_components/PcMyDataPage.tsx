@@ -12,7 +12,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import { useStudentStore, type Course } from "@/lib/student";
+import { isUnearned, useStudentStore, type Course } from "@/lib/student";
 import { useChatStore } from "@/lib/chat";
 import { useChatHistoryStore } from "@/lib/chatHistory";
 import { useProposalStore } from "@/lib/proposal";
@@ -82,7 +82,9 @@ export default function PcMyDataPage() {
   const passedCourses = profile.completedCourses.filter((c) => c.status === "passed");
   const totalCredits = passedCourses.reduce((sum, c) => sum + c.credits, 0);
   // 不合格と履修辞退は「未修得」に丸める(設計書 §6.1。再履修の対象として同じ扱い)
-  const unearnedCourses = profile.completedCourses.filter((c) => c.status !== "passed");
+  const unearnedCourses = profile.completedCourses.filter(isUnearned);
+  // 登録済みで成績が未確定(成績表の `***` / `*`)。履修提案の候補から外れる
+  const registeredCourses = profile.completedCourses.filter((c) => c.status === "registered");
   const profRows = [
     { label: "学年", value: profile.grade != null ? `${profile.grade}回生` : "不明" },
     { label: "課程", value: profile.program },
@@ -154,6 +156,10 @@ export default function PcMyDataPage() {
         {/* 不合格・履修辞退。単位にはならないが再履修の提案に使う(設計書 §6.1) */}
         {unearnedCourses.length > 0 && (
           <CourseSection title="未修得科目（再履修の対象）" courses={unearnedCourses} unearned />
+        )}
+
+        {registeredCourses.length > 0 && (
+          <CourseSection title="登録済み科目（成績未確定）" courses={registeredCourses} />
         )}
 
         {/* デモモード */}

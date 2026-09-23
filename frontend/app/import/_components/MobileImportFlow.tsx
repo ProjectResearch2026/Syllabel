@@ -23,7 +23,7 @@ import {
   Loader2,
   AlertCircle,
 } from "lucide-react";
-import { useStudentStore, type StudentProfile } from "@/lib/student";
+import { isUnearned, useStudentStore, type StudentProfile } from "@/lib/student";
 import { TIMETABLE_CONTEXT, useAiStore } from "@/lib/ai";
 import { DUMMY_PROFILES } from "@/lib/dummy/profiles";
 import ManualInputForm from "./ManualInputForm";
@@ -124,7 +124,7 @@ export default function MobileImportFlow() {
     .reduce((sum, c) => sum + c.credits, 0);
   const remaining = Math.max(0, GRADUATION_CREDITS - totalCredits);
   // 不合格と履修辞退は「未修得」に丸める(設計書 §6.1。再履修の対象として同じ扱い)
-  const unearnedCourses = courses.filter((c) => c.status !== "passed");
+  const unearnedCourses = courses.filter(isUnearned);
 
   const handleConfirm = () => {
     if (pending) setProfile(pending);
@@ -340,8 +340,9 @@ export default function MobileImportFlow() {
               <span className="text-[11px] text-[#E60012] tabular-nums">全{courses.length}件 →</span>
             </div>
             {courses.slice(0, 5).map((c, i) => {
-              const fail = c.status !== "passed";
-              const scoreLabel = c.rawScore ?? (fail ? "未修得" : "合格");
+              const fail = isUnearned(c);
+              const scoreLabel =
+                c.status === "registered" ? "登録中" : (c.rawScore ?? (fail ? "未修得" : "合格"));
               return (
                 <div
                   key={`${c.title}-${i}`}

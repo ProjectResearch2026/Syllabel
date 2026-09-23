@@ -23,6 +23,7 @@ from app.agents.proposal_agent import (
     build_proposal_prompt,
     fetch_offering_index,
     judge_requirements,
+    registration_half,
     render_prompt,
     select_candidates,
 )
@@ -30,7 +31,7 @@ from app.curricula.loader import LoadedCurriculum
 from app.curricula.merge import MergedCurriculum, merge
 from app.schemas.curriculum import Curriculum, LiberalArtsCurriculum
 from app.schemas.offering import Offering
-from app.schemas.proposal import TimetableProposal
+from app.schemas.proposal import TargetTerm, TimetableProposal
 from app.schemas.student import Course as StudentCourse
 from app.schemas.student import StudentProfile
 
@@ -1102,3 +1103,153 @@ async def test_proposal_agent_accepts_built_prompt(monkeypatch, loaded_curricula
 
     assert isinstance(result.output, TimetableProposal)
     assert seen["prompt"] == prompt
+
+
+# ---------------------------------------------------------------------------
+# 6. 対象学期(§7.2)と登録済み科目(§5.2.1)
+# ---------------------------------------------------------------------------
+
+
+def _registered(title: str) -> StudentCourse:
+    return StudentCourse(
+        title=title, year=2026, term="後期", credits=2, status="registered"
+    )
+
+
+def _offered_in(code: str, term: str | None, day: str = "月", period: int = 1) -> OfferedClass:
+    return OfferedClass(
+        syllabus_code=code,
+        course_title="テスト科目",
+        term=term,
+        day_of_week=day,
+        period=period,
+        room="1-101",
+    )
+
+
+@pytest.mark.parametrize(
+    ("term", "half"),
+    [
+        ("前期", "前期"),
+        ("1Q", "前期"),
+        ("２Ｑ", "前期"),
+        ("通年", "前期"),  # 通年科目は前期に登録する
+        ("前期集中", "前期"),
+        ("後期", "後期"),
+        ("3Q", "後期"),
+        ("第4クォーター", "後期"),
+        ("集中", None),
+        (None, None),
+    ],
+)
+def test_registration_half(term, half):
+    assert registration_half(term) == half
+
+
+def test_select_candidates_excludes_registered_courses():
+    """登録済み(成績未確定)の科目は提案しない。再履修の候補にもしない(§5.2.1)。"""
+    profile = _profile(completed_courses=[_registered("微分積分")])
+    titles = _titles(select_candidates(_loaded(), profile))
+
+    assert "微分積分" not in titles
+    assert "線形代数" in titles
+
+
+def test_select_candidates_uses_grade_of_target_term():
+    """配当年次は対象学期の学年で絞る(年度をまたぐと成績表の学年より1つ上)。"""
+    profile = _profile(grade=1)
+
+    assert "数値解析" not in _titles(select_candidates(_loaded(), profile))
+    assert "数値解析" in _titles(select_candidates(_loaded(), profile, grade=2))
+
+
+def test_attach_offerings_keeps_only_classes_of_target_term():
+    """対象学期の履修登録で登録するクラスだけを残す。学期不明のクラスは残す。"""
+    codes = ("A000000001", "A000000002", "A000000003", "A000000004")
+    index = {
+        "A000000001": _offered_in("A000000001", "前期"),
+        "A000000002": _offered_in("A000000002", "後期", period=2),
+        "A000000003": _offered_in("A000000003", "通年", period=3),
+        "A000000004": _offered_in("A000000004", None, period=4),
+    }
+    candidate = Candidate(course=_loaded().curriculum.courses[0], codes=codes)
+
+    fall = attach_offerings([candidate], index, term="後期")
+    spring = attach_offerings([candidate], index, term="前期")
+
+    assert [c.syllabus_code for c in fall[0].classes] == ["A000000002", "A000000004"]
+    assert [c.syllabus_code for c in spring[0].classes] == [
+        "A000000001",
+        "A000000003",
+        "A000000004",
+    ]
+
+
+def test_attach_offerings_filters_term_before_capping_class_count():
+    """学期の絞り込みは上限で切る前に掛ける。早い時限が他学期でも枠を失わない。"""
+    codes = ("A000000001", "A000000002", "A000000003")
+    index = {
+        "A000000001": _offered_in("A000000001", "前期", period=1),
+        "A000000002": _offered_in("A000000002", "前期", period=2),
+        "A000000003": _offered_in("A000000003", "後期", period=3),
+    }
+    candidate = Candidate(course=_loaded().curriculum.courses[0], codes=codes)
+
+    attached = attach_offerings([candidate], index, term="後期", max_classes_per_course=1)
+
+    assert [c.syllabus_code for c in attached[0].classes] == ["A000000003"]
+
+
+def test_attach_offerings_drops_course_without_class_in_target_term():
+    candidate = Candidate(course=_loaded().curriculum.courses[0], codes=("A000000001",))
+    index = {"A000000001": _offered_in("A000000001", "前期")}
+
+    assert attach_offerings([candidate], index, term="後期") == []
+
+
+def _rendered_for(profile: StudentProfile, target: TargetTerm) -> str:
+    loaded = _loaded()
+    selected = select_candidates(loaded, profile, grade=target.grade)
+    index = {code: _offered(code) for candidate in selected for code in candidate.codes}
+    return render_prompt(
+        loaded,
+        profile,
+        judge_requirements(loaded, profile),
+        attach_offerings(selected, index, term=target.term),
+        target=target,
+    )
+
+
+def test_render_prompt_states_target_term_and_marks_its_semester_only():
+    """対象学期を明示し、CAP はそのセメスターだけに印を付ける(§5.1.2)。"""
+    target = TargetTerm(year=2026, term="前期", grade=1)
+    prompt = _rendered_for(_profile(grade=1), target)
+
+    assert "【対象学期】\n2026年度 前期(第1セメスター)" in prompt
+    assert "1・2セメスター: 各学期 22単位 ← 該当" in prompt
+    assert "学年: 1回生(対象学期の時点)" in prompt
+
+
+def test_render_prompt_lists_registered_courses_apart_from_retakes():
+    """登録済みは【登録済み科目】に載せ、【再履修の対象】には入れない。"""
+    profile = _profile(
+        completed_courses=[
+            _registered("線形代数"),
+            StudentCourse(
+                title="微分積分", year=2024, term="前期", credits=2, status="failed"
+            ),
+        ]
+    )
+    prompt = _rendered_for(profile, TargetTerm(year=2026, term="前期", grade=1))
+
+    assert "【登録済み科目】\n- 線形代数(2単位 / 2026年度 後期)" in prompt
+    assert "微分積分(failed)" in prompt
+    assert "線形代数(registered)" not in prompt
+
+
+def test_render_prompt_without_target_term_marks_both_semesters():
+    """対象学期を送らない旧い呼び出しでは、従来どおり学年の2学期に印を付ける。"""
+    prompt = _rendered(_profile(grade=1))
+
+    assert "【対象学期】\n指定なし" in prompt
+    assert "【登録済み科目】\nなし" in prompt
