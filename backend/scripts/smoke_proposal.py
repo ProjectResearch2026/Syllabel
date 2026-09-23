@@ -260,23 +260,42 @@ def _grid(courses: list[dict]) -> str:
             if term and term not in terms:
                 terms.append(term)
 
-    def _cell(entries: dict[str, list[str]]) -> str:
+    def _label(title: str, terms: list[str], short: bool) -> str:
         # クォーター科目は学期を科目名より先に書く(マスの幅で後ろが切れても見えるように)。
-        # 同じ科目の 3Q・4Q は1つにまとめる。1Q と 2Q が同じマスに並ぶのは重複ではない
-        names = []
-        for title, terms in entries.items():
-            quarters = [t for t in terms if t not in ("前期", "後期")]
-            names.append(f"({'・'.join(quarters)}){title}" if quarters else title)
-        # 2科目以上は件数を先頭に出す。幅で切れても複数入っていることが見える
-        text = " / ".join(names)
-        return f"[{len(names)}]{text}" if len(names) > 1 else text
+        # 同じ科目の 3Q・4Q は1つにまとめる
+        quarters = [t for t in terms if t not in ("前期", "後期")]
+        name = title[:2] if short else title
+        if not quarters:
+            return name
+        return f"{'・'.join(quarters)}{name}" if short else f"({'・'.join(quarters)}){name}"
+
+    def _clash(day: str, period: int, a: list[str], b: list[str]) -> bool:
+        return any(
+            slots_clash(CourseSlot(term=x, day=day, period=period), CourseSlot(term=y, day=day, period=period))
+            for x in (a or [None])
+            for y in (b or [None])
+        )
+
+    def _cell(day: str, period: int, entries: dict[str, list[str]]) -> str:
+        if len(entries) <= 1:
+            return "".join(_label(t, terms, short=False) for t, terms in entries.items())
+        # 2科目以上は両方が見えるよう科目名を2文字に詰める(「3Q生理/4Q高分」)。
+        # 1Q と 2Q のように期間が重ならなければ重複ではないので、印は重なるときだけ付ける
+        items = list(entries.items())
+        clash = any(
+            _clash(day, period, a[1], b[1])
+            for i, a in enumerate(items)
+            for b in items[i + 1:]
+        )
+        text = "/".join(_label(t, terms, short=True) for t, terms in items)
+        return f"重複:{text}" if clash else text
 
     # 1マス15桁+区切り1桁。溢れた科目名は切るが、隣のマスとくっつかないようにする
     lines = ["    " + "".join(_pad(day, 15) + " " for day in DAYS)]
     for period in PERIODS:
         row = f"{period}限 "
         for day in DAYS:
-            row += _pad(_cell(cells.get((day, period), {})), 15) + " "
+            row += _pad(_cell(day, period, cells.get((day, period), {})), 15) + " "
         lines.append(row.rstrip())
 
     undecided = [c for c in courses if _slot(c) == "未定"]
