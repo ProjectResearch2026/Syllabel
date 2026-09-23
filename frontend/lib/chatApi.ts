@@ -30,7 +30,7 @@ export type ProposedCourse = {
   /** シラバスコード。api-clean で特定できた場合のみ */
   syllabusCode: string | null;
   title: string;
-  day: "月" | "火" | "水" | "木" | "金" | null;
+  day: "月" | "火" | "水" | "木" | "金" | "土" | null;
   /** 時限(1〜5) */
   period: number | null;
   /** 開講学期(前期 / 後期 / 通年 / 1Q など) */

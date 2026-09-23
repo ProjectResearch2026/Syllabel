@@ -31,7 +31,15 @@ class TargetTerm(BaseModel):
 
 
 # 開講学期 → その学期が占めるクォーター。コマ重複は「同じ曜日・時限で、占める
-# クォーターが重なる」ときに起きる。前期と 1Q、通年と後期は文字列が違っても重なる
+# クォーターが重なる」ときに起きる。前期と 1Q、通年と後期は文字列が違っても重なる。
+#
+# 開講学期の表記は api-clean の `term` マスタの8種(前期 / 後期 / 通年 / 1Q〜4Q /
+# サ集)である(2025・2026年度のデータを投入した api-clean で確認)。**サ集(夏期集中)は
+# クォーターに属さない**ため載せない。集中講義は曜日・時限が null で、重複の検査対象外。
+#
+# なお api-clean の `term` は1つしか持たず、「3Q　金2、4Q　金2」のように2つの
+# クォーターにまたがる科目も `3Q` になる(2026年度で約40件)。一覧 API は開講の生値
+# (`term_schedule_raw`)を返さないため、ここでは見分けられない
 _QUARTERS: dict[str, frozenset[int]] = {
     "前期": frozenset({1, 2}),
     "後期": frozenset({3, 4}),
@@ -40,10 +48,6 @@ _QUARTERS: dict[str, frozenset[int]] = {
     "2Q": frozenset({2}),
     "3Q": frozenset({3}),
     "4Q": frozenset({4}),
-    "第1クォーター": frozenset({1}),
-    "第2クォーター": frozenset({2}),
-    "第3クォーター": frozenset({3}),
-    "第4クォーター": frozenset({4}),
 }
 
 
@@ -67,7 +71,9 @@ class ProposedCourse(BaseModel):
     title: str = Field(
         description="科目名。シラバスに記載された正式名称を使うこと。",
     )
-    day: Literal["月", "火", "水", "木", "金"] | None = Field(
+    # 土曜は教職・学芸員課程や教養の特別講義で開講される(2026年度で16クラス)。
+    # 月〜金に限ると、土曜のクラスを選んだときに曜日を null にするしかなくなる
+    day: Literal["月", "火", "水", "木", "金", "土"] | None = Field(
         default=None,
         description="開講曜日。集中講義・曜日未定の場合はnullにすること。",
     )

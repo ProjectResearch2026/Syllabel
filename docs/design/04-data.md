@@ -417,7 +417,7 @@ type ProposalState = {
 class ProposedCourse:
     syllabus_code: str | None    # 特定できた場合のみ。不明なら null
     title: str
-    day: Literal["月", "火", "水", "木", "金"] | None
+    day: Literal["月", "火", "水", "木", "金", "土"] | None   # 土曜は教職・学芸員課程や教養の特別講義(2026年度16クラス)
     period: int | None           # 時限(1〜5)
     term: str | None             # 開講学期(前期 / 後期 / 通年 / 1Q など)
     credits: float | None

@@ -67,8 +67,8 @@ api-clean の `program` は `cp.name = %s` の完全一致であり、対象課�
 年数から推定し、学生が画面で確認した値(`TargetTerm`)である。
 
 - クラスは**その学期の履修登録で登録するもの**だけを残す。前期の登録では前期・
-  1Q・2Q・通年、後期の登録では後期・3Q・4Q(通年科目は前期に登録する)。学期が
-  分からないクラス(集中講義など)は落とさずに残す
+  1Q・2Q・通年・サ集(夏期集中)、後期の登録では後期・3Q・4Q(通年科目は前期に
+  登録する)。学期が判定できないクラスは落とさずに残す
 - 配当年次の絞り込みと CAP の該当セメスターには**対象学期の学年**を使う
 
 **学生データはログに出さない(§4.2.3)。** 本モジュールのログは件数だけを扱う。
@@ -92,7 +92,7 @@ from app.curricula.requirements import (
     judge,
     normalize_title,
 )
-from app.schemas.proposal import HalfTerm, TargetTerm, TimetableProposal, quarters_of
+from app.schemas.proposal import HalfTerm, TargetTerm, TimetableProposal
 from app.schemas.student import Course as StudentCourse
 from app.schemas.student import StudentProfile
 from app.settings import get_settings
@@ -492,24 +492,34 @@ async def fetch_eligibility(
     return Eligibility(mine=frozenset(mine), any_program=frozenset(any_program))
 
 
+# 開講学期 → そのクラスを登録する履修登録の学期。表記は api-clean の `term` マスタの
+# 8種である(2025・2026年度のデータを投入した api-clean で確認)。
+#
+# - **通年は前期**に登録する(2026年度の通年 118件のうち 110件は「通年　集中」)
+# - **サ集(夏期集中。「サ集　集中」)も前期**とする。夏休みに開かれ後期より前に終わる
+#   ため、後期の登録で選ぶ余地が無い
+_REGISTRATION_HALF: dict[str, HalfTerm] = {
+    "前期": "前期",
+    "1Q": "前期",
+    "2Q": "前期",
+    "通年": "前期",
+    "サ集": "前期",
+    "後期": "後期",
+    "3Q": "後期",
+    "4Q": "後期",
+}
+
+
 def registration_half(term: str | None) -> HalfTerm | None:
     """開講学期のクラスを、前期・後期のどちらの履修登録で登録するか。
 
-    クォーター科目は占めるクォーターで決め、**通年科目は前期**とする(通年科目は
-    前期の履修登録で登録する)。「前期集中」のように学期名で始まるものは頭で決める。
-    判定できないもの(`None` を含む)は None を返し、呼び出し側は落とさない。
+    表記ゆれ(全角の `１Ｑ` など)は NFKC で寄せる。マスタに無い表記や `None` は
+    None を返し、呼び出し側は落とさない(判定できないものを捨てない)。
     """
-    quarters = quarters_of(term)
-    if quarters is not None:
-        return "前期" if quarters & {1, 2} else "後期"
     if term is None:
         return None
     key = unicodedata.normalize("NFKC", term).replace(" ", "")
-    if key.startswith(("前期", "通年")):
-        return "前期"
-    if key.startswith("後期"):
-        return "後期"
-    return None
+    return _REGISTRATION_HALF.get(key)
 
 
 def attach_offerings(
