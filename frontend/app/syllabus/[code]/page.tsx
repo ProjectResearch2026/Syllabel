@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { getSyllabus } from "@/lib/syllabus-api";
 import { fetchBookInfo } from "@/lib/openbd";
-import { listHref } from "@/lib/syllabusQuery";
+import { backLink } from "@/lib/syllabusQuery";
 import { parseGrading } from "@/lib/grading";
 import { courseQuestions } from "@/lib/courseQuestions";
 import { parseNote, registrationFlags, pruneNote } from "@/lib/note";
@@ -80,8 +80,9 @@ export default async function SyllabusDetailPage({
   searchParams: SearchParams;
 }) {
   const { code } = await params;
-  // 一覧の絞り込みは `back` に畳んで渡ってくる(`lib/syllabusQuery.ts`)
-  const backTo = listHref((await searchParams).back);
+  // 一覧の絞り込みは `back` に畳んで渡ってくる。履修提案の時間割から開いたときは
+  // `from=proposal` で、戻り先は時間割になる(`lib/syllabusQuery.ts`、§8.3.4)
+  const back = backLink(await searchParams);
 
   let syllabus;
   try {
@@ -328,7 +329,7 @@ export default async function SyllabusDetailPage({
             {syllabus.course_title}
           </h1>
           <div className="hidden md:block">
-            <AddToTimetableButton title={syllabus.course_title} />
+            <AddToTimetableButton title={syllabus.course_title} code={syllabus.syllabus_code} />
           </div>
         </div>
 
@@ -343,11 +344,11 @@ export default async function SyllabusDetailPage({
 
   const backBar = (
     <Link
-      href={backTo}
+      href={back.href}
       className="-ml-1.5 inline-flex w-fit items-center gap-1 rounded-lg px-1.5 py-1 text-[13px] font-medium text-fg-secondary transition-colors hover:bg-surface-primary hover:text-fg-primary"
     >
       <ChevronLeft size={16} aria-hidden="true" />
-      シラバス一覧に戻る
+      {back.label}
     </Link>
   );
 
