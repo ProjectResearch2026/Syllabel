@@ -145,7 +145,7 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 履修提案の科目スキーマは design.md §5.3 に従う(`syllabusCode` / `title` / `day` / `period` / `term` / `slots` / `credits` / `category` / `reason`)。必須は `title` と `reason` だけで、**集中講義の曜日・時限や特定できないシラバスコードは null** で来る。
 
-**`day` / `period` / `term` は1コマ目だけである。** 「後期 金4・金5」のように複数のコマを持つ科目の全コマは `slots` にある。時間割に置くときは `lib/timetable.ts` の `occupiedSlots()` を通し、`day` / `period` を直接使わない(1コマ目だけを見ていた頃は、金4・金5 の科目の金5 が空いて見えた)。`coursesToTimetable()` は複数コマの科目の**同じセル**を全部のマスに入れ、`toCourseList()` はそれを1科目1行に数える(マスごとに数えると単位が2倍になる)。シラバス一覧の曜日時限も api-clean の `slots` から `lib/schedule.ts` の `formatSlots()` で作る。
+**`day` / `period` / `term` は1コマ目だけである。** 「後期 金4・金5」のように複数のコマを持つ科目の全コマは `slots` にある。時間割に置くときは `lib/timetable.ts` の `occupiedSlots()` を通し、`day` / `period` を直接使わない(1コマ目だけを見ていた頃は、金4・金5 の科目の金5 が空いて見えた)。`coursesToTimetable()` は複数コマの科目の**同じセル**を全部のマスに入れ、`toCourseList()` はそれを1科目1行に数える(マスごとに数えると単位が2倍になる)。**PC の時間割表は `coursesToSlotTable()` を使う**(design.md §8.3.4)。1マスに複数の科目(3Q と 4Q)を持ち、クォーターの印を付け、曜日・時限の無い科目を `unscheduled` に分ける。**提案の科目は画面から落とさない** — 落とすと表の単位の和が「今期登録単位」と合わなくなる。モバイルの `coursesToTimetable()` は1マス1科目のままである(§13)。シラバス一覧の曜日時限も api-clean の `slots` から `lib/schedule.ts` の `formatSlots()` で作る。
 
 ## 課程コードの解決
 

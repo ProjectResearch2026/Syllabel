@@ -169,3 +169,101 @@ export function coursesToTimetable(
   }
   return timetable;
 }
+
+/** PC の時間割表の1マスに置く科目1件。1マスに複数入り得る(`coursesToSlotTable()`) */
+export type SlotEntry = {
+  name: string;
+  type: CourseType;
+  code?: string;
+  credits?: number;
+  /**
+   * そのマスを占める期間がクォーターのときの印(「3Q」「3Q・4Q」)。学期いっぱい
+   * (前期・後期・通年、または 1Q・2Q / 3Q・4Q の両方)なら付けない
+   */
+  quarter?: string;
+};
+
+/** 期(period) → 曜日 → そのマスの科目(クォーター順) */
+export type SlotTable = Record<number, Record<string, SlotEntry[]>>;
+
+const QUARTERS = ["1Q", "2Q", "3Q", "4Q"] as const;
+
+/** 全角の `３Ｑ` なども含めてクォーター名に寄せる。クォーターでなければ null */
+function quarterOf(term: string | null | undefined): string | null {
+  if (!term) return null;
+  const key = term.normalize("NFKC").replace(/\s/g, "");
+  return (QUARTERS as readonly string[]).includes(key) ? key : null;
+}
+
+/** そのマスで科目が占めるクォーターの印。学期いっぱいを占めるなら undefined */
+function quarterLabel(terms: (string | null | undefined)[]): string | undefined {
+  const quarters = terms.map(quarterOf);
+  // 学期名(後期など)のコマが1つでもあれば学期いっぱい
+  if (quarters.some((q) => q === null)) return undefined;
+  const unique = QUARTERS.filter((q) => quarters.includes(q));
+  const fullHalf =
+    (unique.includes("1Q") && unique.includes("2Q")) || (unique.includes("3Q") && unique.includes("4Q"));
+  return fullHalf ? undefined : unique.join("・");
+}
+
+/**
+ * 提案結果を PC の時間割表の形に組み替える。design.md §5.3 / §8.3。
+ *
+ * `coursesToTimetable()` と違い、**1マスに複数の科目を持てる**。3Q と 4Q の科目は
+ * 同じマスに並び得る(重複ではない)ため、1マス1科目では後から来た科目で上書きされ、
+ * 提案の科目が画面から消えていた(2026-09-23 の実機で、月1 の「生理生態学」(3Q)が
+ * 「高分子化学Ⅱ」(4Q)に消された)。クォーターの科目には印(`quarter`)を付ける。
+ *
+ * 曜日・時限の無い科目(集中講義・未定)は表に置けないので `unscheduled` に分けて返す。
+ * 表に置けないからといって捨てると、画面の科目と「今期登録単位」が合わなくなる。
+ */
+export function coursesToSlotTable(
+  courses: {
+    title: string;
+    day: string | null;
+    period: number | null;
+    term: string | null;
+    slots?: { term: string | null; day: string; period: number }[];
+    category: string | null;
+    syllabusCode: string | null;
+    credits: number | null;
+  }[],
+): { table: SlotTable; unscheduled: SlotEntry[] } {
+  const table: SlotTable = {};
+  const unscheduled: SlotEntry[] = [];
+  for (const course of courses) {
+    const base = {
+      name: course.title,
+      type: categoryToCourseType(course.category),
+      code: course.syllabusCode ?? undefined,
+      credits: course.credits ?? undefined,
+    };
+    const slots =
+      course.slots && course.slots.length > 0
+        ? course.slots
+        : course.day && course.period != null
+          ? [{ term: course.term, day: course.day, period: course.period }]
+          : [];
+    if (slots.length === 0) {
+      unscheduled.push({ ...base, quarter: quarterLabel([course.term]) });
+      continue;
+    }
+    // 同じマスを2つの学期で占める科目(3Q 金3・4Q 金3)は1件にまとめる
+    const terms = new Map<string, (string | null)[]>();
+    for (const { term, day, period } of slots) {
+      const key = `${period}:${day}`;
+      terms.set(key, [...(terms.get(key) ?? []), term]);
+    }
+    for (const [key, cellTerms] of terms) {
+      const [period, day] = key.split(":");
+      const row = (table[Number(period)] ??= {});
+      (row[day] ??= []).push({ ...base, quarter: quarterLabel(cellTerms) });
+    }
+  }
+  // 1マスの中はクォーター順(学期いっぱいの科目を先に)
+  const order = (e: SlotEntry) => (e.quarter ? QUARTERS.indexOf(e.quarter.slice(0, 2) as (typeof QUARTERS)[number]) + 1 : 0);
+  for (const row of Object.values(table)) {
+    for (const entries of Object.values(row)) entries.sort((a, b) => order(a) - order(b));
+  }
+  return { table, unscheduled };
+}
