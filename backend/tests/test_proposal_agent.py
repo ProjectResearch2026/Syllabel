@@ -10,14 +10,19 @@ from functools import lru_cache
 
 import pytest
 from pydantic_ai import Agent
+from pydantic_ai.exceptions import UnexpectedModelBehavior
 from pydantic_ai.messages import ModelResponse, ToolCallPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
 from app.agents import proposal_agent as pa
 from app.agents.proposal_agent import (
     Candidate,
+    CreditBudget,
     OfferedClass,
+    ProposalContext,
     ProposalError,
+    assemble_courses,
+    assemble_proposal,
     attach_offerings,
     build_proposal_agent,
     build_proposal_prompt,
@@ -31,7 +36,7 @@ from app.curricula.loader import LoadedCurriculum
 from app.curricula.merge import MergedCurriculum, merge
 from app.schemas.curriculum import Curriculum, LiberalArtsCurriculum
 from app.schemas.offering import Offering
-from app.schemas.proposal import TargetTerm, TimetableProposal
+from app.schemas.proposal import ProposedCourse, TargetTerm, TimetableProposal
 from app.schemas.student import Course as StudentCourse
 from app.schemas.student import StudentProfile
 
@@ -285,8 +290,8 @@ def test_model_settings_disable_thinking():
 def test_model_settings_bound_the_response():
     """出力の打ち切りと待ち時間に上限を置くこと。
 
-    `max_tokens` が小さいと構造化出力が途中で切れ、検証に落ちて作り直し
-    (`OUTPUT_RETRIES`)が走り、所要時間が倍以上になる。
+    `max_tokens` が小さいと構造化出力が途中で切れ、書き終えた科目までの
+    提案になってしまう。
     """
     settings = build_proposal_agent().model_settings
     assert settings["max_tokens"] >= 4000
@@ -371,41 +376,43 @@ async def test_model_settings_reach_the_model():
 
 
 @pytest.mark.asyncio
-async def test_agent_retries_on_time_conflict():
-    """コマ重複は `TimetableProposal` の検証で弾かれ、モデルに作り直させる(§7.2)。"""
+async def test_agent_does_not_retry_invalid_output():
+    """検証に落ちた出力で作り直しをさせない(§7.2)。
+
+    作り直しは1回4〜5分かかる。下書きの形式は vLLM が縛るため、検証に落ちるのは
+    出力の上限で途中で切れたときであり、そのときは書き終えた科目までで確定版に
+    する(`app/api/proposal.py`)。整理は backend が行う(`assemble_courses()`)。
+    """
     calls = {"n": 0}
 
-    def conflicting_then_valid(messages, info: AgentInfo) -> ModelResponse:
+    def conflicting(messages, info: AgentInfo) -> ModelResponse:
         calls["n"] += 1
-        if calls["n"] == 1:
-            course = {
-                "title": "微分積分",
-                "day": "月",
-                "period": 1,
-                "term": "前期",
-                "credits": 2,
-                "reason": "必修のため。",
-            }
-            return ModelResponse(
-                parts=[
-                    ToolCallPart(
-                        info.output_tools[0].name,
-                        {
-                            "courses": [course, {**course, "title": "線形代数"}],
-                            "totalCredits": 4,
-                            "summary": "コマが重複した提案。検証で弾かれる。",
-                        },
-                    )
-                ]
-            )
-        return _proposal_response(messages, info)
+        course = {
+            "title": "微分積分",
+            "day": "月",
+            "period": 1,
+            "term": "前期",
+            "credits": 2,
+            "reason": "必修のため。",
+        }
+        return ModelResponse(
+            parts=[
+                ToolCallPart(
+                    info.output_tools[0].name,
+                    {
+                        "courses": [course, {**course, "title": "線形代数"}],
+                        "summary": "コマが重複した提案。",
+                    },
+                )
+            ]
+        )
 
     agent = build_proposal_agent()
-    with agent.override(model=FunctionModel(conflicting_then_valid)):
-        result = await agent.run("提案して")
+    with agent.override(model=FunctionModel(conflicting)):
+        with pytest.raises(UnexpectedModelBehavior):
+            await agent.run("提案して")
 
-    assert calls["n"] == 2
-    assert len(result.output.courses) == 1
+    assert calls["n"] == 1
 
 
 # ---------------------------------------------------------------------------
@@ -1064,7 +1071,9 @@ async def test_build_proposal_prompt_uses_settings_offering_year(
     calls: list[dict] = []
     monkeypatch.setattr(pa, "search_syllabi", _fake_search([[]], calls))
 
-    await build_proposal_prompt(_profile(), ADMISSION_YEAR)
+    # api-clean が空を返すので候補は無く、提案の前提が揃わない(ProposalError)
+    with pytest.raises(ProposalError, match="候補科目がありません"):
+        await build_proposal_prompt(_profile(), ADMISSION_YEAR)
 
     assert calls[0]["year"] == pa.get_settings().offering_year
 
@@ -1253,3 +1262,90 @@ def test_render_prompt_without_target_term_marks_both_semesters():
 
     assert "【対象学期】\n指定なし" in prompt
     assert "【登録済み科目】\nなし" in prompt
+
+
+# ---------------------------------------------------------------------------
+# 7. 下書きから提案を組み上げる(§7.2)
+# ---------------------------------------------------------------------------
+
+
+def _context(classes: dict[str, ProposedCourse], remaining: float | None = None) -> ProposalContext:
+    budget = CreditBudget(cap=remaining, registered=0) if remaining is not None else None
+    return ProposalContext(prompt="", classes=classes, budget=budget, output_type=TimetableProposal)
+
+
+def _cls(code: str, title: str, day: str | None, period: int | None, term: str = "後期", credits: float = 2) -> ProposedCourse:
+    return ProposedCourse(
+        syllabus_code=code, title=title, day=day, period=period, term=term,
+        credits=credits, category="選択", reason="",
+    )
+
+
+def test_assemble_fills_values_from_candidates_and_keeps_order():
+    ctx = _context({"A": _cls("A", "線形代数", "月", 1), "B": _cls("B", "統計", "火", 2)})
+    courses, notes = assemble_courses([("B", "理由B"), ("A", "理由A")], ctx)
+
+    assert [(c.syllabus_code, c.title, c.day, c.reason) for c in courses] == [
+        ("B", "統計", "火", "理由B"),
+        ("A", "線形代数", "月", "理由A"),
+    ]
+    assert notes == []
+
+
+def test_assemble_drops_same_course_silently_and_ignores_unknown_codes():
+    ctx = _context({"A1": _cls("A1", "英語", "月", 1), "A2": _cls("A2", "英語", "水", 1)})
+    courses, notes = assemble_courses([("A1", "r"), ("A2", "r"), ("ZZ", "r"), ("A1", "r")], ctx)
+
+    assert [c.syllabus_code for c in courses] == ["A1"]
+    assert notes == []
+
+
+def test_assemble_drops_overlapping_quarters():
+    """後期と 3Q は同じコマを取り合う。1Q と 2Q は取り合わない(§5.3)。"""
+    ctx = _context({
+        "A": _cls("A", "後期の科目", "月", 1, "後期"),
+        "B": _cls("B", "3Qの科目", "月", 1, "3Q"),
+    })
+    courses, notes = assemble_courses([("A", "r"), ("B", "r")], ctx)
+
+    assert [c.syllabus_code for c in courses] == ["A"]
+    assert notes == ["「3Qの科目」は「後期の科目」と月1限で開講期間が重なるため外しました。"]
+
+
+def test_assemble_does_not_note_a_course_taken_in_another_class():
+    """同名の別クラスを後で採った科目には「外した」と書かない。"""
+    ctx = _context({
+        "A": _cls("A", "線形代数", "月", 1),
+        "B1": _cls("B1", "英語", "月", 1),
+        "B2": _cls("B2", "英語", "火", 1),
+    })
+    courses, notes = assemble_courses([("A", "r"), ("B1", "r"), ("B2", "r")], ctx)
+
+    assert [c.syllabus_code for c in courses] == ["A", "B2"]
+    assert notes == []
+
+
+def test_assemble_respects_remaining_credits():
+    ctx = _context({"A": _cls("A", "a", "月", 1, credits=4), "B": _cls("B", "b", "火", 1, credits=2)}, remaining=4)
+    courses, notes = assemble_courses([("A", "r"), ("B", "r")], ctx)
+
+    assert [c.syllabus_code for c in courses] == ["A"]
+    assert notes == ["「b」は対象学期に登録できる残り単位(4単位)を超えるため外しました。"]
+
+
+def test_assemble_limits_the_number_of_notes():
+    classes = {"X": _cls("X", "基準", "月", 1)}
+    classes |= {f"C{i}": _cls(f"C{i}", f"科目{i}", "月", 1) for i in range(8)}
+    _, notes = assemble_courses([("X", "r")] + [(f"C{i}", "r") for i in range(8)], _context(classes))
+
+    assert len(notes) == pa.MAX_NOTES + 1
+    assert notes[-1] == "ほか3科目もコマの重なりか単位の上限のため外しました。"
+
+
+def test_assemble_proposal_writes_notes_into_summary():
+    ctx = _context({"A": _cls("A", "a", "月", 1), "B": _cls("B", "b", "月", 1)})
+    proposal = assemble_proposal([("A", "r"), ("B", "r")], "方針。", ctx, truncated=True)
+
+    assert proposal.total_credits == 2
+    assert proposal.summary.startswith("方針。\n\n(自動調整)「b」は「a」と月1限")
+    assert proposal.summary.endswith("書き終えた科目までで提案しています。")

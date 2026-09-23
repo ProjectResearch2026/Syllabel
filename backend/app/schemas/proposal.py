@@ -1,9 +1,10 @@
 """履修提案の構造化出力スキーマ。design.md §7.2。"""
 
 import unicodedata
+from collections.abc import Sequence
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, create_model, model_validator
 from pydantic.alias_generators import to_camel
 
 
@@ -143,3 +144,60 @@ class TimetableProposal(BaseModel):
                     )
             seen.append((course.day, course.period, course.term, quarters))
         return self
+
+
+# --- モデルに書かせる下書き(§7.2)---
+#
+# **モデルにはシラバスコードと理由だけを書かせ、科目名・曜日・時限・学期・単位は
+# backend が候補一覧から補う**(`app/agents/proposal_agent.py` の `assemble_proposal()`)。
+# 2026-09-23 の実機(Qwen3.8)では、全項目を書かせる形式で次が起きた:
+#
+# - 同じ科目の並びを繰り返し書き続け、`max_tokens` で打ち切られて失敗した(620秒)
+# - シラバスコードを1件も書かなかった(null を許していたため)
+#
+# 下書きの形式はリクエストごとに作る。`syllabusCode` を**その回の候補のコードだけ**の
+# 列挙にすることで、vLLM の構造化出力が候補に無いコードを書けなくする。`courses` の
+# 件数の上限は**暴走止め**であり、履修登録の単位数の上限(CAP)そのものではない
+# (単位の合計は JSON Schema で表せないため、書き終えた後に backend が確かめる)。
+
+
+def proposal_draft_model(codes: Sequence[str], max_items: int) -> type[BaseModel]:
+    """その回の候補コードだけを選べる下書きの形式を作る。
+
+    Args:
+        codes: 【候補科目】に載せたクラスのシラバスコード。1件以上。
+        max_items: `courses` の件数の上限(暴走止め)。
+    """
+    config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+    course = create_model(
+        "DraftCourse",
+        __config__=config,
+        __doc__="提案する1クラス。",
+        syllabus_code=(
+            Literal[tuple(codes)],
+            Field(description="【候補科目】の行の [ ] 内に書かれたシラバスコード。"),
+        ),
+        reason=(
+            str,
+            Field(description="この科目を勧める理由を40字以内の1文で書くこと。"),
+        ),
+    )
+    return create_model(
+        "ProposalDraft",
+        __config__=config,
+        __doc__="時間割提案の下書き。",
+        courses=(
+            list[course],
+            Field(
+                max_length=max_items,
+                description=(
+                    "提案するクラスのリスト。同じ科目を2回入れないこと。"
+                    "同じ曜日・時限で開講期間が重なるクラスを入れないこと。"
+                ),
+            ),
+        ),
+        summary=(
+            str,
+            Field(description="提案全体の方針と履修上の注意点を2〜4文で書くこと。"),
+        ),
+    )

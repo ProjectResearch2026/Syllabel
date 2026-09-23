@@ -80,6 +80,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 
+from pydantic import BaseModel
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIChatModelSettings
 
@@ -92,17 +93,32 @@ from app.curricula.requirements import (
     judge,
     normalize_title,
 )
-from app.schemas.proposal import HalfTerm, TargetTerm, TimetableProposal
+from app.schemas.proposal import (
+    HalfTerm,
+    ProposedCourse,
+    TargetTerm,
+    TimetableProposal,
+    proposal_draft_model,
+    quarters_of,
+)
 from app.schemas.student import Course as StudentCourse
 from app.schemas.student import StudentProfile
 from app.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
-# 構造化出力の検証(コマ重複を含む `TimetableProposal` の model_validator)に落ちたとき、
-# 検証エラーをモデルへ返して作り直させる回数(§7.2)。pydantic-ai 2 系では
-# `Agent(output_retries=...)` が `retries={"output": ...}` に統合されている
-OUTPUT_RETRIES = 2
+# 構造化出力の検証に落ちたとき、検証エラーをモデルへ返して作り直させる回数(§7.2)。
+# pydantic-ai 2 系では `Agent(output_retries=...)` が `retries={"output": ...}` に
+# 統合されている。
+#
+# **0 とする(作り直させない)。** 作り直しは1回4〜5分かかる。提案の下書きは vLLM の
+# 構造化出力が形式を縛るため、検証に落ちるのは実質的に**出力の上限で途中で切れた
+# とき**だけである。pydantic-ai は切れた下書きも「JSON が不正」として作り直しを頼み、
+# 上限に達したと分かるのは作り直しを使い切った後になる(2回なら所要時間が3倍)。
+# 0 にすると切れた時点で例外になり、書き終えた科目までで確定版にできる
+# (`app/api/proposal.py`)。同じ科目・コマ重複・単位の上限超過も作り直させず、
+# backend が外す(`assemble_courses()`)
+OUTPUT_RETRIES = 0
 
 # 実機計測(2026-09-09 / DGX Spark + Qwen3.6-27B-FP8)に基づく推論の設定。
 #
@@ -113,9 +129,15 @@ OUTPUT_RETRIES = 2
 # 【候補科目】からの選択と転記が主で、必要な判断材料は backend が事前に揃えている(§7.2)
 # ため、長い思考を要する課題ではない。
 #
-# **`max_tokens` は出力が途中で切れない大きさにする。** 途中で切れると構造化出力の検証に
-# 落ち、`OUTPUT_RETRIES` の作り直しが走って所要時間が倍以上になる。CAP(各学期22単位)
-# いっぱいの11科目でおよそ1,900トークンであり、2倍の余裕を見る。
+# **`max_tokens` は出力が途中で切れない大きさにする。** 途中で切れると pydantic-ai は
+# 作り直さずに例外を投げる(`IncompleteToolCall`)。その場合は書き終えた科目までで
+# 確定版にする(`app/api/proposal.py`)が、切れないに越したことはない。全項目を
+# 書かせていた頃は CAP いっぱいの11科目でおよそ1,900トークンだった。下書き
+# (コードと理由だけ)になって減っているが、上限は据え置く。
+#
+# 2026-09-23 の実機(Qwen3.8)では、全項目を書かせる形式で**同じ科目の並びを繰り返し
+# 書き続けて**この上限で切れた(620秒)。下書きの件数の上限(`_max_items()`)は、
+# 繰り返しが起きても上限に届く前に書き終わらせるための暴走止めである。
 #
 # **`timeout` を置く。** 上限に達したときに無言で待たせず、502 相当で返せるようにする。
 #
@@ -138,6 +160,13 @@ MAX_PAGES = 40
 # 載せるクラス数を絞る。曜日・時限・コードの昇順で選ぶため候補は毎回同じになる
 MAX_CLASSES_PER_COURSE = 6
 
+# 下書きの `courses` の件数の上限(暴走止め)の天井。単位数の上限(CAP)から
+# 「上限単位 ÷ 候補の最小単位」で計算し、これを超えないようにする(§7.2)
+MAX_DRAFT_ITEMS = 30
+
+# 提案の summary に書き足す「外した科目」の注記の件数。超えた分は件数だけ書く
+MAX_NOTES = 5
+
 _INSTRUCTIONS = (
     "あなたは龍谷大学先端理工学部の履修登録を支援するAIアシスタントです。\n"
     "与えられた学生の状況から、**【対象学期】に履修する時間割**を提案してください。\n"
@@ -145,13 +174,14 @@ _INSTRUCTIONS = (
     "提案は次の規則に従ってください。\n"
     "1. 提案してよいのは【候補科目】に挙がっている科目だけである。"
     "一覧に無い科目名やシラバスコードを作り出してはならない。\n"
-    "2. 各科目の syllabusCode・title・credits・term・day・period は、"
-    "【候補科目】の行に書かれている値をそのまま転記する。推測して補わない。\n"
+    "2. courses の各要素には syllabusCode(【候補科目】の行の [ ] 内のコード)と"
+    " reason だけを書く。科目名・曜日・時限・学期・単位はシステムが候補一覧から補う。"
+    "同じ科目(同名の別クラスを含む)を2回入れない。\n"
     "3. 同じ曜日・時限で開講期間が重なる2科目を割り当ててはならない"
     "(前期と1Q・2Q、通年と前期・後期は重なる)。"
     "曜日・時限が「未定」の科目(集中講義など)はこの制約の対象外とする。\n"
-    "4. 合計単位数は【履修登録単位数の上限】の該当セメスターの上限を超えてはならない。"
-    "【登録済み科目】のうち対象学期のものは、すでに登録済みの単位としてこれに含める。\n"
+    "4. 提案する科目の単位の合計は、【履修登録単位数の上限】の"
+    "「対象学期に登録できる残り単位」を超えてはならない。\n"
     "5. 【卒業要件の充足状況】で不足している要件枠を優先して埋める。"
     "不足単位を大きく超える科目数を詰め込まない一方、"
     "卒業に必要な単位を取り残さない。過不足のない分量にすること。\n"
@@ -603,8 +633,54 @@ def _format_slots(result: RequirementsResult) -> list[str]:
     return lines
 
 
+def semester_cap(
+    curriculum: MergedCurriculum, semesters: Iterable[int]
+) -> int | None:
+    """セメスターの履修登録単位数の上限(CAP)。§5.1.2 `registration_limits`。
+
+    学期ごとの上限(`max_credits_per_semester`)を持つ枠はその値、年間の上限
+    (`max_credits_per_year`。7・8セメスター)しか持たない枠は年間の値を返す。
+    複数のセメスターを渡したときは大きい方を返す(対象学期が決まらない旧い呼び出し)。
+    該当する枠が無ければ None。
+    """
+    wanted = set(semesters)
+    caps = [
+        limit.max_credits_per_semester or limit.max_credits_per_year
+        for limit in curriculum.registration_limits.by_semester
+        if wanted & set(limit.semesters)
+    ]
+    caps = [c for c in caps if c is not None]
+    return max(caps) if caps else None
+
+
+def registered_credits_in(completed: Sequence[StudentCourse], target: TargetTerm) -> float:
+    """対象学期に登録済みの科目の単位の合計。CAP から差し引く(§5.2.1)。"""
+    return sum(
+        c.credits
+        for c in completed
+        if c.status == "registered"
+        and c.year == target.year
+        and registration_half(c.term) == target.term
+    )
+
+
+@dataclass(frozen=True)
+class CreditBudget:
+    """対象学期に登録できる単位。`cap` から `registered` を引いたものが `remaining`。"""
+
+    cap: float
+    registered: float
+
+    @property
+    def remaining(self) -> float:
+        return max(0.0, self.cap - self.registered)
+
+
 def _format_registration_limits(
-    curriculum: MergedCurriculum, grade: int, target: TargetTerm | None = None
+    curriculum: MergedCurriculum,
+    grade: int,
+    target: TargetTerm | None = None,
+    budget: CreditBudget | None = None,
 ) -> list[str]:
     """CAP制(`registration_limits`)。対象学期のセメスターに印を付ける(§5.1.2)。
 
@@ -629,6 +705,11 @@ def _format_registration_limits(
         lines.append(f"補足: {_oneline(curriculum.registration_limits.notes)}")
     if curriculum.registration_limits.gpa_exception:
         lines.append(f"例外: {_oneline(curriculum.registration_limits.gpa_exception)}")
+    if budget is not None:
+        lines.append(
+            f"対象学期に登録できる残り単位: {_credits(budget.remaining)}単位"
+            f"(上限 {_credits(budget.cap)} − 登録済み {_credits(budget.registered)})"
+        )
     return lines
 
 
@@ -711,12 +792,13 @@ def render_prompt(
     *,
     wishes: str | None = None,
     target: TargetTerm | None = None,
+    budget: CreditBudget | None = None,
 ) -> str:
     """組み立て済みの材料を1つのプロンプトにする(§7.2)。
 
     学生プロファイル・要件充足状況・CAP・候補科目+開講情報・希望条件を節に分けて
-    並べる。モデルが値を作り出さずに済むよう、単位数・曜日・時限は候補科目の行に
-    書いた値をそのまま転記させる(`_INSTRUCTIONS` 規則2)。
+    並べる。モデルが書くのはシラバスコードと理由だけで、科目名・曜日・時限・単位は
+    backend が候補一覧から補う(`_INSTRUCTIONS` 規則2、`assemble_proposal()`)。
     """
     curriculum = loaded.curriculum
     grade = target.grade if target else (profile.grade or 1)
@@ -759,7 +841,8 @@ def render_prompt(
         _section("学生情報", student),
         _section("卒業要件の充足状況", status),
         _section(
-            "履修登録単位数の上限", _format_registration_limits(curriculum, grade, target)
+            "履修登録単位数の上限",
+            _format_registration_limits(curriculum, grade, target, budget),
         ),
         _section("修得済み科目", _format_completed(profile.completed_courses)),
         _section("登録済み科目", _format_registered(profile.completed_courses)),
@@ -775,7 +858,48 @@ def render_prompt(
     return "\n\n".join(sections)
 
 
-async def build_proposal_prompt(
+@dataclass(frozen=True)
+class ProposalContext:
+    """1回の提案に要るもの。プロンプトと、モデルの下書きを提案に組み上げる材料。
+
+    `classes` は【候補科目】に載せたクラスをシラバスコードで引く表で、値は理由を
+    空にした `ProposedCourse` である。`output_type` はその回の候補コードだけを
+    選べる下書きの形式(`proposal_draft_model()`)。
+    """
+
+    prompt: str
+    classes: dict[str, ProposedCourse]
+    budget: CreditBudget | None
+    output_type: type[BaseModel]
+
+
+def _proposed_course(candidate: Candidate, offered: OfferedClass) -> ProposedCourse:
+    """候補の1クラスを、理由を空にした提案の1科目にする。値はすべて候補一覧から採る。"""
+    day = offered.day_of_week if offered.day_of_week in _DAYS else None
+    return ProposedCourse(
+        syllabus_code=offered.syllabus_code,
+        title=candidate.course.title,
+        day=day,
+        period=offered.period if day else None,
+        term=offered.term,
+        credits=candidate.course.credits,
+        category=candidate.course.type,
+        reason="",
+    )
+
+
+_DAYS = ("月", "火", "水", "木", "金", "土")
+
+
+def _max_items(classes: dict[str, ProposedCourse], budget: CreditBudget | None) -> int:
+    """下書きの件数の上限(暴走止め)。上限単位 ÷ 候補の最小単位で求める。"""
+    if budget is None:
+        return MAX_DRAFT_ITEMS
+    smallest = min((c.credits for c in classes.values() if c.credits), default=1.0)
+    return max(1, min(MAX_DRAFT_ITEMS, int(budget.remaining // smallest)))
+
+
+async def build_proposal_context(
     profile: StudentProfile,
     admission_year: int,
     *,
@@ -783,8 +907,8 @@ async def build_proposal_prompt(
     wishes: str | None = None,
     offering_year: int | None = None,
     target: TargetTerm | None = None,
-) -> str:
-    """履修提案のプロンプトを組み立てる(§7.2 の 1〜5)。
+) -> ProposalContext:
+    """履修提案のプロンプトと、下書きを提案に組み上げる材料を揃える(§7.2 の 1〜5)。
 
     Args:
         profile: 学生プロファイル(§5.2.1)。`program` は課程コード、`grade` は必須。
@@ -796,7 +920,7 @@ async def build_proposal_prompt(
             CAP の該当セメスターにその学期の学年を使う。
 
     Raises:
-        ProposalError: 課程コードが無い、履修要項が無い、学年が無い場合。
+        ProposalError: 課程コードが無い、履修要項が無い、学年が無い、候補が無い場合。
     """
     program_code = profile.program
     if not program_code:
@@ -814,16 +938,147 @@ async def build_proposal_prompt(
     # 履修登録できないクラスは候補に載せない(§6.1)。`attach_offerings()` が
     # 1科目あたりのクラス数を絞る**前**に掛かる
     eligibility = await fetch_eligibility(loaded.curriculum, year=year)
-    return render_prompt(
+    attached = attach_offerings(
+        candidates,
+        index,
+        eligibility=eligibility,
+        term=target.term if target else None,
+    )
+    classes = {
+        offered.syllabus_code: _proposed_course(candidate, offered)
+        for candidate in attached
+        for offered in candidate.classes
+    }
+    if not classes:
+        raise ProposalError("提案できる候補科目がありません")
+
+    grade = target.grade if target else (profile.grade or 1)
+    semesters = {target.semester} if target else {grade * 2 - 1, grade * 2}
+    cap = semester_cap(loaded.curriculum, semesters)
+    budget = (
+        CreditBudget(
+            cap=cap,
+            registered=(
+                registered_credits_in(profile.completed_courses, target) if target else 0.0
+            ),
+        )
+        if cap is not None
+        else None
+    )
+    prompt = render_prompt(
         loaded,
         profile,
         requirements,
-        attach_offerings(
-            candidates,
-            index,
-            eligibility=eligibility,
-            term=target.term if target else None,
-        ),
+        attached,
         wishes=wishes,
         target=target,
+        budget=budget,
     )
+    return ProposalContext(
+        prompt=prompt,
+        classes=classes,
+        budget=budget,
+        output_type=proposal_draft_model(list(classes), _max_items(classes, budget)),
+    )
+
+
+async def build_proposal_prompt(
+    profile: StudentProfile, admission_year: int, **kwargs
+) -> str:
+    """履修提案のプロンプトだけを返す(`build_proposal_context()` の `prompt`)。"""
+    return (await build_proposal_context(profile, admission_year, **kwargs)).prompt
+
+
+# --- 6. 下書きから提案を組み上げる(§7.2) ---
+
+
+def _overlaps(a: ProposedCourse, b: ProposedCourse) -> bool:
+    """同じ曜日・時限で開講期間が重なるか(§5.3 の検証と同じ規則)。"""
+    if a.day is None or a.period is None or (a.day, a.period) != (b.day, b.period):
+        return False
+    qa, qb = quarters_of(a.term), quarters_of(b.term)
+    if qa is not None and qb is not None:
+        return bool(qa & qb)
+    return a.term == b.term
+
+
+def assemble_courses(
+    drafts: Iterable[tuple[str, str]],
+    context: ProposalContext,
+) -> tuple[list[ProposedCourse], list[str]]:
+    """下書き(シラバスコード, 理由)の並びを提案の科目にし、外した理由を返す。
+
+    **作り直しをさせず、backend が確実な処理で整える**(作り直しは1回4〜5分かかる)。
+    モデルの書いた順に1件ずつ見て、次のものを外す:
+
+    - 候補に無いコード(下書きの形式が列挙で縛るので通常は起きない)
+    - 同じ科目の2件目以降(同名の別クラスを含む)。情報が失われないので黙って外す
+    - 先に採った科目と同じ曜日・時限で開講期間が重なるもの
+    - 採ると対象学期に登録できる残り単位を超えるもの
+
+    後の2つは外したことを返し、呼び出し側が summary に書き足す。注記は科目名ごとに
+    1件で、同名の別クラスを後で採った科目には付けない。`MAX_NOTES` を超えた分は
+    件数だけを書く。
+    """
+    accepted: list[ProposedCourse] = []
+    titles: set[str] = set()
+    # 外した科目の理由。科目名ごとに最初の1件だけを持ち、同名の別クラスが後で
+    # 採られた科目は最後に除く(採った科目を「外した」と書かないため)
+    dropped: dict[str, str] = {}
+    # 一度見たコード。同じ並びを繰り返し書く暴走(2026-09-23 の実機)で、外した
+    # 科目の注記が繰り返されないよう、2回目以降は採否にかかわらず黙って飛ばす
+    seen: set[str] = set()
+    total = 0.0
+    remaining = context.budget.remaining if context.budget else None
+    for code, reason in drafts:
+        base = context.classes.get(code)
+        if base is None or code in seen:
+            continue
+        seen.add(code)
+        course = base.model_copy(update={"reason": reason})
+        key = normalize_title(course.title)
+        if key in titles:
+            continue
+        clash = next((c for c in accepted if _overlaps(c, course)), None)
+        if clash is not None:
+            dropped.setdefault(
+                key,
+                f"「{course.title}」は「{clash.title}」と{course.day}{course.period}限で"
+                "開講期間が重なるため外しました。",
+            )
+            continue
+        if remaining is not None and total + (course.credits or 0) > remaining:
+            dropped.setdefault(
+                key,
+                f"「{course.title}」は対象学期に登録できる残り単位"
+                f"({_credits(remaining)}単位)を超えるため外しました。",
+            )
+            continue
+        accepted.append(course)
+        titles.add(key)
+        total += course.credits or 0
+
+    reasons = [text for key, text in dropped.items() if key not in titles]
+    notes = reasons[:MAX_NOTES]
+    if len(reasons) > MAX_NOTES:
+        notes.append(f"ほか{len(reasons) - MAX_NOTES}科目もコマの重なりか単位の上限のため外しました。")
+    return accepted, notes
+
+
+def assemble_proposal(
+    drafts: Iterable[tuple[str, str]],
+    summary: str | None,
+    context: ProposalContext,
+    *,
+    truncated: bool = False,
+) -> TimetableProposal:
+    """下書きから確定版の提案を組み上げる。外した科目と打ち切りは summary に書き足す。"""
+    courses, notes = assemble_courses(drafts, context)
+    if truncated:
+        notes.append("生成が最後まで完了しなかったため、書き終えた科目までで提案しています。")
+    text = (summary or "").strip() or "提案を作成しました。"
+    if notes:
+        text += "\n\n(自動調整)" + "".join(notes)
+    credits = [c.credits for c in courses]
+    total = sum(credits) if None not in credits else None
+    return TimetableProposal(courses=courses, total_credits=total, summary=text)
