@@ -11,7 +11,7 @@ from functools import lru_cache
 import pytest
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import UnexpectedModelBehavior
-from pydantic_ai.messages import ModelResponse, ToolCallPart
+from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
 from app.agents import proposal_agent as pa
@@ -92,12 +92,12 @@ def _liberal_arts() -> LiberalArtsCurriculum:
             "liberal_arts_version": "until-2025",
             "requirement_slots": [
                 {
-                    "key": "liberal.buddhism",
+                    "key": "liberal.buddhism", "name": "liberal.buddhism",
                     "credits": 2,
                     "accepts": {"subcategory": "「仏教の思想」科目", "type": "必修"},
                 },
                 {
-                    "key": "liberal.elective",
+                    "key": "liberal.elective", "name": "liberal.elective",
                     "credits": 4,
                     "accepts": {"category": "教養教育科目"},
                     "overflow_to": "free.all",
@@ -136,31 +136,31 @@ def _program(code: str = "01") -> Curriculum:
             ],
             "requirement_slots": [
                 {
-                    "key": "basic.required",
+                    "key": "basic.required", "name": "basic.required",
                     "credits": 4,
                     "accepts": {"category": "専門基礎科目", "type": "必修"},
                 },
                 {
-                    "key": "applied.elective",
+                    "key": "applied.elective", "name": "applied.elective",
                     "credits": 2,
                     "accepts": {"category": "専門応用科目", "type": "選択"},
                     "overflow_to": "free.faculty",
                 },
                 {
-                    "key": "related",
+                    "key": "related", "name": "related",
                     "credits": 0,
                     "accepts": {"category": "専門関連科目"},
                     "overflow_to": "free.faculty",
                 },
                 {
-                    "key": "free.faculty",
+                    "key": "free.faculty", "name": "free.faculty",
                     "credits": 2,
                     "accepts": {
                         "category": ["専門基礎科目", "専門応用科目", "専門関連科目"]
                     },
                     "overflow_to": "free.all",
                 },
-                {"key": "free.all", "credits": 2, "accepts": {"category": "any"}},
+                {"key": "free.all", "name": "free.all", "credits": 2, "accepts": {"category": "any"}},
             ],
             "registration_limits": {
                 "by_semester": [
@@ -1365,3 +1365,126 @@ def test_assemble_proposal_uses_a_fixed_summary_when_none_was_written():
     proposal, _ = assemble_proposal([("A", "r")], None, ctx, truncated=True)
 
     assert proposal.summary == "時間割を提案しました。各科目の理由を確認してください。"
+
+
+def test_render_prompt_uses_official_slot_names_not_keys():
+    """【卒業要件の充足状況】には要件枠の公式の名前を書き、内部の key を出さない。"""
+    loaded = _loaded()
+    slots = [
+        s.model_copy(update={"name": f"公式名-{s.key}"})
+        for s in loaded.curriculum.requirement_slots
+    ]
+    renamed = LoadedCurriculum(
+        curriculum=loaded.curriculum.model_copy(update={"requirement_slots": slots}),
+        offerings=loaded.offerings,
+    )
+    profile = _profile()
+    prompt = render_prompt(
+        renamed, profile, judge_requirements(renamed, profile), [], target=None
+    )
+
+    assert "- 公式名-basic.required: 必要 4 / 修得 0 / 不足 4" in prompt
+    assert "- basic.required:" not in prompt
+
+
+def _typed(code: str, title: str, category: str, day: str = "火", period: int = 1, credits: float = 2) -> ProposedCourse:
+    return ProposedCourse(
+        syllabus_code=code, title=title, day=day, period=period, term="後期",
+        credits=credits, category=category, reason="",
+    )
+
+
+def test_assemble_keeps_the_heavier_course_on_overlap():
+    """重なったら必修 > 選択必修 > 選択 の順で重い方を残す(先に書いた方とは限らない)。"""
+    ctx = _context({
+        "E": _typed("E", "英語総合4", "選択"),
+        "A": _typed("A", "アルゴリズム及び演習Ⅰ", "必修"),
+    })
+    courses, notes = assemble_courses([("E", "r"), ("A", "r")], ctx)
+
+    assert [c.syllabus_code for c in courses] == ["A"]
+    assert notes == [
+        "「英語総合4」は「アルゴリズム及び演習Ⅰ」と火1限で開講期間が重なり、"
+        "必修の「アルゴリズム及び演習Ⅰ」を優先したため外しました。"
+    ]
+
+
+def test_assemble_keeps_the_first_course_when_equally_heavy():
+    ctx = _context({"X": _typed("X", "x", "選択"), "Y": _typed("Y", "y", "選択")})
+    courses, _ = assemble_courses([("X", "r"), ("Y", "r")], ctx)
+
+    assert [c.syllabus_code for c in courses] == ["X"]
+
+
+def test_assemble_does_not_swap_when_the_swap_breaks_the_credit_cap():
+    """入れ替えると残り単位を超えるなら入れ替えない。"""
+    ctx = _context(
+        {"E": _typed("E", "e", "選択", credits=1), "A": _typed("A", "a", "必修", credits=4)},
+        remaining=2,
+    )
+    courses, notes = assemble_courses([("E", "r"), ("A", "r")], ctx)
+
+    assert [c.syllabus_code for c in courses] == ["E"]
+    assert "残り単位" in notes[0]
+
+
+# --- 説明文の書き直し(§7.2.2) ---
+
+
+@pytest.fixture
+def summary_agent_cache():
+    pa.build_summary_agent.cache_clear()
+    yield
+    pa.build_summary_agent.cache_clear()
+
+
+@pytest.mark.asyncio
+async def test_rewrite_summary_uses_the_settled_timetable(summary_agent_cache):
+    seen = {}
+
+    def model(messages, info: AgentInfo) -> ModelResponse:
+        seen["prompt"] = messages[-1].parts[-1].content
+        return ModelResponse(parts=[TextPart("  必修を中心に組んだ。  ")])
+
+    ctx = _context({"A": _cls("A", "線形代数", "月", 1)})
+    ctx = ProposalContext(
+        prompt="", classes=ctx.classes, budget=None, output_type=TimetableProposal,
+        requirements_text="- 専門基礎科目(必修): 必要 4 / 修得 0 / 不足 4",
+    )
+    proposal, _ = assemble_proposal([("A", "理由A")], "元の方針。", ctx)
+
+    with pa.build_summary_agent().override(model=FunctionModel(model)):
+        text = await pa.rewrite_summary(proposal, "元の方針。", ctx)
+
+    assert text == "必修を中心に組んだ。"
+    assert "- 線形代数 | 選択 | 2単位 | 後期 月1 | 理由: 理由A" in seen["prompt"]
+    assert "【元の説明文】\n元の方針。" in seen["prompt"]
+    assert "専門基礎科目(必修): 必要 4" in seen["prompt"]
+
+
+@pytest.mark.asyncio
+async def test_rewrite_summary_falls_back_on_failure(summary_agent_cache):
+    def model(messages, info: AgentInfo) -> ModelResponse:
+        raise RuntimeError("down")
+
+    ctx = _context({"A": _cls("A", "a", "月", 1)})
+    proposal, _ = assemble_proposal([("A", "r")], "元の方針。", ctx)
+
+    with pa.build_summary_agent().override(model=FunctionModel(model)):
+        assert await pa.rewrite_summary(proposal, "元の方針。", ctx) == "元の方針。"
+
+
+def test_related_course_is_elective_for_the_student():
+    """他課程の必修(専門関連科目)は、学生にとっては選択として扱う。
+
+    開講元の課程での区分(必修)のまま扱うと、プロンプトでも組み上げでも
+    他課程の必修が自課程の選択より重く見える。
+    """
+    loaded = _loaded()
+    related = next(c for c in loaded.curriculum.courses if not c.own)
+    course = related.model_copy(update={"type": "必修"})
+    candidate = Candidate(course=course, codes=("Y000000005",), classes=(_offered("Y000000005"),), matched=1)
+
+    assert pa.student_type(course) == "選択"
+    assert pa._proposed_course(candidate, candidate.classes[0]).category == "選択"
+    assert f"{course.title} | 専門関連科目 | 選択 |" in "\n".join(pa._format_candidates([candidate]))

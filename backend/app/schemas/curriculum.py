@@ -122,6 +122,11 @@ class RequirementSlot(_YamlModel):
     """
 
     key: str = Field(min_length=1)
+    # 学生・モデルに見せる名前。履修要項の「卒業要件単位（最低）数表」の区分を
+    # 「科目区分(履修区分)」の形でつないだ公式の表記(例: 専門応用科目(必修)、
+    # 教養教育科目(選択必修〈基幹〉・人文)、学部フリーゾーン)。`key` は内部の
+    # 識別子であり、プロンプトや画面に出してはならない(§5.1.2)
+    name: str = Field(min_length=1)
     credits: int = Field(ge=0)
     accepts: Accepts
     overflow_to: str | None = None

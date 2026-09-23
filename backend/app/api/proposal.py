@@ -54,6 +54,7 @@ from app.agents.proposal_agent import (
     ProposalError,
     assemble_courses,
     assemble_proposal,
+    rewrite_summary,
     build_proposal_agent,
     build_proposal_context,
 )
@@ -167,6 +168,18 @@ def _delta_text(delta: ModelResponsePartDelta) -> str:
     return ""
 
 
+async def _settle_summary(result, original, adjustments: list[str], context):
+    """科目を外した・途中で切れたときだけ、説明文を確定した時間割に合わせて書き直す。
+
+    説明文は外す前の並びを見て書かれるため、外した科目に触れていることがある
+    (§7.2.2)。何も外していなければ書き直さない(待ち時間を増やさない)。
+    """
+    if not adjustments:
+        return result
+    summary = await rewrite_summary(result, original, context)
+    return result.model_copy(update={"summary": summary})
+
+
 def _result_event(result, adjustments: list[str]) -> dict:
     """確定版のイベント。調整の記録は提案の外(`adjustments`)に載せ、画面には出さない。"""
     return {"result": result.model_dump(by_alias=True), "adjustments": adjustments}
@@ -209,6 +222,9 @@ def _stream_proposal(context: ProposalContext):
                             draft.summary,
                             context,
                         )
+                        result = await _settle_summary(
+                            result, draft.summary, adjustments, context
+                        )
                         yield format_sse(_result_event(result, adjustments))
                         continue
                     else:
@@ -231,6 +247,7 @@ def _stream_proposal(context: ProposalContext):
             if parsed is not None and parsed[0]:
                 result, adjustments = assemble_proposal(*parsed, context, truncated=True)
                 if result.courses:
+                    result = await _settle_summary(result, parsed[1], adjustments, context)
                     yield format_sse(_result_event(result, adjustments))
                     yield format_sse({"done": True})
                     return

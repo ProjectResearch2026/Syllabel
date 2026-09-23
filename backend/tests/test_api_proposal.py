@@ -113,7 +113,7 @@ def _liberal_arts() -> dict:
         "liberal_arts_version": "until-2025",
         "requirement_slots": [
             {
-                "key": "liberal.elective",
+                "key": "liberal.elective", "name": "liberal.elective",
                 "credits": 4,
                 "accepts": {"category": "教養教育科目"},
                 "overflow_to": "free.all",
@@ -141,17 +141,17 @@ def _program() -> dict:
         "graduation": {"total_credits": 12, "excluded_types": ["随意"]},
         "requirement_slots": [
             {
-                "key": "basic.required",
+                "key": "basic.required", "name": "basic.required",
                 "credits": 4,
                 "accepts": {"category": "専門基礎科目", "type": "必修"},
             },
             {
-                "key": "applied.elective",
+                "key": "applied.elective", "name": "applied.elective",
                 "credits": 2,
                 "accepts": {"category": "専門応用科目", "type": "選択"},
                 "overflow_to": "free.all",
             },
-            {"key": "free.all", "credits": 2, "accepts": {"category": "any"}},
+            {"key": "free.all", "name": "free.all", "credits": 2, "accepts": {"category": "any"}},
         ],
         "registration_limits": {
             "by_semester": [{"semesters": [1, 2, 3, 4], "max_credits_per_semester": 22}]
@@ -238,6 +238,22 @@ def stub_api_clean(monkeypatch):
         return {"count": len(SYLLABI), "limit": kwargs.get("limit"), "results": SYLLABI}
 
     monkeypatch.setattr(pa, "search_syllabi", fake_search_syllabi)
+
+
+REWRITTEN = "確定した時間割に合わせて書き直した説明。"
+
+
+@pytest.fixture(autouse=True)
+def fake_rewrite(monkeypatch):
+    """説明文の書き直し(§7.2.2)を差し替え、呼ばれた回数を記録する。"""
+    calls: list[dict] = []
+
+    async def fake(proposal, original, context):
+        calls.append({"proposal": proposal, "original": original})
+        return REWRITTEN
+
+    monkeypatch.setattr(mod, "rewrite_summary", fake)
+    return calls
 
 
 @pytest.fixture
@@ -566,8 +582,9 @@ def test_duplicates_conflicts_and_over_cap_are_removed_without_retry():
     result = _events(resp.text)[-2]["result"]
     assert [c["title"] for c in result["courses"]] == ["微分積分"]
     assert result["totalCredits"] == 4.0
-    # 外した記録は summary に混ぜず(画面に出さない)、adjustments に載せる
-    assert result["summary"] == "方針。"
+    # 外した記録は summary に混ぜず(画面に出さない)、adjustments に載せる。
+    # 科目を外したので、説明文は確定した時間割に合わせて書き直す
+    assert result["summary"] == REWRITTEN
     assert _events(resp.text)[-2]["adjustments"] == [
         "「解析学」は「微分積分」と月2限で開講期間が重なるため外しました。"
     ]
@@ -712,3 +729,25 @@ def test_target_term_spring_keeps_full_year_classes(spy_prompt):
 
 def test_invalid_target_term_is_rejected():
     assert _post(target_term={"year": 2026, "term": "通年", "grade": 2}).status_code == 422
+
+
+def test_summary_is_not_rewritten_when_nothing_was_removed(fake_rewrite):
+    """科目を外していなければ説明文を書き直さない(待ち時間を増やさない)。"""
+    result = _events(_post().text)[-2]["result"]
+
+    assert fake_rewrite == []
+    assert result["summary"] == PROPOSAL["summary"]
+
+
+def test_summary_is_rewritten_from_the_settled_timetable(fake_rewrite):
+    """外したときは、確定した時間割と元の説明文を渡して書き直す。"""
+    completed = [
+        {"title": "登録済みの科目", "year": 2026, "term": "前期", "credits": 20, "status": "registered"}
+    ]
+    resp = _post(completed=completed, target_term={"year": 2026, "term": "前期", "grade": 2})
+    result = _events(resp.text)[-2]["result"]
+
+    assert len(fake_rewrite) == 1
+    assert [c.title for c in fake_rewrite[0]["proposal"].courses] == ["解析学"]
+    assert fake_rewrite[0]["original"] == PROPOSAL["summary"]
+    assert result["summary"] == REWRITTEN

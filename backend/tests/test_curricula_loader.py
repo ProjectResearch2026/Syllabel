@@ -43,7 +43,7 @@ def _liberal_arts(admission_year: int = 2024) -> dict:
         "liberal_arts_version": "until-2025",
         "requirement_slots": [
             {
-                "key": "liberal.elective",
+                "key": "liberal.elective", "name": "liberal.elective",
                 "credits": 4,
                 "accepts": {"category": "教養教育科目"},
                 "overflow_to": "free.all",
@@ -86,8 +86,8 @@ def _program(code: str = "01", admission_year: int = 2024) -> dict:
         "admission_year": admission_year,
         "graduation": {"total_credits": 10},
         "requirement_slots": [
-            {"key": "basic.required", "credits": 6, "accepts": {"type": "必修"}},
-            {"key": "free.all", "credits": 0, "accepts": {"category": "any"}},
+            {"key": "basic.required", "name": "basic.required", "credits": 6, "accepts": {"type": "必修"}},
+            {"key": "free.all", "name": "free.all", "credits": 0, "accepts": {"category": "any"}},
         ],
         "registration_limits": {},
         "courses": [
@@ -387,3 +387,46 @@ def test_real_data_loads():
         assert item.curriculum.program.code == code
         assert item.curriculum.admission_year == year
         assert item.curriculum.own_courses
+
+
+# 要件枠の名前は、履修要項の「卒業要件単位（最低）数表」の区分を「科目区分(履修区分)」の
+# 形でつないだ公式の表記とする(§5.1.2)。2024〜2026年度入学・全6課程の表で確認した
+OFFICIAL_SLOT_NAMES = {
+    "liberal.buddhism": "教養教育科目(必修・仏教)",
+    "liberal.language.required": "教養教育科目(必修・言語)",
+    "liberal.general.sports": "教養教育科目(必修・スポーツ)",
+    "liberal.general.humanities": "教養教育科目(選択必修〈基幹〉・人文)",
+    "liberal.general.social": "教養教育科目(選択必修〈基幹〉・社会)",
+    "liberal.elective": "教養教育科目(選択)",
+    "basic.required": "専門基礎科目(必修)",
+    "basic.required_elective": "専門基礎科目(選択必修)",
+    "basic.elective": "専門基礎科目(選択)",
+    "applied.required": "専門応用科目(必修)",
+    "applied.required_elective": "専門応用科目(選択必修)",
+    "applied.elective": "専門応用科目(選択)",
+    "related": "専門関連科目",
+    "free.faculty": "学部フリーゾーン",
+    "free.all": "オールフリーゾーン",
+}
+
+
+def test_real_data_slot_names_are_official():
+    """実データの全要件枠が公式の名前を持つこと。内部の key を名前に使わない。"""
+    loaded = load_curricula(_settings(REPO_ROOT))
+    for item in loaded.values():
+        for slot in item.curriculum.requirement_slots:
+            assert slot.name == OFFICIAL_SLOT_NAMES[slot.key], (
+                item.curriculum.program.name,
+                item.curriculum.admission_year,
+                slot.key,
+            )
+
+
+def test_slot_without_name_fails(tmp_path):
+    """要件枠に name が無ければロードで落ちる(書き漏れを起動時に弾く)。"""
+    from app.schemas.curriculum import RequirementSlot
+
+    with pytest.raises(ValueError):
+        RequirementSlot.model_validate(
+            {"key": "basic.required", "credits": 2, "accepts": {"category": "専門基礎科目"}}
+        )

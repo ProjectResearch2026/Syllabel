@@ -76,6 +76,7 @@ class SlotStatus(BaseModel):
     """
 
     key: str
+    name: str
     required: int
     earned: float
     shortfall: float
@@ -238,6 +239,7 @@ def judge(
     slot_statuses = [
         SlotStatus(
             key=slot.key,
+            name=slot.name,
             required=slot.credits,
             earned=_round(earned[slot.key]),
             shortfall=_round(max(0.0, slot.credits - earned[slot.key])),

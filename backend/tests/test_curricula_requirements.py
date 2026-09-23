@@ -80,18 +80,18 @@ def _liberal_arts() -> LiberalArtsCurriculum:
             "liberal_arts_version": "until-2025",
             "requirement_slots": [
                 {
-                    "key": "liberal.buddhism",
+                    "key": "liberal.buddhism", "name": "liberal.buddhism",
                     "credits": 2,
                     "accepts": {"subcategory": "「仏教の思想」科目", "type": "必修"},
                 },
                 {
-                    "key": "liberal.language.required",
+                    "key": "liberal.language.required", "name": "liberal.language.required",
                     "credits": 2,
                     "accepts": {"subcategory": "必修外国語科目"},
                     "overflow_to": "liberal.elective",  # 注記A
                 },
                 {
-                    "key": "liberal.elective",
+                    "key": "liberal.elective", "name": "liberal.elective",
                     "credits": 4,
                     "accepts": {"category": "教養教育科目"},
                     "overflow_to": "free.all",
@@ -145,43 +145,43 @@ def _program(code: str = "01") -> Curriculum:
             ],
             "requirement_slots": [
                 {
-                    "key": "basic.required",
+                    "key": "basic.required", "name": "basic.required",
                     "credits": 4,
                     "accepts": {"category": "専門基礎科目", "type": "必修"},
                 },
                 {
-                    "key": "basic.elective",
+                    "key": "basic.elective", "name": "basic.elective",
                     "credits": 0,
                     "accepts": {"category": "専門基礎科目", "type": "選択"},
                     "overflow_to": "free.faculty",  # 注記B
                 },
                 {
-                    "key": "applied.required_elective",
+                    "key": "applied.required_elective", "name": "applied.required_elective",
                     "credits": 4,
                     "accepts": {"category": "専門応用科目", "type": "選択必修"},
                     "overflow_to": "applied.elective",  # 注記C
                 },
                 {
-                    "key": "applied.elective",
+                    "key": "applied.elective", "name": "applied.elective",
                     "credits": 2,
                     "accepts": {"category": "専門応用科目", "type": "選択"},
                     "overflow_to": "free.faculty",
                 },
                 {
-                    "key": "related",
+                    "key": "related", "name": "related",
                     "credits": 0,
                     "accepts": {"category": "専門関連科目"},
                     "overflow_to": "free.faculty",  # 注記D
                 },
                 {
-                    "key": "free.faculty",
+                    "key": "free.faculty", "name": "free.faculty",
                     "credits": 2,
                     "accepts": {
                         "category": ["専門基礎科目", "専門応用科目", "専門関連科目"]
                     },
                     "overflow_to": "free.all",  # 注記E 教養教育科目は不可
                 },
-                {"key": "free.all", "credits": 4, "accepts": {"category": "any"}},
+                {"key": "free.all", "name": "free.all", "credits": 4, "accepts": {"category": "any"}},
             ],
             "credit_caps": [
                 {
