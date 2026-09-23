@@ -67,6 +67,16 @@ const EVAL_BAND = 12;
 
 const GRADE_SYMBOLS = "NGDJTMUYWK";
 
+/**
+ * 履修グリッドの「登録済み・成績未確定」の印。凡例は `***: 登録科目` /
+ * `*: 継続履修中`。成績ではないため `isScore()` を通らず、従来は科目ごと捨てていた。
+ * 印は点数と同じく学期の行の高さに刷られる。
+ *   例(2025年9月作成の成績表): ＡＳＥＡＮグローバルプログラム の 2025前期セル
+ *   (行 y=448)に `***` が y=446 で入る。後の成績表ではこのセルが評価 G になる
+ */
+const REGISTERED_MARKS = new Set(["***", "*"]);
+
+
 /** "N 80" のような記号と数字の間の空白を除去して正規化する */
 function normalizeScore(s: string): string {
   return s.replace(/\s+/g, "");
@@ -241,6 +251,26 @@ function buildYearTermMap(items: TextItem[]): Map<number, YearTermEntry> {
   return map;
 }
 
+/** yearTermMap から y に最も近い年度・学期を引く。無ければ成績表の年度の前期 */
+function nearestYearTerm(
+  yearTermMap: Map<number, YearTermEntry>,
+  y: number,
+  reportYear: number,
+): { year: number; term: CourseTerm } {
+  let year = reportYear;
+  let term: CourseTerm = "前期";
+  let minDist = Infinity;
+  for (const [ky, kv] of yearTermMap) {
+    const d = Math.abs(ky - y);
+    if (d < minDist) {
+      minDist = d;
+      year = kv.year;
+      term = kv.term;
+    }
+  }
+  return { year, term };
+}
+
 // ---------------------------------------------------------------------------
 // セクション解析
 // ---------------------------------------------------------------------------
@@ -359,6 +389,36 @@ function parseSection(
       evalItems.filter((ei) => Math.abs(ei.x - x) <= 6),
     );
 
+    // **登録済み・成績未確定の科目**(`***` / `*`)。評価列は空で、グリッドの印が
+    // 成績のセルより後(新しい学期)にあるときだけ登録中とみなす。再履修で登録中の
+    // 科目は、前回の不合格のセルより後ろに印が来る
+    const lastScoreY = termScoreCells[termScoreCells.length - 1]?.y ?? -Infinity;
+    const registeredMark = evalScore
+      ? undefined
+      : items
+          .filter(
+            (it) =>
+              Math.abs(it.x - x) <= 6 &&
+              it.y > creditY + 5 &&
+              it.y < evaluationY - bandUp &&
+              REGISTERED_MARKS.has(it.str) &&
+              it.y > lastScoreY,
+          )
+          .sort((a, b) => b.y - a.y)[0];
+    if (registeredMark) {
+      const { year, term } = nearestYearTerm(yearTermMap, registeredMark.y, reportYear);
+      entries.push({
+        x,
+        title,
+        credits,
+        rawScore: registeredMark.str,
+        status: "registered",
+        year,
+        term,
+      });
+      continue;
+    }
+
     // **この様式は未修得の科目の評価列を空にする。** 不合格・履修辞退の成績は
     // 履修グリッドのセルにだけ入り(例: 心理学入門 58 / 環境としての情報技術 J)、
     // 評価列には何も刷られない。評価列だけを見て捨てると【再履修の対象】(§6.1)
@@ -382,21 +442,10 @@ function parseSection(
       termScoreCells[termScoreCells.length - 1];
     const termScoreY = passedCell?.y;
 
-    let year = reportYear;
-    let term: CourseTerm = "前期";
-
-    if (termScoreY !== undefined) {
-      // yearTermMap から最も近い year/term を探す
-      let minDist = Infinity;
-      for (const [ky, kv] of yearTermMap) {
-        const d = Math.abs(ky - termScoreY);
-        if (d < minDist) {
-          minDist = d;
-          year = kv.year;
-          term = kv.term;
-        }
-      }
-    }
+    const { year, term } =
+      termScoreY !== undefined
+        ? nearestYearTerm(yearTermMap, termScoreY, reportYear)
+        : { year: reportYear, term: "前期" as CourseTerm };
 
     entries.push({ x, title, credits, rawScore, status, year, term });
   }
@@ -413,6 +462,8 @@ function extractMeta(items: TextItem[]): {
   admissionYear: number | null;
   program: string | null;
   reportYear: number;
+  issuedOn: string | null;
+  enrollment: StudentProfile["enrollment"];
   metaWarnings: string[];
 } {
   const fullText = items.map((it) => it.str).join(" ");
@@ -450,8 +501,14 @@ function extractMeta(items: TextItem[]): {
   //      （再入学・編入・単位認定がある学生では最初の在籍年度がグリッドに
   //        含まれるため、現在の入学年度より小さくなり学年が過大推定される）
   // -----------------------------------------------------------------------
-  const BASIC_INFO_Y = 701;
-  const Y_TOLERANCE = 25;
+  //
+  // **位置は見出し「入学日」から相対で決める。** 帳票は作成年度によって全体が縦に
+  // ずれる(2026年9月作成は値の行が y=701、2024・2025年9月作成は y=719)。
+  // 見出しの行から値の行までは3枚とも +30 で一定だった。見出しが見つからない
+  // ときだけ従来の既定値(701)へ落とす
+  const admissionLabel = items.find((it) => it.str === "入学日" && it.x >= 440 && it.x <= 480);
+  const BASIC_INFO_Y = admissionLabel ? admissionLabel.y + BASIC_INFO_OFFSET : 701;
+  const Y_TOLERANCE = admissionLabel ? 8 : 25;
 
   // 入学日: pdfjs がアイテムを細分化する場合があるため x=440〜520 を結合して探す
   const admissionDateText = items
@@ -535,7 +592,73 @@ function extractMeta(items: TextItem[]): {
     );
   }
 
-  return { grade, admissionYear, program, reportYear, metaWarnings };
+  return {
+    grade,
+    admissionYear,
+    program,
+    reportYear,
+    issuedOn: extractIssuedOn(items, reportYear),
+    enrollment: extractEnrollment(items),
+    metaWarnings,
+  };
+}
+
+/** 基本情報欄の見出し(「入学日」)から値の行までの距離(pt)。3枚の実物で一定 */
+const BASIC_INFO_OFFSET = 30;
+
+/**
+ * 成績表の作成日を `YYYY-MM-DD` で返す。
+ *
+ * 帳票の右上(PDF 上は左端 x≈57 の列)に `[ 学籍番号 ] 1 / 1 09 02 1` と並ぶうち、
+ * ページ番号(`1 / 1`)の直後の2つが**作成月日**である。3枚の実物(2024-09-06 /
+ * 2025-09-05 / 2026-09-02)すべてで PDF メタデータの作成日と一致した。年は刷られて
+ * いないため帳票ヘッダの年度から補う(年度は4月始まりなので、1〜3月は年度+1)。
+ *
+ * ファイル名に入っている日時は**ダウンロード時刻**であり作成日ではない(ポータルは
+ * 作成済みの PDF を配る。実物では2日〜2週間ずれていた)。
+ */
+function extractIssuedOn(items: TextItem[], reportYear: number): string | null {
+  const pageMarker = items.find((it) => /^\d+\s*\/\s*\d+$/.test(it.str) && it.x < 60);
+  if (!pageMarker) return null;
+  const [month, day] = items
+    .filter(
+      (it) =>
+        Math.abs(it.x - pageMarker.x) <= 4 && it.y > pageMarker.y && /^\d{2}$/.test(it.str),
+    )
+    .sort((a, b) => a.y - b.y)
+    .map((it) => parseInt(it.str, 10));
+  if (!month || !day || month > 12 || day > 31) return null;
+  const year = month >= 4 ? reportYear : reportYear + 1;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/**
+ * 「在籍年数 / 休学年数 / 在学年数」を読む。値は見出しと同じ列(x)の下にある
+ * `2.5` のような 0.5 年刻みの数。**在籍年数が読めなければ null**(次の登録学期の
+ * 検算に使えないため)。
+ */
+function extractEnrollment(items: TextItem[]): StudentProfile["enrollment"] {
+  const valueBelow = (label: string): number | null => {
+    const head = items.find((it) => it.str === label);
+    if (!head) return null;
+    const value = items
+      .filter(
+        (it) =>
+          Math.abs(it.x - head.x) <= 3 &&
+          it.y > head.y &&
+          it.y - head.y <= 120 &&
+          /^\d+\.\d$/.test(it.str),
+      )
+      .sort((a, b) => a.y - b.y)[0];
+    return value ? parseFloat(value.str) : null;
+  };
+  const enrolledYears = valueBelow("在籍年数");
+  if (enrolledYears === null) return null;
+  return {
+    enrolledYears,
+    leaveYears: valueBelow("休学年数"),
+    studyYears: valueBelow("在学年数"),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -559,10 +682,13 @@ export async function parseGradeReport(file: File): Promise<ParseResult> {
 export function parseItems(items: TextItem[]): ParseResult {
   const warnings: string[] = [];
 
-  const { grade, admissionYear, program, reportYear, metaWarnings } = extractMeta(items);
+  const { grade, admissionYear, program, reportYear, issuedOn, enrollment, metaWarnings } =
+    extractMeta(items);
   warnings.push(...metaWarnings);
   if (!program) warnings.push("課程名を読み取れませんでした");
   if (!grade) warnings.push("学年を推定できませんでした");
+  if (!issuedOn) warnings.push("成績表の作成日を読み取れませんでした");
+  if (!enrollment) warnings.push("在籍年数を読み取れませんでした");
 
   const evaluationYValues = findEvaluationYValues(items);
   const courseNameYValues = findCourseNameYValues(items);
@@ -571,7 +697,7 @@ export function parseItems(items: TextItem[]): ParseResult {
   if (evaluationYValues.length === 0 || courseNameYValues.length === 0) {
     warnings.push("科目データの構造を認識できませんでした");
     return {
-      profile: { grade, admissionYear, program, completedCourses: [] },
+      profile: { grade, admissionYear, program, completedCourses: [], issuedOn, enrollment },
       warnings,
     };
   }
@@ -606,7 +732,7 @@ export function parseItems(items: TextItem[]): ParseResult {
     }));
 
   return {
-    profile: { grade, admissionYear, program, completedCourses },
+    profile: { grade, admissionYear, program, completedCourses, issuedOn, enrollment },
     warnings,
   };
 }

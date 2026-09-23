@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import StepBar from "./StepBar";
 import PrivacyConsentModal from "./PrivacyConsentModal";
-import { useStudentStore, type StudentProfile } from "@/lib/student";
+import { isUnearned, useStudentStore, type StudentProfile } from "@/lib/student";
 import { DUMMY_PROFILES } from "@/lib/dummy/profiles";
 
 /**
@@ -141,8 +141,9 @@ export default function PcImportPage() {
   const totalCredits = passedCourses.reduce((sum, c) => sum + c.credits, 0);
   const remaining = Math.max(0, GRADUATION_CREDITS - totalCredits);
   // 不合格と履修辞退は「未修得」に丸める(設計書 §6.1。再履修の対象として同じ扱い)
-  const unearnedCount =
-    (pending?.completedCourses.length ?? 0) - passedCourses.length;
+  const unearnedCount = pending?.completedCourses.filter(isUnearned).length ?? 0;
+  const registeredCount =
+    pending?.completedCourses.filter((c) => c.status === "registered").length ?? 0;
 
   const handleConfirm = () => {
     if (pending) setProfile(pending);
@@ -296,6 +297,10 @@ export default function PcImportPage() {
       // 未修得は単位に数えないが、再履修の提案に使うので取り込んだことを見せる
       ...(unearnedCount > 0
         ? [{ label: "未修得科目（再履修の対象）", value: `${unearnedCount}科目` }]
+        : []),
+      // 登録済みで成績未確定。提案の候補から外すので、取り込んだことを見せる
+      ...(registeredCount > 0
+        ? [{ label: "登録済み科目（成績未確定）", value: `${registeredCount}科目` }]
         : []),
     ];
     return (

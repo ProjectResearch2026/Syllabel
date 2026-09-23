@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.schemas.proposal import ProposedCourse, TimetableProposal
+from app.schemas.proposal import ProposedCourse, TargetTerm, TimetableProposal
 
 
 def make_course(**kwargs) -> dict:
@@ -58,9 +58,9 @@ def test_proposed_course_camel_alias():
 
 
 def test_proposed_course_invalid_day():
-    """曜日が月〜金以外は ValidationError。"""
+    """曜日が月〜土以外は ValidationError(api-clean に日曜のクラスは無い)。"""
     with pytest.raises(ValidationError):
-        ProposedCourse(**make_course(day="土"))
+        ProposedCourse(**make_course(day="日"))
 
 
 # --- TimetableProposal ---
@@ -129,3 +129,61 @@ def test_timetable_proposal_camel_alias():
     }
     p = TimetableProposal.model_validate(data)
     assert p.total_credits == 2.0
+
+
+# --- コマ重複は開講期間(クォーター)の重なりで判定する ---
+
+
+@pytest.mark.parametrize(
+    ("first", "second"),
+    [
+        ("前期", "1Q"),  # 前期は 1Q・2Q を占める
+        ("通年", "後期"),  # 通年は全クォーターを占める
+        ("4Q", "後期"),
+        ("2Q", "前期"),
+        ("１Ｑ", "1Q"),  # 全角の表記ゆれは寄せて比べる
+        ("サ集", "サ集"),  # クォーターに属さない学期どうしは文字列が同じなら重複
+    ],
+)
+def test_timetable_proposal_conflict_when_terms_overlap(first, second):
+    with pytest.raises(ValidationError, match="コマが重複"):
+        TimetableProposal(**make_proposal(
+            make_course(day="月", period=1, term=first),
+            make_course(title="別の科目", day="月", period=1, term=second, reason="理由。"),
+        ))
+
+
+@pytest.mark.parametrize(
+    ("first", "second"),
+    [("1Q", "2Q"), ("前期", "3Q"), ("前期", "後期"), ("サ集", "前期")],
+)
+def test_timetable_proposal_no_conflict_when_terms_do_not_overlap(first, second):
+    p = TimetableProposal(**make_proposal(
+        make_course(day="月", period=1, term=first),
+        make_course(title="別の科目", day="月", period=1, term=second, reason="理由。"),
+    ))
+    assert len(p.courses) == 2
+
+
+# --- TargetTerm ---
+
+
+@pytest.mark.parametrize(
+    ("grade", "term", "semester"),
+    [(1, "前期", 1), (1, "後期", 2), (3, "後期", 6), (4, "前期", 7)],
+)
+def test_target_term_semester(grade, term, semester):
+    """1年前期を1とするセメスター番号(§5.1.2)。"""
+    assert TargetTerm(year=2026, term=term, grade=grade).semester == semester
+
+
+def test_target_term_camel_alias():
+    t = TargetTerm.model_validate({"year": 2026, "term": "後期", "grade": 3})
+    assert t.term == "後期"
+    with pytest.raises(ValidationError):
+        TargetTerm.model_validate({"year": 2026, "term": "通年", "grade": 3})
+
+
+def test_proposed_course_accepts_saturday():
+    """土曜のクラス(教職・学芸員課程や教養の特別講義)も曜日を持てる。"""
+    assert ProposedCourse(title="職業指導", day="土", period=2, reason="理由。").day == "土"

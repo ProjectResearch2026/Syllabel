@@ -49,7 +49,7 @@ from app.agents.proposal_agent import (
 )
 from app.api.sse import format_sse, sse_response
 from app.curricula.loader import get_curricula
-from app.schemas.proposal import ProposedCourse, TimetableProposal
+from app.schemas.proposal import ProposedCourse, TargetTerm, TimetableProposal
 from app.schemas.student import StudentProfile
 
 
@@ -73,6 +73,9 @@ class ProposalRequest(_CamelModel):
     program_code: str
     admission_year: int
     preferences: str | None = None
+    # 提案する学期(次に登録する学期。§7.2)。frontend は常に送る。省略すると候補に
+    # 前期・後期のクラスが混ざり、学期の混ざった提案になり得る(旧い呼び出しの互換)
+    target_term: TargetTerm | None = None
 
 
 # --- 組み立て途中の提案(snapshot)---
@@ -231,7 +234,10 @@ async def post_proposal(req: ProposalRequest):
 
     try:
         prompt = await build_proposal_prompt(
-            profile, req.admission_year, wishes=req.preferences
+            profile,
+            req.admission_year,
+            wishes=req.preferences,
+            target=req.target_term,
         )
     except ProposalError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

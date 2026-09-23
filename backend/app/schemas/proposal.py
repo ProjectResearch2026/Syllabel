@@ -1,9 +1,62 @@
 """履修提案の構造化出力スキーマ。design.md §7.2。"""
 
+import unicodedata
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
+
+
+HalfTerm = Literal["前期", "後期"]
+
+
+class TargetTerm(BaseModel):
+    """提案する学期(次に履修登録する学期)。design.md §6.1 / §7.2。
+
+    frontend が成績表の作成日と在籍年数から推定し、学生が画面で確認・変更した値
+    (`frontend/lib/targetTerm.ts`)。`grade` は**その学期の**学年であり、成績表の
+    作成時点の学年(`StudentProfile.grade`)とは年度をまたぐと1つずれる。
+    """
+
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    year: int = Field(description="年度(4月始まり)")
+    term: HalfTerm
+    grade: Literal[1, 2, 3, 4]
+
+    @property
+    def semester(self) -> int:
+        """1年前期を1とするセメスター番号(§5.1.2 `registration_limits`)。"""
+        return (self.grade - 1) * 2 + (1 if self.term == "前期" else 2)
+
+
+# 開講学期 → その学期が占めるクォーター。コマ重複は「同じ曜日・時限で、占める
+# クォーターが重なる」ときに起きる。前期と 1Q、通年と後期は文字列が違っても重なる。
+#
+# 開講学期の表記は api-clean の `term` マスタの8種(前期 / 後期 / 通年 / 1Q〜4Q /
+# サ集)である(2025・2026年度のデータを投入した api-clean で確認)。**サ集(夏期集中)は
+# クォーターに属さない**ため載せない。集中講義は曜日・時限が null で、重複の検査対象外。
+#
+# なお api-clean の `term` は1つしか持たず、「3Q　金2、4Q　金2」のように2つの
+# クォーターにまたがる科目も `3Q` になる(2026年度で約40件)。一覧 API は開講の生値
+# (`term_schedule_raw`)を返さないため、ここでは見分けられない
+_QUARTERS: dict[str, frozenset[int]] = {
+    "前期": frozenset({1, 2}),
+    "後期": frozenset({3, 4}),
+    "通年": frozenset({1, 2, 3, 4}),
+    "1Q": frozenset({1}),
+    "2Q": frozenset({2}),
+    "3Q": frozenset({3}),
+    "4Q": frozenset({4}),
+}
+
+
+def quarters_of(term: str | None) -> frozenset[int] | None:
+    """開講学期が占めるクォーター。表記を NFKC で寄せて引き、分からなければ None。"""
+    if term is None:
+        return None
+    key = unicodedata.normalize("NFKC", term).replace(" ", "")
+    return _QUARTERS.get(key)
 
 
 class ProposedCourse(BaseModel):
@@ -18,7 +71,9 @@ class ProposedCourse(BaseModel):
     title: str = Field(
         description="科目名。シラバスに記載された正式名称を使うこと。",
     )
-    day: Literal["月", "火", "水", "木", "金"] | None = Field(
+    # 土曜は教職・学芸員課程や教養の特別講義で開講される(2026年度で16クラス)。
+    # 月〜金に限ると、土曜のクラスを選んだときに曜日を null にするしかなくなる
+    day: Literal["月", "火", "水", "木", "金", "土"] | None = Field(
         default=None,
         description="開講曜日。集中講義・曜日未定の場合はnullにすること。",
     )
@@ -61,15 +116,30 @@ class TimetableProposal(BaseModel):
 
     @model_validator(mode="after")
     def check_no_time_conflict(self) -> "TimetableProposal":
-        seen: set[tuple] = set()
+        """同じ曜日・時限で、開講期間が重なる科目が無いか。
+
+        学期の文字列の一致ではなく**占めるクォーターの重なり**で判定する。前期と
+        1Q、通年と後期は文字列が違っても同じコマを取り合う。クォーターが分からない
+        学期どうしは、従来どおり文字列が同じときだけ重複とみなす。
+        """
+        seen: list[tuple[str, int, str | None, frozenset[int] | None]] = []
         for course in self.courses:
             if course.day is None or course.period is None:
                 continue
-            key = (course.day, course.period, course.term)
-            if key in seen:
-                raise ValueError(
-                    f"コマが重複しています: {course.day}{course.period}限 ({course.term}) — "
-                    f"同じ曜日・時限・学期に複数の科目を割り当てないこと。"
+            quarters = quarters_of(course.term)
+            for day, period, term, other in seen:
+                if (day, period) != (course.day, course.period):
+                    continue
+                overlaps = (
+                    bool(quarters & other)
+                    if quarters is not None and other is not None
+                    else term == course.term
                 )
-            seen.add(key)
+                if overlaps:
+                    raise ValueError(
+                        f"コマが重複しています: {course.day}{course.period}限 "
+                        f"({term} と {course.term}) — 同じ曜日・時限で開講期間が重なる"
+                        f"科目を複数割り当てないこと。"
+                    )
+            seen.append((course.day, course.period, course.term, quarters))
         return self

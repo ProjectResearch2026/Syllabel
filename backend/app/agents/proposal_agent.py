@@ -15,11 +15,12 @@
 2. `judge_requirements()` — 要件充足判定(§4.4.5)を **HTTP を経由せず直接呼び**、
    要件枠ごとの不足単位を得る。要件§4.3.2 の「単位数の最適化」はこの値を要する
 3. `select_candidates()` — 履修可能な候補科目を絞る(`type != "随意"` / 配当年次 /
-   未修得)
+   未修得 / 登録済みでない)
 4. `fetch_offering_index()` + `fetch_eligibility()` + `attach_offerings()` — 候補の
    シラバスコードを開講年度ファイルの `resolved` から採り(§4.4.2)、曜日・時限・教室は
    api-clean から**一括取得**してコードで突合する(§7.2)。あわせて**その学生が
-   履修登録できるクラスだけを残す**(§6.1。下記)
+   履修登録できるクラスだけを残し**(§6.1。下記)、**対象学期に登録するクラスだけを
+   残す**(下記「対象学期」)
 5. `render_prompt()` — 上記に CAP(`registration_limits`)・修得済み一覧・希望条件を
    加えて1つの文字列にする
 
@@ -57,10 +58,24 @@ api-clean の `program` は `cp.name = %s` の完全一致であり、対象課�
 シラバスは絞り込みから落ちる。したがって「どの課程の結果にも現れないコード」が
 課程指定なしのコードである。
 
+## 対象学期(§7.2)
+
+**提案は1つの学期(次に履修登録する学期)に対して作る。** 対象学期を与えないと
+【候補科目】に前期・後期・通年のクラスが混ざり、CAP も2学期ぶんに印が付くため、
+モデルは学期を混ぜて提案する(時間割表では同じコマの前期・後期の科目が上書き
+し合い、合計単位も2学期ぶんになる)。対象学期は frontend が成績表の作成日と在籍
+年数から推定し、学生が画面で確認した値(`TargetTerm`)である。
+
+- クラスは**その学期の履修登録で登録するもの**だけを残す。前期の登録では前期・
+  1Q・2Q・通年・サ集(夏期集中)、後期の登録では後期・3Q・4Q(通年科目は前期に
+  登録する)。学期が判定できないクラスは落とさずに残す
+- 配当年次の絞り込みと CAP の該当セメスターには**対象学期の学年**を使う
+
 **学生データはログに出さない(§4.2.3)。** 本モジュールのログは件数だけを扱う。
 """
 
 import logging
+import unicodedata
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
@@ -77,7 +92,7 @@ from app.curricula.requirements import (
     judge,
     normalize_title,
 )
-from app.schemas.proposal import TimetableProposal
+from app.schemas.proposal import HalfTerm, TargetTerm, TimetableProposal
 from app.schemas.student import Course as StudentCourse
 from app.schemas.student import StudentProfile
 from app.settings import get_settings
@@ -125,20 +140,22 @@ MAX_CLASSES_PER_COURSE = 6
 
 _INSTRUCTIONS = (
     "あなたは龍谷大学先端理工学部の履修登録を支援するAIアシスタントです。\n"
-    "与えられた学生の状況から、**次の学期に履修する時間割**を提案してください。\n"
+    "与えられた学生の状況から、**【対象学期】に履修する時間割**を提案してください。\n"
     "\n"
     "提案は次の規則に従ってください。\n"
     "1. 提案してよいのは【候補科目】に挙がっている科目だけである。"
     "一覧に無い科目名やシラバスコードを作り出してはならない。\n"
     "2. 各科目の syllabusCode・title・credits・term・day・period は、"
     "【候補科目】の行に書かれている値をそのまま転記する。推測して補わない。\n"
-    "3. 同じ曜日・時限・学期に2科目以上を割り当ててはならない。"
+    "3. 同じ曜日・時限で開講期間が重なる2科目を割り当ててはならない"
+    "(前期と1Q・2Q、通年と前期・後期は重なる)。"
     "曜日・時限が「未定」の科目(集中講義など)はこの制約の対象外とする。\n"
-    "4. 合計単位数は【履修登録単位数の上限】を超えてはならない。\n"
+    "4. 合計単位数は【履修登録単位数の上限】の該当セメスターの上限を超えてはならない。"
+    "【登録済み科目】のうち対象学期のものは、すでに登録済みの単位としてこれに含める。\n"
     "5. 【卒業要件の充足状況】で不足している要件枠を優先して埋める。"
     "不足単位を大きく超える科目数を詰め込まない一方、"
     "卒業に必要な単位を取り残さない。過不足のない分量にすること。\n"
-    "6. 【修得済み科目】に挙がっている科目は再度提案しない。"
+    "6. 【修得済み科目】に挙がっている科目と【登録済み科目】は提案しない。"
     "ただし不合格・履修辞退の科目は未修得であり、提案してよい。\n"
     "7. 【希望条件】がある場合はそれを尊重する。"
     "卒業要件と両立しない希望は、summary でその旨を説明する。\n"
@@ -229,17 +246,22 @@ class Candidate:
     matched: int = 0
 
 
-def _passed_titles(completed: Sequence[StudentCourse]) -> set[str]:
-    """修得済み(合格)の科目名を正規化して集める。
+def _taken_titles(completed: Sequence[StudentCourse]) -> set[str]:
+    """提案しない科目名を正規化して集める。修得済み(合格)と登録済みである。
 
     不合格・履修辞退は**修得していない**ため除く。再履修は提案の対象になる
-    (要件§4.2 の単位計算と同じく `passed` だけを修得とみなす)。
+    (要件§4.2 の単位計算と同じく `passed` だけを修得とみなす)。登録済み
+    (`registered`。成績未確定)は修得ではないが、すでに登録しているので提案しない。
     """
-    return {normalize_title(c.title) for c in completed if c.status == "passed"}
+    return {
+        normalize_title(c.title)
+        for c in completed
+        if c.status in ("passed", "registered")
+    }
 
 
 def select_candidates(
-    loaded: LoadedCurriculum, profile: StudentProfile
+    loaded: LoadedCurriculum, profile: StudentProfile, *, grade: int | None = None
 ) -> list[Candidate]:
     """履修可能な候補科目を絞る(§7.2)。
 
@@ -247,7 +269,8 @@ def select_candidates(
 
     - `type != "随意"` — 随意科目は卒業要件単位に算入しない(§5.1.5 `excluded_types`)
     - `course.grade <= 学生の学年` — 配当年次は「この年次**から**履修可能」(§5.1.5)
-    - 未修得 — 既修得科目と科目名で突合する(表記ゆれは `normalize_title()` が吸収)
+    - 未修得かつ未登録 — 既修得・登録済みの科目と科目名で突合する(表記ゆれは
+      `normalize_title()` が吸収)
     - シラバスコードを持つ — `not_offered`(当年度不開講)/ `unresolved`(名寄せ未解決)
       の科目は時間割に置けないため候補から外す(§5.1.4)
 
@@ -255,23 +278,27 @@ def select_candidates(
     (§4.4.3)。ここでは科目名で1件に寄せ、当該課程の設置科目(`own`)を優先し、
     次いで課程コードの小さい出典を採る(`requirements.py` の科目索引と同じ順序)。
 
+    Args:
+        grade: 対象学期の学年(`TargetTerm.grade`)。省略時は `profile.grade`。
+
     Raises:
-        ProposalError: `profile.grade` が無い場合。配当年次で絞れない。
+        ProposalError: 学年が無い場合。配当年次で絞れない。
     """
-    if profile.grade is None:
+    grade = grade if grade is not None else profile.grade
+    if grade is None:
         raise ProposalError("学年(profile.grade)が必要です")
 
-    passed = _passed_titles(profile.completed_courses)
+    taken = _taken_titles(profile.completed_courses)
     candidates: dict[str, Candidate] = {}
     for course in sorted(
         loaded.curriculum.courses, key=lambda c: (not c.own, c.source_program_code)
     ):
         if course.type == "随意":
             continue
-        if course.grade > profile.grade:
+        if course.grade > grade:
             continue
         title = normalize_title(course.title)
-        if title in passed or title in candidates:
+        if title in taken or title in candidates:
             continue
         codes = loaded.syllabus_codes(course)
         if not codes:
@@ -465,11 +492,42 @@ async def fetch_eligibility(
     return Eligibility(mine=frozenset(mine), any_program=frozenset(any_program))
 
 
+# 開講学期 → そのクラスを登録する履修登録の学期。表記は api-clean の `term` マスタの
+# 8種である(2025・2026年度のデータを投入した api-clean で確認)。
+#
+# - **通年は前期**に登録する(2026年度の通年 118件のうち 110件は「通年　集中」)
+# - **サ集(夏期集中。「サ集　集中」)も前期**とする。夏休みに開かれ後期より前に終わる
+#   ため、後期の登録で選ぶ余地が無い
+_REGISTRATION_HALF: dict[str, HalfTerm] = {
+    "前期": "前期",
+    "1Q": "前期",
+    "2Q": "前期",
+    "通年": "前期",
+    "サ集": "前期",
+    "後期": "後期",
+    "3Q": "後期",
+    "4Q": "後期",
+}
+
+
+def registration_half(term: str | None) -> HalfTerm | None:
+    """開講学期のクラスを、前期・後期のどちらの履修登録で登録するか。
+
+    表記ゆれ(全角の `１Ｑ` など)は NFKC で寄せる。マスタに無い表記や `None` は
+    None を返し、呼び出し側は落とさない(判定できないものを捨てない)。
+    """
+    if term is None:
+        return None
+    key = unicodedata.normalize("NFKC", term).replace(" ", "")
+    return _REGISTRATION_HALF.get(key)
+
+
 def attach_offerings(
     candidates: Sequence[Candidate],
     index: dict[str, OfferedClass],
     *,
     eligibility: Eligibility | None = None,
+    term: HalfTerm | None = None,
     max_classes_per_course: int = MAX_CLASSES_PER_COURSE,
 ) -> list[Candidate]:
     """候補にシラバスコードで開講情報を結び付ける(§7.2)。
@@ -483,6 +541,10 @@ def attach_offerings(
     並ぶ科目(「英語総合1(A)」は火2が他課程・火3が知能情報メディア課程)では
     **履修できるクラスが1つも残らない**。落としてから切れば、上限の枠を履修
     できるクラスに使える。1クラスも残らない科目は候補から外す。
+
+    **`term` を与えたときは、その学期の履修登録で登録するクラスだけを残す**
+    (`registration_half()`)。これも上限で切る前に掛ける。学期が判定できない
+    クラスは残す。
     """
     attached: list[Candidate] = []
     for candidate in candidates:
@@ -491,7 +553,9 @@ def attach_offerings(
             (
                 index[code]
                 for code in candidate.codes
-                if code in index and (eligibility is None or eligibility.allows(code))
+                if code in index
+                and (eligibility is None or eligibility.allows(code))
+                and (term is None or registration_half(index[code].term) in (term, None))
             ),
             key=lambda c: (c.day_of_week or "\uffff", c.period or 99, c.syllabus_code),
         )
@@ -540,15 +604,15 @@ def _format_slots(result: RequirementsResult) -> list[str]:
 
 
 def _format_registration_limits(
-    curriculum: MergedCurriculum, grade: int
+    curriculum: MergedCurriculum, grade: int, target: TargetTerm | None = None
 ) -> list[str]:
-    """CAP制(`registration_limits`)。学年に対応するセメスターに印を付ける(§5.1.2)。
+    """CAP制(`registration_limits`)。対象学期のセメスターに印を付ける(§5.1.2)。
 
-    セメスターは1年前期を1として数えるため、`grade` 年次は `2*grade-1` と `2*grade`
-    に当たる。次学期が前期・後期のどちらかはプロファイルから決まらないため、
-    両方を該当として示し、判断はモデルに委ねる。
+    セメスターは1年前期を1として数える。対象学期(`target`)があればそのセメスター
+    だけに印を付ける。無いとき(対象学期を送らない旧い呼び出し)は `grade` 年次の
+    `2*grade-1` と `2*grade` の両方に付ける。
     """
-    current = {grade * 2 - 1, grade * 2}
+    current = {target.semester} if target else {grade * 2 - 1, grade * 2}
     lines: list[str] = []
     for limit in curriculum.registration_limits.by_semester:
         semesters = "・".join(str(s) for s in limit.semesters)
@@ -613,7 +677,7 @@ def _format_completed(completed: Sequence[StudentCourse]) -> list[str]:
             "修得済み: "
             + "、".join(f"{c.title}({_credits(c.credits)}単位)" for c in passed)
         )
-    retake = [c for c in completed if c.status != "passed"]
+    retake = [c for c in completed if c.status in ("failed", "withdrawn")]
     if retake:
         lines.append(
             "未修得(不合格・履修辞退。再履修の対象): "
@@ -622,6 +686,17 @@ def _format_completed(completed: Sequence[StudentCourse]) -> list[str]:
     if not lines:
         lines.append("修得済みの科目はない。")
     return lines
+
+
+def _format_registered(completed: Sequence[StudentCourse]) -> list[str]:
+    """登録済みで成績が未確定の科目(成績表の `***` / `*`)。提案しない(規則6)。"""
+    registered = [c for c in completed if c.status == "registered"]
+    if not registered:
+        return ["なし"]
+    return [
+        f"- {c.title}({_credits(c.credits)}単位 / {c.year}年度 {c.term})"
+        for c in registered
+    ]
 
 
 def _section(title: str, lines: Sequence[str]) -> str:
@@ -635,6 +710,7 @@ def render_prompt(
     candidates: Sequence[Candidate],
     *,
     wishes: str | None = None,
+    target: TargetTerm | None = None,
 ) -> str:
     """組み立て済みの材料を1つのプロンプトにする(§7.2)。
 
@@ -643,10 +719,10 @@ def render_prompt(
     書いた値をそのまま転記させる(`_INSTRUCTIONS` 規則2)。
     """
     curriculum = loaded.curriculum
-    grade = profile.grade or 1
+    grade = target.grade if target else (profile.grade or 1)
 
     student = [
-        f"学年: {grade}回生",
+        f"学年: {grade}回生(対象学期の時点)" if target else f"学年: {grade}回生",
         f"課程: {curriculum.program.code} {curriculum.program.name}",
         f"入学年度: {curriculum.admission_year}年度",
     ]
@@ -671,10 +747,22 @@ def render_prompt(
         )
 
     sections = [
+        _section(
+            "対象学期",
+            [
+                f"{target.year}年度 {target.term}(第{target.semester}セメスター)。"
+                "【候補科目】はこの学期の履修登録で登録するクラスに絞ってある。"
+                if target
+                else "指定なし(前期・後期のクラスが混在している。どちらか一方の学期に絞ること)"
+            ],
+        ),
         _section("学生情報", student),
         _section("卒業要件の充足状況", status),
-        _section("履修登録単位数の上限", _format_registration_limits(curriculum, grade)),
+        _section(
+            "履修登録単位数の上限", _format_registration_limits(curriculum, grade, target)
+        ),
         _section("修得済み科目", _format_completed(profile.completed_courses)),
+        _section("登録済み科目", _format_registered(profile.completed_courses)),
         _section(
             "候補科目",
             [
@@ -694,6 +782,7 @@ async def build_proposal_prompt(
     track: str | None = None,
     wishes: str | None = None,
     offering_year: int | None = None,
+    target: TargetTerm | None = None,
 ) -> str:
     """履修提案のプロンプトを組み立てる(§7.2 の 1〜5)。
 
@@ -703,6 +792,8 @@ async def build_proposal_prompt(
         track: 選択したコースの `tracks[].key`。コース別下限の判定に使う。
         wishes: 希望条件(自由文)。
         offering_year: 参照する開講年度。既定は `settings.offering_year`(§4.4.3)。
+        target: 提案する学期(§7.2)。与えると候補のクラスをその学期に絞り、配当年次と
+            CAP の該当セメスターにその学期の学年を使う。
 
     Raises:
         ProposalError: 課程コードが無い、履修要項が無い、学年が無い場合。
@@ -713,7 +804,9 @@ async def build_proposal_prompt(
 
     loaded = resolve_curriculum(program_code, admission_year)
     requirements = judge_requirements(loaded, profile, track=track)
-    candidates = select_candidates(loaded, profile)
+    candidates = select_candidates(
+        loaded, profile, grade=target.grade if target else None
+    )
     year = offering_year if offering_year is not None else get_settings().offering_year
     index = await fetch_offering_index(
         (code for candidate in candidates for code in candidate.codes), year=year
@@ -725,6 +818,12 @@ async def build_proposal_prompt(
         loaded,
         profile,
         requirements,
-        attach_offerings(candidates, index, eligibility=eligibility),
+        attach_offerings(
+            candidates,
+            index,
+            eligibility=eligibility,
+            term=target.term if target else None,
+        ),
         wishes=wishes,
+        target=target,
     )

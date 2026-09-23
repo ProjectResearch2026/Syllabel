@@ -1,17 +1,9 @@
 "use client";
 
-import { Calendar } from "lucide-react";
 import { useStudentStore } from "@/lib/student";
 import { useProposalStore } from "@/lib/proposal";
 import { useGraduationCredits } from "@/lib/curricula";
-
-function currentSemesterLabel(): string {
-  const now = new Date();
-  const month = now.getMonth() + 1;
-  const academicYear = month >= 4 ? now.getFullYear() : now.getFullYear() - 1;
-  const term = month >= 4 && month <= 8 ? "前期" : "後期";
-  return `${academicYear}年度 ${term}`;
-}
+import TargetTermSelect from "./TargetTermSelect";
 
 export default function CreditBar() {
   const profile = useStudentStore((s) => s.profile);
@@ -51,7 +43,7 @@ export default function CreditBar() {
 
   return (
     /* ヘッダーカードの直下に貼り付き、下だけ角を丸めて1枚のカードに見せる */
-    <div className="flex h-12 shrink-0 items-center justify-between rounded-b-lg bg-surface-primary px-8">
+    <div className="flex min-h-12 shrink-0 items-center justify-between rounded-b-lg bg-surface-primary px-8 py-1">
       <div className="flex items-center gap-8">
         {items.map(({ val, label, color }) => (
           <div key={label} className="flex items-center gap-1.5">
@@ -60,10 +52,8 @@ export default function CreditBar() {
           </div>
         ))}
       </div>
-      <div className="flex items-center gap-2">
-        <Calendar size={16} className="text-accent" />
-        <span className="text-[13px] font-semibold text-fg-primary">{currentSemesterLabel()}</span>
-      </div>
+      {/* 提案する学期。ブラウザの今日の日付ではなく成績表から推定する(lib/targetTerm.ts) */}
+      <TargetTermSelect disabled={status === "loading"} />
     </div>
   );
 }
