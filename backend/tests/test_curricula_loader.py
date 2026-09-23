@@ -430,3 +430,29 @@ def test_slot_without_name_fails(tmp_path):
         RequirementSlot.model_validate(
             {"key": "basic.required", "credits": 2, "accepts": {"category": "専門基礎科目"}}
         )
+
+
+@pytest.mark.parametrize(
+    "rule",
+    [
+        {"title": "教養科目X", "all_of": ["教養科目A"]},
+        {"title": "教養科目B", "min_credits": [{"credits": 2, "from": ["教養科目Z"]}]},
+        {
+            "title": "教養科目B",
+            "one_of": [{"all_of": ["教養科目A"]}, {"any_of": ["教養科目Z"]}],
+        },
+    ],
+)
+def test_unresolved_prerequisite_title_fails(tmp_path, rule):
+    """先修要件の科目名が科目一覧に無ければ起動失敗にすること(§4.4.3)。
+
+    判定は科目名で修得科目と突き合わせるため、転記ミスは黙って「未修得」になる。
+    """
+    from app.curricula.merge import CurriculumMergeError
+
+    settings = _build(tmp_path)
+    liberal = _liberal_arts()
+    liberal["prerequisites"] = [{**rule, "notes": "原文。"}]
+    _write(tmp_path / "curricula" / "admission-2024" / "00-liberal-arts.yaml", liberal)
+    with pytest.raises(CurriculumMergeError, match="prerequisites の科目名"):
+        load_curricula(settings)

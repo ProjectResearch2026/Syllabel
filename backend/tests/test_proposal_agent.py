@@ -1552,6 +1552,91 @@ def test_prerequisite_is_unknown_when_not_decidable():
     assert pa.check_prerequisite(rule, curriculum, [], target=target) == "unknown"
 
 
+def test_prerequisite_min_credits_from_listed_courses():
+    """`from` は列挙した科目の単位だけを数える(英語総合のうち4単位以上など)。"""
+    curriculum = _loaded().curriculum
+    done = [_taken("微分積分"), _taken("線形代数"), _taken("プログラミング演習")]
+    listed = {"credits": 4, "from": ["微分積分", "線形代数"]}
+
+    assert pa.check_prerequisite(_rule(min_credits=[listed]), curriculum, done) == "met"
+    # 列挙していない科目の単位は数えない(総単位は6あっても、列挙分は2)
+    narrow = {"credits": 4, "from": ["微分積分", "確率統計"]}
+    assert pa.check_prerequisite(_rule(min_credits=[narrow]), curriculum, done) == "unmet"
+    # 表記の揺れは突合の規則(NFKC・空白除去)で吸収する
+    spaced = {"credits": 2, "from": ["微分 積分"]}
+    assert pa.check_prerequisite(_rule(min_credits=[spaced]), curriculum, done) == "met"
+
+
+def test_prerequisite_one_of_is_or_and_combines_with_and():
+    """`one_of` はどれか1つを満たせばよく、行に直接書いた条件とは AND で結ぶ。"""
+    curriculum = _loaded().curriculum
+    one_of = [
+        {"min_credits": [{"credits": 4, "from": ["微分積分", "線形代数"]}]},
+        {"all_of": ["確率統計"]},
+    ]
+
+    assert pa.check_prerequisite(_rule(one_of=one_of), curriculum, [_taken("確率統計")]) == "met"
+    both = [_taken("微分積分"), _taken("線形代数")]
+    assert pa.check_prerequisite(_rule(one_of=one_of), curriculum, both) == "met"
+    assert pa.check_prerequisite(_rule(one_of=one_of), curriculum, [_taken("微分積分")]) == "unmet"
+
+    # 行の条件(any_of)と AND: one_of を満たしても行の条件が欠ければ満たさない
+    rule = _rule(any_of=["プログラミング演習"], one_of=one_of)
+    assert pa.check_prerequisite(rule, curriculum, [_taken("確率統計")]) == "unmet"
+    done = [_taken("確率統計"), _taken("プログラミング演習")]
+    assert pa.check_prerequisite(rule, curriculum, done) == "met"
+
+
+def test_prerequisite_one_of_unknown_and_as_of_inheritance():
+    """選択肢の判定時点が未到来なら、他が満たさない限り unknown。as_of は行から継ぐ。"""
+    curriculum = _loaded().curriculum  # 2024年度入学
+    target = TargetTerm(year=2025, term="前期", grade=2)
+    one_of = [
+        {"as_of": {"grade": 2, "term": "前期"}, "min_credits": [{"credits": 2}]},
+        {"all_of": ["確率統計"]},
+    ]
+    rule = _rule(one_of=one_of)
+    assert pa.check_prerequisite(rule, curriculum, [], target=target) == "unknown"
+    assert pa.check_prerequisite(rule, curriculum, [_taken("確率統計")], target=target) == "met"
+
+    # 行の as_of(1年前期末)を選択肢が継ぐ: 2024年度後期の修得は数えない
+    inherited = _rule(
+        as_of={"grade": 1, "term": "前期"},
+        one_of=[{"all_of": ["確率統計"]}, {"all_of": ["線形代数"]}],
+    )
+    late = [_taken("確率統計", 2024, "後期")]
+    assert pa.check_prerequisite(inherited, curriculum, late) == "unmet"
+
+
+def test_english_prerequisites_on_2026_data():
+    """2026年度入学の英語3科目は原文だけでなく判定できる(英語総合は各1単位)。"""
+    from pathlib import Path
+
+    from app.curricula.loader import load_curricula
+    from app.settings import Settings
+
+    root = Path(__file__).resolve().parents[2]
+    loaded = load_curricula(
+        Settings(curricula_dir=root / "curricula", offerings_dir=root / "offerings")
+    )[("02", 2026)]
+    rules = {p.title: p for p in loaded.curriculum.prerequisites}
+
+    def english(*titles):
+        return [_taken(t, 2026, "前期", credits=1) for t in titles]
+
+    comm2 = rules["英語コミュニケーションⅡ"]
+    check = lambda rule, done: pa.check_prerequisite(rule, loaded.curriculum, done)  # noqa: E731
+    assert check(comm2, english("英語総合1（Ａ）", "英語総合1（Ｂ）")) == "met"
+    assert check(comm2, english("英語総合1（Ａ）")) == "unmet"
+    assert check(comm2, [_taken("英語コミュニケーションⅠ", 2026, "前期")]) == "met"
+
+    gue = rules["Global Understanding in English"]
+    assert check(gue, english("英語総合1（Ａ）", "英語総合1（Ｂ）", "英語総合2（Ａ）")) == "unmet"
+    four = english("英語総合1（Ａ）", "英語総合1（Ｂ）", "英語総合2（Ａ）", "英語総合3")
+    assert check(gue, four) == "met"
+    assert check(rules["Forum"], four) == "met"
+
+
 def test_check_prerequisites_drops_unmet_and_reports_all():
     loaded = _loaded()
     rules = [

@@ -89,7 +89,7 @@ from app.agents import build_model
 from app.agents.tools import get_masters, search_syllabi
 from app.curricula.loader import LoadedCurriculum, get_curricula
 from app.curricula.merge import MergedCourse, MergedCurriculum
-from app.schemas.curriculum import Prerequisite
+from app.schemas.curriculum import Prerequisite, PrerequisiteAsOf, PrerequisiteConditions
 from app.curricula.requirements import (
     RequirementsResult,
     _course_index,
@@ -115,7 +115,7 @@ logger = logging.getLogger(__name__)
 # pydantic-ai 2 系では `Agent(output_retries=...)` が `retries={"output": ...}` に
 # 統合されている。
 #
-# **0 とする(作り直させない)。** 作り直しは1回4〜5分かかる。提案の下書きは vLLM の
+# **0 とする(作り直させない)。** 作り直すと提案1回ぶんがもう一度かかる。提案の下書きは vLLM の
 # 構造化出力が形式を縛るため、検証に落ちるのは実質的に**出力の上限で途中で切れた
 # とき**だけである。pydantic-ai は切れた下書きも「JSON が不正」として作り直しを頼み、
 # 上限に達したと分かるのは作り直しを使い切った後になる(2回なら所要時間が3倍)。
@@ -231,7 +231,7 @@ def build_proposal_agent() -> Agent[None, TimetableProposal]:
 # 見て書かれる。2026-09-23 の実機では、外された科目(「アルゴリズム及び演習Ⅰ・Ⅱで
 # 4単位確保」)に触れた説明文が画面の時間割と食い違った。科目を外したときだけ、
 # 確定した時間割を渡して説明文だけを書き直させる。出力は数文なので、提案本体
-# (4〜5分)に比べて短い。
+# に比べて短い。
 
 # 書き直しの推論設定。思考を切る理由は `MODEL_SETTINGS` と同じ。出力は2〜4文
 SUMMARY_SETTINGS = OpenAIChatModelSettings(
@@ -454,6 +454,66 @@ def _half_index(term: str) -> int:
     return 0 if term in ("前期", "1Q", "2Q", "サ集") else 1
 
 
+def _all(statuses: Sequence[PrerequisiteStatus]) -> PrerequisiteStatus:
+    """AND: 1つでも unmet なら unmet、そうでなく1つでも unknown なら unknown。"""
+    return "unmet" if "unmet" in statuses else "unknown" if "unknown" in statuses else "met"
+
+
+def _any(statuses: Sequence[PrerequisiteStatus]) -> PrerequisiteStatus:
+    """OR: 1つでも met なら met、すべて unmet なら unmet、それ以外は unknown。"""
+    return "met" if "met" in statuses else "unmet" if all(s == "unmet" for s in statuses) else "unknown"
+
+
+def _check_conditions(
+    conditions: PrerequisiteConditions,
+    as_of: PrerequisiteAsOf | None,
+    curriculum: MergedCurriculum,
+    completed: Sequence[StudentCourse],
+    target: TargetTerm | None,
+) -> PrerequisiteStatus:
+    """条件の組1つ(`min_credits` / `all_of` / `any_of` の AND)を判定する。
+
+    `as_of`(判定時点)があれば、その学期末までに修得した科目だけで数える。判定時点が
+    提案する学期(`target`)以降なら、まだ成績が出ていないので unknown とする。
+    """
+    passed = [c for c in completed if c.status == "passed"]
+    if as_of is not None:
+        cutoff = (
+            curriculum.admission_year + as_of.grade - 1,
+            0 if as_of.term == "前期" else 1,
+        )
+        if target is not None and cutoff >= (target.year, 0 if target.term == "前期" else 1):
+            return "unknown"
+        passed = [c for c in passed if (c.year, _half_index(c.term)) <= cutoff]
+
+    titles = {normalize_title(c.title) for c in passed}
+    if conditions.all_of and not all(normalize_title(t) in titles for t in conditions.all_of):
+        return "unmet"
+    if conditions.any_of and not any(normalize_title(t) in titles for t in conditions.any_of):
+        return "unmet"
+    if conditions.min_credits:
+        index = _course_index(curriculum)
+        total = None
+        for threshold in conditions.min_credits:
+            if threshold.from_ is not None:
+                listed = {normalize_title(t) for t in threshold.from_}
+                earned = sum(c.credits for c in passed if normalize_title(c.title) in listed)
+            elif threshold.accepts is not None:
+                earned = sum(
+                    c.credits
+                    for c in passed
+                    if (course := index.get(normalize_title(c.title))) is not None
+                    and accepts_course(threshold.accepts, course)
+                )
+            else:
+                if total is None:
+                    total = judge(curriculum, passed).earned_credits
+                earned = total
+            if earned < threshold.credits:
+                return "unmet"
+    return "met"
+
+
 def check_prerequisite(
     prerequisite: Prerequisite,
     curriculum: MergedCurriculum,
@@ -461,49 +521,39 @@ def check_prerequisite(
     *,
     target: TargetTerm | None = None,
 ) -> PrerequisiteStatus:
-    """先修条件1件を判定する。`min_credits` / `all_of` / `any_of` は AND で結ぶ。
+    """先修条件1件を判定する。
 
-    `as_of`(判定時点)があれば、その学期末までに修得した科目だけで数える。判定時点が
-    提案する学期(`target`)以降なら、まだ成績が出ていないので unknown とする。
-    `min_credits` の `accepts` 省略は卒業要件総修得単位数(要件充足判定の
-    `earned_credits`)、`accepts` ありは当該区分に当たる修得科目の単位の合計で比べる。
+    行に直接書いた条件(`min_credits` / `all_of` / `any_of`)と `one_of` は AND で結ぶ。
+    `one_of` は選択肢のどれか1つを満たせば満たす(OR)。選択肢に `as_of` が無ければ
+    行の `as_of` を使う。`min_credits` は `from` があれば列挙した科目の単位の合計、
+    `accepts` があれば当該区分に当たる修得科目の単位の合計、どちらも無ければ
+    卒業要件総修得単位数(要件充足判定の `earned_credits`)で比べる。
+    判定できる条件を持たない(原文 `notes` だけの)行は unknown とする。
     """
-    if not (prerequisite.min_credits or prerequisite.all_of or prerequisite.any_of):
+    if not prerequisite.has_conditions():
         return "unknown"
 
-    passed = [c for c in completed if c.status == "passed"]
-    if prerequisite.as_of is not None:
-        as_of = (
-            curriculum.admission_year + prerequisite.as_of.grade - 1,
-            0 if prerequisite.as_of.term == "前期" else 1,
+    statuses: list[PrerequisiteStatus] = []
+    if PrerequisiteConditions.has_conditions(prerequisite):
+        statuses.append(
+            _check_conditions(prerequisite, prerequisite.as_of, curriculum, completed, target)
         )
-        if target is not None and as_of >= (target.year, 0 if target.term == "前期" else 1):
-            return "unknown"
-        passed = [c for c in passed if (c.year, _half_index(c.term)) <= as_of]
-
-    titles = {normalize_title(c.title) for c in passed}
-    if prerequisite.all_of and not all(normalize_title(t) in titles for t in prerequisite.all_of):
-        return "unmet"
-    if prerequisite.any_of and not any(normalize_title(t) in titles for t in prerequisite.any_of):
-        return "unmet"
-    if prerequisite.min_credits:
-        index = _course_index(curriculum)
-        total = None
-        for threshold in prerequisite.min_credits:
-            if threshold.accepts is None:
-                if total is None:
-                    total = judge(curriculum, passed).earned_credits
-                earned = total
-            else:
-                earned = sum(
-                    c.credits
-                    for c in passed
-                    if (course := index.get(normalize_title(c.title))) is not None
-                    and accepts_course(threshold.accepts, course)
-                )
-            if earned < threshold.credits:
-                return "unmet"
-    return "met"
+    if prerequisite.one_of:
+        statuses.append(
+            _any(
+                [
+                    _check_conditions(
+                        alternative,
+                        alternative.as_of or prerequisite.as_of,
+                        curriculum,
+                        completed,
+                        target,
+                    )
+                    for alternative in prerequisite.one_of
+                ]
+            )
+        )
+    return _all(statuses)
 
 
 @dataclass(frozen=True)
@@ -541,9 +591,7 @@ def check_prerequisites(
         statuses = [
             check_prerequisite(rule, curriculum, completed, target=target) for rule in rules
         ]
-        status: PrerequisiteStatus = (
-            "unmet" if "unmet" in statuses else "unknown" if "unknown" in statuses else "met"
-        )
+        status = _all(statuses)
         results.append(
             PrerequisiteResult(
                 title=candidate.course.title,
@@ -1286,7 +1334,7 @@ def assemble_courses(
 ) -> tuple[list[ProposedCourse], list[str]]:
     """下書き(シラバスコード, 理由)の並びを提案の科目にし、外した理由を返す。
 
-    **作り直しをさせず、backend が確実な処理で整える**(作り直しは1回4〜5分かかる)。
+    **作り直しをさせず、backend が確実な処理で整える**(作り直すと提案1回ぶんがもう一度かかる)。
     モデルの書いた順に1件ずつ見て、次のものを外す:
 
     - 候補に無いコード(下書きの形式が列挙で縛るので通常は起きない)

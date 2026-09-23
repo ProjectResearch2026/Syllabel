@@ -20,7 +20,6 @@
 含めない。本モジュールは学生データをログに出さない(§4.2.3)。
 """
 
-import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Literal
@@ -28,6 +27,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from app.curricula.merge import MergedCourse, MergedCurriculum
+from app.curricula.titles import normalize_title  # noqa: F401 - 従来の import 先を保つ
 from app.schemas.curriculum import Accepts, CurriculumCourse, RequirementSlot
 from app.schemas.student import Course as StudentCourse
 
@@ -142,17 +142,6 @@ class RequirementsResult(BaseModel):
 
 
 # --- 科目名の突合(§5.1.5) ---
-
-
-def normalize_title(title: str) -> str:
-    """科目名を突合用に正規化する。
-
-    `curricula/` の科目名は履修要項の表記のまま転記する規約であり(§5.1.5)、
-    正規化は突合する側の責務とする。成績表由来の科目名には全角英数字や空白が
-    混じるため、api-clean との名寄せ(§5.1.5)と同じく NFKC 正規化と空白除去を
-    施したうえで突き合わせる。
-    """
-    return "".join(unicodedata.normalize("NFKC", title).split())
 
 
 def accepts_course(accepts: Accepts, course: CurriculumCourse) -> bool:

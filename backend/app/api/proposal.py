@@ -243,7 +243,7 @@ def _stream_proposal(context: ProposalContext):
             raise
         except Exception:  # noqa: BLE001 - SSE開始後は例外を投げられないため全て捕捉する
             # 書き終えた科目が1つでもあれば、そこまでで確定版にする。出力の上限
-            # (max_tokens)で切れた場合、作り直すと4〜5分がもう一度かかるため
+            # (max_tokens)で切れた場合、作り直すと提案1回ぶんがもう一度かかるため
             if parsed is not None and parsed[0]:
                 result, adjustments = assemble_proposal(*parsed, context, truncated=True)
                 if result.courses:
