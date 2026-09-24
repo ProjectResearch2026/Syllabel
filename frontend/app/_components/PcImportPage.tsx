@@ -18,6 +18,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
+import { AnimatePresence, motion, type Variants } from "motion/react";
 import StepBar from "./StepBar";
 import PrivacyConsentModal from "./PrivacyConsentModal";
 import { isUnearned, useStudentStore, type StudentProfile } from "@/lib/student";
@@ -40,6 +41,16 @@ type ImportState =
   | { type: "parsing" }
   | { type: "error"; message: string };
 
+/**
+ * 段の切り替え。進むときは右から、戻るときは左から入る(モバイルの
+ * `MobileImportFlow` と同じ動き)。向きは `custom` で渡し、出ていく側にも効かせる
+ */
+const stepVariants: Variants = {
+  enter: (dir: number) => ({ opacity: 0, x: 20 * dir }),
+  center: { opacity: 1, x: 0 },
+  exit: (dir: number) => ({ opacity: 0, x: -20 * dir }),
+};
+
 /** グレーの地に浮かぶ中央カラム。2・3段目の骨格 */
 function CenterColumn({ children }: { children: React.ReactNode }) {
   return (
@@ -54,7 +65,13 @@ export default function PcImportPage() {
   const setProfile = useStudentStore((s) => s.setProfile);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [step, setStep] = useState(0);
+  const [step, setStepState] = useState(0);
+  // 段の切り替えの向き(進む 1 / 戻る -1)
+  const [dir, setDir] = useState(1);
+  const setStep = (next: number) => {
+    setDir(next >= step ? 1 : -1);
+    setStepState(next);
+  };
   const [pending, setPending] = useState<StudentProfile | null>(null);
   const [fileName, setFileName] = useState("");
   const [importState, setImportState] = useState<ImportState>({ type: "idle" });
@@ -150,17 +167,34 @@ export default function PcImportPage() {
     setStep(2);
   };
 
-  // ---- 1段目: アップロード ----
-  if (step === 0) {
-    return (
-      <>
-        {importState.type === "consent" && (
-          <PrivacyConsentModal
-            onAccept={handleConsentAccept}
-            onCancel={handleConsentCancel}
-          />
-        )}
+  return (
+    <>
+      {/* 同意のモーダルは段の外に置く。段の動きの transform の中に入ると、
+          fixed の基準が画面ではなく段になる */}
+      {step === 0 && importState.type === "consent" && (
+        <PrivacyConsentModal onAccept={handleConsentAccept} onCancel={handleConsentCancel} />
+      )}
+      <AnimatePresence mode="wait" initial={false} custom={dir}>
+        <motion.div
+          key={step}
+          custom={dir}
+          variants={stepVariants}
+          initial="enter"
+          animate="center"
+          exit="exit"
+          transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          {renderStep()}
+        </motion.div>
+      </AnimatePresence>
+    </>
+  );
 
+  function renderStep() {
+    // ---- 1段目: アップロード ----
+    if (step === 0) {
+      return (
         <div className="flex min-h-0 flex-1 gap-4">
           {/* 左: なぜ安全か（ui-design_pc.pen LeftPanel） */}
           <div className="flex w-[480px] shrink-0 flex-col items-center justify-center gap-8 rounded-lg bg-surface-primary p-12">
@@ -198,12 +232,12 @@ export default function PcImportPage() {
               <h3 className="text-base font-bold text-fg-primary">成績表PDFを選択</h3>
 
               {importState.type === "parsing" ? (
-                <div className="flex h-40 flex-col items-center justify-center gap-3 rounded border border-border-primary bg-[#FAFAFA]">
+                <div className="flex h-40 flex-col items-center justify-center gap-3 rounded border border-border-primary bg-[#FAFAFA] motion-safe:animate-fade-in">
                   <Loader2 size={32} className="animate-spin text-fg-primary" aria-hidden="true" />
                   <p className="text-sm text-fg-tertiary">PDFを読み取っています…</p>
                 </div>
               ) : importState.type === "error" ? (
-                <div className="flex h-40 flex-col items-center justify-center gap-3 rounded border border-[#FCA5A5] bg-[#FFF8F8] px-6 text-center">
+                <div className="flex h-40 flex-col items-center justify-center gap-3 rounded border border-[#FCA5A5] bg-[#FFF8F8] px-6 text-center motion-safe:animate-fade-in">
                   <AlertCircle size={28} className="text-[#EF4444]" aria-hidden="true" />
                   <p className="text-sm font-medium text-[#EF4444]">{importState.message}</p>
                   <button
@@ -219,13 +253,18 @@ export default function PcImportPage() {
                   onDrop={handleDrop}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
-                  className={`flex h-40 cursor-pointer flex-col items-center justify-center gap-3 rounded border transition-colors ${
+                  // ファイルを重ねているあいだは枠を少し広げ、アイコンを持ち上げて受け口を示す
+                  className={`group flex h-40 cursor-pointer flex-col items-center justify-center gap-3 rounded border transition-[color,background-color,border-color,scale] duration-200 motion-safe:animate-fade-in ${
                     isDragOver
-                      ? "border-fg-primary bg-surface-soft"
+                      ? "border-fg-primary bg-surface-soft motion-safe:scale-[1.02]"
                       : "border-border-primary bg-[#FAFAFA] hover:border-fg-primary"
                   }`}
                 >
-                  <span className="grid size-12 place-items-center rounded-full bg-surface-soft">
+                  <span
+                    className={`grid size-12 place-items-center rounded-full bg-surface-soft transition-[translate,background-color] duration-200 ${
+                      isDragOver ? "bg-surface-primary motion-safe:-translate-y-1" : ""
+                    }`}
+                  >
                     <Upload size={22} className="text-fg-primary" aria-hidden="true" />
                   </span>
                   <p className="text-center text-sm font-semibold text-fg-primary">
@@ -266,148 +305,162 @@ export default function PcImportPage() {
                     <ChevronDown size={15} className="text-fg-primary" aria-hidden="true" />
                   )}
                 </button>
-                {demoOpen && (
-                  <div className="absolute inset-x-0 top-full z-10 mt-1 overflow-hidden rounded border border-border-primary bg-surface-primary shadow-popover">
-                    {DUMMY_PROFILES.map((p, i) => (
-                      <button
-                        key={p.label}
-                        onClick={() => handleDemoLoad(i)}
-                        className="flex h-11 w-full items-center gap-2 border-b border-[#E5E7EB] px-4 text-left transition-colors last:border-b-0 hover:bg-surface-soft"
-                      >
-                        <span className="text-sm text-fg-primary">{p.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <AnimatePresence>
+                  {demoOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                      transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
+                      className="absolute inset-x-0 top-full z-10 mt-1 origin-top overflow-hidden rounded border border-border-primary bg-surface-primary shadow-popover"
+                    >
+                      {DUMMY_PROFILES.map((p, i) => (
+                        <button
+                          key={p.label}
+                          onClick={() => handleDemoLoad(i)}
+                          className="flex h-11 w-full items-center gap-2 border-b border-[#E5E7EB] px-4 text-left transition-colors last:border-b-0 hover:bg-surface-soft"
+                        >
+                          <span className="text-sm text-fg-primary">{p.label}</span>
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           </div>
         </div>
-      </>
-    );
-  }
+      );
+    }
 
-  // ---- 2段目: 確認 ----
-  if (step === 1) {
-    const rows = [
-      { label: "学年", value: `${pending?.grade ?? "-"}回生` },
-      { label: "課程", value: pending?.program ?? "-" },
-      { label: "取得済み単位", value: `${totalCredits}単位` },
-      { label: "判定科目数", value: `${passedCourses.length}科目` },
-      // 未修得は単位に数えないが、再履修の提案に使うので取り込んだことを見せる
-      ...(unearnedCount > 0
-        ? [{ label: "未修得科目（再履修の対象）", value: `${unearnedCount}科目` }]
-        : []),
-      // 登録済みで成績未確定。提案の候補から外すので、取り込んだことを見せる
-      ...(registeredCount > 0
-        ? [{ label: "登録済み科目（成績未確定）", value: `${registeredCount}科目` }]
-        : []),
+    // ---- 2段目: 確認 ----
+    if (step === 1) {
+      const rows = [
+        { label: "学年", value: `${pending?.grade ?? "-"}回生` },
+        { label: "課程", value: pending?.program ?? "-" },
+        { label: "取得済み単位", value: `${totalCredits}単位` },
+        { label: "判定科目数", value: `${passedCourses.length}科目` },
+        // 未修得は単位に数えないが、再履修の提案に使うので取り込んだことを見せる
+        ...(unearnedCount > 0
+          ? [{ label: "未修得科目（再履修の対象）", value: `${unearnedCount}科目` }]
+          : []),
+        // 登録済みで成績未確定。提案の候補から外すので、取り込んだことを見せる
+        ...(registeredCount > 0
+          ? [{ label: "登録済み科目（成績未確定）", value: `${registeredCount}科目` }]
+          : []),
+      ];
+      return (
+        <CenterColumn>
+          <StepBar current={1} />
+
+          <div className="flex w-[480px] flex-col gap-4">
+            <h3 className="text-base font-bold text-fg-primary">取り込み内容の確認</h3>
+
+            <div className="overflow-hidden rounded-lg border border-border-primary bg-surface-primary">
+              <div className="flex h-12 items-center justify-between border-b border-[#E5E7EB] px-4">
+                <div className="flex min-w-0 items-center gap-2">
+                  <FileCheck size={18} className="shrink-0 text-accent" aria-hidden="true" />
+                  <span className="truncate text-[13px] font-semibold text-fg-primary">
+                    {fileName}
+                  </span>
+                </div>
+                <span className="shrink-0 rounded bg-[#D1FAE5] px-2 py-[3px] text-[11px] font-semibold text-[#065F46]">
+                  読み込み完了
+                </span>
+              </div>
+
+              {rows.map((row, i) => (
+                <div
+                  key={row.label}
+                  className={`flex h-10 items-center justify-between px-4 ${
+                    i % 2 === 0 ? "bg-surface-gray" : "bg-surface-primary"
+                  } ${i < rows.length - 1 ? "border-b border-[#E5E7EB]" : ""}`}
+                >
+                  <span className="text-xs text-fg-secondary">{row.label}</span>
+                  <span className="tabular-nums text-[13px] font-semibold text-fg-primary">
+                    {row.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setStep(0)}
+                className="flex h-11 items-center justify-center gap-2 rounded border border-fg-primary px-5 transition-colors hover:bg-surface-soft"
+              >
+                <ChevronLeft size={16} className="text-fg-primary" aria-hidden="true" />
+                <span className="text-sm font-semibold text-fg-primary">戻る</span>
+              </button>
+              <button
+                onClick={handleConfirm}
+                className="flex h-11 flex-1 items-center justify-center rounded bg-accent transition-colors hover:bg-primary-dark"
+              >
+                <span className="text-sm font-semibold text-fg-inverse">この内容で取り込む</span>
+              </button>
+            </div>
+          </div>
+        </CenterColumn>
+      );
+    }
+
+    // ---- 3段目: 完了 ----
+    const stats = [
+      { val: totalCredits, label: "取得済み単位", color: "text-fg-primary" },
+      { val: TERM_PLANNED_CREDITS, label: "今期登録予定", color: "text-accent" },
+      { val: remaining, label: "卒業残り単位", color: "text-fg-secondary" },
     ];
     return (
       <CenterColumn>
-        <StepBar current={1} />
+        <StepBar current={2} />
 
-        <div className="flex w-[480px] flex-col gap-4">
-          <h3 className="text-base font-bold text-fg-primary">取り込み内容の確認</h3>
+        <div className="flex flex-col items-center gap-4">
+          {/* 完了の印はばねで弾ませる(モバイルの完了画面と同じ値) */}
+          <motion.span
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", damping: 16, stiffness: 260, delay: 0.15 }}
+            className="grid size-20 place-items-center rounded-full bg-surface-soft"
+          >
+            <CircleCheck size={40} className="text-accent" aria-hidden="true" />
+          </motion.span>
+          <h2 className="text-2xl font-bold text-fg-primary">インポート完了！</h2>
+          <p className="w-90 text-center text-sm leading-6 text-fg-secondary">
+            成績データが正常に取り込まれました。
+            <br />
+            AIアシスタントが履修分析を開始できます。
+          </p>
+        </div>
 
-          <div className="overflow-hidden rounded-lg border border-border-primary bg-surface-primary">
-            <div className="flex h-12 items-center justify-between border-b border-[#E5E7EB] px-4">
-              <div className="flex min-w-0 items-center gap-2">
-                <FileCheck size={18} className="shrink-0 text-accent" aria-hidden="true" />
-                <span className="truncate text-[13px] font-semibold text-fg-primary">
-                  {fileName}
-                </span>
-              </div>
-              <span className="shrink-0 rounded bg-[#D1FAE5] px-2 py-[3px] text-[11px] font-semibold text-[#065F46]">
-                読み込み完了
-              </span>
+        <div className="flex w-[520px] justify-around rounded-lg border border-border-primary bg-surface-primary py-6 motion-safe:animate-rise-in [animation-delay:250ms]">
+          {stats.map(({ val, label, color }) => (
+            <div key={label} className="flex flex-col items-center gap-1">
+              <span className={`tabular-nums text-2xl font-bold ${color}`}>{val}</span>
+              <span className="text-[11px] text-fg-secondary">{label}</span>
             </div>
+          ))}
+        </div>
 
-            {rows.map((row, i) => (
-              <div
-                key={row.label}
-                className={`flex h-10 items-center justify-between px-4 ${
-                  i % 2 === 0 ? "bg-surface-gray" : "bg-surface-primary"
-                } ${i < rows.length - 1 ? "border-b border-[#E5E7EB]" : ""}`}
-              >
-                <span className="text-xs text-fg-secondary">{row.label}</span>
-                <span className="tabular-nums text-[13px] font-semibold text-fg-primary">
-                  {row.value}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              onClick={() => setStep(0)}
-              className="flex h-11 items-center justify-center gap-2 rounded border border-fg-primary px-5 transition-colors hover:bg-surface-soft"
-            >
-              <ChevronLeft size={16} className="text-fg-primary" aria-hidden="true" />
-              <span className="text-sm font-semibold text-fg-primary">戻る</span>
-            </button>
-            <button
-              onClick={handleConfirm}
-              className="flex h-11 flex-1 items-center justify-center rounded bg-accent transition-colors hover:bg-primary-dark"
-            >
-              <span className="text-sm font-semibold text-fg-inverse">この内容で取り込む</span>
-            </button>
-          </div>
+        {/* 取り込み後の行き先は履修提案だけではない。**シラバス検索も同じ画面から出す**
+            (§8)。取り込んだプロファイルは検索結果のタグ付けに効くため、ここが
+            タグ付きのシラバス検索への入口になる */}
+        <div className="flex w-[520px] flex-col gap-4 motion-safe:animate-rise-in [animation-delay:350ms]">
+          <button
+            onClick={() => router.push("/proposal")}
+            className="flex h-12 items-center justify-center gap-2 rounded bg-accent transition-colors hover:bg-primary-dark"
+          >
+            <span className="text-[15px] font-bold text-fg-inverse">履修提案を見る</span>
+            <ArrowRight size={18} className="text-fg-inverse" aria-hidden="true" />
+          </button>
+          <button
+            onClick={() => router.push("/syllabus")}
+            className="flex h-12 items-center justify-center gap-2 rounded border-2 border-fg-primary transition-colors hover:bg-surface-soft"
+          >
+            <span className="text-[15px] font-bold text-fg-primary">シラバスをみる</span>
+            <ArrowRight size={18} className="text-fg-primary" aria-hidden="true" />
+          </button>
         </div>
       </CenterColumn>
     );
   }
-
-  // ---- 3段目: 完了 ----
-  const stats = [
-    { val: totalCredits, label: "取得済み単位", color: "text-fg-primary" },
-    { val: TERM_PLANNED_CREDITS, label: "今期登録予定", color: "text-accent" },
-    { val: remaining, label: "卒業残り単位", color: "text-fg-secondary" },
-  ];
-  return (
-    <CenterColumn>
-      <StepBar current={2} />
-
-      <div className="flex flex-col items-center gap-4">
-        <span className="grid size-20 place-items-center rounded-full bg-surface-soft">
-          <CircleCheck size={40} className="text-accent" aria-hidden="true" />
-        </span>
-        <h2 className="text-2xl font-bold text-fg-primary">インポート完了！</h2>
-        <p className="w-90 text-center text-sm leading-6 text-fg-secondary">
-          成績データが正常に取り込まれました。
-          <br />
-          AIアシスタントが履修分析を開始できます。
-        </p>
-      </div>
-
-      <div className="flex w-[520px] justify-around rounded-lg border border-border-primary bg-surface-primary py-6">
-        {stats.map(({ val, label, color }) => (
-          <div key={label} className="flex flex-col items-center gap-1">
-            <span className={`tabular-nums text-2xl font-bold ${color}`}>{val}</span>
-            <span className="text-[11px] text-fg-secondary">{label}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* 取り込み後の行き先は履修提案だけではない。**シラバス検索も同じ画面から出す**
-          (§8)。取り込んだプロファイルは検索結果のタグ付けに効くため、ここが
-          タグ付きのシラバス検索への入口になる */}
-      <div className="flex w-[520px] flex-col gap-4">
-        <button
-          onClick={() => router.push("/proposal")}
-          className="flex h-12 items-center justify-center gap-2 rounded bg-accent transition-colors hover:bg-primary-dark"
-        >
-          <span className="text-[15px] font-bold text-fg-inverse">履修提案を見る</span>
-          <ArrowRight size={18} className="text-fg-inverse" aria-hidden="true" />
-        </button>
-        <button
-          onClick={() => router.push("/syllabus")}
-          className="flex h-12 items-center justify-center gap-2 rounded border-2 border-fg-primary transition-colors hover:bg-surface-soft"
-        >
-          <span className="text-[15px] font-bold text-fg-primary">シラバスをみる</span>
-          <ArrowRight size={18} className="text-fg-primary" aria-hidden="true" />
-        </button>
-      </div>
-    </CenterColumn>
-  );
 }
