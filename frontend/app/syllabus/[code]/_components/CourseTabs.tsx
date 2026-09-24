@@ -28,7 +28,8 @@ export default function CourseTabs({ tabs }: { tabs: CourseTab[] }) {
       <div
         role="tablist"
         aria-label="シラバスの内訳"
-        className="flex shrink-0 gap-1 border-b border-card-divider"
+        // モバイルは白地の横スクロール(ui-design_phone.pen CourseTabs)
+        className="flex shrink-0 gap-0 overflow-x-auto border-b border-border-primary bg-surface-primary px-2 [scrollbar-width:none] md:gap-1 md:overflow-visible md:border-card-divider md:bg-transparent md:px-0 [&::-webkit-scrollbar]:hidden"
       >
         {tabs.map((tab) => {
           const selected = tab.id === current.id;
@@ -41,10 +42,10 @@ export default function CourseTabs({ tabs }: { tabs: CourseTab[] }) {
               aria-selected={selected}
               aria-controls={`panel-${tab.id}`}
               onClick={() => setActive(tab.id)}
-              className={`-mb-px whitespace-nowrap border-b-2 px-3.5 py-2.5 text-[13px] transition-colors ${
+              className={`-mb-px shrink-0 whitespace-nowrap border-b-2 p-3 text-[13px] transition-colors md:px-3.5 md:py-2.5 ${
                 selected
-                  ? "border-accent font-bold text-fg-primary"
-                  : "border-transparent font-medium text-fg-muted hover:text-fg-primary"
+                  ? "border-accent font-bold text-accent md:text-fg-primary"
+                  : "border-transparent text-fg-secondary md:font-medium md:text-fg-muted md:hover:text-fg-primary"
               }`}
             >
               {tab.label}
@@ -57,7 +58,7 @@ export default function CourseTabs({ tabs }: { tabs: CourseTab[] }) {
         role="tabpanel"
         id={`panel-${current.id}`}
         aria-labelledby={`tab-${current.id}`}
-        className="flex flex-col gap-4"
+        className="flex flex-col gap-3 px-4 pb-4 pt-3 md:gap-4 md:p-0"
       >
         {current.panel}
       </div>

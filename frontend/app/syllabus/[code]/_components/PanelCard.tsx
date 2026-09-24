@@ -13,7 +13,7 @@ export default function PanelCard({
   note,
   children,
   className = "",
-  bodyClassName = "gap-3.5",
+  bodyClassName = "gap-3.5 p-3.5 md:p-5",
 }: {
   icon: LucideIcon;
   title: string;
@@ -23,22 +23,22 @@ export default function PanelCard({
   note?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
-  /** 本文の内側。表のように余白を潰したいときに上書きする */
+  /** 本文の内側（余白を含む）。表のように余白を潰したいときに上書きする */
   bodyClassName?: string;
 }) {
   return (
     <section
-      className={`flex flex-col overflow-hidden rounded-xl border border-border-primary bg-surface-primary ${className}`}
+      className={`flex flex-col overflow-hidden rounded-lg border border-border-primary bg-surface-primary md:rounded-xl ${className}`}
     >
-      <div className="flex items-center justify-between gap-4 border-b border-card-divider px-5 py-4">
-        <h2 className="flex items-center gap-2 text-sm font-bold text-fg-primary">
+      <div className="flex items-center justify-between gap-4 border-b border-card-divider px-3.5 py-3 md:px-5 md:py-4">
+        <h2 className="flex items-center gap-1.5 text-sm font-bold text-fg-primary md:gap-2">
           <Icon size={15} className="shrink-0 text-accent" aria-hidden="true" />
           {title}
           {count && <span className="text-[11px] font-semibold text-fg-muted">{count}</span>}
         </h2>
         {note}
       </div>
-      <div className={`flex flex-col p-5 ${bodyClassName}`}>{children}</div>
+      <div className={`flex flex-col ${bodyClassName}`}>{children}</div>
     </section>
   );
 }

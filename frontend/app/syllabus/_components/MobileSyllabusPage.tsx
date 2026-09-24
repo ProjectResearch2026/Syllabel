@@ -2,21 +2,24 @@
 
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { useCallback, useState, useTransition, useEffect } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Search,
   SlidersHorizontal,
   ChevronDown,
-  ChevronRight,
+  ArrowUpRight,
+  BookOpen,
+  MapPin,
   User,
   Timer,
 } from "lucide-react";
 import type { SyllabusListItem, Masters, MatchedBy } from "@/lib/syllabus-api";
 import { OFFERING_YEAR, FACULTY } from "@/lib/syllabus-api";
 import { formatSlots } from "@/lib/schedule";
-import { SYLLABUS_CONTEXT, useAiStore } from "@/lib/ai";
-import AskBar from "@/components/ai/AskBar";
+import { SYLLABUS_CONTEXT } from "@/lib/ai";
+import { useSyllabusConversation } from "@/lib/useSyllabusConversation";
+import MobileAiAssistant from "@/components/ai/MobileAiAssistant";
 import SyllabusPagination from "./SyllabusPagination";
 import { TAG_CHIPS, CATEGORY_CHOICES } from "@/lib/syllabusUI";
 import { useFilterControls } from "@/lib/useFilterControls";
@@ -62,10 +65,8 @@ export default function MobileSyllabusPage({
   } = useFilterControls();
   // 空きコマ長押しメニューの「シラバスで絞り込む」から来たときは開いた状態で始める
   const [filterOpen, setFilterOpen] = useState(searchParams.get("filters") === "open");
-  const setSelection = useAiStore((s) => s.setSelection);
-
-  // 他の画面へ移ったら Ask Bar の文脈を持ち越さない
-  useEffect(() => () => setSelection(null), [setSelection]);
+  // AI は PC の右パネルと同じ会話（シラバス全体への質問。§7.4）
+  const conversation = useSyllabusConversation();
 
   // タグ付け・絞り込み・ページの切り出しは PC と同じものを使う(§8)
   const { visible, matched, total, filtering } = useTaggedResults(
@@ -97,7 +98,9 @@ export default function MobileSyllabusPage({
   const day = searchParams.get("day") ?? "";
 
   const selectClass =
-    "w-full border border-[#D1D5DB] rounded-lg px-2.5 py-2 text-[13px] text-[#1A2B4E] bg-white focus:outline-none focus:border-[#1A2B4E] transition-colors";
+    "w-full h-[34px] border border-[#D1D5DB] rounded px-2.5 text-xs text-[#1A2B4E] bg-white focus:outline-none focus:border-[#1A2B4E] transition-colors";
+  const fixedClass =
+    "flex h-[34px] items-center px-2.5 text-xs text-[#4B5563] bg-[#EEF0F5] border border-[#D1D5DB] rounded";
 
   const filterFields: { label: string; node: React.ReactNode }[] = [
     {
@@ -105,18 +108,14 @@ export default function MobileSyllabusPage({
       // しか無いため(`lib/syllabus-api.ts`)、表示のみとする
       label: "年度",
       node: (
-        <p className="text-[13px] text-[#1A2B4E] px-2.5 py-2 bg-[#F3F4F6] border border-[#D1D5DB] rounded-lg">
-          {OFFERING_YEAR}年度のみ
-        </p>
+        <p className={fixedClass}>{OFFERING_YEAR}年度のみ</p>
       ),
     },
     {
       // 学部は選べない。対象は先端理工学部の学生である(要件§2.1)
       label: "学部",
       node: (
-        <p className="text-[13px] text-[#1A2B4E] px-2.5 py-2 bg-[#F3F4F6] border border-[#D1D5DB] rounded-lg">
-          {FACULTY}のみ
-        </p>
+        <p className={fixedClass}>{FACULTY}のみ</p>
       ),
     },
     {
@@ -193,18 +192,17 @@ export default function MobileSyllabusPage({
   ];
 
   return (
-    <div className="flex flex-col bg-white min-h-full pb-[84px]">
+    <div className="flex flex-col bg-white min-h-full">
       {/* Header */}
       <header className="sticky top-0 z-20 flex items-center justify-between px-5 h-14 bg-white border-b border-[#D1D5DB]">
-        <span className="font-display text-[#1A2B4E] text-xl font-bold">シラバス検索</span>
+        <span className="font-display text-[#1A2B4E] text-xl font-bold">シラバス</span>
         <button
           onClick={() => setFilterOpen((v) => !v)}
           aria-label="絞り込み"
-          className={`flex items-center justify-center w-9 h-9 -mr-1.5 rounded-lg transition-colors ${
-            filterOpen ? "bg-[#EEF1F8]" : ""
-          }`}
+          aria-expanded={filterOpen}
+          className="flex items-center justify-center w-9 h-9 -mr-1.5"
         >
-          <SlidersHorizontal size={22} className="text-[#1A2B4E]" />
+          <SlidersHorizontal size={22} className={filterOpen ? "text-accent" : "text-[#1A2B4E]"} />
         </button>
       </header>
 
@@ -232,13 +230,21 @@ export default function MobileSyllabusPage({
             transition={{ duration: 0.22, ease: [0.25, 0.1, 0.25, 1] }}
             className="overflow-hidden"
           >
-            <div className="grid grid-cols-2 gap-3 px-4 py-3.5 bg-[#F8F9FA] border-b border-[#D1D5DB]">
-              {filterFields.map((f) => (
-                <label key={f.label} className="flex flex-col gap-1">
-                  <span className="text-[11px] font-semibold text-[#4B5563]">{f.label}</span>
-                  {f.node}
-                </label>
-              ))}
+            <div className="flex flex-col gap-2.5 px-4 py-3 bg-surface-gray border-b border-[#D1D5DB]">
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] font-bold text-[#1A2B4E]">絞り込み</span>
+                <button onClick={() => setFilterOpen(false)} className="text-xs text-[#4B5563]">
+                  閉じる
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                {filterFields.map((f) => (
+                  <label key={f.label} className="flex flex-col gap-1">
+                    <span className="text-[11px] font-semibold text-[#4B5563]">{f.label}</span>
+                    {f.node}
+                  </label>
+                ))}
+              </div>
             </div>
           </motion.div>
         )}
@@ -254,7 +260,7 @@ export default function MobileSyllabusPage({
               onClick={() => setActiveChip(chip)}
               className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs whitespace-nowrap transition-colors ${
                 active
-                  ? "bg-[#1A2B4E] text-white font-semibold"
+                  ? "bg-[#1A2B4E] border border-transparent text-white font-semibold"
                   : "bg-[#F3F4F6] border border-[#D1D5DB] text-[#4B5563]"
               }`}
             >
@@ -268,18 +274,18 @@ export default function MobileSyllabusPage({
       <SyllabusProfileNotice />
 
       {/* Results header */}
-      <div className="flex items-center justify-between px-4 pt-2.5 pb-1.5 bg-white">
-        <span className="text-[13px] text-[#4B5563]">
+      <div className="flex items-center justify-between gap-2 px-4 pt-2.5 pb-1.5 bg-white">
+        <span className="min-w-0 text-xs text-[#4B5563]">
           {/* 絞り込みは全件に効く。件数は絞り込み後のものを出す(§8) */}
           {`${matched.toLocaleString()}件の科目`}
-          {filtering && (
-            <span className="ml-1 text-xs">（{total.toLocaleString()}件中）</span>
-          )}
+          {filtering && `（${total.toLocaleString()}件中）`}
+          {visible.length > 0 &&
+            `・${(offset + 1).toLocaleString()}〜${(offset + visible.length).toLocaleString()}件目を表示`}
           {matchedBy === "instructor" && (
-            <span className="ml-1.5 text-xs">（「{q}」を教員名として検索）</span>
+            <span className="ml-1.5">（「{q}」を教員名として検索）</span>
           )}
         </span>
-        <div className="flex items-center gap-1 text-[13px] text-[#1A2B4E]">
+        <div className="flex shrink-0 items-center gap-1 text-[13px] text-[#1A2B4E]">
           <span>配当年次順</span>
           <ChevronDown size={14} />
         </div>
@@ -301,58 +307,50 @@ export default function MobileSyllabusPage({
               <Link
                 key={`${c.syllabus_code}-${c.year}`}
                 href={detailHref(c.syllabus_code, searchParams.toString())}
-                className="flex flex-col gap-1.5 px-4 py-3.5 border-b border-[#D1D5DB] active:bg-[#F8F9FA] transition-colors"
+                className="flex flex-col gap-1.5 px-4 py-3 border-b border-[#D1D5DB] active:bg-[#F8F9FA] transition-colors"
               >
-                {/* Top */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex flex-col gap-0.5 min-w-0">
-                    <span className="text-[11px] text-[#4B5563]">{c.syllabus_code}</span>
-                    <span className="text-base font-semibold text-[#1A2B4E] leading-snug">
-                      {c.course_title}
-                      {c.subtitle && (
-                        <span className="text-xs font-normal text-[#6B7280] ml-1">
-                          ({c.subtitle})
-                        </span>
-                      )}
-                    </span>
-                  </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-[#4B5563]">{c.syllabus_code}</span>
+                  <ArrowUpRight size={14} className="text-[#4B5563]" aria-hidden="true" />
                 </div>
 
-                {/* Mid */}
-                <div className="flex flex-col gap-0.5">
-                  {instructors && (
-                    <div className="flex min-w-0 items-center gap-1.5 text-[13px] text-[#4B5563]">
-                      <User size={14} className="text-[#4B5563] shrink-0" />
-                      <span className="truncate">{instructors}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-1.5 text-[12px] text-[#6B7280]">
-                    <span>{grade}</span>
-                    <span className="text-[#D1D5DB]">·</span>
-                    <span>{c.campus}</span>
-                  </div>
-                </div>
-
-                {/* Bottom */}
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 flex-wrap">
+                {(tags || c.term) && (
+                  <div className="flex flex-wrap items-center gap-1">
                     <CourseTags tags={tags} />
-                    <span className="flex items-center gap-1 px-2 py-[3px] rounded bg-[#EFF6FF] text-[11px] text-[#3B82F6]">
-                      <Timer size={11} />
-                      {formatSlots(c, { weekday: true })}
-                    </span>
-                    <span className="px-2 py-[3px] rounded bg-[#F8F9FA] text-[11px] text-[#4B5563]">
-                      {c.credits}単位
-                    </span>
                     {c.term && (
-                      <span className="px-2 py-[3px] rounded bg-[#EEF1F8] text-[11px] font-semibold text-[#1A2B4E]">
+                      <span className="rounded-md bg-[#EFF6FF] px-2 py-0.5 text-[10px] font-semibold text-[#1D4ED8]">
                         {c.term}
                       </span>
                     )}
                   </div>
-                  <span className="flex items-center gap-0.5 text-xs text-[#1A2B4E] shrink-0">
-                    詳細
-                    <ChevronRight size={14} />
+                )}
+
+                <span className="text-[15px] font-bold leading-snug text-[#1A2B4E]">
+                  {c.course_title}
+                  {c.subtitle && (
+                    <span className="ml-1 text-xs font-normal text-[#6B7280]">({c.subtitle})</span>
+                  )}
+                </span>
+
+                {instructors && (
+                  <div className="flex min-w-0 items-center gap-1 text-xs text-[#4B5563]">
+                    <User size={13} className="shrink-0" aria-hidden="true" />
+                    <span className="truncate">{instructors}</span>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[#E5E7EB] pt-1.5 text-[11px] text-[#4B5563]">
+                  <span className="flex items-center gap-1">
+                    <BookOpen size={12} aria-hidden="true" />
+                    {c.credits}単位
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Timer size={12} aria-hidden="true" />
+                    {formatSlots(c, { weekday: true })}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <MapPin size={12} aria-hidden="true" />
+                    {c.campus} · {grade}
                   </span>
                 </div>
               </Link>
@@ -365,8 +363,8 @@ export default function MobileSyllabusPage({
         <SyllabusPagination limit={limit} offset={offset} total={matched} />
       </div>
 
-      {/* 時間割と同じ Ask Bar パターン。参照中の文脈が「この検索結果」に変わるだけ */}
-      <AskBar base={SYLLABUS_CONTEXT} />
+      {/* 時間割と同じ Ask Bar → シートのパターン。参照中の文脈が「この検索結果」に変わるだけ */}
+      <MobileAiAssistant conversation={conversation} base={SYLLABUS_CONTEXT} />
     </div>
   );
 }
