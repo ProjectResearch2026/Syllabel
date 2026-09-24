@@ -9,6 +9,12 @@ function fmt(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
 
+/** バーのツールチップ。今期の時間割で埋まる枠は、不足ではなくそう書く */
+function slotTitle(slot: SlotProgress): string {
+  const rest = slot.shortfall > 0 ? `あと${fmt(slot.shortfall)}単位` : "今期の時間割で埋まります";
+  return [slot.name, rest, slot.notes].filter(Boolean).join("\n");
+}
+
 /**
  * バーの伸び縮み。今期の時間割が変わると赤(今期)の分が伸び縮みするので、
  * その変化が目で追えるよう幅を動かす
@@ -25,7 +31,7 @@ function SlotRow({ slot }: { slot: SlotProgress }) {
   return (
     <div
       className="flex min-w-0 flex-col gap-1"
-      title={[slot.name, `あと${fmt(slot.shortfall)}単位`, slot.notes].filter(Boolean).join("\n")}
+      title={slotTitle(slot)}
     >
       <div className="flex items-baseline justify-between gap-2">
         <span className="truncate text-[11px] font-semibold text-fg-primary">{slot.name}</span>
@@ -176,8 +182,8 @@ export default function RequirementsPanel({ view }: { view: RequirementsView }) 
       </p>
     );
   }
-  const done = view.slots.filter((s) => s.shortfall <= 0);
-  const short = view.slots.filter((s) => s.shortfall > 0);
+  const done = view.slots.filter((s) => s.earnedShortfall <= 0);
+  const short = view.slots.filter((s) => s.earnedShortfall > 0);
   return (
     /* 計算し直しているあいだは修得済みだけを出しているので、薄くして示す */
     <div
@@ -202,7 +208,7 @@ export default function RequirementsPanel({ view }: { view: RequirementsView }) 
           ))}
         </ScrollRow>
       ) : (
-        <span className="text-xs font-semibold text-[#047857]">今期の時間割で、すべての枠が埋まります</span>
+        <span className="text-xs font-semibold text-[#047857]">すべての枠を修得済みです</span>
       )}
     </div>
   );
@@ -227,8 +233,8 @@ export function MobileRequirementsStrip({ view }: { view: RequirementsView }) {
       </div>
     );
   }
-  const done = view.slots.filter((s) => s.shortfall <= 0);
-  const short = view.slots.filter((s) => s.shortfall > 0);
+  const done = view.slots.filter((s) => s.earnedShortfall <= 0);
+  const short = view.slots.filter((s) => s.earnedShortfall > 0);
   return (
     <div className={`${frame} transition-opacity ${view.updating ? "opacity-60" : ""}`} aria-busy={view.updating}>
       {done.length > 0 && (
@@ -248,7 +254,7 @@ export function MobileRequirementsStrip({ view }: { view: RequirementsView }) {
               <div
                 key={slot.key}
                 className="flex w-[140px] shrink-0 flex-col gap-[5px] rounded-md border border-[#E5E7EB] bg-surface-primary px-2.5 py-2"
-                title={[slot.name, `あと${fmt(slot.shortfall)}単位`, slot.notes].filter(Boolean).join("\n")}
+                title={slotTitle(slot)}
               >
                 <span className="truncate text-[10px] font-bold text-fg-primary">{slot.name}</span>
                 <div
@@ -274,7 +280,7 @@ export function MobileRequirementsStrip({ view }: { view: RequirementsView }) {
           })}
         </div>
       ) : (
-        <span className="text-xs font-semibold text-[#047857]">今期の時間割で、すべての枠が埋まります</span>
+        <span className="text-xs font-semibold text-[#047857]">すべての枠を修得済みです</span>
       )}
     </div>
   );
