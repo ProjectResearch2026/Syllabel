@@ -6,6 +6,10 @@
  * **カードのリンクに `back` として畳んで持たせ、「一覧に戻る」で開き直す**。
  * 詳細画面は静的に `/syllabus` へ戻るリンクしか持てず、`router.back()` は
  * 直リンクで開かれた場合に戻り先が無いため採らない。
+ *
+ * 時間割など別の画面を経由したときは `back` を運べないため、一覧を開いている
+ * あいだクエリをストアに書き写しておき(`SyllabusQueryMemory`)、ヘッダー・
+ * タブバーの「シラバス」をそこへ向ける。
  */
 
 /** 一覧の絞り込みを表すクエリキー。`back` で往復させる対象でもある。 */
@@ -21,7 +25,7 @@ export const LIST_QUERY_KEYS = [
 ] as const;
 
 /** 既知のキーだけを通して畳み直す。URL 由来の値をそのまま信用しないため。 */
-function pickListParams(source: URLSearchParams): URLSearchParams {
+export function pickListParams(source: URLSearchParams): URLSearchParams {
   const picked = new URLSearchParams();
   for (const key of LIST_QUERY_KEYS) {
     const value = source.get(key);
@@ -38,7 +42,13 @@ export function detailHref(code: string, current: URLSearchParams | string): str
   return back ? `${path}?back=${encodeURIComponent(back)}` : path;
 }
 
-/** 詳細画面の「シラバス一覧に戻る」の宛先。`back` が無ければ素の一覧へ。 */
+/**
+ * 一覧へ戻るリンクの宛先。`back` が無ければ素の一覧へ。
+ *
+ * 詳細画面の「シラバス一覧に戻る」(`back` クエリ)のほか、ヘッダー・タブバーの
+ * 「シラバス」(最後に開いていた一覧の条件。`useSyllabusUIStore` の `listQuery`)
+ * もこれで組む。どちらもキーは `LIST_QUERY_KEYS` で濾し直す。
+ */
 export function listHref(back: string | string[] | undefined): string {
   const raw = typeof back === "string" ? back : undefined;
   if (!raw) return "/syllabus";

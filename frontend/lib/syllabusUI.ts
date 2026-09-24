@@ -30,6 +30,15 @@ type SyllabusUIStore = {
   /** 区分での絞り込み(`教養教育` / `専門基礎` / `専門応用` / `専門関連`) */
   activeCategory: string;
   setActiveCategory: (category: string) => void;
+  /**
+   * 最後に開いていた一覧のクエリ(`q=…&term=…`)。`LIST_QUERY_KEYS` で濾したもの。
+   * ヘッダー・タブバーの「シラバス」をここへ向け、他の画面から戻っても
+   * 検索条件を開き直す(`lib/syllabusQuery.ts` の `listHref()`)
+   */
+  listQuery: string;
+  setListQuery: (query: string) => void;
+  /** 絞り込みと検索条件を初期状態に戻す。リセット(全消去)で呼ぶ */
+  reset: () => void;
 };
 
 /**
@@ -38,12 +47,20 @@ type SyllabusUIStore = {
  * **URL のクエリに持たない。** 区分・履修区分は履修要項と学生プロファイルの突合から
  * 決まる値であり(§6.1)、api-clean に投げる検索条件ではないため、サーバ側描画の
  * 入力にはならない。PC・モバイルで同じ状態を共有し、画面遷移をまたいで保つ。
+ *
+ * 検索条件そのもの(キーワード・開講期など)は URL のクエリが正本であり、
+ * `listQuery` はその**写し**にすぎない。一覧を開いているあいだ
+ * `SyllabusQueryMemory` が書き写し、ヘッダーから一覧へ戻るリンクがそれを読む。
+ * 他の状態と同じくメモリにだけ持ち、再読み込みで消える。
  */
 export const useSyllabusUIStore = create<SyllabusUIStore>((set) => ({
   activeTag: ALL_TAGS,
   setActiveTag: (tag) => set({ activeTag: tag }),
   activeCategory: ALL_CATEGORIES,
   setActiveCategory: (category) => set({ activeCategory: category }),
+  listQuery: "",
+  setListQuery: (query) => set({ listQuery: query }),
+  reset: () => set({ activeTag: ALL_TAGS, activeCategory: ALL_CATEGORIES, listQuery: "" }),
 }));
 
 /**

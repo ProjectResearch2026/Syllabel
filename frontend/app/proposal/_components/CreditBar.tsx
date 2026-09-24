@@ -21,7 +21,8 @@ export default function CreditBar() {
   const { target } = useTargetTerm();
   // 提案の snapshot にも追従する(生成中から埋まっていく様子が見える)
   const requirements = useRequirements(profile, courses, target);
-  const [open, setOpen] = useState(true);
+  // 既定は閉じる。開いたままだと時間割の高さを削って見にくい(§8.3.5)
+  const [open, setOpen] = useState(false);
 
   const completedCredits = profile
     ? profile.completedCourses
