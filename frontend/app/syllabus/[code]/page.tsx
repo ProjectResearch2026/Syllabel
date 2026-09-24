@@ -305,6 +305,22 @@ export default async function SyllabusDetailPage({
     });
   }
 
+  // 時間割に入れるのに要る分だけを渡す(クライアントコンポーネントへ本体を丸ごと送らない)
+  const addButton = (
+    <AddToTimetableButton
+      syllabus={{
+        syllabus_code: syllabus.syllabus_code,
+        course_title: syllabus.course_title,
+        slots: syllabus.slots,
+        day_of_week: syllabus.day_of_week,
+        period: syllabus.period,
+        term_name: syllabus.term_name,
+        credits: syllabus.credits,
+      }}
+      target={{ programs: syllabus.programs, faculties: syllabus.faculties }}
+    />
+  );
+
   const hero = (
     /* モバイルは画面幅いっぱいの白地(ui-design_phone.pen 06 Hero)、PC は浮いたカード */
     <header className="flex flex-col gap-2.5 border-b border-border-primary bg-surface-primary p-4 md:gap-4 md:rounded-xl md:border md:p-6">
@@ -338,7 +354,7 @@ export default async function SyllabusDetailPage({
             {syllabus.course_title}
           </h1>
           <div className="hidden md:block">
-            <AddToTimetableButton title={syllabus.course_title} code={syllabus.syllabus_code} />
+            {addButton}
           </div>
         </div>
 
@@ -350,7 +366,7 @@ export default async function SyllabusDetailPage({
 
         {/* モバイルは見出しの下に全幅で置く(ui-design_phone.pen 06 Hero) */}
         <div className="flex flex-col md:hidden [&>*]:w-full [&>*]:justify-center">
-          <AddToTimetableButton title={syllabus.course_title} code={syllabus.syllabus_code} />
+          {addButton}
         </div>
       </div>
 

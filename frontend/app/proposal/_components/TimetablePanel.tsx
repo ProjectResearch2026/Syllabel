@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
-import { proposalDetailHref } from "@/lib/syllabusQuery";
+import { Plus } from "lucide-react";
+import { slotSearchHref } from "@/lib/syllabusQuery";
 import { DAYS, PERIODS, CELL_STYLES, coursesToSlotTable, type SlotEntry } from "@/lib/timetable";
 import { useProposalStore } from "@/lib/proposal";
+import { useTimetableEditing } from "@/lib/useTimetableEditing";
+import CourseMenu, { type CourseTarget } from "@/app/_components/CourseMenu";
 
 /** 科目の同一性。key に使い、科目が入れ替わったマスだけを作り直して現れる動きを流す */
 function entryKey(entry: SlotEntry): string {
@@ -42,31 +45,42 @@ function EntryBody({ entry, clamp }: { entry: SlotEntry; clamp: string }) {
 }
 
 /**
- * 科目の枠。シラバスコードがあれば講義詳細(`/syllabus/[code]`)へのリンクにする
- * (design.md §8.3.4)。同じタブのクライアント遷移で開くので、提案と対話は
- * 残ったまま「時間割に戻る」で戻れる(`proposalDetailHref()`)。
+ * 科目の枠。押すとその場のメニュー(`CourseMenu`)を開き、講義詳細を開く
+ * (design.md §8.3.4。同じタブのクライアント遷移なので「時間割に戻る」で戻れる)・
+ * 別の科目に変更する・時間割から外す を選ぶ。生成中は押せない。
  */
-function CourseLink({
+function CourseButton({
   entry,
+  day,
+  period,
+  onOpen,
   className,
   style,
   children,
 }: {
   entry: SlotEntry;
+  day: string | null;
+  period: number | null;
+  onOpen: ((target: CourseTarget) => void) | null;
   className: string;
   style?: React.CSSProperties;
   children: React.ReactNode;
 }) {
-  if (!entry.code) return <div className={className} style={style}>{children}</div>;
+  if (!onOpen) return <div className={className} style={style}>{children}</div>;
   return (
-    <Link
+    <button
+      type="button"
       style={style}
-      href={proposalDetailHref(entry.code)}
-      aria-label={`${entry.name}のシラバスを開く`}
-      className={`${className} transition-[filter] hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent`}
+      onClick={(e) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        onOpen({ entry, day, period, rect: { top: r.top, left: r.left, width: r.width, height: r.height } });
+      }}
+      aria-haspopup="menu"
+      aria-label={`${entry.name}の操作を開く`}
+      className={`${className} text-left transition-[filter] hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent`}
     >
       {children}
-    </Link>
+    </button>
   );
 }
 
@@ -89,6 +103,8 @@ export default function TimetablePanel() {
   // まだ投げていない（§5.2.3 の `idle`）。空の表だけを出すと、提案が終わって
   // 何も無いのか、これからなのかが区別できない（§8.3.2）
   const isIdle = status === "idle";
+  const editing = useTimetableEditing();
+  const onOpen = editing.editable ? editing.open : null;
 
   return (
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border-primary bg-surface-primary">
@@ -121,31 +137,56 @@ export default function TimetablePanel() {
             const cellClass = `flex min-w-0 flex-1 flex-col justify-center gap-1 border-r border-border-primary last:border-r-0 ${
               entries.length > 1 ? "p-1" : "p-2"
             } ${single ? `${CELL_STYLES[single.type].cell} ${ENTER}` : "bg-surface-primary"}`;
+            if (entries.length === 0) {
+              // 空きコマ。押すとそのコマで絞ったシラバス一覧を開き、そこから登録する
+              return (
+                <div key={d} className={cellClass}>
+                  {!isLoading && (
+                    <Link
+                      href={slotSearchHref(d, p)}
+                      aria-label={`${d}曜${p}限に科目を追加する`}
+                      className="group grid min-h-0 w-full flex-1 place-items-center rounded-sm transition-colors hover:bg-surface-gray focus-visible:outline-2 focus-visible:outline-accent"
+                    >
+                      <span className="flex items-center gap-1 text-[11px] font-semibold text-fg-faint opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                        <Plus size={13} aria-hidden="true" />
+                        追加
+                      </span>
+                    </Link>
+                  )}
+                </div>
+              );
+            }
             if (single) {
               return (
-                <CourseLink
+                <CourseButton
                   key={`${d}:${entryKey(single)}`}
                   entry={single}
+                  day={d}
+                  period={p}
+                  onOpen={onOpen}
                   className={cellClass}
                   style={enterDelay(order)}
                 >
                   <EntryBody entry={single} clamp="line-clamp-3" />
-                </CourseLink>
+                </CourseButton>
               );
             }
             return (
               <div key={d} className={cellClass}>
                 {entries.map((entry) => (
-                  <CourseLink
+                  <CourseButton
                     key={entryKey(entry)}
                     entry={entry}
+                    day={d}
+                    period={p}
+                    onOpen={onOpen}
                     className={`flex min-h-0 flex-1 flex-col justify-center gap-0.5 rounded-sm px-1.5 py-1 ${
                       CELL_STYLES[entry.type].cell
                     } ${ENTER}`}
                     style={enterDelay(order)}
                   >
                     <EntryBody entry={entry} clamp="line-clamp-2" />
-                  </CourseLink>
+                  </CourseButton>
                 ))}
               </div>
             );
@@ -158,9 +199,12 @@ export default function TimetablePanel() {
           <span className="shrink-0 text-[11px] font-semibold text-fg-secondary">曜日・時限未定</span>
           <div className="flex min-w-0 flex-wrap gap-1.5">
             {unscheduled.map((entry) => (
-              <CourseLink
+              <CourseButton
                 key={entry.code ?? entry.name}
                 entry={entry}
+                day={null}
+                period={null}
+                onOpen={onOpen}
                 className={`flex items-center gap-1.5 rounded-sm px-2 py-1 ${CELL_STYLES[entry.type].cell} ${ENTER}`}
               >
                 <span className="text-[11px] font-semibold text-fg-primary">{entry.name}</span>
@@ -170,7 +214,7 @@ export default function TimetablePanel() {
                 {entry.quarter && (
                   <span className="text-[9px] font-semibold text-fg-secondary">{entry.quarter}</span>
                 )}
-              </CourseLink>
+              </CourseButton>
             ))}
           </div>
         </div>
@@ -198,10 +242,21 @@ export default function TimetablePanel() {
           >
             <p className="max-w-[260px] text-center text-[13px] leading-5 text-fg-tertiary">
               右のAI履修アシスタントに希望条件を送ると、ここに時間割が出ます。
+              空きコマを押して、シラバスから自分で登録することもできます。
             </p>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {editing.menu && (
+        <CourseMenu
+          target={editing.menu}
+          onClose={editing.close}
+          onOpenSyllabus={() => editing.openSyllabus(editing.menu!)}
+          onReplace={() => editing.replace(editing.menu!)}
+          onRemove={() => editing.remove(editing.menu!)}
+        />
+      )}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import BottomDock from "@/components/BottomDock";
 import { CreditSummaryProvider } from "@/lib/creditSummary";
 import MotionProvider from "@/components/MotionProvider";
+import ReplaceBanner from "@/components/ReplaceBanner";
 
 /*
  * 全書体を IBM Plex Sans JP に統一する。
@@ -53,6 +54,8 @@ export default function RootLayout({
             モバイルの下の余白はボトムドックが自分の高さぶん持つ。
           */}
           <main className="flex min-h-0 flex-1 flex-col md:px-4 md:pb-2">
+            {/* 時間割の科目を「別の科目に変更する」途中の帯(シラバスの画面だけに出る。PC は下に浮かせ、高さの決まった画面を押し下げない) */}
+            <ReplaceBanner />
             {children}
           </main>
           {/*
