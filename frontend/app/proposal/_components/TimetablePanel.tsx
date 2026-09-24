@@ -1,9 +1,25 @@
 "use client";
 
 import Link from "next/link";
+import { AnimatePresence, motion } from "motion/react";
 import { proposalDetailHref } from "@/lib/syllabusQuery";
 import { DAYS, PERIODS, CELL_STYLES, coursesToSlotTable, type SlotEntry } from "@/lib/timetable";
 import { useProposalStore } from "@/lib/proposal";
+
+/** 科目の同一性。key に使い、科目が入れ替わったマスだけを作り直して現れる動きを流す */
+function entryKey(entry: SlotEntry): string {
+  return `${entry.code ?? entry.name}-${entry.quarter ?? ""}`;
+}
+
+/**
+ * 科目が入るときの動き。マスの位置(曜日・時限の順)で少しずつずらし、表が
+ * 組み上がっていくように見せる。CSS の動きはマウント時に1回だけなので、
+ * 同じ科目が残っているマスは流れ直さない
+ */
+const ENTER = "motion-safe:animate-pop-in";
+function enterDelay(order: number): React.CSSProperties {
+  return { animationDelay: `${Math.min(order, 20) * 30}ms` };
+}
 
 /** 科目名と、履修区分・クォーターの印 */
 function EntryBody({ entry, clamp }: { entry: SlotEntry; clamp: string }) {
@@ -33,15 +49,18 @@ function EntryBody({ entry, clamp }: { entry: SlotEntry; clamp: string }) {
 function CourseLink({
   entry,
   className,
+  style,
   children,
 }: {
   entry: SlotEntry;
   className: string;
+  style?: React.CSSProperties;
   children: React.ReactNode;
 }) {
-  if (!entry.code) return <div className={className}>{children}</div>;
+  if (!entry.code) return <div className={className} style={style}>{children}</div>;
   return (
     <Link
+      style={style}
       href={proposalDetailHref(entry.code)}
       aria-label={`${entry.name}のシラバスを開く`}
       className={`${className} transition-[filter] hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent`}
@@ -93,19 +112,23 @@ export default function TimetablePanel() {
             <span className="text-[9px] text-fg-faint">限</span>
           </div>
 
-          {DAYS.map((d) => {
+          {DAYS.map((d, di) => {
+            const order = di * PERIODS.length + (p - PERIODS[0]);
             const entries = table[p]?.[d] ?? [];
             // 1科目ならマス全体を区分の色で塗り、マスごとリンクにする。
             // 複数なら科目ごとに色の付いた枠を積み、枠ごとにリンクにする
             const single = entries.length === 1 ? entries[0] : null;
             const cellClass = `flex min-w-0 flex-1 flex-col justify-center gap-1 border-r border-border-primary last:border-r-0 ${
               entries.length > 1 ? "p-1" : "p-2"
-            } ${single ? CELL_STYLES[single.type].cell : "bg-surface-primary"} ${
-              isLoading ? "animate-pulse" : ""
-            }`;
+            } ${single ? `${CELL_STYLES[single.type].cell} ${ENTER}` : "bg-surface-primary"}`;
             if (single) {
               return (
-                <CourseLink key={d} entry={single} className={cellClass}>
+                <CourseLink
+                  key={`${d}:${entryKey(single)}`}
+                  entry={single}
+                  className={cellClass}
+                  style={enterDelay(order)}
+                >
                   <EntryBody entry={single} clamp="line-clamp-3" />
                 </CourseLink>
               );
@@ -114,11 +137,12 @@ export default function TimetablePanel() {
               <div key={d} className={cellClass}>
                 {entries.map((entry) => (
                   <CourseLink
-                    key={`${entry.code ?? entry.name}-${entry.quarter ?? ""}`}
+                    key={entryKey(entry)}
                     entry={entry}
                     className={`flex min-h-0 flex-1 flex-col justify-center gap-0.5 rounded-sm px-1.5 py-1 ${
                       CELL_STYLES[entry.type].cell
-                    }`}
+                    } ${ENTER}`}
+                    style={enterDelay(order)}
                   >
                     <EntryBody entry={entry} clamp="line-clamp-2" />
                   </CourseLink>
@@ -137,7 +161,7 @@ export default function TimetablePanel() {
               <CourseLink
                 key={entry.code ?? entry.name}
                 entry={entry}
-                className={`flex items-center gap-1.5 rounded-sm px-2 py-1 ${CELL_STYLES[entry.type].cell}`}
+                className={`flex items-center gap-1.5 rounded-sm px-2 py-1 ${CELL_STYLES[entry.type].cell} ${ENTER}`}
               >
                 <span className="text-[11px] font-semibold text-fg-primary">{entry.name}</span>
                 <span className={`rounded-sm px-1.5 py-0.5 text-[9px] ${CELL_STYLES[entry.type].tag}`}>
@@ -152,13 +176,32 @@ export default function TimetablePanel() {
         </div>
       )}
 
-      {isIdle && (
-        <div className="pointer-events-none absolute inset-0 grid place-items-center bg-surface-primary/80">
-          <p className="max-w-[260px] text-center text-[13px] leading-5 text-fg-tertiary">
-            右のAI履修アシスタントに希望条件を送ると、ここに時間割が出ます。
-          </p>
+      {/* 生成中は表の上を光が流れる。4〜5分待つ場面なので、止まっていないことを示す
+          (§7.2)。マスごとの点滅にしないのは、届いた科目が現れる動きと重なるため */}
+      {isLoading && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 overflow-hidden motion-reduce:hidden"
+        >
+          <div className="h-full w-full bg-linear-to-r from-transparent via-white/60 to-transparent motion-safe:animate-shimmer" />
         </div>
       )}
+
+      <AnimatePresence>
+        {isIdle && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="pointer-events-none absolute inset-0 grid place-items-center bg-surface-primary/80"
+          >
+            <p className="max-w-[260px] text-center text-[13px] leading-5 text-fg-tertiary">
+              右のAI履修アシスタントに希望条件を送ると、ここに時間割が出ます。
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
