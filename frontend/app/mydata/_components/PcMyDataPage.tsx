@@ -6,6 +6,7 @@ import {
   User,
   FileCheck,
   FileText,
+  Pencil,
   RotateCcw,
   Monitor,
   TriangleAlert,
@@ -18,6 +19,7 @@ import { useChatHistoryStore } from "@/lib/chatHistory";
 import { useProposalStore } from "@/lib/proposal";
 import { useSyllabusUIStore } from "@/lib/syllabusUI";
 import { DUMMY_PROFILES } from "@/lib/dummy/profiles";
+import ManualInputForm from "@/app/_components/ManualInputForm";
 
 const GRADUATION_CREDITS = 124;
 
@@ -33,6 +35,14 @@ export default function PcMyDataPage() {
   const resetSyllabusUI = useSyllabusUIStore((s) => s.reset);
   const [demoMode, setDemoMode] = useState(false);
   const [demoIndex, setDemoIndex] = useState(0);
+  // 学年・課程と取り込んだ科目の編集。モバイルのマイデータと同じフォームを開く
+  const [editing, setEditing] = useState(false);
+
+  const openEditor = () => {
+    setEditing(true);
+    // 下の方の「科目を編集」から開いてもフォームの頭から見せる
+    window.scrollTo({ top: 0 });
+  };
 
   const handleDemoToggle = () => {
     if (!demoMode) {
@@ -81,6 +91,25 @@ export default function PcMyDataPage() {
     );
   }
 
+  if (editing) {
+    return (
+      <div className="flex flex-1 flex-col items-center px-4 py-10 md:px-16">
+        {/* overflow-clip は sticky を殺さない（overflow-hidden だとフォームの見出しが固定されない） */}
+        <div className="w-full max-w-[720px] overflow-clip rounded-lg border border-border-primary">
+          <ManualInputForm
+            initialProfile={profile}
+            mode="edit"
+            onComplete={(updated) => {
+              setProfile(updated);
+              setEditing(false);
+            }}
+            onCancel={() => setEditing(false)}
+          />
+        </div>
+      </div>
+    );
+  }
+
   // 取り込みは不合格・履修辞退も含む全科目。単位に数えるのは合格したものだけ(要件§4.2)
   const passedCourses = profile.completedCourses.filter((c) => c.status === "passed");
   const totalCredits = passedCourses.reduce((sum, c) => sum + c.credits, 0);
@@ -110,6 +139,7 @@ export default function PcMyDataPage() {
           <div className="flex items-center gap-2">
             <User size={18} className="text-accent" aria-hidden="true" />
             <h2 className="text-[15px] font-bold text-fg-primary">履修プロファイル</h2>
+            <EditButton label="学年・課程を編集" onClick={openEditor} />
           </div>
           <div className="overflow-hidden rounded border border-border-primary">
             {profRows.map((row, i) => (
@@ -154,7 +184,17 @@ export default function PcMyDataPage() {
           </div>
         </section>
 
-        <CourseSection title="修得済み科目" courses={passedCourses} />
+        {/* 編集画面には未修得の科目も並ぶので、件数は取り込んだ全科目で出す */}
+        <CourseSection
+          title="修得済み科目"
+          courses={passedCourses}
+          action={
+            <EditButton
+              label={`科目を編集（${profile.completedCourses.length}科目）`}
+              onClick={openEditor}
+            />
+          }
+        />
 
         {/* 不合格・履修辞退。単位にはならないが再履修の提案に使う(設計書 §6.1) */}
         {unearnedCourses.length > 0 && (
@@ -226,19 +266,35 @@ export default function PcMyDataPage() {
   );
 }
 
+function EditButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="ml-auto flex h-8 shrink-0 items-center gap-1.5 rounded border border-fg-primary px-3 text-fg-primary transition-colors hover:bg-surface-soft"
+    >
+      <Pencil size={13} aria-hidden="true" />
+      <span className="text-xs font-semibold">{label}</span>
+    </button>
+  );
+}
+
 function CourseSection({
   title,
   courses,
   unearned = false,
+  action,
 }: {
   title: string;
   courses: Course[];
   unearned?: boolean;
+  action?: React.ReactNode;
 }) {
   return (
     <section className="overflow-hidden rounded-xl border border-border-primary bg-surface-primary">
-      <div className="px-5 py-3 border-b border-[#E5E7EB] bg-[#F9FAFB]">
+      <div className="flex items-center gap-3 px-5 py-3 border-b border-[#E5E7EB] bg-[#F9FAFB]">
         <h2 className="text-sm font-semibold text-fg-primary">{title}</h2>
+        {action}
       </div>
       <div className="divide-y divide-[#F3F4F6]">
         {courses.map((course) => (

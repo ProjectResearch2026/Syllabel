@@ -80,7 +80,8 @@ export default function ManualInputForm({
 
   return (
     <div className="flex flex-col bg-white min-h-full">
-      <header className="sticky top-0 z-20 flex items-center gap-3 px-5 h-14 bg-white border-b border-[#D1D5DB]">
+      {/* PC（マイデータ）では固定表示のヘッダー（68px）の下に止める */}
+      <header className="sticky top-0 md:top-[68px] z-20 flex items-center gap-3 px-5 h-14 bg-white border-b border-[#D1D5DB]">
         <button onClick={onCancel} aria-label="戻る" className="-ml-1.5">
           <ChevronLeft size={22} className="text-[#1A2B4E]" />
         </button>
