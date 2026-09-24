@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { Sparkles, Send } from "lucide-react";
+import MarkdownText from "@/components/ai/MarkdownText";
 import { useStudentStore } from "@/lib/student";
 import { streamCourseChat, streamSyllabusChat } from "@/lib/chatApi";
 
@@ -104,7 +105,16 @@ export default function SyllabusChatBox({
                   : "bg-white border-[#D1D5DB] text-[#1A2B4E] rounded-tl-sm"
               }`}
             >
-              {m.content || (m.streaming ? <span className="animate-pulse">▌</span> : "")}
+              {m.role === "assistant" ? (
+                // 本文が空のうちは掛ける先が無く `caret` が見えないので、カーソルだけ出す
+                m.content ? (
+                  <MarkdownText caret={m.streaming}>{m.content}</MarkdownText>
+                ) : m.streaming ? (
+                  <span className="animate-pulse">▌</span>
+                ) : null
+              ) : (
+                m.content
+              )}
             </div>
           </div>
         ))}

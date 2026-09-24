@@ -10,6 +10,8 @@ import { useChatStore } from "@/lib/chat";
 import { useChatHistoryStore } from "@/lib/chatHistory";
 import { useProposalStore } from "@/lib/proposal";
 import { useCreditSummary } from "@/lib/creditSummary";
+import { useSyllabusUIStore } from "@/lib/syllabusUI";
+import { listHref } from "@/lib/syllabusQuery";
 
 /**
  * PC版ヘッダー（ui-design_pc.pen AppHeader）。
