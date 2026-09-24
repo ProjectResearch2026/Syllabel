@@ -91,7 +91,7 @@
   --shadow-sheet: 0 -4px 20px #1a2b4e33;
   --shadow-popover: 0 8px 24px #1a2b4e3d;
   --shadow-menu: 0 8px 24px #1a2b4e29; /* ui-design_pc.pen Chat/HistoryMenu */
-  --shadow-tabbar: 0 -1px 8px #00000012;
+  --shadow-dock: 0 4px 20px #1a2b4e1f; /* ui-design_phone.pen Nav/BottomDock */
   --shadow-card: 0 2px 8px #1a2b4e0a; /* ui-design_pc.pen CourseCard */
 
   /* --- .pen fontFamily --- */
