@@ -6,44 +6,74 @@ import {
   GraduationCap,
   FileText,
   FileUp,
-  FileCheck,
-  Bell,
-  Moon,
-  Languages,
-  ShieldCheck,
+  Shield,
   Database,
   Trash2,
-  Pencil,
   ChevronRight,
-  Info,
+  ChevronDown,
 } from "lucide-react";
-import { useStudentStore } from "@/lib/student";
+import { isUnearned, useStudentStore, type Course } from "@/lib/student";
 import { useChatStore } from "@/lib/chat";
 import { useChatHistoryStore } from "@/lib/chatHistory";
 import { useProposalStore } from "@/lib/proposal";
 import { useSyllabusUIStore } from "@/lib/syllabusUI";
-import ManualInputForm from "@/app/import/_components/ManualInputForm";
+import { useCreditSummary } from "@/lib/creditSummary";
+import { useGraduationCredits } from "@/lib/curricula";
+import { resolveAdmissionYear } from "@/lib/programs";
+import { DUMMY_PROFILES } from "@/lib/dummy/profiles";
+import ManualInputForm from "@/app/_components/ManualInputForm";
 
-function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+/** 修得済み科目は先頭の数件だけ出し、残りは「すべて表示」で開く */
+const PREVIEW_COUNT = 4;
+
+function Toggle({ on, onToggle, label }: { on: boolean; onToggle: () => void; label: string }) {
   return (
     <button
+      type="button"
       role="switch"
       aria-checked={on}
+      aria-label={label}
       onClick={onToggle}
-      className={`w-11 h-[26px] rounded-full p-0.5 flex items-center transition-colors shrink-0 ${
-        on ? "bg-[#E60012] justify-end" : "bg-[#D1D5DB] justify-start"
+      className={`flex h-[26px] w-11 shrink-0 items-center rounded-full p-[3px] transition-colors ${
+        on ? "justify-end bg-accent" : "justify-start bg-[#D1D5DB]"
       }`}
     >
-      <span className="w-[22px] h-[22px] rounded-full bg-white shadow-[0_1px_3px_0_rgba(0,0,0,0.1)]" />
+      <span className="size-5 rounded-full bg-white shadow-[0_1px_3px_0_rgba(0,0,0,0.1)]" />
     </button>
   );
 }
 
-function Row({
+/** 見出し（ui-design_phone.pen SecLabel_*） */
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return <h2 className="px-5 text-[11px] font-bold text-[#1A2B4E]">{children}</h2>;
+}
+
+/** 白地の囲み（上下だけ罫線） */
+function Group({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col border-y border-border-primary bg-surface-primary">{children}</div>
+  );
+}
+
+/** ラベルと値の1行（履修プロファイル） */
+function InfoRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
+  return (
+    <div
+      className={`flex h-11 items-center justify-between gap-3 px-5 ${
+        last ? "" : "border-b border-[#F3F4F6]"
+      }`}
+    >
+      <span className="text-[13px] text-fg-secondary">{label}</span>
+      <span className="truncate text-[13px] font-semibold text-fg-primary">{value}</span>
+    </div>
+  );
+}
+
+/** アイコン付きの押せる1行（学生情報の編集・プライバシー・リセット） */
+function NavRow({
   icon,
   label,
   value,
-  right,
   onClick,
   danger,
   last,
@@ -51,38 +81,64 @@ function Row({
   icon: React.ReactNode;
   label: string;
   value?: string;
-  right?: React.ReactNode;
-  onClick?: () => void;
+  onClick: () => void;
   danger?: boolean;
   last?: boolean;
 }) {
-  const Comp = onClick ? "button" : "div";
   return (
-    <Comp
+    <button
+      type="button"
       onClick={onClick}
-      className={`w-full h-[52px] flex items-center gap-3 px-5 bg-white text-left ${
+      className={`flex h-[52px] w-full items-center gap-3 bg-surface-primary px-5 text-left transition-colors active:bg-surface-gray ${
         last ? "" : "border-b border-[#F3F4F6]"
-      } ${onClick ? "active:bg-[#F8F9FA] transition-colors" : ""}`}
+      }`}
     >
       <span
-        className={`w-[30px] h-[30px] rounded-md flex items-center justify-center shrink-0 ${
+        className={`flex size-[30px] shrink-0 items-center justify-center ${
           danger ? "bg-[#FFE8E9]" : "bg-[#F0F2F5]"
         }`}
       >
         {icon}
       </span>
-      <span className={`flex-1 text-sm ${danger ? "text-[#BA1A1A]" : "text-[#1A2B4E]"}`}>
-        {label}
-      </span>
-      {value && <span className="text-[13px] text-[#9CA3AF]">{value}</span>}
-      {right ??
-        (onClick ? (
-          <ChevronRight size={16} className={danger ? "text-[#BA1A1A]" : "text-[#D1D5DB]"} />
-        ) : null)}
-    </Comp>
+      <span className={`flex-1 text-sm ${danger ? "text-[#BA1A1A]" : "text-fg-primary"}`}>{label}</span>
+      {value && <span className="truncate text-[13px] text-[#9CA3AF]">{value}</span>}
+      <ChevronRight size={16} className={`shrink-0 ${danger ? "text-[#BA1A1A]" : "text-[#D1D5DB]"}`} />
+    </button>
   );
 }
 
+/** 取り込んだ科目の1行。成績の印は修得済みが紺、未修得が赤で、登録済み（未確定）は出さない */
+function CourseRow({ course, last }: { course: Course; last?: boolean }) {
+  const unearned = isUnearned(course);
+  const meta = [`${course.year}年度 ${course.term}`, course.code].filter(Boolean).join(" · ");
+  return (
+    <div
+      className={`flex items-center gap-2.5 px-5 py-2.5 ${last ? "" : "border-b border-[#F3F4F6]"}`}
+    >
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate text-[13px] font-semibold text-fg-primary">{course.title}</span>
+        <span className="text-[10px] text-fg-secondary">{meta}</span>
+      </div>
+      <span className="shrink-0 text-[11px] text-fg-secondary">{course.credits}単位</span>
+      {course.status !== "registered" && course.rawScore && (
+        <span
+          className={`flex h-[22px] min-w-7 shrink-0 items-center justify-center rounded px-1 text-xs font-bold tabular-nums text-white ${
+            unearned ? "bg-[#BA1A1A]" : "bg-[#1A2B4E]"
+          }`}
+        >
+          {course.rawScore}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * マイデータ（モバイル。ui-design_phone.pen 08_マイデータ、`/mydata`）。
+ *
+ * 取り込んだ成績データの確認・編集・破棄（要件§4.1、§4.8）。単位数はヘッダー・
+ * 時間割と同じ集計（`lib/creditSummary.tsx`）を使い、画面で足し算しない。
+ */
 export default function MobileSettingsPage() {
   const router = useRouter();
   const profile = useStudentStore((s) => s.profile);
@@ -93,9 +149,14 @@ export default function MobileSettingsPage() {
   // 生成済みの提案と、学生が書いた希望条件もここで消す（要件§4.8、§5.2.3）
   const clearProposal = useProposalStore((s) => s.clear);
   const resetSyllabusUI = useSyllabusUIStore((s) => s.reset);
-  const [notify, setNotify] = useState(true);
-  const [dark, setDark] = useState(false);
+  const { completedCredits } = useCreditSummary();
+  const graduationCredits = useGraduationCredits(profile);
   const [editMode, setEditMode] = useState<"grade-program" | "courses" | null>(null);
+  const [showAllPassed, setShowAllPassed] = useState(false);
+
+  // いま読み込んでいるのがデモのプロファイルか。デモを選ぶとその内容に差し替わる
+  const demoIndex = DUMMY_PROFILES.findIndex((d) => d.profile === profile);
+  const [demoOn, setDemoOn] = useState(demoIndex >= 0);
 
   const handleReset = () => {
     if (confirm("学生データ・成績情報・対話履歴をすべて消去しますか? この操作は取り消せません。")) {
@@ -108,12 +169,21 @@ export default function MobileSettingsPage() {
     }
   };
 
-  // 取り込みは不合格・履修辞退も含む全科目。単位に数えるのは合格したものだけ(要件§4.2)
-  const passedCourses = profile?.completedCourses.filter((c) => c.status === "passed") ?? [];
-  const totalCredits = passedCourses.reduce((sum, c) => sum + c.credits, 0);
-  const passedCount = passedCourses.length;
-  const courseCount = profile?.completedCourses.length ?? 0;
-  const iconCls = "text-[#1A2B4E]";
+  /** デモの学生に切り替える。前の学生の提案を残すと食い違うので捨てる */
+  const loadDemo = (index: number) => {
+    const demo = DUMMY_PROFILES[index];
+    if (!demo) return;
+    clearProposal();
+    setProfile(demo.profile);
+  };
+
+  const courses = profile?.completedCourses ?? [];
+  const passed = courses.filter((c) => c.status === "passed");
+  const unearned = courses.filter(isUnearned);
+  const registered = courses.filter((c) => c.status === "registered");
+  const visiblePassed = showAllPassed ? passed : passed.slice(0, PREVIEW_COUNT);
+  const admissionYear = resolveAdmissionYear(profile);
+  const iconCls = "text-fg-primary";
 
   if (editMode !== null) {
     return (
@@ -130,143 +200,206 @@ export default function MobileSettingsPage() {
   }
 
   return (
-    <div className="flex flex-col bg-[#F8F9FA] min-h-full">
+    <div className="flex min-h-full flex-col bg-surface-gray">
       {/* Header */}
-      <header className="sticky top-0 z-20 flex items-center px-5 h-14 bg-white border-b border-[#D1D5DB]">
-        <span className="text-[#1A2B4E] text-lg font-bold">マイデータ・設定</span>
+      <header className="sticky top-0 z-20 flex h-16 flex-col items-center justify-center gap-0.5 border-b border-[#D1D5DB] bg-surface-primary px-5">
+        <span className="text-lg font-bold text-[#1A2B4E]">マイデータ</span>
+        <span className="text-[11px] text-fg-secondary">取り込んだ成績データと表示設定を管理します。</span>
       </header>
 
-      {/* Profile card */}
-      <div className="bg-white border-b border-[#D1D5DB]">
-        <div className="flex items-center gap-3.5 px-5 py-[18px]">
-          <div className="w-[52px] h-[52px] rounded-lg bg-[#E60012] flex items-center justify-center shrink-0">
-            <span className="text-white text-[22px] font-bold">龍</span>
-          </div>
-          <div className="flex-1 flex flex-col gap-1 min-w-0">
-            <span className="text-sm font-bold text-[#1A2B4E] truncate">
-              {profile ? `${profile.program} · ${profile.grade}回生` : "学生データ未登録"}
-            </span>
-            <div className="flex items-center gap-1.5">
-              <span className="px-2 py-[3px] rounded-md bg-[#EEF0F5] text-[10px] font-bold text-[#1A2B4E]">
-                {totalCredits}単位取得済
+      <div className="flex flex-col gap-2 py-3">
+        <div className="h-1 bg-[#F3F4F6]" />
+
+        {/* 履修プロファイル */}
+        <SectionLabel>履修プロファイル</SectionLabel>
+        <Group>
+          <InfoRow label="学年" value={profile?.grade != null ? `${profile.grade}回生` : "未登録"} />
+          <InfoRow label="課程" value={profile?.program ?? "未登録"} />
+          <InfoRow label="入学年度" value={admissionYear != null ? `${admissionYear}年度` : "未登録"} />
+          <InfoRow
+            label="取得単位"
+            value={completedCredits != null ? `${completedCredits} / ${graduationCredits} 単位` : "—"}
+            last
+          />
+        </Group>
+
+        {/* 取り込み済みデータ */}
+        <SectionLabel>取り込み済みデータ</SectionLabel>
+        <Group>
+          <div className="flex items-center gap-3 px-5 py-3">
+            <FileText size={20} className="shrink-0 text-accent" aria-hidden="true" />
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="truncate text-[13px] font-semibold text-fg-primary">
+                {profile ? "取り込んだ成績表" : "成績データが未登録です"}
               </span>
-              <span className="px-2 py-[3px] rounded-md bg-[#EEF0F5] text-[10px] font-bold text-[#1A2B4E]">
-                {passedCount}科目
+              <span className="text-[11px] text-fg-secondary">
+                {profile ? `${courses.length}科目を認識・ブラウザ内で保持中` : "成績表PDFを取り込んでください"}
               </span>
             </div>
+            <button
+              type="button"
+              onClick={() => router.push("/")}
+              className="shrink-0 rounded border-[1.5px] border-fg-primary bg-surface-primary px-4 py-2 text-xs font-semibold text-fg-primary active:bg-surface-gray"
+            >
+              {profile ? "再取り込み" : "取り込む"}
+            </button>
           </div>
-          <button
-            aria-label="プロフィールを編集"
+        </Group>
+
+        {/* 修得済み科目 */}
+        {passed.length > 0 && (
+          <>
+            <SectionLabel>修得済み科目（{passed.length}科目）</SectionLabel>
+            <Group>
+              {visiblePassed.map((c, i) => (
+                <CourseRow
+                  key={`${c.title}-${c.year}-${c.term}-${i}`}
+                  course={c}
+                  last={i === visiblePassed.length - 1 && passed.length <= PREVIEW_COUNT}
+                />
+              ))}
+              {passed.length > PREVIEW_COUNT && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllPassed((v) => !v)}
+                  className="flex h-10 items-center justify-center text-xs font-semibold text-accent"
+                >
+                  {showAllPassed ? "閉じる" : `すべて表示（${passed.length}科目）`}
+                </button>
+              )}
+            </Group>
+          </>
+        )}
+
+        {/* 未修得科目。再履修の提案に使うので取り込んだことを見せる */}
+        {unearned.length > 0 && (
+          <>
+            <SectionLabel>未修得科目（再履修の対象）</SectionLabel>
+            <Group>
+              {unearned.map((c, i) => (
+                <CourseRow key={`${c.title}-${c.year}-${c.term}-${i}`} course={c} last={i === unearned.length - 1} />
+              ))}
+            </Group>
+          </>
+        )}
+
+        {/* 登録済みで成績未確定。提案の候補から外すので取り込んだことを見せる */}
+        {registered.length > 0 && (
+          <>
+            <SectionLabel>登録済み科目（成績未確定）</SectionLabel>
+            <Group>
+              {registered.map((c, i) => (
+                <CourseRow
+                  key={`${c.title}-${c.year}-${c.term}-${i}`}
+                  course={c}
+                  last={i === registered.length - 1}
+                />
+              ))}
+            </Group>
+          </>
+        )}
+
+        {/* 学生情報の編集 */}
+        <SectionLabel>学生情報の編集</SectionLabel>
+        <Group>
+          <NavRow
+            icon={<GraduationCap size={16} className={iconCls} />}
+            label="学年・課程"
+            value={profile ? `${profile.grade ?? "-"}回生 / ${profile.program ?? "未設定"}` : "未登録"}
             onClick={() => setEditMode("grade-program")}
-            className="w-9 h-9 rounded-lg bg-[#F3F4F6] flex items-center justify-center shrink-0 active:bg-[#EEF0F5] transition-colors"
-          >
-            <Pencil size={16} className="text-[#1A2B4E]" />
-          </button>
-        </div>
-        <div className="flex items-center gap-2 px-5 h-9 bg-[#F8F9FA]">
-          <FileCheck size={14} className="text-[#1A2B4E] shrink-0" />
-          <span className="flex-1 text-[11px] text-[#6B7280] truncate">
-            {profile ? "成績表_2024.pdf からインポート済み" : "成績データが未登録です"}
-          </span>
-          <button onClick={() => router.push("/import")} className="text-[11px] text-[#E60012]">
-            {profile ? "再取込" : "取り込む"}
-          </button>
-        </div>
-      </div>
+          />
+          {/* 編集画面には未修得の科目も並ぶので、件数は取り込んだ全科目で出す */}
+          <NavRow
+            icon={<FileText size={16} className={iconCls} />}
+            label="修得科目を編集"
+            value={`${courses.length}科目`}
+            onClick={() => setEditMode("courses")}
+          />
+          <NavRow
+            icon={<FileUp size={16} className={iconCls} />}
+            label="PDFを再インポート"
+            onClick={() => router.push("/")}
+            last
+          />
+        </Group>
 
-      {/* Sections */}
-      <div className="flex flex-col gap-3 py-3">
-        {/* 学生情報 */}
-        <section className="flex flex-col gap-2">
-          <h2 className="px-5 text-[11px] font-bold text-[#1A2B4E]">学生情報</h2>
-          <div className="border-y border-[#D1D5DB]">
-            <Row
-              icon={<GraduationCap size={16} className={iconCls} />}
-              label="学年・課程"
-              value={profile ? `${profile.grade}回生 / ${profile.program}` : "未登録"}
-              onClick={() => setEditMode("grade-program")}
-            />
-            {/* 編集画面には未修得の科目も並ぶので、件数は取り込んだ全科目で出す */}
-            <Row
-              icon={<FileText size={16} className={iconCls} />}
-              label="取り込んだ科目を編集"
-              value={`${courseCount}科目`}
-              onClick={() => setEditMode("courses")}
-            />
-            <Row
-              icon={<FileUp size={16} className={iconCls} />}
-              label="PDFを再インポート"
-              value="成績表_2024.pdf"
-              onClick={() => router.push("/import")}
-              last
+        {/* デモモード（龍谷祭の展示用） */}
+        <SectionLabel>デモモード</SectionLabel>
+        <Group>
+          <div className="flex items-center gap-3 border-b border-[#F3F4F6] px-5 py-3">
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="text-[13px] font-semibold text-fg-primary">展示用ダミーデータを使用</span>
+              <span className="text-[11px] text-fg-secondary">展示用のダミー学生データに切り替えます</span>
+            </div>
+            <Toggle
+              on={demoOn}
+              label="展示用ダミーデータを使用"
+              onToggle={() => {
+                const next = !demoOn;
+                setDemoOn(next);
+                if (next && demoIndex < 0) loadDemo(0);
+              }}
             />
           </div>
-        </section>
-
-        {/* 表示・通知 */}
-        <section className="flex flex-col gap-2">
-          <h2 className="px-5 text-[11px] font-bold text-[#1A2B4E]">表示・通知</h2>
-          <div className="border-y border-[#D1D5DB]">
-            <Row
-              icon={<Bell size={16} className={iconCls} />}
-              label="履修提案の通知"
-              right={<Toggle on={notify} onToggle={() => setNotify((v) => !v)} />}
-            />
-            <Row
-              icon={<Moon size={16} className={iconCls} />}
-              label="ダークモード"
-              right={<Toggle on={dark} onToggle={() => setDark((v) => !v)} />}
-            />
-            <Row
-              icon={<Languages size={16} className={iconCls} />}
-              label="言語"
-              value="日本語"
-              last
-            />
-          </div>
-        </section>
+          {demoOn && (
+            <div className="px-5 pb-3.5 pt-2.5">
+              <span className="relative flex items-center">
+                <select
+                  aria-label="ダミーデータ"
+                  value={demoIndex >= 0 ? demoIndex : ""}
+                  onChange={(e) => loadDemo(Number(e.target.value))}
+                  className="h-9 w-full appearance-none rounded border border-border-primary bg-surface-primary px-2.5 pr-8 text-xs text-fg-primary"
+                >
+                  {demoIndex < 0 && <option value="">選択してください</option>}
+                  {DUMMY_PROFILES.map((d, i) => (
+                    <option key={d.label} value={i}>
+                      {d.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={14}
+                  className="pointer-events-none absolute right-2.5 text-fg-secondary"
+                  aria-hidden="true"
+                />
+              </span>
+            </div>
+          )}
+        </Group>
 
         {/* プライバシー・データ */}
-        <section className="flex flex-col gap-2">
-          <h2 className="px-5 text-[11px] font-bold text-[#1A2B4E]">プライバシー・データ</h2>
-          <div className="border-y border-[#D1D5DB]">
-            <Row
-              icon={<ShieldCheck size={16} className={iconCls} />}
-              label="プライバシーポリシー"
-              onClick={() => router.push("/privacy")}
-            />
-            <Row
-              icon={<Database size={16} className={iconCls} />}
-              label="データの取り扱いについて"
-              onClick={() => router.push("/privacy")}
-              last
-            />
-          </div>
-        </section>
+        <SectionLabel>プライバシー・データ</SectionLabel>
+        <Group>
+          <NavRow
+            icon={<Shield size={16} className={iconCls} />}
+            label="プライバシーポリシー"
+            onClick={() => router.push("/privacy")}
+          />
+          <NavRow
+            icon={<Database size={16} className={iconCls} />}
+            label="データの取り扱いについて"
+            onClick={() => router.push("/privacy")}
+            last
+          />
+        </Group>
+
+        <div className="h-1 bg-[#F3F4F6]" />
 
         {/* リセット */}
-        <section className="flex flex-col">
-          <div className="border-y border-[#D1D5DB]">
-            <Row
-              icon={<Trash2 size={16} className="text-[#EF4444]" />}
-              label="データをリセット"
-              onClick={handleReset}
-              danger
-              last
-            />
-          </div>
-          <div className="flex items-start gap-2 px-5 py-2.5 bg-[#F3F4F6]">
-            <Info size={14} className="text-[#9CA3AF] shrink-0 mt-px" />
-            <p className="flex-1 text-[11px] text-[#6B7280] leading-relaxed">
-              リセットすると学生データ・成績情報・対話履歴がすべて消去されます。この操作は取り消せません。
-            </p>
-          </div>
-        </section>
+        <Group>
+          <NavRow
+            icon={<Trash2 size={16} className="text-[#EF4444]" />}
+            label="データをリセット"
+            onClick={handleReset}
+            danger
+            last
+          />
+        </Group>
 
         {/* Version */}
         <div className="flex flex-col items-center gap-[3px] px-5 py-4">
           <span className="text-[11px] text-[#9CA3AF]">履修登録支援AIチャットボット</span>
-          <span className="text-[11px] text-[#9CA3AF]">龍谷大学 知能情報メディア課程</span>
+          <span className="text-[10px] text-[#D1D5DB]">v0.1.0 · 龍谷大学プロジェクトリサーチ</span>
         </div>
       </div>
     </div>

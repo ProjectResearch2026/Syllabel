@@ -1,4 +1,8 @@
+import Link from "next/link";
 import {
+  ChevronLeft,
+  ChevronDown,
+  CloudOff,
   ShieldCheck,
   FileText,
   Cpu,
@@ -26,30 +30,114 @@ const FLOW: { icon: LucideIcon; title: string; sub: string }[] = [
   { icon: Trash2, title: "閉じると消去", sub: "痕跡は残らない" },
 ];
 
-const PRINCIPLES: { icon: LucideIcon; title: string; body: string }[] = [
+const PRINCIPLES: { icon: LucideIcon; mobileIcon: LucideIcon; title: string; body: string }[] = [
   {
     icon: Monitor,
+    mobileIcon: Monitor,
     title: "ブラウザ上でのみ処理",
     body: "成績PDFの解析は端末内のPDF.jsで完結。ファイルがサーバーへ届くことはありません。",
   },
   {
     icon: WifiOff,
+    mobileIcon: CloudOff,
     title: "外部AIに送信しない",
     body: "ChatGPT等の外部サービスは一切利用せず、学内のローカルLLMだけで回答します。",
   },
   {
     icon: Database,
+    mobileIcon: Database,
     title: "永続保存しない",
     body: "サーバーにデータベース保存は行いません。処理後はメモリから即時破棄されます。",
   },
   {
     icon: EyeOff,
+    mobileIcon: EyeOff,
     title: "ログに残さない",
     body: "成績内容をアクセスログにも記録しません。閉じれば痕跡は残りません。",
   },
 ];
 
 export default function PrivacyPage() {
+  return (
+    <>
+      <div className="flex flex-1 flex-col md:hidden">
+        <MobilePrivacy />
+      </div>
+      <div className="hidden flex-1 flex-col md:flex">
+        <PcPrivacy />
+      </div>
+    </>
+  );
+}
+
+/**
+ * モバイル（ui-design_phone.pen 07_プライバシー）。流れの図は縦に積み、
+ * 4つの約束は1列のカードにする。
+ *
+ * 戻り先は行き先を決め打ちにする（`/mydata`）。`router.back()` だと、取り込みの
+ * 確認ウィンドウから別タブで開いたときに戻る先が無い。
+ */
+function MobilePrivacy() {
+  return (
+    <div className="flex flex-1 flex-col bg-surface-gray">
+      <div className="sticky top-0 z-20 flex h-12 items-center border-b border-border-primary bg-surface-primary px-4">
+        <Link href="/mydata" className="flex items-center gap-1.5">
+          <ChevronLeft size={18} className="text-fg-primary" aria-hidden="true" />
+          <span className="text-[13px] font-semibold text-fg-primary">戻る</span>
+        </Link>
+      </div>
+
+      <div className="flex flex-col items-center gap-5 px-4 py-6">
+        <span className="grid size-16 place-items-center rounded-full bg-surface-soft">
+          <ShieldCheck size={32} className="text-fg-primary" aria-hidden="true" />
+        </span>
+        <h1 className="w-full text-center text-[22px] font-bold text-fg-primary">
+          プライバシーとデータの取り扱い
+        </h1>
+        <p className="w-full text-center text-[13px] leading-[1.7] text-fg-secondary">
+          あなたの成績データは学外に送信されず、ブラウザと学内サーバーの中だけで処理されます。以下は実際のデータの流れです。
+        </p>
+
+        <div className="flex w-full flex-col items-center">
+          {FLOW.map((step, i) => (
+            <div key={step.title} className="flex w-full flex-col items-center">
+              <div className="flex w-full items-center gap-3 rounded-lg border border-border-primary bg-surface-primary px-3.5 py-2.5">
+                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-surface-soft">
+                  <step.icon size={16} className="text-fg-primary" aria-hidden="true" />
+                </span>
+                <span className="flex flex-col gap-px">
+                  <span className="text-[13px] font-bold text-fg-primary">{step.title}</span>
+                  <span className="text-[11px] text-fg-secondary">{step.sub}</span>
+                </span>
+              </div>
+              {i < FLOW.length - 1 && (
+                <ChevronDown size={16} className="text-fg-faint" aria-hidden="true" />
+              )}
+            </div>
+          ))}
+        </div>
+
+        <h2 className="w-full text-base font-bold text-fg-primary">4つの約束</h2>
+        {PRINCIPLES.map((p) => (
+          <div
+            key={p.title}
+            className="flex w-full flex-col gap-1.5 rounded-lg border border-border-primary bg-surface-primary p-3.5"
+          >
+            <h3 className="flex items-center gap-2 text-sm font-bold text-fg-primary">
+              <p.mobileIcon size={18} className="shrink-0" aria-hidden="true" />
+              {p.title}
+            </h3>
+            <p className="text-xs leading-[1.6] text-fg-secondary">{p.body}</p>
+          </div>
+        ))}
+
+        <p className="w-full text-[11px] text-fg-faint">龍谷大学 プロジェクトリサーチ 2026</p>
+      </div>
+    </div>
+  );
+}
+
+function PcPrivacy() {
   return (
     <div className="flex flex-1 flex-col items-center gap-8 px-4 py-10 md:px-16">
       {/* Hero */}
