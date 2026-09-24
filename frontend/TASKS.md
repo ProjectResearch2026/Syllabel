@@ -32,7 +32,7 @@
 - [x] チャットページ（レイアウト・API接続） — `app/chat/page.tsx` + 各 `_components/`。`POST /api/chat/syllabus` SSE接続済み
 - [x] Zustand student store — `lib/student.ts`
 - [x] Zustand chat store — `lib/chat.ts`（提案チャット / シラバスチャット / 講義単位チャットを分離管理、永続化オフ）
-- [x] ダミープロファイル — `lib/dummy/profiles.ts`（3パターン: 3回生・知能情報メディア / 2回生・再履修あり / 1回生・電子情報通信）
+- [x] ダミープロファイル — `lib/dummy/profiles.ts`（6課程×1件: 3回生・知能情報メディア / 3回生・環境生態工学 / 2回生・数理・情報科学 / 2回生・応用化学 / 1回生・電子情報通信 / 1回生・機械工学・ロボティクス）
 - [x] ヘッダー・BottomTabBar
 - [x] プライバシーポリシーページ
 - [x] **PDF解析実装（モバイル）** — `app/import/_components/MobileImportFlow.tsx`
