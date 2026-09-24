@@ -332,13 +332,6 @@ export default function MobileSyllabusPage({
                   )}
                 </span>
 
-                {instructors && (
-                  <div className="flex min-w-0 items-center gap-1 text-xs text-[#4B5563]">
-                    <User size={13} className="shrink-0" aria-hidden="true" />
-                    <span className="truncate">{instructors}</span>
-                  </div>
-                )}
-
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[#E5E7EB] pt-1.5 text-[11px] text-[#4B5563]">
                   <span className="flex items-center gap-1">
                     <BookOpen size={12} aria-hidden="true" />
@@ -351,6 +344,20 @@ export default function MobileSyllabusPage({
                   <span className="flex items-center gap-1">
                     <MapPin size={12} aria-hidden="true" />
                     {c.campus} · {grade}
+                  </span>
+                  {/*
+                    教員名は描いたあとに届く(`useTaggedResults`)。届いた時点で行が増えると
+                    カードが一斉に伸び、一番下まで送った画面が押し戻される。
+                    **取得前から同じ大きさの枠を置いておく** — 幅は min-w で固定し
+                    (折り返すかどうかが中身で変わらない)、1行に切り詰める
+                  */}
+                  <span
+                    className={`flex min-w-[7em] flex-1 basis-0 items-center gap-1 ${
+                      instructors ? "" : "invisible"
+                    }`}
+                  >
+                    <User size={12} className="shrink-0" aria-hidden="true" />
+                    <span className="truncate">{instructors ?? " "}</span>
                   </span>
                 </div>
               </Link>
