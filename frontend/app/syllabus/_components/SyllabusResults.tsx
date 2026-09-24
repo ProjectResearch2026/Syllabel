@@ -82,13 +82,16 @@ export default function SyllabusResults({
         </p>
       ) : (
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          {visible.map(({ course, tags, instructors }) => (
+          {/* カードは上から 20ms ずつずらして現れる。ページや絞り込みを変えて並びが
+              入れ替わったことが分かるように。残ったカードは作り直されないので流れ直さない */}
+          {visible.map(({ course, tags, instructors }, i) => (
             <CourseCard
               key={`${course.syllabus_code}-${course.year}`}
               course={course}
               tags={tags}
               instructors={instructors}
               href={detailHref(course.syllabus_code, searchParams.toString())}
+              style={{ animationDelay: `${Math.min(i, 15) * 20}ms` }}
             />
           ))}
         </div>
