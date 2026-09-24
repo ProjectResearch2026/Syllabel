@@ -267,3 +267,36 @@ export function coursesToSlotTable(
   }
   return { table, unscheduled };
 }
+
+/** 学期の前半のクォーター(上段)と後半のクォーター(下段) */
+const FIRST_HALF = ["1Q", "3Q"];
+const SECOND_HALF = ["2Q", "4Q"];
+
+/** クォーターで分けたマス。空いている側は null */
+export type QuarterLanes = {
+  first: { quarter: string; entry: SlotEntry | null };
+  second: { quarter: string; entry: SlotEntry | null };
+};
+
+/**
+ * 1マスの科目を学期の前半(上段)と後半(下段)に振り分ける(ui-design_pc.pen /
+ * ui-design_phone.pen 04 時間割)。**マスの上段＝3Q、下段＝4Q と位置を決めておく**ことで、
+ * 3Q と 4Q の科目が「同じ時間に2つある」ようにも、4Q だけの科目が学期いっぱいある
+ * ようにも見えなくなる。
+ *
+ * 分けられるのは、マスの科目がすべて1つのクォーターだけを占め、前半・後半に
+ * 1科目ずつまでのときだけ。学期いっぱいの科目を含むマスや、同じクォーターに2科目
+ * 入ったマス(提案の検証で弾かれるはずのコマ重複)は null を返し、縦に積む表示に任せる。
+ */
+export function quarterLanes(entries: SlotEntry[]): QuarterLanes | null {
+  if (entries.length === 0 || entries.some((e) => !e.quarter || e.quarter.includes("・"))) return null;
+  const first = entries.filter((e) => FIRST_HALF.includes(e.quarter!));
+  const second = entries.filter((e) => SECOND_HALF.includes(e.quarter!));
+  if (first.length > 1 || second.length > 1) return null;
+  // 前期(1Q・2Q)か後期(3Q・4Q)か。空いている側の段の名前に使う
+  const spring = entries.some((e) => e.quarter === "1Q" || e.quarter === "2Q");
+  return {
+    first: { quarter: spring ? "1Q" : "3Q", entry: first[0] ?? null },
+    second: { quarter: spring ? "2Q" : "4Q", entry: second[0] ?? null },
+  };
+}

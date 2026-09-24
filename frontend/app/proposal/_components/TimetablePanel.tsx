@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { proposalDetailHref } from "@/lib/syllabusQuery";
-import { DAYS, PERIODS, CELL_STYLES, coursesToSlotTable, type SlotEntry } from "@/lib/timetable";
+import { DAYS, PERIODS, CELL_STYLES, coursesToSlotTable, quarterLanes, type SlotEntry } from "@/lib/timetable";
 import { useProposalStore } from "@/lib/proposal";
 import { courseContext, slotContext, useAiStore, type AiContext } from "@/lib/ai";
 import SlotPopover, { type SlotTarget } from "@/app/_components/SlotPopover";
@@ -33,11 +33,28 @@ function enterDelay(order: number): React.CSSProperties {
   return { animationDelay: `${Math.min(order, 20) * 30}ms` };
 }
 
+/**
+ * 列の割り付け。限ラベル 44px ＋ 曜日6列の等分。`flex-1` で割ると、マスごとの内側の
+ * 余白(1科目は p-2、複数は p-1、上段／下段は 0)の差だけ列の幅がずれる
+ */
+const GRID_COLS = "grid grid-cols-[2.75rem_repeat(6,minmax(0,1fr))]";
+
 /** 選択中の枠。マスの内側に引き、隣のマスの線に隠れないようにする */
 const RING = "z-10 ring-2 ring-inset ring-accent";
 
-/** 科目名と、履修区分・クォーターの印 */
-function EntryBody({ entry, clamp }: { entry: SlotEntry; clamp: string }) {
+/**
+ * 科目名と、履修区分・クォーターの印。上段／下段に分けたマスでは段の帯がクォーターを
+ * 示すので、印は出さない(`showQuarter={false}`)
+ */
+function EntryBody({
+  entry,
+  clamp,
+  showQuarter = true,
+}: {
+  entry: SlotEntry;
+  clamp: string;
+  showQuarter?: boolean;
+}) {
   const style = CELL_STYLES[entry.type];
   return (
     <>
@@ -46,7 +63,7 @@ function EntryBody({ entry, clamp }: { entry: SlotEntry; clamp: string }) {
       </span>
       <span className="flex flex-wrap items-center gap-1">
         <span className={`rounded-sm px-1.5 py-0.5 text-[9px] ${style.tag}`}>{style.label}</span>
-        {entry.quarter && (
+        {showQuarter && entry.quarter && (
           <span className="rounded-sm border border-border-primary bg-surface-primary px-1 py-0.5 text-[9px] font-semibold leading-none text-fg-secondary">
             {entry.quarter}
           </span>
@@ -105,7 +122,8 @@ function CourseButton({
  * 起こさない。列は限ラベル 44px ＋ 曜日6列。
  *
  * **提案の科目はすべて画面に出す**（design.md §8.3）。1マスに複数の科目（3Q と 4Q）が
- * 入り得るので縦に並べ、クォーターの科目には印を付ける。曜日・時限の無い科目
+ * 入り得る。クォーターの科目だけのマスは上段＝3Q・下段＝4Q に分け(`quarterLanes()`)、
+ * それ以外で複数入ったマスは縦に並べてクォーターの科目に印を付ける。曜日・時限の無い科目
  * （集中講義など）は表の下の「曜日・時限未定」に並べる。どちらかを欠くと、
  * 表の科目の単位の和が「今期登録単位」と合わなくなる。
  *
@@ -156,8 +174,8 @@ export default function TimetablePanel() {
   return (
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border-primary bg-surface-primary">
       {/* 曜日ヘッダー */}
-      <div className="flex h-10 shrink-0 border-b border-border-primary bg-surface-gray">
-        <div className="w-11 shrink-0" />
+      <div className={`${GRID_COLS} h-10 shrink-0 border-b border-border-primary bg-surface-gray`}>
+        <div />
         {DAYS.map((d) => (
           <div
             key={d}
@@ -169,8 +187,8 @@ export default function TimetablePanel() {
       </div>
 
       {PERIODS.map((p) => (
-        <div key={p} className="flex min-h-0 flex-1 border-b border-border-primary last:border-b-0">
-          <div className="flex w-11 shrink-0 flex-col items-center justify-center gap-0.5 border-r border-border-primary bg-cell-free">
+        <div key={p} className={`${GRID_COLS} min-h-0 flex-1 border-b border-border-primary last:border-b-0`}>
+          <div className="flex flex-col items-center justify-center gap-0.5 border-r border-border-primary bg-cell-free">
             <span className="text-sm font-bold leading-none text-fg-primary">{p}</span>
             <span className="text-[9px] text-fg-faint">限</span>
           </div>
@@ -184,6 +202,51 @@ export default function TimetablePanel() {
             const cellClass = `flex min-w-0 flex-1 flex-col justify-center gap-1 border-r border-border-primary last:border-r-0 ${
               entries.length > 1 ? "p-1" : "p-2"
             } ${single ? `${CELL_STYLES[single.type].cell} ${ENTER}` : "bg-surface-primary"}`;
+            // クォーターの科目だけのマスは、上段＝前半(3Q)・下段＝後半(4Q)と位置を
+            // 決めて描く。空いている段は空きコマと同じく押すとその場のメニューを出す
+            const lanes = quarterLanes(entries);
+            if (lanes) {
+              return (
+                <div
+                  key={d}
+                  className="flex min-w-0 flex-1 flex-col border-r border-border-primary last:border-r-0"
+                >
+                  {[lanes.first, lanes.second].map(({ quarter, entry }, i) => {
+                    const laneClass = `flex min-h-0 flex-1 ${i === 0 ? "border-b border-border-primary" : ""}`;
+                    if (!entry) {
+                      return (
+                        <button
+                          key={quarter}
+                          type="button"
+                          onClick={(e) => pickSlot(e, d, p)}
+                          aria-label={`${d}曜${p}限の空きコマ（${quarter}）`}
+                          className={`${laneClass} bg-surface-primary transition-colors hover:bg-surface-gray focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent ${
+                            slotSelected(d, p) ? RING : ""
+                          }`}
+                        />
+                      );
+                    }
+                    return (
+                      <CourseButton
+                        key={entryKey(entry)}
+                        entry={entry}
+                        selected={isSelected(entry, selection)}
+                        onPick={pickCourse}
+                        className={`${laneClass} ${CELL_STYLES[entry.type].cell} ${ENTER}`}
+                        style={enterDelay(order)}
+                      >
+                        <span className="flex w-[22px] shrink-0 items-center justify-center border-r border-border-primary bg-black/6 text-[9px] font-bold text-fg-primary">
+                          {quarter}
+                        </span>
+                        <span className="flex min-w-0 flex-1 flex-col justify-center gap-[3px] px-2 py-1.5">
+                          <EntryBody entry={entry} clamp="line-clamp-2" showQuarter={false} />
+                        </span>
+                      </CourseButton>
+                    );
+                  })}
+                </div>
+              );
+            }
             if (single) {
               return (
                 <CourseButton
