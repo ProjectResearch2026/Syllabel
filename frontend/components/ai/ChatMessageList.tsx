@@ -15,6 +15,9 @@ export const DEFAULT_THINKING_LABEL = "考えています…";
  *
  * AI 側は白地・左上だけ角を立て、学生側は淡いグレー地・右上だけ角を立てる。
  * 吹き出しの幅は設計どおりに保ち、表は `MarkdownText` の中で横スクロールさせる。
+ *
+ * 吹き出しは現れるときに下から浮かせる。CSS の動きはマウント時に1回だけなので、
+ * 受信中に本文が伸びても流れ直さない。
  */
 export default function ChatMessageList({
   messages,
@@ -48,7 +51,7 @@ export default function ChatMessageList({
 
       {messages.map((msg) =>
         msg.role === "user" ? (
-          <div key={msg.id} className="flex w-full justify-end">
+          <div key={msg.id} className="flex w-full justify-end motion-safe:animate-rise-in">
             {/* 学生が書いた文は Markdown として解釈しない */}
             <div className="max-w-[230px] whitespace-pre-wrap rounded-[12px_2px_12px_12px] border border-border-primary bg-surface-soft p-3 text-[13px] leading-[21px] text-fg-primary">
               {msg.content}
@@ -57,7 +60,7 @@ export default function ChatMessageList({
         ) : (
           <div
             key={msg.id}
-            className="flex max-w-[280px] flex-col gap-2 rounded-[2px_12px_12px_12px] border border-border-primary bg-surface-primary p-3"
+            className="flex max-w-[280px] flex-col gap-2 rounded-[2px_12px_12px_12px] border border-border-primary bg-surface-primary p-3 motion-safe:animate-rise-in"
           >
             {/* 本文が来る前は指標を出す。空の吹き出しを置かない（§4.1.4）。
                 `MarkdownText` のキャレットは最後のブロックの ::after なので、
@@ -65,8 +68,9 @@ export default function ChatMessageList({
             {msg.streaming && !msg.content ? (
               <ThinkingIndicator label={thinkingLabel} />
             ) : (
+              // 指標から本文へ差し替わるときはふわっと出す（マウント時の1回だけ）
               <MarkdownText
-                className="text-[13px] leading-[21px] text-fg-primary"
+                className="text-[13px] leading-[21px] text-fg-primary motion-safe:animate-fade-in"
                 caret={msg.streaming}
               >
                 {msg.content}

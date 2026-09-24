@@ -10,6 +10,12 @@ function fmt(n: number): string {
 }
 
 /**
+ * バーの伸び縮み。今期の時間割が変わると赤(今期)の分が伸び縮みするので、
+ * その変化が目で追えるよう幅を動かす
+ */
+const BAR_MOTION = "transition-[width] duration-500 ease-out motion-reduce:transition-none";
+
+/**
  * 足りない要件枠1つ。バーは修得済み(紺)と今期の時間割で埋まる分(赤)を積む。
  * 不足の単位数は「修得済み+今期 / 必要」から読めるので行を割かず、ツールチップに出す
  */
@@ -37,8 +43,8 @@ function SlotRow({ slot }: { slot: SlotProgress }) {
         aria-valuemax={slot.required}
         aria-valuenow={slot.earned + slot.planned}
       >
-        <div className="h-full bg-fg-primary" style={{ width: `${earnedPct}%` }} />
-        <div className="h-full bg-accent" style={{ width: `${plannedPct}%` }} />
+        <div className={`h-full bg-fg-primary ${BAR_MOTION}`} style={{ width: `${earnedPct}%` }} />
+        <div className={`h-full bg-accent ${BAR_MOTION}`} style={{ width: `${plannedPct}%` }} />
       </div>
     </div>
   );
@@ -253,8 +259,8 @@ export function MobileRequirementsStrip({ view }: { view: RequirementsView }) {
                   aria-valuemax={slot.required}
                   aria-valuenow={slot.earned + slot.planned}
                 >
-                  <div className="h-full bg-fg-primary" style={{ width: `${earnedPct}%` }} />
-                  <div className="h-full bg-accent" style={{ width: `${plannedPct}%` }} />
+                  <div className={`h-full bg-fg-primary ${BAR_MOTION}`} style={{ width: `${earnedPct}%` }} />
+                  <div className={`h-full bg-accent ${BAR_MOTION}`} style={{ width: `${plannedPct}%` }} />
                 </div>
                 <span className="flex items-end gap-[3px] tabular-nums leading-none">
                   <span className="text-[13px] font-bold text-fg-primary">{fmt(slot.earned)}</span>

@@ -10,6 +10,7 @@ export default function CourseCard({
   tags,
   instructors,
   href,
+  style,
 }: {
   course: SyllabusListItem;
   /** 状態 / 区分 / 履修区分のタグ一式(§8) */
@@ -18,6 +19,8 @@ export default function CourseCard({
   instructors?: string | null;
   /** 詳細画面への宛先。いまの絞り込みを `back` に畳んだものが渡る */
   href: string;
+  /** 一覧で順に現れるときの遅れ(`animationDelay`) */
+  style?: React.CSSProperties;
 }) {
   const grade =
     course.grade_min === course.grade_max
@@ -27,7 +30,8 @@ export default function CourseCard({
   return (
     <Link
       href={href}
-      className="group flex min-h-[172px] flex-col justify-between rounded-xl border border-card-border bg-surface-primary p-4 shadow-card transition-all hover:-translate-y-0.5 hover:border-card-border-hover hover:shadow-popover"
+      style={style}
+      className="group flex min-h-[172px] flex-col justify-between rounded-xl border border-card-border bg-surface-primary p-4 shadow-card transition-all hover:-translate-y-0.5 hover:border-card-border-hover hover:shadow-popover motion-safe:animate-rise-in"
     >
       <div className="flex min-w-0 items-start justify-between gap-3">
         <span className="tabular-nums text-[11px] font-bold tracking-[0.04em] text-fg-muted">

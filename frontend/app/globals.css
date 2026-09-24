@@ -133,3 +133,45 @@ body {
   max-height: calc(100dvh - 76px);
 }
 
+
+/*
+ * 要素が現れるときの動き。カーブと長さはモバイルの `motion` の値
+ * (`[0.25, 0.1, 0.25, 1]`、0.2秒前後)に揃えている。
+ *
+ * どれも**マウント時に1回だけ**流れる(`backwards` で開始前は透明のまま。終わった後は
+ * 何も残さないので、hover の `translate` などとぶつからない)。
+ * 同じ要素の中身が変わっても流れ直さないので、流したいときは key で作り直す。
+ * 使う側は `motion-safe:` を付け、動きを減らす設定の端末では止める。
+ */
+@theme {
+  --animate-rise-in: rise-in 200ms cubic-bezier(0.25, 0.1, 0.25, 1) backwards;
+  --animate-fade-in: fade-in 180ms cubic-bezier(0.25, 0.1, 0.25, 1) backwards;
+  --animate-pop-in: pop-in 260ms cubic-bezier(0.25, 0.1, 0.25, 1) backwards;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+
+  @keyframes rise-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+  @keyframes shimmer {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(100%);
+    }
+  }
+}
