@@ -120,8 +120,8 @@ export default function Header() {
         className={`flex h-full items-center justify-between gap-2 bg-surface-primary px-8 ${attached ? "rounded-t-lg" : "rounded-lg"
           }`}
       >
-        {/* Logo */}
-        <Link href="/" className="flex shrink-0 items-center gap-2.5">
+        {/* Logo。取り込み済みなら時間割へ、取り込み前は取り込み画面へ */}
+        <Link href={profile ? "/proposal" : "/"} className="flex shrink-0 items-center gap-2.5">
           {/*
             SVG は最適化の対象外（`dangerouslyAllowSVG` が既定の false のままだと
             /_next/image が 400 を返す）ので `unoptimized` を付ける。ただし
