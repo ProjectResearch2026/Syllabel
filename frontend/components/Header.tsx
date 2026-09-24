@@ -76,6 +76,9 @@ export default function Header() {
   const clearHistory = useChatHistoryStore((s) => s.clearAll);
   // 生成済みの提案と、学生が書いた希望条件もここで消す（要件§4.8、§5.2.3）
   const clearProposal = useProposalStore((s) => s.clear);
+  const resetSyllabusUI = useSyllabusUIStore((s) => s.reset);
+  // シラバスへは最後の検索条件を付けて戻る(§8)
+  const listQuery = useSyllabusUIStore((s) => s.listQuery);
   const attached = isAttached(pathname);
   const showNav = !(isImportFlow(pathname) && !profile);
   const { completedCredits, currentCredits, remainingCredits } = useCreditSummary();
@@ -100,6 +103,7 @@ export default function Header() {
       clearAll();
       clearHistory();
       clearProposal();
+      resetSyllabusUI();
       router.push("/");
     }
   };
@@ -143,7 +147,7 @@ export default function Header() {
               return (
                 <Link
                   key={item.href}
-                  href={item.href}
+                  href={item.href === "/syllabus" ? listHref(listQuery) : item.href}
                   className="flex flex-col items-center gap-1 px-1"
                 >
                   <span

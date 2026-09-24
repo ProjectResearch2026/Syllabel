@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { CalendarDays, BookOpen, User } from "lucide-react";
 import { motion } from "motion/react";
 import { useAiStore } from "@/lib/ai";
+import { useSyllabusUIStore } from "@/lib/syllabusUI";
+import { listHref } from "@/lib/syllabusQuery";
 
 /*
  * ui-design_phone.pen「★ AI導線マップ」に従い AI専用タブは持たない。
@@ -19,6 +21,8 @@ const tabs = [
 export default function BottomTabBar() {
   const pathname = usePathname();
   const aiMode = useAiStore((s) => s.mode);
+  // シラバスへは最後の検索条件を付けて戻る(§8)
+  const listQuery = useSyllabusUIStore((s) => s.listQuery);
 
   // インポートフローは戻るボタンを持つ全画面フローのためタブバーを表示しない
   if (pathname.startsWith("/import")) return null;
@@ -33,7 +37,7 @@ export default function BottomTabBar() {
           return (
             <Link
               key={href}
-              href={href}
+              href={href === "/syllabus" ? listHref(listQuery) : href}
               className="relative flex flex-col items-center justify-center gap-[3px] rounded-lg px-3 py-1.5"
             >
               {active && (
