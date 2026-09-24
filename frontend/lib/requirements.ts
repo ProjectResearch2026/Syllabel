@@ -59,6 +59,12 @@ export type SlotProgress = {
   planned: number;
   /** 今期の時間割をすべて修得したあとの不足単位 */
   shortfall: number;
+  /**
+   * 修得済みだけで見た不足単位。枠を「取得済み」とバーに振り分けるのはこちらで行う —
+   * 見込みの `shortfall` で振り分けると、時間割が変わるたびにバーの本数が増減し、
+   * 今期で埋まるだけの枠まで「取得済み」に入ってしまう
+   */
+  earnedShortfall: number;
   notes: string | null;
 };
 
@@ -191,6 +197,7 @@ export function useRequirements(
         earned: s.earned,
         planned: Math.max(0, next.earned - s.earned),
         shortfall: next.shortfall,
+        earnedShortfall: s.shortfall,
         notes: s.notes,
       };
     });
