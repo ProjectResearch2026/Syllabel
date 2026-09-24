@@ -1,6 +1,7 @@
 "use client";
 
 import AiChatPanel from "@/components/pc/AiChatPanel";
+import { TIMETABLE_CONTEXT, useAiStore } from "@/lib/ai";
 import { useProposalAssistant } from "@/lib/useProposalConversation";
 
 /**
@@ -11,7 +12,24 @@ import { useProposalAssistant } from "@/lib/useProposalConversation";
  * 提案の有無で `POST /api/proposal` と `POST /api/chat/proposal` に向かう
  * （§8.3.1）。同じ画面に入力欄を2つ並べると、学生はどちらに書けばよいかを
  * 画面から判断できないためである。
+ *
+ * **時間割で選んだ科目・空きコマを参照中の文脈にする**（§8.3.4。モバイルの
+ * AI_STEP2・STEP3 と同じ）。選択は `TimetablePanel` と `useAiStore` の `selection` で共有する。
  */
 export default function ChatPanel() {
-  return <AiChatPanel conversation={useProposalAssistant()} />;
+  const conversation = useProposalAssistant();
+  const selection = useAiStore((s) => s.selection);
+  const setSelection = useAiStore((s) => s.setSelection);
+  return (
+    <AiChatPanel
+      conversation={conversation}
+      context={{
+        base: TIMETABLE_CONTEXT,
+        selection,
+        onClear: () => setSelection(null),
+        // 提案前は入力欄が希望条件の受け口なので、絞り方は案内しない
+        hint: conversation.suggestionsFor ? "科目・空きコマを押すと絞れます" : undefined,
+      }}
+    />
+  );
 }
