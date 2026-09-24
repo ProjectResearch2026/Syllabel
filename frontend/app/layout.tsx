@@ -4,6 +4,7 @@ import "./globals.css";
 import Header from "@/components/Header";
 import BottomDock from "@/components/BottomDock";
 import { CreditSummaryProvider } from "@/lib/creditSummary";
+import MotionProvider from "@/components/MotionProvider";
 
 /*
  * 全書体を IBM Plex Sans JP に統一する。
@@ -39,6 +40,8 @@ export default function RootLayout({
           単位の集計と卒業要件の判定。ヘッダーの単位数と履修提案の帯が同じ値を見るため、
           ここで1回だけ引く(lib/creditSummary.tsx)
         */}
+        {/* 動きを減らす設定の端末では motion の動きを止める(components/MotionProvider.tsx) */}
+        <MotionProvider>
         <CreditSummaryProvider>
           {/* デスクトップ用ヘッダー */}
           <div className="hidden md:block">
@@ -59,6 +62,7 @@ export default function RootLayout({
           */}
           <BottomDock />
         </CreditSummaryProvider>
+        </MotionProvider>
       </body>
     </html>
   );
