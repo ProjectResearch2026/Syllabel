@@ -35,9 +35,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 ```
 frontend/
 ├── app/                            # Next.js App Router
-│   ├── page.tsx                    # / トップページ(学生情報入力)
+│   ├── page.tsx                    # / 成績表の取り込み(PC・モバイル共通)
+│   ├── import/page.tsx             # /import 旧ルート。/ へ転送するだけ
 │   ├── mydata/page.tsx             # /mydata 学生データ確認
-│   ├── proposal/page.tsx           # /proposal 履修提案・チャット
+│   ├── proposal/page.tsx           # /proposal 時間割(履修提案)・AI
 │   ├── syllabus/
 │   │   ├── page.tsx                # /syllabus シラバス一覧・検索
 │   │   └── [code]/page.tsx         # /syllabus/[code] 講義詳細
@@ -45,8 +46,10 @@ frontend/
 │   ├── globals.css
 │   └── layout.tsx
 ├── components/                     # アプリ共通コンポーネント
-│   ├── Header.tsx
-│   └── BottomTabBar.tsx
+│   ├── Header.tsx                  # PC のヘッダー
+│   ├── BottomDock.tsx              # モバイルのボトムドック(Ask Bar + タブ)
+│   ├── ai/                         # 会話の部品・モバイルの AI シート
+│   └── pc/                         # PC の AI パネル
 ├── lib/                            # ユーティリティ・API通信
 │   ├── api_base.ts                 # backend の宛先解決(§6.1)
 │   ├── syllabus-api.ts             # 読み取り専用APIクライアント(JSON)
@@ -59,6 +62,8 @@ frontend/
 ```
 
 コンポーネントはページ単位で `app/<page>/_components/` に配置する(例: `app/syllabus/_components/CourseCard.tsx`)。
+
+**PC とモバイルで同じ URL に同じ役割の画面を置く**(design.md §8)。各 `page.tsx` が PC 用とモバイル用の組み立てを並べて置き、CSS(`md:hidden` / `hidden md:flex`)で出し分ける。`/` は取り込み、`/proposal` は時間割で、PC のヘッダーとモバイルのボトムドックは同じ3つの行き先(`/proposal` / `/syllabus` / `/mydata`)を持つ。**モバイルだけ別のルートに画面を置かない** — 以前はモバイルの `/` が時間割で、同じリンクが端末によって別の画面を開いていた。
 
 ## 命名規則
 
@@ -136,7 +141,9 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 **AIの回答は Markdown として描く**(design.md §4.1.5)。モデルは太字・箇条書き・表を混ぜて返すため、素のテキストとして描くと `**必修**` の `**` や `|---|---|` の罫線がそのまま学生に見える。
 
-実体は `components/ai/MarkdownText.tsx` ひとつで、**会話を描く3か所すべてが共有する** — モバイルのシート(`components/ai/AiMessageArea.tsx`)、PCのパネル(`components/pc/AiChatPanel.tsx`)、モバイルの履修提案チャット(`app/proposal/_components/MobileProposalPage.tsx`)。**会話の吹き出しを新しく作るときはここを通す。****吹き出しごとに描き方を写さない。** 字の大きさ・行間・色だけを `className` で外から与える。
+実体は `components/ai/MarkdownText.tsx` ひとつで、**吹き出しを描くのは `components/ai/ChatMessageList.tsx` の1か所だけである** — PCのパネル(`components/pc/AiChatPanel.tsx`)とモバイルの AI シート(`components/ai/MobileAiAssistant.tsx`)がこれを共有し、ヘッダー・定型の質問・入力欄も `components/ai/ChatParts.tsx` を共有する。**会話の吹き出しを新しく作らず、ここを通す。****吹き出しごとに描き方を写さない。** 字の大きさ・行間・色だけを `className` で外から与える。
+
+**会話の中身も PC とモバイルで共有する**(design.md §4.1.5)。画面ごとの会話を `AiConversation`(`lib/ai.ts`)の形で作り — 時間割は `useProposalAssistant()`(`lib/useProposalConversation.ts`)、シラバス一覧は `useSyllabusConversation()`、講義詳細は `useCourseConversation()` — PC のパネルとモバイルのシートの双方に渡す。両者は同時に mount されるので、**送信中かどうかは各自の state ではなく吹き出しの `streaming` から導く**(片方から送ったときにもう片方が送信できてしまわないように)。モバイルの時間割のシートは提案の入力欄そのもので、提案前は全画面で希望条件を受ける(design.md §8.3.1)。
 
 - `react-markdown` + `remark-gfm`(表・取り消し線・チェックリスト)+ `remark-breaks`(段落内の単独改行)。**`remark-breaks` を外さない** — Markdown の既定では単独改行が消えるが、日本語の回答は1文ずつ改行して返ってくる
 - **`rehype-raw` を入れてはならない。** 生のHTMLを描かないことで、モデルの出力がDOMに流れる口を塞いでいる
@@ -146,11 +153,11 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 履修提案の科目スキーマは design.md §5.3 に従う(`syllabusCode` / `title` / `day` / `period` / `term` / `slots` / `credits` / `category` / `reason`)。必須は `title` と `reason` だけで、**集中講義の曜日・時限や特定できないシラバスコードは null** で来る。
 
-**`day` / `period` / `term` は1コマ目だけである。** 「後期 金4・金5」のように複数のコマを持つ科目の全コマは `slots` にある。時間割に置くときは `lib/timetable.ts` の `occupiedSlots()` を通し、`day` / `period` を直接使わない(1コマ目だけを見ていた頃は、金4・金5 の科目の金5 が空いて見えた)。`coursesToTimetable()` は複数コマの科目の**同じセル**を全部のマスに入れ、`toCourseList()` はそれを1科目1行に数える(マスごとに数えると単位が2倍になる)。**PC の時間割表は `coursesToSlotTable()` を使う**(design.md §8.3.4)。1マスに複数の科目(3Q と 4Q)を持ち、クォーターの印を付け、曜日・時限の無い科目を `unscheduled` に分ける。**提案の科目は画面から落とさない** — 落とすと表の単位の和が「今期登録単位」と合わなくなる。モバイルの `coursesToTimetable()` は1マス1科目のままである(§13)。シラバス一覧の曜日時限も api-clean の `slots` から `lib/schedule.ts` の `formatSlots()` で作る。
+**`day` / `period` / `term` は1コマ目だけである。** 「後期 金4・金5」のように複数のコマを持つ科目の全コマは `slots` にある。時間割に置くときは `lib/timetable.ts` の `occupiedSlots()` を通し、`day` / `period` を直接使わない(1コマ目だけを見ていた頃は、金4・金5 の科目の金5 が空いて見えた)。`coursesToTimetable()` は複数コマの科目の**同じセル**を全部のマスに入れ、`toCourseList()` はそれを1科目1行に数える(マスごとに数えると単位が2倍になる)。**時間割表は PC・モバイルとも `coursesToSlotTable()` を使う**(design.md §8.3.4。PC は `TimetablePanel.tsx`、モバイルは `app/_components/TimetableGrid.tsx`)。1マスに複数の科目(3Q と 4Q)を持ち、クォーターの印を付け、曜日・時限の無い科目を `unscheduled` に分ける。**提案の科目は画面から落とさない** — 落とすと表の単位の和が「今期登録単位」と合わなくなる。1マス1科目の `coursesToTimetable()` はどの画面からも使っていない(以前のモバイルが使い、3Q と 4Q の科目の一方が消えていた)。シラバス一覧の曜日時限も api-clean の `slots` から `lib/schedule.ts` の `formatSlots()` で作る。
 
 ## 卒業要件枠の内訳
 
-履修提案の画面(PC)はヘッダーカードの直下の帯に要件枠ごとの充足状況を出す(design.md §8.3.5、`app/proposal/_components/RequirementsPanel.tsx`)。**充足した枠は1つのまとめに畳み、足りない枠だけを1行に並べ、入りきらない分は横にスクロールさせる(折り返さない。スクロールバーは隠し、端のぼかしと矢印ボタンで続きを示す。凡例は ⓘ に畳む)。** 取得済み・今期登録・卒業残りの単位数は PC のヘッダー(`components/Header.tsx`)にある。**ヘッダーと帯の値は `lib/creditSummary.tsx` の `useCreditSummary()` から採る**(`CreditSummaryProvider` がルートのレイアウトで判定を1回だけ引く。各所で `useRequirements()` を呼ばない)。**数字は `lib/requirements.ts` の `useRequirements()` から採り、画面で足し算しない。** 枠への割り当て・溢れ・算入上限は backend の `requirements.py` が判定する(同じ枠の科目を不足より多く取った分は下流の枠に回る)。今期の時間割(提案の `courses` と登録済みの科目)の分は、それを修得したとみなして2回目を引いた差で出す。提案の store の `courses` に追従するので、時間割を変える経路を足すときは store を書き換えればよい。`profile.program` は課程**コード**で送る(`fetchRequirements()` が差し替える)。
+履修提案の画面はヘッダーカードの直下の帯(PC)・単位バーと提案する学期の下(モバイル。`MobileRequirementsStrip`)に要件枠ごとの充足状況を出す(design.md §8.3.5、`app/proposal/_components/RequirementsPanel.tsx`)。**充足した枠は1つのまとめに畳み、足りない枠だけを1行に並べ、入りきらない分は横にスクロールさせる(折り返さない。PC はスクロールバーを隠し、端のぼかしと矢印ボタンで続きを示し、凡例は ⓘ に畳む。モバイルは指で送るので矢印を置かない)。** 取得済み・今期登録・卒業残りの単位数は PC のヘッダー(`components/Header.tsx`)とモバイルの時間割の単位バーにある。**ヘッダーと帯の値は `lib/creditSummary.tsx` の `useCreditSummary()` から採る**(`CreditSummaryProvider` がルートのレイアウトで判定を1回だけ引く。各所で `useRequirements()` を呼ばない)。**数字は `lib/requirements.ts` の `useRequirements()` から採り、画面で足し算しない。** 枠への割り当て・溢れ・算入上限は backend の `requirements.py` が判定する(同じ枠の科目を不足より多く取った分は下流の枠に回る)。今期の時間割(提案の `courses` と登録済みの科目)の分は、それを修得したとみなして2回目を引いた差で出す。提案の store の `courses` に追従するので、時間割を変える経路を足すときは store を書き換えればよい。`profile.program` は課程**コード**で送る(`fetchRequirements()` が差し替える)。
 
 ## 課程コードの解決
 
