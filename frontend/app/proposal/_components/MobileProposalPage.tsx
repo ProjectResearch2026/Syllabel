@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileUp } from "lucide-react";
+import { FileUp, LayoutGrid, List } from "lucide-react";
 import logoMark from "@/public/logo.svg";
 import { useStudentStore } from "@/lib/student";
 import { useProposalStore } from "@/lib/proposal";
@@ -15,6 +15,8 @@ import { courseContext, slotContext, TIMETABLE_CONTEXT, useAiStore } from "@/lib
 import { useProposalAssistant } from "@/lib/useProposalConversation";
 import MobileAiAssistant from "@/components/ai/MobileAiAssistant";
 import TimetableGrid, { entryKey, type SelectedCourse } from "@/app/_components/TimetableGrid";
+import TimetableDayView from "@/app/_components/TimetableDayView";
+import { todayWeekday, useTimetableView, type TimetableView } from "@/lib/timetableView";
 import SlotPopover, { type SlotTarget } from "@/app/_components/SlotPopover";
 import TargetTermSelect from "./TargetTermSelect";
 import { MobileRequirementsStrip } from "./RequirementsPanel";
@@ -58,7 +60,51 @@ function MobileCreditBar() {
 }
 
 /**
+ * 時間割の見出しと「週｜曜日」の切り替え（ui-design_phone.pen 04-3 ViewToggleRow）。
+ * 選んだ見せ方は `useTimetableView` にメモリで持つ
+ */
+function TimetableViewToggle({ view, onChange }: { view: TimetableView; onChange: (view: TimetableView) => void }) {
+  const options = [
+    { value: "week", label: "週", icon: LayoutGrid },
+    { value: "day", label: "曜日", icon: List },
+  ] as const;
+  return (
+    <div className="flex items-center justify-between border-t border-border-primary bg-surface-primary px-3 py-2">
+      <h2 className="text-sm font-bold text-fg-primary">時間割</h2>
+      <div
+        role="radiogroup"
+        aria-label="時間割の見せ方"
+        className="flex gap-0.5 rounded-lg border border-border-primary bg-surface-gray p-0.5"
+      >
+        {options.map(({ value, label, icon: Icon }) => {
+          const active = view === value;
+          return (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => onChange(value)}
+              className={`flex items-center gap-1 rounded-md px-2.5 py-[5px] text-xs ${
+                active ? "bg-surface-primary font-bold text-fg-primary shadow-sm" : "font-medium text-fg-muted"
+              }`}
+            >
+              <Icon size={13} aria-hidden="true" />
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/**
  * 時間割＝履修提案（モバイル。ui-design_phone.pen 04-1〜04-3、`/proposal`）。
+ *
+ * 時間割は「週｜曜日」で見せ方を切り替えられる。週表示は6列のグリッド
+ * （`TimetableGrid`）、曜日表示は選んだ曜日の1〜5限の縦のリスト（`TimetableDayView`）で、
+ * 中身・選択・長押しのメニューは同じ。
  *
  * **PC と同じ URL・同じ中身を持つ。** 単位バー・提案する学期・卒業要件の帯・時間割は
  * PC と同じ集計と同じ表の形（`coursesToSlotTable()`）で、AI は PC の右パネルと同じ
@@ -80,6 +126,10 @@ export default function MobileProposalPage() {
   const expand = useAiStore((s) => s.expand);
 
   const [selected, setSelected] = useState<SelectedCourse | null>(null);
+  const view = useTimetableView((s) => s.view);
+  const setView = useTimetableView((s) => s.setView);
+  // 曜日表示で開いている曜日。開くたびに今日の曜日から始める
+  const [day, setDay] = useState(todayWeekday);
   const [slotTarget, setSlotTarget] = useState<SlotTarget | null>(null);
 
   // 生成中に届く snapshot も描く（逐次描画。design.md §6.1.1 / §7.2）
@@ -100,6 +150,11 @@ export default function MobileProposalPage() {
     },
     [selected, router, setSelection],
   );
+
+  const clearSelection = useCallback(() => {
+    setSelected(null);
+    setSelection(null);
+  }, [setSelection]);
 
   const goSyllabus = (target: SlotTarget, openFilters: boolean) => {
     const params = new URLSearchParams({ day: target.day, period: String(target.period) });
@@ -144,19 +199,32 @@ export default function MobileProposalPage() {
       <TargetTermSelect variant="mobile" disabled={isLoading} />
       <MobileRequirementsStrip view={requirements} />
 
+      <TimetableViewToggle view={view} onChange={setView} />
+
       <div className="relative">
-        <TimetableGrid
-          table={table}
-          unscheduled={unscheduled}
-          loading={isLoading}
-          selected={selected}
-          onTapCourse={onTapCourse}
-          onTapEmpty={() => {
-            setSelected(null);
-            setSelection(null);
-          }}
-          onLongPressEmpty={setSlotTarget}
-        />
+        {view === "week" ? (
+          <TimetableGrid
+            table={table}
+            unscheduled={unscheduled}
+            loading={isLoading}
+            selected={selected}
+            onTapCourse={onTapCourse}
+            onTapEmpty={clearSelection}
+            onLongPressEmpty={setSlotTarget}
+          />
+        ) : (
+          <TimetableDayView
+            table={table}
+            unscheduled={unscheduled}
+            loading={isLoading}
+            day={day}
+            onChangeDay={setDay}
+            selected={selected}
+            onTapCourse={onTapCourse}
+            onTapEmpty={clearSelection}
+            onLongPressEmpty={setSlotTarget}
+          />
+        )}
 
         {/* まだ投げていないこと（§5.2.3 の `idle`）を示す。空の表だけでは、提案が
             終わって何も無いのか、これからなのかが区別できない（§8.3.2） */}
