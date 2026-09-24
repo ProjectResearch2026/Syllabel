@@ -1,4 +1,4 @@
-# 履修登録支援AIチャットボット 設計書(v0.9.62)— §4 コンポーネント設計
+# 履修登録支援AIチャットボット 設計書(v0.9.63)— §4 コンポーネント設計
 
 > 本ファイルは [`docs/design.md`](../design.md) の一部である。§番号は設計書全体で通し番号であり、他ファイルの節を `§X.Y` の形で参照する。全ファイルの対応表は [design.md](../design.md) の「0.3 本書の構成」を参照。
 
@@ -13,20 +13,21 @@
 ```
 frontend/
 ├── app/                          # Next.js App Router
-│   ├── page.tsx                  # / 学生情報入力
-│   ├── import/page.tsx           # /import 成績表の取り込み・手入力(§8)
+│   ├── page.tsx                  # / 成績表の取り込み・手入力(PC・モバイル共通。§8)
+│   ├── import/page.tsx           # /import 旧ルート。/ へ転送するだけ(§8)
 │   ├── proposal/page.tsx         # /proposal 履修提案
 │   ├── syllabus/
 │   │   ├── page.tsx              # /syllabus 一覧・検索
 │   │   └── [code]/page.tsx       # /syllabus/[code] 講義詳細
 │   ├── mydata/page.tsx           # /mydata 取り込んだプロファイルの確認・編集(§8)
 │   ├── privacy/page.tsx          # /privacy プライバシーポリシー
-│   ├── _components/              # 画面をまたぐ部品(時間割グリッド・同意モーダル等)
+│   ├── _components/              # 画面をまたぐ部品(取り込みフロー・時間割グリッド・同意モーダル等)
 │   └── layout.tsx
-├── components/                   # Header / BottomTabBar / ai(AI シートと入力欄)
+├── components/                   # Header(PC)/ BottomDock(モバイル)/ ai(会話の部品・モバイルの AI シート)/ pc(AI パネル)
 ├── lib/
 │   ├── student.ts                # Zustand 学生プロファイル
 │   ├── chat.ts                   # Zustand 対話履歴
+│   ├── ai.ts                     # Zustand AI シートの表示状態、会話の型 AiConversation(§4.1.5)
 │   ├── proposal.ts               # Zustand 履修提案の受信状態
 │   ├── syllabusUI.ts             # Zustand 検索画面の絞り込み状態
 │   ├── chatApi.ts                # backend との通信と SSE の読み取り(readSSE)
@@ -75,7 +76,8 @@ frontend/
 - **生の HTML は描かない。** `rehype-raw` を入れなければ `react-markdown` はタグを文字として出す。モデルの出力を DOM に流す口を開けないため、入れない
 - 描くのは **AI側の吹き出しだけ**。学生が入力した文は Markdown として解釈せず、そのまま文字として出す
 - 表は**吹き出しの中で横スクロールさせる**。吹き出しの幅(280〜290px。`ui-ux/ui-design_*.pen`)は設計どおりに保ち、表のために広げない
-- 会話を描く4か所(モバイルのシート `AiMessageArea`、PC のパネル `AiChatPanel`、モバイルの履修提案チャット `MobileProposalPage`、シラバス詳細のチャット欄 `SyllabusChatBox`)で**同じ描き方**を共有する。字の大きさ・行間・色だけを吹き出しごとに外から与える
+- **会話の吹き出しは `components/ai/ChatMessageList.tsx` の1か所で描く。** PC の AIパネル(`components/pc/AiChatPanel.tsx`。時間割・シラバス一覧・講義詳細の3画面が共用)とモバイルの AI シート(`components/ai/MobileAiAssistant.tsx`)が同じものを使い、ヘッダー・定型の質問・入力欄も `components/ai/ChatParts.tsx` を共有する。v0.9.62 までは会話を描く面が4か所(モバイルのシート・PC のパネル・モバイルの履修提案チャット・シラバス詳細のチャット欄)に分かれ、吹き出しの形も面ごとに違っていた
+- **会話の中身(送信・ストリーミング・履歴)も PC とモバイルで共有する。** 画面ごとの会話を `AiConversation`(`lib/ai.ts`)の形で作り — 時間割は `useProposalAssistant()`(`lib/useProposalConversation.ts`)、シラバス一覧は `lib/useSyllabusConversation.ts`、講義詳細は `lib/useCourseConversation.ts` — PC のパネルとモバイルのシートの双方に渡す。両者は同じ画面に同時に mount される(表示は CSS で切り替わる)ため、送信中かどうかは各自の state ではなく吹き出しの `streaming` から導き、**どちらから送っても両方が同じ状態を映す**
 
 ### 4.2 backend(FastAPI)
 

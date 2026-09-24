@@ -54,16 +54,25 @@ export default function CourseFacts({ syllabus }: { syllabus: SyllabusDetail }) 
   ];
 
   return (
-    <dl className="flex flex-wrap gap-x-5 gap-y-4 border-t border-card-divider pt-4">
+    /*
+     * モバイルは枠付きの2列の表(ui-design_phone.pen 06 CourseFacts)。
+     * 最後の行の下線は `-mb-px` で枠線に重ねて消す
+     */
+    <dl className="grid grid-cols-2 overflow-hidden rounded-lg border border-border-primary md:flex md:flex-wrap md:gap-x-5 md:gap-y-4 md:overflow-visible md:rounded-none md:border-0 md:border-t md:border-card-divider md:pt-4">
       {facts
         .filter((fact) => fact.value)
         .map((fact) => (
-          <div key={fact.label} className="flex min-w-[140px] flex-1 flex-col gap-1">
-            <dt className="flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.3px] text-fg-muted">
-              <fact.icon size={13} className="shrink-0 text-fg-icon" aria-hidden="true" />
+          <div
+            key={fact.label}
+            className="-mb-px flex min-w-0 flex-col gap-0.5 border-b border-border-primary px-3 py-2 odd:border-r md:mb-0 md:min-w-[140px] md:flex-1 md:gap-1 md:border-0 md:p-0"
+          >
+            <dt className="flex items-center gap-1.5 text-[10px] text-fg-secondary md:text-[11px] md:font-semibold md:tracking-[0.3px] md:text-fg-muted">
+              <fact.icon size={13} className="hidden shrink-0 text-fg-icon md:block" aria-hidden="true" />
               {fact.label}
             </dt>
-            <dd className="text-[13px] font-medium leading-5 text-fg-primary">{fact.value}</dd>
+            <dd className="text-xs font-semibold leading-5 text-fg-primary md:text-[13px] md:font-medium">
+              {fact.value}
+            </dd>
           </div>
         ))}
     </dl>

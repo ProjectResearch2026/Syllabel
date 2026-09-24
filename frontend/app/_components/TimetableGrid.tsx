@@ -1,30 +1,64 @@
 "use client";
 
 import { useCallback, useRef } from "react";
-import { CELL_STYLES, DAYS, PERIODS, type Timetable } from "@/lib/timetable";
+import { CELL_STYLES, DAYS, PERIODS, type SlotEntry, type SlotTable } from "@/lib/timetable";
 import type { SlotTarget } from "./SlotPopover";
 
 const LONG_PRESS_MS = 450;
 const MOVE_TOLERANCE = 10;
 
+/** 選択中の科目。複数コマの科目はどのマスで選んでも同じ科目として光らせる */
+export type SelectedCourse = { day: string; period: number; key: string };
+
+/** 科目の同一性。シラバスコードが無い科目は名前で見分ける */
+export function entryKey(entry: SlotEntry): string {
+  return entry.code ?? entry.name;
+}
+
+/** 履修区分のタグとクォーターの印（ui-design_phone.pen Tags / Quarter） */
+function Tags({ entry }: { entry: SlotEntry }) {
+  const style = CELL_STYLES[entry.type];
+  return (
+    <span className="flex flex-wrap items-center gap-0.5">
+      <span className={`rounded-sm px-1 py-px text-[8px] leading-tight ${style.tag}`}>{style.label}</span>
+      {entry.quarter && (
+        <span className="rounded-sm border border-fg-primary bg-surface-primary px-[3px] text-[8px] font-semibold leading-tight text-fg-primary">
+          {entry.quarter}
+        </span>
+      )}
+    </span>
+  );
+}
+
 /**
- * 時間割グリッド（ui-design_phone.pen CalendarPage / STEP1〜3）。
+ * 時間割グリッド（モバイル。ui-design_phone.pen 04 TimetableWrapper / AI STEP1〜3）。
+ *
+ * **PC と同じく `coursesToSlotTable()` の形を描く**（design.md §8.3.4）。1マスに複数の
+ * 科目（3Q と 4Q）を縦に積み、クォーターの科目には印を付ける。曜日・時限の無い科目は
+ * 表の下の「曜日・時限未定」に並べる。以前のモバイルは1マス1科目で、後から来た科目に
+ * 上書きされて提案の科目が画面から消えていた。
  *
  * 操作は2つ。
- *  - 科目をタップ → 選択。Ask Bar の文脈がその科目に絞られる（STEP2）
+ *  - 科目をタップ → 選択。Ask Bar の文脈がその科目に絞られる（STEP2）。
+ *    選択中の科目をもう一度タップすると講義詳細を開く
  *  - 空きコマを長押し → その場のメニュー（STEP3）
  */
 export default function TimetableGrid({
-  timetable,
+  table,
+  unscheduled,
   loading,
   selected,
-  onSelectCourse,
+  onTapCourse,
+  onTapEmpty,
   onLongPressEmpty,
 }: {
-  timetable: Timetable;
+  table: SlotTable;
+  unscheduled: SlotEntry[];
   loading?: boolean;
-  selected: { day: string; period: number } | null;
-  onSelectCourse: (day: string, period: number, name: string, code?: string) => void;
+  selected: SelectedCourse | null;
+  onTapCourse: (entry: SlotEntry, day: string | null, period: number | null) => void;
+  /** 空きコマを軽く押した。選択を外す */
+  onTapEmpty?: () => void;
   onLongPressEmpty: (target: SlotTarget) => void;
 }) {
   const timer = useRef<number | null>(null);
@@ -69,8 +103,10 @@ export default function TimetableGrid({
     [cancel],
   );
 
+  const isSelected = (entry: SlotEntry) => selected?.key === entryKey(entry);
+
   return (
-    <div className="flex flex-col select-none">
+    <div className="flex select-none flex-col bg-surface-primary">
       {/* 曜日ヘッダー */}
       <div className="flex h-8 border-b border-border-primary bg-surface-gray">
         <div className="w-7 shrink-0 border-r border-border-primary" />
@@ -79,7 +115,7 @@ export default function TimetableGrid({
             key={day}
             className="flex flex-1 items-center justify-center border-r border-border-primary last:border-r-0"
           >
-            <span className="font-display text-[13px] font-semibold text-fg-primary">{day}</span>
+            <span className="text-[13px] font-semibold text-fg-primary">{day}</span>
           </div>
         ))}
       </div>
@@ -87,16 +123,15 @@ export default function TimetableGrid({
       {PERIODS.map((period) => (
         <div key={period} className="flex h-[72px] border-b border-border-primary">
           <div className="flex w-7 shrink-0 flex-col items-center justify-center border-r border-border-primary bg-cell-free">
-            <span className="tabular-nums text-[13px] font-bold leading-none text-fg-primary">
-              {period}
-            </span>
+            <span className="tabular-nums text-[13px] font-bold leading-none text-fg-primary">{period}</span>
             <span className="text-[9px] text-fg-secondary">限</span>
           </div>
 
           {DAYS.map((day) => {
-            const cell = timetable[period]?.[day] ?? null;
-            const style = cell ? CELL_STYLES[cell.type] : null;
-            const isSelected = selected?.day === day && selected?.period === period;
+            const entries = table[period]?.[day] ?? [];
+            const first = entries[0];
+            const multi = entries.length > 1;
+            const ringed = entries.some(isSelected);
 
             return (
               <div
@@ -104,7 +139,7 @@ export default function TimetableGrid({
                 onContextMenu={(e) => e.preventDefault()}
                 onPointerDown={(e) => {
                   // 長押しメニューは空きコマだけ（STEP3）
-                  if (!cell) startPress(e, day, period);
+                  if (!first) startPress(e, day, period);
                 }}
                 onPointerMove={trackMove}
                 onPointerCancel={cancel}
@@ -113,31 +148,66 @@ export default function TimetableGrid({
                   const wasLongPress = fired.current;
                   cancel();
                   if (wasLongPress) return;
-                  if (cell) onSelectCourse(day, period, cell.name, cell.code);
+                  if (!first) onTapEmpty?.();
+                  else if (!multi) onTapCourse(first, day, period);
                 }}
-                className={`relative flex flex-1 flex-col justify-center gap-0.5 border-r border-border-primary px-1 py-1.5 last:border-r-0 ${
-                  style ? style.cell : "bg-surface-primary"
-                } ${loading ? "animate-pulse" : ""} ${
-                  isSelected ? "z-10 rounded-lg ring-2 ring-accent" : ""
-                }`}
+                className={`relative flex min-w-0 flex-1 flex-col justify-center border-r border-border-primary last:border-r-0 ${
+                  multi ? "gap-1 p-1" : "gap-0.5 px-1 py-1.5"
+                } ${first ? CELL_STYLES[first.type].cell : "bg-surface-primary"} ${
+                  loading ? "animate-pulse" : ""
+                } ${ringed ? "z-10 rounded-lg ring-2 ring-accent" : ""}`}
               >
-                {cell && style && (
-                  <>
-                    <span className="line-clamp-2 font-cell text-[10px] font-semibold leading-tight text-fg-primary">
-                      {cell.name}
-                    </span>
-                    <span
-                      className={`self-start rounded-sm px-1 py-px text-[8px] ${style.tag}`}
-                    >
-                      {style.label}
-                    </span>
-                  </>
-                )}
+                {multi
+                  ? entries.map((entry) => (
+                      <button
+                        key={`${entryKey(entry)}-${entry.quarter ?? ""}`}
+                        type="button"
+                        onClick={() => onTapCourse(entry, day, period)}
+                        className={`flex min-w-0 flex-col gap-0.5 rounded-sm text-left ${
+                          isSelected(entry) ? "ring-1 ring-accent" : ""
+                        }`}
+                      >
+                        <span className="line-clamp-1 text-[9px] font-semibold leading-tight text-fg-primary">
+                          {entry.name}
+                        </span>
+                        <Tags entry={entry} />
+                      </button>
+                    ))
+                  : first && (
+                      <>
+                        <span className="line-clamp-2 text-[10px] font-semibold leading-tight text-fg-primary">
+                          {first.name}
+                        </span>
+                        <Tags entry={first} />
+                      </>
+                    )}
               </div>
             );
           })}
         </div>
       ))}
+
+      {/* 表に置けない科目も画面から落とさない（§8.3.4） */}
+      {unscheduled.length > 0 && (
+        <div className="flex flex-col gap-1.5 border-b border-border-primary bg-cell-free px-3 py-2">
+          <span className="text-[11px] font-bold text-fg-primary">曜日・時限未定</span>
+          <div className="flex flex-wrap gap-1.5">
+            {unscheduled.map((entry) => (
+              <button
+                key={entryKey(entry)}
+                type="button"
+                onClick={() => onTapCourse(entry, null, null)}
+                className={`flex items-center gap-1 rounded border bg-surface-primary px-1.5 py-1 ${
+                  isSelected(entry) ? "border-accent" : "border-border-primary"
+                }`}
+              >
+                <span className="text-[10px] font-semibold text-fg-primary">{entry.name}</span>
+                <Tags entry={entry} />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

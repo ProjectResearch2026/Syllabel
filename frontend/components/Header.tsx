@@ -54,7 +54,6 @@ const navItems: {
       match: (p) =>
         p === "/" ||
         p.startsWith("/mydata") ||
-        p.startsWith("/import") ||
         p.startsWith("/privacy"),
     },
   ];
@@ -64,9 +63,9 @@ function isAttached(pathname: string): boolean {
   return pathname.startsWith("/proposal") || pathname === "/syllabus";
 }
 
-/** 取り込みフロー。PC ではトップも取り込み画面（`app/page.tsx`） */
+/** 取り込みフロー。PC・モバイルとも `/`（`app/page.tsx`） */
 function isImportFlow(pathname: string): boolean {
-  return pathname === "/" || pathname.startsWith("/import");
+  return pathname === "/";
 }
 
 export default function Header() {
