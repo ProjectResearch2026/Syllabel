@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState, useRef } from "react";
+import { Fragment, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -9,26 +9,23 @@ import {
   ChevronDown,
   ChevronUp,
   Info,
-  ShieldCheck,
-  ArrowUpRight,
   FileUp,
   CirclePlay,
   FileCheck,
   TriangleAlert,
   CircleCheck,
-  MessageCircle,
-  CalendarDays,
+  CalendarCheck,
   BookOpen,
   Check,
   Loader2,
-  AlertCircle,
+  CircleAlert,
 } from "lucide-react";
 import { isUnearned, useStudentStore, type StudentProfile } from "@/lib/student";
-import { TIMETABLE_CONTEXT, useAiStore } from "@/lib/ai";
+import { useCreditSummary } from "@/lib/creditSummary";
 import { DUMMY_PROFILES } from "@/lib/dummy/profiles";
 import ManualInputForm from "./ManualInputForm";
+import PrivacyConsentModal from "./PrivacyConsentModal";
 
-const GRADUATION_CREDITS = 124;
 const STEPS = ["アップロード", "確認", "完了"] as const;
 
 function StepBar({ current }: { current: number }) {
@@ -72,14 +69,23 @@ function StepBar({ current }: { current: number }) {
 
 type ParseState =
   | { type: "idle" }
+  /** PDF を選んだ。解析の前に取り扱いの確認を出す（要件§5.6。ui-design_phone.pen 01-2） */
+  | { type: "consent"; file: File }
   | { type: "parsing" }
   | { type: "error"; message: string }
   | { type: "manual" };
 
+/**
+ * 成績表の取り込み（モバイル。ui-design_phone.pen 01〜03、`/`）。
+ *
+ * **PC と同じ `/` に置く。** 以前はモバイルだけ `/` が時間割で、取り込みは `/import` に
+ * 分かれていた。URL が端末で違うと、同じリンクが端末によって別の画面を開く。
+ */
 export default function MobileImportFlow() {
   const router = useRouter();
-  const openHalf = useAiStore((s) => s.openHalf);
+  const profile = useStudentStore((s) => s.profile);
   const setProfile = useStudentStore((s) => s.setProfile);
+  const { currentCredits, remainingCredits } = useCreditSummary();
 
   const [step, setStep] = useState(0);
   const [pending, setPending] = useState<StudentProfile | null>(null);
@@ -98,10 +104,14 @@ export default function MobileImportFlow() {
     stage(DUMMY_PROFILES[index].profile, `デモ: ${DUMMY_PROFILES[index].label}`);
   };
 
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
+    setParseState({ type: "consent", file });
+  };
+
+  const parse = async (file: File) => {
     setParseState({ type: "parsing" });
     try {
       const { parseGradeReport } = await import("@/lib/pdf/parseGradeReport");
@@ -122,9 +132,10 @@ export default function MobileImportFlow() {
   const totalCredits = courses
     .filter((c) => c.status === "passed")
     .reduce((sum, c) => sum + c.credits, 0);
-  const remaining = Math.max(0, GRADUATION_CREDITS - totalCredits);
   // 不合格と履修辞退は「未修得」に丸める(設計書 §6.1。再履修の対象として同じ扱い)
   const unearnedCourses = courses.filter(isUnearned);
+  const passedCount = courses.filter((c) => c.status === "passed").length;
+  const registeredCount = courses.filter((c) => c.status === "registered").length;
 
   const handleConfirm = () => {
     if (pending) setProfile(pending);
@@ -144,17 +155,30 @@ export default function MobileImportFlow() {
   }
 
   return (
-    <div className="flex flex-col bg-white min-h-full">
+    <div className="flex flex-1 flex-col bg-white">
       {/* Header */}
       <header className="sticky top-0 z-20 flex items-center justify-between px-5 h-14 bg-white border-b border-[#D1D5DB]">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.push("/mydata")} aria-label="戻る" className="-ml-1.5">
-            <ChevronLeft size={22} className="text-[#1A2B4E]" />
-          </button>
+          {/* 取り込み直し（マイデータから来た）ときだけ戻れる。初回はここが入口 */}
+          {profile && (
+            <button onClick={() => router.push("/mydata")} aria-label="マイデータに戻る" className="-ml-1.5">
+              <ChevronLeft size={22} className="text-[#1A2B4E]" />
+            </button>
+          )}
           <span className="text-[#1A2B4E] text-lg font-bold">成績表インポート</span>
         </div>
-        <Info size={22} className="text-[#6B7280]" />
+        <button onClick={() => router.push("/privacy")} aria-label="プライバシーとデータの取り扱い">
+          <Info size={22} className="text-[#6B7280]" />
+        </button>
       </header>
+
+      {parseState.type === "consent" && (
+        <PrivacyConsentModal
+          compact
+          onAccept={() => parse(parseState.file)}
+          onCancel={() => setParseState({ type: "idle" })}
+        />
+      )}
 
       <StepBar current={step} />
 
@@ -168,25 +192,6 @@ export default function MobileImportFlow() {
           exit={{ opacity: 0, x: -20 }}
           transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
         >
-          <div className="flex items-start gap-2.5 px-4 py-3 bg-[#F8F9FA] border-l-[3px] border-[#E60012]">
-            <ShieldCheck size={18} className="text-[#E60012] shrink-0 mt-px" />
-            <div className="flex flex-col gap-0.5">
-              <span className="text-xs font-semibold text-[#1A2B4E]">
-                データは学内サーバーのみで処理されます
-              </span>
-              <span className="text-[11px] text-[#4B5563] leading-relaxed">
-                アップロードした成績表はブラウザ上でのみ保持され、外部のAIサービスには送信されません。ページを閉じると即時消去されます。
-              </span>
-              <button
-                onClick={() => router.push("/privacy")}
-                className="flex items-center gap-1 text-[11px] text-[#E60012] mt-0.5"
-              >
-                プライバシーポリシーを確認
-                <ArrowUpRight size={12} />
-              </button>
-            </div>
-          </div>
-
           <div className="flex flex-col gap-5 p-5">
             <h2 className="text-[15px] font-bold text-[#1A2B4E]">成績表PDFを選択</h2>
 
@@ -196,22 +201,25 @@ export default function MobileImportFlow() {
                 <span className="text-sm font-semibold text-[#1A2B4E]">解析中...</span>
               </div>
             ) : parseState.type === "error" ? (
-              <div className="w-full rounded-lg border border-[#FCA5A5] bg-[#FEF2F2] p-4 flex flex-col gap-3">
-                <div className="flex items-start gap-2">
-                  <AlertCircle size={18} className="text-[#DC2626] shrink-0 mt-px" />
-                  <p className="text-sm text-[#991B1B]">{parseState.message}</p>
+              <div className="w-full rounded-lg border-2 border-[#FECACA] bg-[#FEF2F2] px-4 py-5 flex flex-col gap-2.5">
+                <div className="flex items-start gap-1.5">
+                  <CircleAlert size={18} className="text-[#BA1A1A] shrink-0 mt-px" />
+                  <p className="text-[13px] font-semibold text-[#93000A]">
+                    成績表を読み取れませんでした。手入力でご入力ください。
+                  </p>
                 </div>
-                <div className="flex gap-2">
-                  <label className="flex-1 h-10 rounded-lg border border-[#DC2626] flex items-center justify-center gap-2 cursor-pointer active:bg-[#FEE2E2] transition-colors">
-                    <input type="file" accept="application/pdf" className="hidden" onChange={handleFile} />
-                    <span className="text-sm font-semibold text-[#DC2626]">もう一度選択する</span>
-                  </label>
+                <p className="text-[11px] text-[#93000A]/80">{parseState.message}</p>
+                <div className="flex flex-col gap-2">
                   <button
                     onClick={() => setParseState({ type: "manual" })}
-                    className="flex-1 h-10 rounded-lg border border-[#1A2B4E] flex items-center justify-center gap-2 active:bg-[#EEF0F5] transition-colors"
+                    className="h-11 rounded bg-accent text-sm font-semibold text-fg-inverse active:bg-primary-dark transition-colors"
                   >
-                    <span className="text-sm font-semibold text-[#1A2B4E]">手入力で続ける</span>
+                    手入力で続ける
                   </button>
+                  <label className="h-11 rounded border-[1.5px] border-fg-primary bg-surface-primary flex items-center justify-center cursor-pointer active:bg-surface-gray transition-colors">
+                    <input type="file" accept="application/pdf" className="hidden" onChange={handleFile} />
+                    <span className="text-sm font-semibold text-fg-primary">もう一度選択する</span>
+                  </label>
                 </div>
               </div>
             ) : (
@@ -320,8 +328,16 @@ export default function MobileImportFlow() {
             {[
               { label: "学年", value: `${pending?.grade ?? "-"}回生` },
               { label: "課程", value: pending?.program ?? "-" },
-              { label: "取得単位数", value: `${totalCredits}単位` },
-              { label: "登録科目数", value: `${courses.length}科目` },
+              { label: "取得済み単位", value: `${totalCredits}単位` },
+              { label: "判定科目数", value: `${passedCount}科目` },
+              // 未修得は単位に数えないが、再履修の提案に使うので取り込んだことを見せる
+              ...(unearnedCourses.length > 0
+                ? [{ label: "未修得科目（再履修の対象）", value: `${unearnedCourses.length}科目` }]
+                : []),
+              // 登録済みで成績未確定。提案の候補から外すので、取り込んだことを見せる
+              ...(registeredCount > 0
+                ? [{ label: "登録済み科目（成績未確定）", value: `${registeredCount}科目` }]
+                : []),
             ].map((r, i) => (
               <div
                 key={r.label}
@@ -368,7 +384,7 @@ export default function MobileImportFlow() {
             <div className="flex items-center gap-2 px-3 py-2.5 bg-[#FFF3CD] border-l-[3px] border-[#F59E0B] rounded-r">
               <TriangleAlert size={16} className="text-[#F59E0B] shrink-0" />
               <span className="flex-1 text-[11px] text-[#92400E]">
-                未修得科目（{unearnedCourses.map((c) => c.title).join("・")}）が{unearnedCourses.length}件含まれています。再履修の提案に活用されます。
+                不合格科目（{unearnedCourses.map((c) => c.title).join("・")}）が{unearnedCourses.length}件含まれています。再履修の提案に活用されます。
               </span>
             </div>
           )}
@@ -379,13 +395,13 @@ export default function MobileImportFlow() {
             className="w-full h-[52px] rounded-lg bg-[#E60012] flex items-center justify-center gap-2 active:bg-[#b7000c] transition-colors"
           >
             <CircleCheck size={20} className="text-white" />
-            <span className="text-[15px] font-bold text-white">この内容でインポートする</span>
+            <span className="text-[15px] font-bold text-white">この内容で取り込む</span>
           </button>
           <button
             onClick={() => setStep(0)}
             className="w-full h-11 rounded-lg border border-[#D1D5DB] flex items-center justify-center active:bg-[#F8F9FA] transition-colors"
           >
-            <span className="text-sm text-[#4B5563]">キャンセル</span>
+            <span className="text-sm text-[#4B5563]">戻る</span>
           </button>
         </motion.div>
       )}
@@ -411,19 +427,21 @@ export default function MobileImportFlow() {
             </motion.div>
             <h2 className="text-[22px] font-bold text-[#1A2B4E]">インポート完了！</h2>
             <p className="text-sm text-[#4B5563] text-center leading-relaxed">
-              成績データが正常に取り込まれました
+              成績データが正常に取り込まれました。
               <br />
-              AIアシスタントが分析を開始できます
+              AIアシスタントが履修分析を開始できます。
             </p>
           </div>
 
           <div className="flex items-center justify-around h-20 bg-[#F8F9FA] border-y border-[#E5E7EB]">
+            {/* ヘッダー・時間割の単位バーと同じ集計（lib/creditSummary.tsx） */}
             {[
-              { val: totalCredits, label: "取得済み単位" },
-              { val: remaining, label: "卒業残り単位" },
+              { val: totalCredits, label: "取得済み単位", color: "text-[#1A2B4E]" },
+              { val: currentCredits, label: "今期登録予定", color: "text-accent" },
+              { val: remainingCredits, label: "卒業残り単位", color: "text-[#1A2B4E]" },
             ].map((s) => (
               <div key={s.label} className="flex flex-col items-center gap-1">
-                <span className="text-[22px] font-bold tabular-nums text-[#1A2B4E]">{s.val}</span>
+                <span className={`text-[22px] font-bold tabular-nums ${s.color}`}>{s.val ?? "—"}</span>
                 <span className="text-[10px] text-[#6B7280]">{s.label}</span>
               </div>
             ))}
@@ -433,35 +451,17 @@ export default function MobileImportFlow() {
             <h2 className="text-[15px] font-bold text-[#1A2B4E]">次のステップ</h2>
 
             <button
-              onClick={() => {
-                // AI専用ページは持たないため、時間割へ戻ってその画面上にシートを開く
-                openHalf(TIMETABLE_CONTEXT);
-                router.push("/");
-              }}
+              onClick={() => router.push("/proposal")}
               className="w-full flex items-center gap-3 px-4 py-3.5 rounded-lg bg-[#E60012] text-left"
             >
               <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-                <MessageCircle size={20} className="text-white" />
+                <CalendarCheck size={20} className="text-white" />
               </div>
               <div className="flex-1 flex flex-col gap-0.5">
-                <span className="text-sm font-semibold text-white">AIに履修相談する</span>
-                <span className="text-xs text-white/80">取得単位を元に来期の履修をアドバイス</span>
+                <span className="text-sm font-semibold text-white">履修提案を見る</span>
+                <span className="text-xs text-white/80">卒業要件から逆算して今期の時間割を提案</span>
               </div>
               <ChevronRight size={18} className="text-white shrink-0" />
-            </button>
-
-            <button
-              onClick={() => router.push("/")}
-              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-lg bg-white border border-[#E5E7EB] text-left"
-            >
-              <div className="w-10 h-10 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
-                <CalendarDays size={20} className="text-[#059669]" />
-              </div>
-              <div className="flex-1 flex flex-col gap-0.5">
-                <span className="text-sm font-semibold text-[#1A2B4E]">時間割を確認する</span>
-                <span className="text-xs text-[#4B5563]">今期の登録科目を時間割で確認</span>
-              </div>
-              <ChevronRight size={18} className="text-[#9CA3AF] shrink-0" />
             </button>
 
             {/* 取り込んだプロファイルは検索結果のタグ付けに効く(§6.1.3)。
@@ -470,11 +470,11 @@ export default function MobileImportFlow() {
               onClick={() => router.push("/syllabus")}
               className="w-full flex items-center gap-3 px-4 py-3.5 rounded-lg bg-white border border-[#E5E7EB] text-left"
             >
-              <div className="w-10 h-10 rounded-full bg-[#EEF1F8] flex items-center justify-center shrink-0">
-                <BookOpen size={20} className="text-[#1A2B4E]" />
+              <div className="w-10 h-10 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
+                <BookOpen size={20} className="text-[#059669]" />
               </div>
               <div className="flex-1 flex flex-col gap-0.5">
-                <span className="text-sm font-semibold text-[#1A2B4E]">シラバスを検索する</span>
+                <span className="text-sm font-semibold text-[#1A2B4E]">シラバスをみる</span>
                 <span className="text-xs text-[#4B5563]">履修できる科目にタグを付けて表示</span>
               </div>
               <ChevronRight size={18} className="text-[#9CA3AF] shrink-0" />

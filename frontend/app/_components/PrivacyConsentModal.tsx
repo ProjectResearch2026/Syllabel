@@ -1,14 +1,25 @@
 "use client";
 
-import { Lock, WifiOff, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { CloudOff, ExternalLink, Lock, Monitor, ShieldCheck, WifiOff, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
 
 type Props = {
   onAccept: () => void;
   onCancel: () => void;
+  /** モバイル（ui-design_phone.pen 01-2_Import_同意モーダル）。項目の説明文を畳んだ短い形 */
+  compact?: boolean;
 };
 
-export default function PrivacyConsentModal({ onAccept, onCancel }: Props) {
+/**
+ * 成績表を取り込む前の確認ウィンドウ（要件§5.6）。PC・モバイルとも、PDF を選んだあと
+ * 解析を始める前に出す。
+ *
+ * プライバシーポリシーへのリンクは `next/link` で張る。素の `<a href="/privacy">` には
+ * basePath（/syllabel）が付かず、公開環境では配信サーバのルートへ飛んでいた。
+ */
+export default function PrivacyConsentModal({ onAccept, onCancel, compact = false }: Props) {
+  if (compact) return <CompactConsentModal onAccept={onAccept} onCancel={onCancel} />;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
       {/* スクリム */}
@@ -73,9 +84,9 @@ export default function PrivacyConsentModal({ onAccept, onCancel }: Props) {
 
         <p className="text-[#9CA3AF] text-xs text-center leading-relaxed">
           詳細は
-          <a href="/privacy" target="_blank" rel="noopener" className="underline">
+          <Link href="/privacy" target="_blank" rel="noopener" className="underline">
             プライバシーポリシー
-          </a>
+          </Link>
           をご確認ください。学籍番号はPDFから取得しません。
         </p>
 
@@ -89,6 +100,76 @@ export default function PrivacyConsentModal({ onAccept, onCancel }: Props) {
           <button
             onClick={onCancel}
             className="w-full h-11 rounded-lg border border-[#D1D5DB] text-[#6B7280] text-sm hover:bg-[#F9FAFB] transition-colors"
+          >
+            キャンセル
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+function CompactConsentModal({ onAccept, onCancel }: Omit<Props, "compact">) {
+  const items = [
+    { icon: Monitor, title: "ブラウザ上のみで処理" },
+    { icon: CloudOff, title: "外部AIサービスへの送信なし" },
+    { icon: Trash2, title: "ページを閉じると即時消去" },
+  ];
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center px-5">
+      <motion.div
+        className="absolute inset-0 bg-scrim"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.2 }}
+        onClick={onCancel}
+      />
+      <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="consent-title"
+        className="relative flex w-full max-w-[350px] flex-col gap-3.5 rounded-xl bg-surface-primary p-5"
+        initial={{ opacity: 0, scale: 0.94, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: "spring", damping: 28, stiffness: 360, mass: 0.7 }}
+      >
+        <div className="flex items-center gap-2">
+          <ShieldCheck size={20} className="shrink-0 text-accent" aria-hidden="true" />
+          <h2 id="consent-title" className="text-[17px] font-bold text-fg-primary">
+            成績表の取り扱いについて
+          </h2>
+        </div>
+
+        {items.map(({ icon: Icon, title }) => (
+          <div key={title} className="flex items-center gap-2.5 rounded-lg bg-surface-gray px-3 py-2.5">
+            <Icon size={16} className="shrink-0 text-fg-primary" aria-hidden="true" />
+            <span className="text-[13px] font-semibold text-fg-primary">{title}</span>
+          </div>
+        ))}
+
+        <Link
+          href="/privacy"
+          target="_blank"
+          rel="noopener"
+          className="flex items-center gap-1 self-start text-xs text-accent"
+        >
+          プライバシーポリシー
+          <ExternalLink size={12} aria-hidden="true" />
+        </Link>
+        <p className="text-[11px] text-fg-secondary">学籍番号はPDFから取得しません。</p>
+
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={onAccept}
+            className="h-11 rounded bg-accent text-sm font-semibold text-fg-inverse transition-colors active:bg-primary-dark"
+          >
+            同意して取り込む
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="h-11 rounded border-[1.5px] border-fg-primary bg-surface-primary text-sm font-semibold text-fg-primary transition-colors active:bg-surface-gray"
           >
             キャンセル
           </button>

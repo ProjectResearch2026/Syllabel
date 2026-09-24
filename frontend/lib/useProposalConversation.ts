@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { streamProposal, streamProposalChat } from "@/lib/chatApi";
 import { useChatStore, type ChatMessage } from "@/lib/chat";
 import { useChatHistory } from "@/lib/chatHistory";
@@ -8,6 +8,12 @@ import { programCodeOf, resolveAdmissionYear } from "@/lib/programs";
 import { useProposalStore } from "@/lib/proposal";
 import { useTargetTerm } from "@/lib/targetTerm";
 import { useStudentStore } from "@/lib/student";
+import {
+  TIMETABLE_QUICK_ASKS,
+  timetableSuggestions,
+  type AiContext,
+  type AiConversation,
+} from "@/lib/ai";
 
 /**
  * 履修提案画面（`/proposal`）の対話。design.md §8.3。
@@ -26,7 +32,8 @@ import { useStudentStore } from "@/lib/student";
  * 分岐を「何通目か」ではなく提案の有無に置くのは、後者が `proposal` を必須とし
  * 無ければ 422 を返す（§6.1）ためである。
  *
- * **PC（`ChatPanel`）とモバイル（`MobileProposalPage`）の双方がこれを使う。**
+ * **PC のパネル（`ChatPanel`）とモバイルの AI シート（`MobileProposalPage` の
+ * `MobileAiAssistant`）の双方がこれを使う**（`useProposalAssistant()`）。
  * 両者は `/proposal` で同時に mount される（表示は CSS で切り替わる）ので、
  * 会話は両方から同じ `proposalMessages`（§5.2.2）を読み書きする。送信中かどうかも
  * 吹き出しの `streaming` から導き、**どちらから送っても両方の画面が同じ状態を映す**。
@@ -364,4 +371,80 @@ export function useProposalConversation(): ProposalConversation {
     history: entries,
     selectHistory,
   };
+}
+
+/**
+ * 時間割（`/proposal`）の AI 会話を、PC のパネルとモバイルのシートが共有する形にする。
+ *
+ * 提案を持っていないあいだ、入力欄は希望条件の受け口である（§8.3.1）。モバイルでは
+ * このとき**ハーフシートのサジェストを出さない**（`suggestionsFor` が null）。
+ * サジェストの質問は提案チャットに向けたもので、提案前に送ると希望条件として
+ * 提案が1本焼かれてしまう。
+ */
+export function useProposalAssistant(): AiConversation {
+  const conversation = useProposalConversation();
+  const {
+    messages,
+    streaming,
+    generating,
+    holdsProposal,
+    canStart,
+    send,
+    startWithoutPreferences,
+    restart,
+    newChat,
+    history,
+    selectHistory,
+  } = conversation;
+
+  const sendWithContext = useCallback(
+    (text: string, context?: AiContext) => {
+      if (!canStart) return;
+      // 科目・コマを参照中に書いた質問は、何についての質問かを添えて送る
+      const scoped =
+        context && (context.kind === "course" || context.kind === "slot")
+          ? `${context.label}について: ${text.trim()}`
+          : text;
+      send(scoped);
+    },
+    [canStart, send],
+  );
+
+  return useMemo<AiConversation>(
+    () => ({
+      title: "AI履修アシスタント",
+      messages,
+      streaming,
+      // 提案の生成は時間がかかり得る（§7.2）ので、待たせる長さを先に伝える（§4.1.4）
+      thinkingLabel: generating ? "提案を作っています。4〜5分ほどかかります" : undefined,
+      placeholder: holdsProposal ? "提案について質問する…" : "希望条件を入力（例: 午前中を多めに）",
+      inputDisabled: !canStart,
+      send: sendWithContext,
+      sheetQuickAsks: holdsProposal ? TIMETABLE_QUICK_ASKS : undefined,
+      actions: !canStart
+        ? []
+        : holdsProposal
+          ? [{ label: "条件を変えて提案し直す", onClick: restart }]
+          : [{ label: "希望条件なしで提案する", onClick: startWithoutPreferences }],
+      // 学生がその場で書く文章が記録されることを、書く場所の傍らで示す（§9.1）
+      note: canStart ? PREFERENCES_NOTE : undefined,
+      history,
+      onSelectHistory: selectHistory,
+      onNewChat: holdsProposal ? newChat : undefined,
+      suggestionsFor: holdsProposal ? timetableSuggestions : undefined,
+    }),
+    [
+      messages,
+      streaming,
+      generating,
+      holdsProposal,
+      canStart,
+      sendWithContext,
+      restart,
+      startWithoutPreferences,
+      history,
+      selectHistory,
+      newChat,
+    ],
+  );
 }

@@ -1,205 +1,211 @@
 "use client";
 
-import { useState } from "react";
-import { Send } from "lucide-react";
-import { DAYS, PERIODS, CELL_STYLES, coursesToTimetable } from "@/lib/timetable";
+import { useCallback, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { FileUp } from "lucide-react";
+import logoMark from "@/public/logo.svg";
 import { useStudentStore } from "@/lib/student";
 import { useProposalStore } from "@/lib/proposal";
-import { useGraduationCredits } from "@/lib/curricula";
-import { useScrollToBottom } from "@/lib/useScrollToBottom";
-import { PREFERENCES_NOTE, useProposalConversation } from "@/lib/useProposalConversation";
-import MarkdownText from "@/components/ai/MarkdownText";
+import { useCreditSummary } from "@/lib/creditSummary";
+import { coursesToSlotTable, type SlotEntry } from "@/lib/timetable";
+import { proposalDetailHref } from "@/lib/syllabusQuery";
+import { courseContext, slotContext, TIMETABLE_CONTEXT, useAiStore } from "@/lib/ai";
+import { useProposalAssistant } from "@/lib/useProposalConversation";
+import MobileAiAssistant from "@/components/ai/MobileAiAssistant";
+import TimetableGrid, { entryKey, type SelectedCourse } from "@/app/_components/TimetableGrid";
+import SlotPopover, { type SlotTarget } from "@/app/_components/SlotPopover";
 import TargetTermSelect from "./TargetTermSelect";
+import { MobileRequirementsStrip } from "./RequirementsPanel";
 
 /**
- * モバイルの履修提案（ui-design_phone.pen 04_履修提案）。
+ * アプリのヘッダー（モバイル）。PC のヘッダー（`components/Header.tsx`）と同じ
+ * ロゴマークと「Syllabel」の組を置く。
+ */
+function MobileAppHeader() {
+  return (
+    <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-border-primary bg-surface-primary px-5">
+      <Link href="/proposal" className="flex items-center gap-2">
+        {/*
+          SVG は最適化の対象外なので `unoptimized`。`"/logo.svg"` と書くと basePath
+          （/syllabel）が付かず 404 になるため、PC のヘッダーと同じく静的 import で渡す
+        */}
+        <Image src={logoMark} alt="" width={36} height={36} priority unoptimized className="shrink-0" />
+        <span className="font-display text-xl font-bold leading-none text-fg-primary">Syllabel</span>
+      </Link>
+    </header>
+  );
+}
+
+/** 単位バー。PC のヘッダーと同じ集計（`lib/creditSummary.tsx`） */
+function MobileCreditBar() {
+  const { completedCredits, currentCredits, remainingCredits } = useCreditSummary();
+  return (
+    <div className="flex h-[52px] shrink-0 items-center justify-around border-b border-border-primary bg-surface-primary px-5">
+      {[
+        { val: completedCredits, label: "取得済み単位", color: "text-fg-primary" },
+        { val: currentCredits, label: "今期登録単位", color: "text-required-tag" },
+        { val: remainingCredits, label: "卒業残り単位", color: "text-fg-primary" },
+      ].map(({ val, label, color }) => (
+        <div key={label} className="flex flex-col items-center gap-0.5">
+          <span className={`tabular-nums text-xl font-bold leading-none ${color}`}>{val ?? "—"}</span>
+          <span className="text-[10px] text-fg-tertiary">{label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * 時間割＝履修提案（モバイル。ui-design_phone.pen 04-1〜04-3、`/proposal`）。
  *
- * 対話は PC のパネルと同じ `useProposalConversation`（design.md §8.3）で動く。
- * **会話は `proposalMessages`（§5.2.2）に置き、画面ごとに持たない** — 提案前の
- * 案内も、提案の summary も、どちらの画面から送った問答も同じ1本の会話である。
+ * **PC と同じ URL・同じ中身を持つ。** 単位バー・提案する学期・卒業要件の帯・時間割は
+ * PC と同じ集計と同じ表の形（`coursesToSlotTable()`）で、AI は PC の右パネルと同じ
+ * 会話（`useProposalAssistant()`）をボトムドックの Ask Bar から開くシートに出す。
+ * 以前のモバイルは `/` に時間割、`/proposal` に別物の提案チャットを持っていた。
+ *
+ * **この画面に来ただけでは提案を撃たない**（design.md §8.3）。提案前に Ask Bar を
+ * 押すと、全画面のシートで希望条件を聞く（AI_STEP0）。
  */
 export default function MobileProposalPage() {
+  const router = useRouter();
   const profile = useStudentStore((s) => s.profile);
-  const { status, courses, totalCredits } = useProposalStore();
-  const graduationCredits = useGraduationCredits(profile);
-  const {
-    messages,
-    streaming,
-    holdsProposal,
-    canStart,
-    send,
-    startWithoutPreferences,
-    restart,
-  } = useProposalConversation();
-  const [input, setInput] = useState("");
-  const listRef = useScrollToBottom<HTMLDivElement>(messages);
+  const { status, courses } = useProposalStore();
+  const { requirements } = useCreditSummary();
+  const conversation = useProposalAssistant();
 
-  const earnedCredits = profile
-    ? profile.completedCourses
-        .filter((c) => c.status === "passed")
-        .reduce((sum, c) => sum + c.credits, 0)
-    : null;
+  const setSelection = useAiStore((s) => s.setSelection);
+  const openHalf = useAiStore((s) => s.openHalf);
+  const expand = useAiStore((s) => s.expand);
 
-  const currentCredits = holdsProposal ? totalCredits : null;
-
-  const remainingCredits =
-    earnedCredits != null
-      ? Math.max(0, graduationCredits - earnedCredits - (currentCredits ?? 0))
-      : null;
-
-  const handleSend = () => {
-    if (!input.trim() || streaming || !canStart) return;
-    send(input);
-    setInput("");
-  };
+  const [selected, setSelected] = useState<SelectedCourse | null>(null);
+  const [slotTarget, setSlotTarget] = useState<SlotTarget | null>(null);
 
   // 生成中に届く snapshot も描く（逐次描画。design.md §6.1.1 / §7.2）
-  const timetable = coursesToTimetable(courses);
+  const { table, unscheduled } = coursesToSlotTable(courses);
+  const isIdle = status === "idle";
+  const isLoading = status === "loading";
+
+  const onTapCourse = useCallback(
+    (entry: SlotEntry, day: string | null, period: number | null) => {
+      const key = entryKey(entry);
+      // 選択中の科目をもう一度押すと講義詳細を開く（§8.3.4。戻り先は時間割）
+      if (selected?.key === key) {
+        if (entry.code) router.push(proposalDetailHref(entry.code));
+        return;
+      }
+      setSelected({ day: day ?? "", period: period ?? 0, key });
+      setSelection(courseContext(entry.name, entry.code));
+    },
+    [selected, router, setSelection],
+  );
+
+  const goSyllabus = (target: SlotTarget, openFilters: boolean) => {
+    const params = new URLSearchParams({ day: target.day, period: String(target.period) });
+    if (openFilters) params.set("filters", "open");
+    setSlotTarget(null);
+    router.push(`/syllabus?${params.toString()}`);
+  };
+
+  if (!profile) {
+    return (
+      <div className="flex min-h-full flex-col bg-surface-primary">
+        <MobileAppHeader />
+        <div className="flex flex-1 flex-col items-center justify-center gap-6 px-8 py-16">
+          <div className="grid size-20 place-items-center rounded-full bg-surface-soft">
+            <FileUp size={36} className="text-fg-primary" />
+          </div>
+          <div className="flex flex-col items-center gap-2 text-center">
+            <h2 className="text-lg font-bold text-fg-primary">成績表を取り込んでください</h2>
+            <p className="text-sm leading-relaxed text-fg-secondary">
+              龍谷大学ポータルからダウンロードした
+              <br />
+              成績表PDFを取り込むと、時間割と単位情報が表示されます
+            </p>
+          </div>
+          <Link
+            href="/"
+            className="flex h-[52px] w-full items-center justify-center gap-2 rounded-lg bg-accent transition-colors active:opacity-80"
+          >
+            <FileUp size={20} className="text-fg-inverse" />
+            <span className="text-[15px] font-bold text-fg-inverse">成績表を取り込む</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-96px)] bg-[#F8F9FA]">
-      {/* CreditBar */}
-      <div className="flex items-center justify-around px-5 bg-white border-b border-[#D1D5DB] shrink-0 py-2">
-        {[
-          { val: earnedCredits != null ? String(earnedCredits) : "—", label: "取得済み単位" },
-          { val: currentCredits != null ? String(currentCredits) : "—", label: "今期登録単位" },
-          { val: remainingCredits != null ? String(remainingCredits) : "—", label: "卒業残り単位" },
-        ].map(({ val, label }) => (
-          <div key={label} className="flex flex-col items-center gap-0.5">
-            <span className="text-[#1A2B4E] text-xl font-bold tabular-nums leading-none">{val}</span>
-            <span className="text-[#6B7280] text-[10px]">{label}</span>
-          </div>
-        ))}
-      </div>
-
+    <div className="flex min-h-full flex-col bg-surface-primary">
+      <MobileAppHeader />
+      <MobileCreditBar />
       {/* 提案する学期(lib/targetTerm.ts)。推定は外れ得るので見える場所で直せるようにする */}
-      <div className="flex justify-center bg-white border-b border-[#D1D5DB] shrink-0 px-4 py-1.5">
-        <TargetTermSelect compact disabled={status === "loading"} />
-      </div>
+      <TargetTermSelect variant="mobile" disabled={isLoading} />
+      <MobileRequirementsStrip view={requirements} />
 
-      {/* Timetable */}
-      <div className="relative bg-white border-b border-[#D1D5DB] shrink-0">
+      <div className="relative">
+        <TimetableGrid
+          table={table}
+          unscheduled={unscheduled}
+          loading={isLoading}
+          selected={selected}
+          onTapCourse={onTapCourse}
+          onTapEmpty={() => {
+            setSelected(null);
+            setSelection(null);
+          }}
+          onLongPressEmpty={setSlotTarget}
+        />
+
         {/* まだ投げていないこと（§5.2.3 の `idle`）を示す。空の表だけでは、提案が
             終わって何も無いのか、これからなのかが区別できない（§8.3.2） */}
-        {status === "idle" && (
-          <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-white/80">
-            <p className="max-w-[260px] px-4 text-center text-xs leading-5 text-[#6B7280]">
+        {isIdle && (
+          <div className="pointer-events-none absolute inset-0 grid place-items-center bg-surface-primary/80">
+            <p className="max-w-[240px] text-center text-xs leading-5 text-fg-tertiary">
               下のAI履修アシスタントに希望条件を送ると、ここに時間割が出ます。
             </p>
           </div>
         )}
-        <div className="flex flex-col">
-          <div className="flex bg-[#1A2B4E]">
-            <div className="w-7 shrink-0" />
-            {DAYS.map((d) => (
-              <div key={d} className="flex-1 h-8 flex items-center justify-center">
-                <span className="text-white text-[13px] font-semibold">{d}</span>
-              </div>
-            ))}
-          </div>
-          {PERIODS.map((p) => (
-            <div key={p} className="flex border-b border-[#E5E7EB]" style={{ height: 64 }}>
-              <div className="w-7 shrink-0 bg-[#F9FAFB] border-r border-[#E5E7EB] flex flex-col items-center justify-center">
-                <span className="text-[#1A2B4E] text-[13px] font-bold tabular-nums leading-none">{p}</span>
-                <span className="text-[#9CA3AF] text-[9px]">限</span>
-              </div>
-              {DAYS.map((d) => {
-                const cell = timetable[p]?.[d] ?? null;
-                const style = cell?.type ? CELL_STYLES[cell.type] : null;
-                return (
-                  <div
-                    key={d}
-                    className={`flex-1 border-r border-[#E5E7EB] last:border-r-0 flex flex-col justify-center gap-0.5 px-1 ${
-                      style ? style.cell : "bg-white"
-                    } ${status === "loading" ? "animate-pulse" : ""}`}
-                  >
-                    {cell && style && (
-                      <>
-                        <span className="text-[#1A2B4E] text-[9px] font-semibold leading-tight line-clamp-2">
-                          {cell.name}
-                        </span>
-                        <span
-                          className={`inline-block self-start px-1 py-px rounded-sm text-white text-[8px] ${style.tag}`}
-                        >
-                          {style.label}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Chat */}
-      <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-        {messages.map((msg) => (
-          <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div
-              className={`max-w-[85%] rounded-xl px-4 py-2.5 text-sm leading-relaxed ${
-                msg.role === "user"
-                  ? "bg-[#1A2B4E] text-white"
-                  : "bg-white border border-[#D1D5DB] text-[#1A2B4E]"
-              }`}
-            >
-              {msg.role === "assistant" ? (
-                msg.content ? (
-                  <MarkdownText>{msg.content}</MarkdownText>
-                ) : msg.streaming ? (
-                  <span className="animate-pulse">▌</span>
-                ) : null
-              ) : (
-                msg.content
-              )}
-            </div>
-          </div>
-        ))}
-
-        {/* 提案の開始と再提案（§8.3.1 / §8.3.3）。送信中は出さない */}
-        {!streaming && canStart && (
-          <div className="flex">
-            <button
-              type="button"
-              onClick={holdsProposal ? restart : startWithoutPreferences}
-              className="rounded-xl border border-[#E60012] bg-white px-3 py-2 text-xs font-bold text-[#E60012]"
-            >
-              {holdsProposal ? "条件を変えて提案し直す" : "希望条件なしで提案する"}
-            </button>
+        {isLoading && (
+          <div className="pointer-events-none absolute inset-0 grid place-items-center">
+            <span className="flex items-center gap-2 rounded-full border border-border-primary bg-surface-primary px-3.5 py-2 shadow-askbar">
+              <span className="flex gap-[3px]" aria-hidden="true">
+                <span className="size-1.5 animate-bounce rounded-full bg-accent" />
+                <span className="size-1.5 animate-bounce rounded-full bg-accent [animation-delay:150ms]" />
+                <span className="size-1.5 animate-bounce rounded-full bg-accent/40 [animation-delay:300ms]" />
+              </span>
+              <span className="text-[11px] text-fg-secondary">提案を作っています（4〜5分）</span>
+            </span>
           </div>
         )}
       </div>
 
-      {/* Input */}
-      <div className="bg-white border-t border-[#D1D5DB] px-4 py-3 shrink-0">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.nativeEvent.isComposing) handleSend();
-            }}
-            placeholder={
-              holdsProposal ? "提案について質問する..." : "希望条件を入力（例: 午前中を多めに）"
-            }
-            disabled={streaming || !canStart}
-            className="flex-1 border border-[#D1D5DB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1A2B4E] transition-colors disabled:opacity-60"
-          />
-          <button
-            onClick={handleSend}
-            disabled={!input.trim() || streaming || !canStart}
-            className="w-10 h-10 flex items-center justify-center rounded-lg bg-[#E60012] disabled:opacity-40 hover:bg-[#b7000c]"
-          >
-            <Send size={16} className="text-white" />
-          </button>
-        </div>
-        {/* 学生がその場で書く文章が記録されることを、書く場所の傍らで示す（§9.1） */}
-        {!holdsProposal && canStart && (
-          <p className="pt-2 text-[11px] leading-4 text-[#6B7280]">{PREFERENCES_NOTE}</p>
-        )}
-      </div>
+      {courses.length > 0 && (
+        <p className="px-3 py-2 text-[9px] text-fg-tertiary">
+          科目をタップするとAIの文脈に入り、もう一度タップするとシラバスを開きます
+        </p>
+      )}
+
+      <MobileAiAssistant conversation={conversation} base={TIMETABLE_CONTEXT} />
+
+      {slotTarget && (
+        <SlotPopover
+          target={slotTarget}
+          onClose={() => setSlotTarget(null)}
+          onSearch={() => goSyllabus(slotTarget, false)}
+          onFilter={() => goSyllabus(slotTarget, true)}
+          onAskAi={() => {
+            const context = slotContext(slotTarget.day, slotTarget.period);
+            setSelected(null);
+            setSelection(context);
+            setSlotTarget(null);
+            // 提案前はサジェストが無いので、希望条件を聞く全画面で開く（AI_STEP0）
+            if (conversation.suggestionsFor) openHalf(context);
+            else expand(context);
+          }}
+        />
+      )}
     </div>
   );
 }

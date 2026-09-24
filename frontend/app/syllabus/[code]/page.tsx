@@ -23,7 +23,7 @@ import { courseQuestions } from "@/lib/courseQuestions";
 import { parseNote, registrationFlags, pruneNote } from "@/lib/note";
 import { targetsOf } from "@/lib/courseTarget";
 import { formatGrade } from "@/lib/schedule";
-import SyllabusChatBox from "../_components/SyllabusChatBox";
+import CourseMobileAssistant from "../_components/CourseMobileAssistant";
 import CourseChatPanel from "../_components/CourseChatPanel";
 import GradingContent from "../_components/GradingContent";
 import CourseFacts from "./_components/CourseFacts";
@@ -50,12 +50,13 @@ function OverviewSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-2.5">
-      <h3 className="flex items-center gap-2 text-[13px] font-bold text-fg-primary">
+    // モバイルは節ごとに1枚のカード(ui-design_phone.pen TabBody_概要 Panel_*)。PC は1枚のカードの中の節
+    <section className="flex flex-col gap-2 rounded-lg border border-border-primary bg-surface-primary p-3.5 md:gap-2.5 md:rounded-none md:border-0 md:bg-transparent md:p-0">
+      <h3 className="flex items-center gap-1.5 text-sm font-bold text-fg-primary md:gap-2 md:text-[13px]">
         <Icon size={15} className="shrink-0 text-accent" aria-hidden="true" />
         {title}
       </h3>
-      <div className="text-[13.5px] leading-6 text-fg-secondary">{children}</div>
+      <div className="text-[13px] leading-6 text-[#333333] md:text-[13.5px] md:text-fg-secondary">{children}</div>
     </section>
   );
 }
@@ -133,7 +134,7 @@ export default async function SyllabusDetailPage({
       id: "overview",
       label: "概要",
       panel: (
-        <div className="flex flex-col gap-6 rounded-xl border border-border-primary bg-surface-primary p-7">
+        <div className="flex flex-col gap-3 md:gap-6 md:rounded-xl md:border md:border-border-primary md:bg-surface-primary md:p-7">
           {syllabus.summary && (
             <OverviewSection icon={BookOpen} title="授業概要">
               <RichText>{syllabus.summary}</RichText>
@@ -162,7 +163,7 @@ export default async function SyllabusDetailPage({
 
           {/* 授業方法と授業外学習は短い。横に並べて縦の伸びを抑える */}
           {(syllabus.methods || syllabus.outside_study) && (
-            <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
+            <div className="flex flex-col gap-3 md:gap-6 lg:flex-row lg:gap-8">
               {syllabus.methods && (
                 <div className="min-w-0 flex-1">
                   <OverviewSection icon={Presentation} title="授業方法">
@@ -195,13 +196,17 @@ export default async function SyllabusDetailPage({
           count={`全${syllabus.course_plan.length}回`}
           bodyClassName="p-0"
           note={
-            <span className="flex items-center gap-1.5 text-[11.5px] text-fg-muted">
+            <span className="hidden items-center gap-1.5 text-[11.5px] text-fg-muted md:flex">
               <Info size={13} className="shrink-0 text-fg-icon" aria-hidden="true" />
               進度により内容が前後する場合があります
             </span>
           }
         >
           <CoursePlan plan={syllabus.course_plan} />
+          {/* モバイルは見出しの右に置けないので表の下に置く(ui-design_phone.pen TabBody_授業計画) */}
+          <p className="px-3.5 pb-3 pt-2 text-[10px] text-fg-secondary md:hidden">
+            進度により内容が前後する場合があります
+          </p>
         </PanelCard>
       ),
     });
@@ -301,17 +306,21 @@ export default async function SyllabusDetailPage({
   }
 
   const hero = (
-    <header className="flex flex-col gap-4 rounded-xl border border-border-primary bg-surface-primary p-5 md:p-6">
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-md bg-surface-gray px-2 py-0.5 tabular-nums text-[11px] font-bold tracking-[0.04em] text-fg-secondary">
+    /* モバイルは画面幅いっぱいの白地(ui-design_phone.pen 06 Hero)、PC は浮いたカード */
+    <header className="flex flex-col gap-2.5 border-b border-border-primary bg-surface-primary p-4 md:gap-4 md:rounded-xl md:border md:p-6">
+      <div className="flex flex-col gap-2.5 md:gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
+          <span className="rounded bg-fg-primary px-1.5 py-0.5 tabular-nums text-[11px] font-bold tracking-[0.04em] text-fg-inverse md:rounded-md md:bg-surface-gray md:px-2 md:text-fg-secondary">
             {syllabus.syllabus_code}
           </span>
-          <span className="text-[11px] font-semibold text-fg-muted">{syllabus.year}年度</span>
-          <CourseTag
-            code={syllabus.syllabus_code}
-            target={{ programs: syllabus.programs, faculties: syllabus.faculties }}
-          />
+          <span className="text-[11px] text-fg-secondary md:font-semibold md:text-fg-muted">{syllabus.year}年度</span>
+          {/* モバイルは自分の課程での区分を1行に分ける */}
+          <span className="basis-full md:basis-auto">
+            <CourseTag
+              code={syllabus.syllabus_code}
+              target={{ programs: syllabus.programs, faculties: syllabus.faculties }}
+            />
+          </span>
           {/* 抽選かオープンかは履修できるかどうかそのもの(§8.1) */}
           {registration.map((flag) => (
             <span
@@ -325,7 +334,7 @@ export default async function SyllabusDetailPage({
         </div>
 
         <div className="flex items-center justify-between gap-6">
-          <h1 className="min-w-0 flex-1 font-display text-[26px] font-bold leading-[33px] text-fg-primary">
+          <h1 className="min-w-0 flex-1 font-display text-[22px] font-bold leading-[29px] text-fg-primary md:text-[26px] md:leading-[33px]">
             {syllabus.course_title}
           </h1>
           <div className="hidden md:block">
@@ -334,8 +343,15 @@ export default async function SyllabusDetailPage({
         </div>
 
         {syllabus.subtitle && (
-          <p className="text-[15px] leading-[23px] text-fg-secondary">{syllabus.subtitle}</p>
+          <p className="-mt-1.5 text-[13px] leading-5 text-fg-secondary md:mt-0 md:text-[15px] md:leading-[23px]">
+            {syllabus.subtitle}
+          </p>
         )}
+
+        {/* モバイルは見出しの下に全幅で置く(ui-design_phone.pen 06 Hero) */}
+        <div className="flex flex-col md:hidden [&>*]:w-full [&>*]:justify-center">
+          <AddToTimetableButton title={syllabus.course_title} code={syllabus.syllabus_code} />
+        </div>
       </div>
 
       <CourseFacts syllabus={syllabus} />
@@ -345,9 +361,9 @@ export default async function SyllabusDetailPage({
   const backBar = (
     <Link
       href={back.href}
-      className="-ml-1.5 inline-flex w-fit items-center gap-1 rounded-lg px-1.5 py-1 text-[13px] font-medium text-fg-secondary transition-colors hover:bg-surface-primary hover:text-fg-primary"
+      className="flex h-12 items-center gap-1.5 border-b border-border-primary bg-surface-primary px-4 text-[13px] font-semibold text-fg-primary md:-ml-1.5 md:inline-flex md:h-auto md:w-fit md:gap-1 md:rounded-lg md:border-0 md:bg-transparent md:px-1.5 md:py-1 md:font-medium md:text-fg-secondary md:transition-colors md:hover:bg-surface-primary md:hover:text-fg-primary"
     >
-      <ChevronLeft size={16} aria-hidden="true" />
+      <ChevronLeft size={18} className="md:size-4" aria-hidden="true" />
       {back.label}
     </Link>
   );
@@ -358,21 +374,18 @@ export default async function SyllabusDetailPage({
         ui-design_pc.pen 06_講義詳細 MainArea。
         見出しカードは固定、タブの中身だけが縦に伸びる。
       */}
-      <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-5 px-4 py-5 md:overflow-y-auto md:px-0 md:py-0">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col md:gap-5 md:overflow-y-auto">
         {backBar}
         {hero}
         <CourseTabs tabs={tabs} />
 
-        {/* モバイルはこの位置にチャット(デスクトップは右のパネル) */}
-        <div className="md:hidden">
-          <SyllabusChatBox
-            code={syllabus.syllabus_code}
-            title="この講義について質問"
-            placeholder="この講義について質問..."
-            initialMessage={`「${syllabus.course_title}」についてご質問ください。`}
-            questions={questions}
-          />
-        </div>
+        {/* モバイルの AI はボトムドックの Ask Bar から開くシート(デスクトップは右のパネル)。
+            どちらも同じ会話を読み書きする */}
+        <CourseMobileAssistant
+          code={syllabus.syllabus_code}
+          title={syllabus.course_title}
+          questions={questions}
+        />
       </main>
 
       {/* 行の高さいっぱいに伸ばすため、包みも flex にしておく（block だと潰れる） */}

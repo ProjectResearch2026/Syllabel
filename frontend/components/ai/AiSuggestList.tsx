@@ -37,7 +37,7 @@ export default function AiSuggestList({
   disabled?: boolean;
 }) {
   return (
-    <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-4 pb-2.5">
+    <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 pb-1 pt-3">
       <p className="text-[11px] font-bold text-fg-muted">{label}</p>
       {items.map((item, i) => {
         const Icon = ICONS[item.icon];
@@ -57,7 +57,7 @@ export default function AiSuggestList({
             </span>
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="text-[13px] font-bold text-fg-primary">{item.title}</span>
-              <span className="text-[11px] text-fg-secondary">{item.sub}</span>
+              {item.sub && <span className="text-[11px] text-fg-secondary">{item.sub}</span>}
             </span>
             <ChevronRight size={15} className="shrink-0 text-[#b6bcc7]" />
           </motion.button>

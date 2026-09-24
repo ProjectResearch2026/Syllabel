@@ -21,26 +21,27 @@ export default function CoursePlan({ plan }: { plan: CoursePlanEntry[] }) {
 
   return (
     <div className="flex flex-col">
-      <div className="flex gap-4 border-b border-card-divider bg-[#FAFBFC] px-6 py-2.5 text-[11px] font-bold tracking-[0.4px] text-fg-muted">
-        <span className="w-16 shrink-0">回</span>
-        <span className={hasMethod ? "w-[380px] shrink-0" : "flex-1"}>授業内容</span>
-        {hasMethod && <span className="flex-1">授業方法</span>}
+      {/* モバイルは 回 44px / 内容 / 方法 70px の3列(ui-design_phone.pen TabBody_授業計画) */}
+      <div className="flex gap-2 border-b border-card-divider bg-surface-gray px-2 py-1.5 text-[11px] font-bold text-fg-primary md:gap-4 md:bg-[#FAFBFC] md:px-6 md:py-2.5 md:tracking-[0.4px] md:text-fg-muted">
+        <span className="w-11 shrink-0 md:w-16">回</span>
+        <span className={hasMethod ? "min-w-0 flex-1 md:w-[380px] md:flex-none md:shrink-0" : "flex-1"}>授業内容</span>
+        {hasMethod && <span className="w-[70px] shrink-0 md:w-auto md:flex-1">授業方法</span>}
       </div>
 
       <ol>
         {plan.map((entry, i) => (
           <li
             key={entry.session_number}
-            className={`flex gap-4 border-b border-card-divider px-6 py-3 last:border-b-0 ${
+            className={`flex gap-2 border-b border-[#E5E7EB] px-2 py-1.5 last:border-b-0 md:gap-4 md:border-card-divider md:px-6 md:py-3 ${
               i % 2 === 1 ? "bg-[#FCFCFD]" : ""
             }`}
           >
-            <span className="w-16 shrink-0 text-[11.5px] font-bold text-fg-muted">
+            <span className="w-11 shrink-0 text-[11px] font-semibold text-fg-secondary md:w-16 md:text-[11.5px] md:font-bold md:text-fg-muted">
               第{entry.session_number}回
             </span>
             <span
-              className={`min-w-0 text-[13.5px] font-medium leading-5 text-fg-primary ${
-                hasMethod ? "w-[380px] shrink-0" : "flex-1"
+              className={`min-w-0 text-xs leading-[18px] text-[#333333] md:text-[13.5px] md:font-medium md:leading-5 md:text-fg-primary ${
+                hasMethod ? "flex-1 md:w-[380px] md:flex-none md:shrink-0" : "flex-1"
               }`}
             >
               {entry.content}
@@ -51,7 +52,7 @@ export default function CoursePlan({ plan }: { plan: CoursePlanEntry[] }) {
               )}
             </span>
             {hasMethod && (
-              <span className="min-w-0 flex-1 text-[12.5px] leading-[19px] text-fg-secondary">
+              <span className="w-[70px] shrink-0 text-[11px] leading-[17px] text-fg-secondary md:w-auto md:min-w-0 md:flex-1 md:shrink md:text-[12.5px] md:leading-[19px]">
                 {entry.method}
               </span>
             )}

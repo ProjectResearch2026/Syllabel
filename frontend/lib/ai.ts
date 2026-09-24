@@ -1,13 +1,15 @@
 import { create } from "zustand";
+import type { ChatMessage } from "@/lib/chat";
+import type { ArchivedChat } from "@/lib/chatHistory";
 
 /**
  * AIアシスタントの表示状態。
  * ui-design_phone.pen「★ AI導線マップ」に従い、AI専用ページは持たない。
  * どの画面からでも同じシートが同一画面上にオーバーレイとして開く。
  *
- *   closed : シート非表示（Ask Bar だけが常設されている）        … STEP1〜3
- *   half   : ハーフシート（高さ384・背後の画面とタブバーは見えたまま） … STEP4
- *   full   : フルスクリーン（会話画面・タブバーは非表示）           … STEP5
+ *   closed : シート非表示（ボトムドックの Ask Bar だけが常設されている） … STEP1〜3
+ *   half   : ハーフシート（高さ384・背後の画面とタブは見えたまま）       … STEP4
+ *   full   : フルスクリーン（会話画面・タブは非表示）                   … STEP5
  *
  * ここは表示状態のみを持つ。対話履歴は lib/chat.ts に置く（AGENTS.md のストア構成に従う）。
  * 永続化は行わない（プライバシー要件）。
@@ -37,11 +39,27 @@ export function courseContext(name: string, code?: string): AiContext {
   return { kind: "course", label: name, code };
 }
 
+/**
+ * ボトムドックの Ask Bar。**Ask Bar を出す画面だけが登録する**
+ * （`MobileAiAssistant` が mount 中に置く）。マイデータ・プライバシーのように
+ * AI を持たない画面では null のままで、ドックはタブだけになる。
+ */
+export type AskDock = {
+  /** 選択が無いときの文脈（時間割・検索結果・その講義） */
+  base: AiContext;
+  /**
+   * ハーフシートを飛ばして全画面で開く。提案前の時間割がこれにあたる
+   * （AI_STEP0。サジェストより先に希望条件を聞く）
+   */
+  openFull: boolean;
+};
+
 type AiStore = {
   mode: AiMode;
   context: AiContext;
   /** Ask Bar に引き継がれる選択状態（科目をタップ中／コマを長押し中） */
   selection: AiContext | null;
+  dock: AskDock | null;
 
   /** STEP1〜3 → STEP4。文脈を引き継いでハーフシートを開く */
   openHalf: (context: AiContext) => void;
@@ -54,12 +72,14 @@ type AiStore = {
   /** 画面側の選択状態を Ask Bar に反映する */
   setSelection: (selection: AiContext | null) => void;
   setContext: (context: AiContext) => void;
+  setDock: (dock: AskDock | null) => void;
 };
 
 export const useAiStore = create<AiStore>((set) => ({
   mode: "closed",
   context: TIMETABLE_CONTEXT,
   selection: null,
+  dock: null,
 
   openHalf: (context) => set({ mode: "half", context }),
   expand: (context) => set((s) => ({ mode: "full", context: context ?? s.context })),
@@ -68,47 +88,91 @@ export const useAiStore = create<AiStore>((set) => ({
   close: () => set({ mode: "closed" }),
   setSelection: (selection) => set({ selection }),
   setContext: (context) => set({ context }),
+  setDock: (dock) => set({ dock }),
 }));
 
 /* ------------------------------------------------------------------ */
-/* Ask Bar / シートの文言（文脈ごとに差し替わる）                        */
+/* 会話                                                                 */
 /* ------------------------------------------------------------------ */
-
-/** Ask Bar のプレースホルダ。文脈チップがある場合はチップに続く文になる */
-export function askBarPlaceholder(context: AiContext): string {
-  switch (context.kind) {
-    case "course":
-      return "について質問する";
-    case "slot":
-      return "について質問する";
-    case "syllabus":
-      return "この検索結果について聞く";
-    default:
-      return "この時間割について質問する";
-  }
-}
-
-/** シート下部の入力欄プレースホルダ */
-export function sheetInputPlaceholder(context: AiContext): string {
-  if (context.slot) return `${context.slot.day}${context.slot.period}について質問する…`;
-  if (context.kind === "course") return `${context.label}について質問する…`;
-  return "メッセージを入力する";
-}
 
 export type AiSuggestion = {
   /** lucide アイコン名 */
   icon: "circle-alert" | "users" | "gauge" | "list-checks" | "calendar-days" | "search";
   title: string;
-  sub: string;
+  sub?: string;
   /** タップ時に AI へ送る質問文 */
   prompt: string;
 };
 
+export type AiSuggestions = { label: string; items: AiSuggestion[] };
+
 /**
- * ハーフシートのサジェスト。入口（文脈）に応じて差し替わる部分。
+ * 1つの画面の AI 会話。**PC のパネル（`AiChatPanel`）とモバイルのシート
+ * （`MobileAiAssistant`）が同じものを受け取る。** 両者は同じ画面に同時に mount
+ * される（表示は CSS で切り替わる）ので、会話は store の同じ系統（§5.2.2）を
+ * 読み書きし、どちらから送っても両方が同じ状態を映す。
+ */
+export type AiConversation = {
+  /** ヘッダーに出す一行（例: 「AI履修アシスタント」） */
+  title: string;
+  messages: ChatMessage[];
+  /** 送信中。入力を止め、末尾の吹き出しに指標を出す */
+  streaming: boolean;
+  /** 本文が1文字も届いていないあいだの文言（§4.1.4）。既定は「考えています…」 */
+  thinkingLabel?: string;
+  placeholder: string;
+  /** 送信中ではないが入力を受け付けられない（提案の前提が揃っていないなど。§8.3.2） */
+  inputDisabled?: boolean;
+  /**
+   * 送る。`context` はモバイルのシートが参照中の文脈（科目・コマ）で、
+   * 会話の側がそれをどう使うかを決める
+   */
+  send: (text: string, context?: AiContext) => void;
+  /** 定型の質問 */
+  quickAsks?: string[];
+  /** モバイルの全画面シートにだけ出す定型の質問（ui-design_phone.pen STEP5 QuickChips） */
+  sheetQuickAsks?: string[];
+  /** 文章を送るのではなく、その場で何かを起こすボタン（提案の開始・再提案など。§8.3） */
+  actions?: { label: string; onClick: () => void }[];
+  /** 入力欄の下に出す断り書き（希望条件の記録についてなど。§9.1） */
+  note?: string;
+  /** 「最近のチャット」。新しい順 */
+  history: ArchivedChat[];
+  onSelectHistory: (id: string) => void;
+  /** 会話をやり直す。無ければ新規ボタンを出さない */
+  onNewChat?: () => void;
+  /**
+   * モバイルのハーフシートに出すサジェスト（STEP4）。文脈ごとに差し替わる。
+   * 返さなければハーフシートでも会話を出す
+   */
+  suggestionsFor?: (context: AiContext) => AiSuggestions | null;
+};
+
+/** 定型の質問をサジェストの形にする（シラバス・講義詳細） */
+export function questionSuggestions(label: string, questions: string[]): AiSuggestions | null {
+  if (questions.length === 0) return null;
+  return {
+    label,
+    items: questions.map((q) => ({ icon: "search", title: q, prompt: q })),
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Ask Bar / シートの文言（文脈ごとに差し替わる）                        */
+/* ------------------------------------------------------------------ */
+
+/** シート下部の入力欄プレースホルダ。科目・コマを参照中のときだけ差し替える */
+export function sheetInputPlaceholder(context: AiContext, fallback: string): string {
+  if (context.slot) return `${context.slot.day}${context.slot.period}について質問する…`;
+  if (context.kind === "course") return `${context.label}について質問する…`;
+  return fallback;
+}
+
+/**
+ * 時間割（`/proposal`）のハーフシートのサジェスト。入口（文脈）に応じて差し替わる部分。
  * 「コマ」の3件は .pen の STEP4（水3の文脈）に定義されているものをそのまま使う。
  */
-export function suggestionsFor(context: AiContext): { label: string; items: AiSuggestion[] } {
+export function timetableSuggestions(context: AiContext): AiSuggestions {
   if (context.kind === "slot") {
     const slot = context.slot!;
     const at = `${slot.day}曜${slot.period}限`;
@@ -148,42 +212,16 @@ export function suggestionsFor(context: AiContext): { label: string; items: AiSu
           prompt: `${context.label}は卒業要件のどの区分に入り、いま取ると残り単位はどうなりますか。`,
         },
         {
-          icon: "list-checks",
-          title: "評価方法と課題の重さ",
-          sub: "シラバスの評価割合を要約",
-          prompt: `${context.label}の評価方法と課題の量を、シラバスから要約してください。`,
-        },
-        {
-          icon: "search",
-          title: "似た科目と比べる",
-          sub: "同じ区分の科目と並べて比較",
-          prompt: `${context.label}と同じ区分の科目を挙げて、違いを比較してください。`,
-        },
-      ],
-    };
-  }
-
-  if (context.kind === "syllabus") {
-    return {
-      label: "この検索結果について聞けること",
-      items: [
-        {
-          icon: "list-checks",
-          title: "この中で必修はどれ？",
-          sub: "履修要項と突き合わせて仕分け",
-          prompt: "この検索結果のうち、私の課程で必修・選択必修にあたるものはどれですか。",
-        },
-        {
-          icon: "calendar-days",
-          title: "いまの時間割に入るものは？",
-          sub: "空きコマと重複を確認",
-          prompt: "この検索結果のうち、いまの時間割の空きコマに入る科目はどれですか。",
+          icon: "users",
+          title: "外したら代わりは？",
+          sub: "同じコマ・同じ区分の候補",
+          prompt: `${context.label}を外すとしたら、代わりに入れられる科目はありますか。`,
         },
         {
           icon: "gauge",
-          title: "単位の埋まり方で並べて",
-          sub: "卒業要件に効く順に並べ替え",
-          prompt: "この検索結果を、卒業要件に効く順に並べ替えて理由も教えてください。",
+          title: "この科目の重さは？",
+          sub: "今期の他の科目と比べて",
+          prompt: `${context.label}は、今期の時間割の中で負担が大きいほうですか。`,
         },
       ],
     };
@@ -214,5 +252,5 @@ export function suggestionsFor(context: AiContext): { label: string; items: AiSu
   };
 }
 
-/** クイックチップ（.pen STEP5 の QuickChips） */
-export const AI_QUICK_CHIPS = ["必修を確認", "空きコマを埋めたい", "単位数の相談"] as const;
+/** 時間割の全画面シートのクイックチップ（.pen STEP5 の QuickChips） */
+export const TIMETABLE_QUICK_ASKS = ["必修を確認", "空きコマを埋めたい", "単位数の相談"];

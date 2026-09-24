@@ -30,7 +30,7 @@ export default function SyllabusProfileNotice() {
 
   return (
     <Link
-      href="/import"
+      href="/"
       className="group flex shrink-0 items-center gap-2.5 rounded-lg border border-[#D1D5DB] bg-[#EEF1F8] px-4 py-2.5 transition-colors hover:bg-[#E2E8F4]"
     >
       <FileUp size={17} aria-hidden="true" className="shrink-0 text-[#1A2B4E]" />

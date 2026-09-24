@@ -21,7 +21,7 @@
 - [x] マイデータページ — `app/mydata/page.tsx`
 - [x] シラバス検索ページ — `app/syllabus/page.tsx` + 各 `_components/`
 - [x] シラバス詳細ページ — `app/syllabus/[code]/page.tsx`
-- [x] シラバス単体チャット UI・API接続 — `_components/CourseChatPanel.tsx`（PCデスクトップ）、`_components/SyllabusChatBox.tsx`（モバイル）。詳細ページに統合済み。`POST /api/chat/syllabus/{code}` SSE接続済み（`feature/syllabus-course-chat-sse` ブランチ）
+- [x] シラバス単体チャット UI・API接続 — `_components/CourseChatPanel.tsx`（PCデスクトップ）、`_components/CourseMobileAssistant.tsx`（モバイル。会話は `lib/useCourseConversation.ts` を PC と共有。旧 `SyllabusChatBox.tsx` は削除）。詳細ページに統合済み。`POST /api/chat/syllabus/{code}` SSE接続済み（`feature/syllabus-course-chat-sse` ブランチ）
 - [x] 履修提案ページ（レイアウト・API接続） — `app/proposal/page.tsx` + 各 `_components/`。`POST /api/proposal` SSE + `POST /api/chat/proposal` SSE 接続済み。`lib/proposal.ts` で提案状態管理
 - [x] **履修提案は学生の指示で始める（設計書 v0.9.44 / §8.3）** — `/proposal` に到達した時点で `POST /api/proposal` を撃っていた（`ProposalLoader`）ため、学生が希望条件を書く前に4〜5分かかる提案が始まっていた。ローダーを廃し、対話を `lib/useProposalConversation.ts` に集約。**1つの入力欄が提案の有無で `/api/proposal` と `/api/chat/proposal` に向かう**（§8.3.1）。希望条件なしで始める導線、再提案（§8.3.3）、前提が揃わないときの理由表示（§8.3.2）、入力欄の断り書き（§9.1）を実装
 - [x] **提案チャットのリクエストが backend のスキーマと違っていた** — `streamProposalChat()` が `{profile, history, message}`（シラバスチャットの形）を送っていたが、`POST /api/chat/proposal` は `{studentProfile, proposal, messages}` を受ける（§6.1、`backend/app/schemas/chat.py`）。**`proposal` が無いため常に 422** で、提案画面のチャットもAIシートの時間割文脈も応答を得られていなかった
@@ -33,11 +33,11 @@
 - [x] Zustand student store — `lib/student.ts`
 - [x] Zustand chat store — `lib/chat.ts`（提案チャット / シラバスチャット / 講義単位チャットを分離管理、永続化オフ）
 - [x] ダミープロファイル — `lib/dummy/profiles.ts`（3パターン: 3回生・知能情報メディア / 2回生・再履修あり / 1回生・電子情報通信）
-- [x] ヘッダー・BottomTabBar
+- [x] ヘッダー・ボトムドック（`components/BottomDock.tsx`。旧 BottomTabBar を Ask Bar と一体にした）
 - [x] プライバシーポリシーページ
-- [x] **PDF解析実装（モバイル）** — `app/import/_components/MobileImportFlow.tsx`
+- [x] **PDF解析実装（モバイル）** — `app/_components/MobileImportFlow.tsx`（`/`。旧 `app/import/_components/` から移動）
   - `parseGradeReport` 呼び出し・ローディング/エラー状態・確認画面・デモモードドロップダウンすべて実装済み
-- [x] **手入力フォールバックUI** — `app/import/_components/ManualInputForm.tsx`
+- [x] **手入力フォールバックUI** — `app/_components/ManualInputForm.tsx`
   - PDF解析失敗時の「手入力で続ける」導線、学年・課程・既修得科目の入力フォーム、`MobileSettingsPage` 編集機能
 - [x] **デモモードスイッチャー（PC・モバイル取り込みフロー）**
   - `PcImportPage.tsx` / `MobileImportFlow.tsx` でプロファイル選択UIを実装済み。store への反映も完了
@@ -50,8 +50,10 @@
 
 ### すぐ着手できる（実装コスト小）
 
-- [x] **モバイル版時間割グリッドへの提案結果反映** — `app/_components/MobileTimetablePage.tsx`
-  - `useProposalStore` 接続済み。提案結果を `coursesToTimetable` で変換してセルに描画。ロード中は `animate-pulse`
+- [x] **モバイル版時間割グリッドへの提案結果反映** — `app/proposal/_components/MobileProposalPage.tsx`（旧 `MobileTimetablePage.tsx` は統合して削除）
+  - `useProposalStore` 接続済み。提案結果を PC と同じ `coursesToSlotTable` で変換してセルに描画（1マス複数科目・クォーター印・曜日時限未定）。ロード中は `animate-pulse`
+
+- [x] **PC とモバイルのルート統一と ui-design_phone.pen 改訂の反映（設計書 v0.9.63 / §8）** — モバイルも `/` を取り込み、`/proposal` を時間割にした（`/import` は `/` へ転送）。AI の会話を `AiConversation` で PC のパネルとモバイルのシートに共有。モバイルの時間割に卒業要件の帯（`MobileRequirementsStrip`）と PC と同じ単位集計を出した
 
 - [x] **`/chat` ContextBanner のストア接続** — `app/chat/_components/ContextBanner.tsx`
   - `useStudentStore` / `useProposalStore` から実値を取得して表示。プロファイル未取得時は案内文言に切り替え済み
@@ -59,7 +61,7 @@
 ### 低優先度 / 将来対応
 
 - [x] **履修提案API接続の完全化（卒業単位算出）**
-  - `GET /api/curricula` を用いた「卒業残り単位」の算出を実装済み — `lib/curricula.ts` の `useGraduationCredits` フック。backend が返す `graduation.totalCredits` を使い、失敗時は 124 にフォールバック。`CreditBar.tsx` / `MobileProposalPage.tsx` で利用
+  - `GET /api/curricula` を用いた「卒業残り単位」の算出を実装済み — `lib/curricula.ts` の `useGraduationCredits` フック。backend が返す `graduation.totalCredits` を使い、失敗時は 124 にフォールバック。単位の集計は `lib/creditSummary.tsx` の `useCreditSummary()` に集約（PC のヘッダー・`CreditBar.tsx`・モバイルの時間割が共有）
   - **設置科目の単位数の総和は卒業必要単位数ではない**（design.md §6.1）。`courses` から合計してはならない
 
 ---
@@ -79,7 +81,7 @@
 
 ## 未対応（backend 側）
 
-- [ ] **`POST /api/chat/proposal` が backend に未実装** — design.md §6.1 の表にはあるが、ルートが入るまで 404 を返す。frontend 側（`lib/chatApi.ts` の `streamProposalChat`、`ChatPanel.tsx` / `MobileProposalPage.tsx`）は接続済み
+- [ ] **`POST /api/chat/proposal` が backend に未実装** — design.md §6.1 の表にはあるが、ルートが入るまで 404 を返す。frontend 側（`lib/chatApi.ts` の `streamProposalChat`、`lib/useProposalConversation.ts`。PC の `ChatPanel.tsx` とモバイルの AI シートが共有）は接続済み
 - [ ] **`GET /api/syllabi` 系の上流障害が 500 になる** — `backend/app/api/syllabus.py` は `httpx.HTTPStatusError` だけを捕捉しており、接続失敗（`httpx.RequestError`）が素通りする。design.md §6.1 / §3.4.4 の規定は 502
 
 ---
@@ -109,10 +111,10 @@ systemctl --user restart syllabel-backend.service syllabel-frontend.service
 - バックエンドとの通信は **`/syllabel/api/*`** 経由（ゲートウェイが `/syllabel` を剥がして backend へ振り分け）— design.md §3.5.2、§6.1。`basePath` は `fetch()` のパスに前置されないため、宛先は `lib/api_base.ts` の `apiBase()` で解決する
 - `persist` ミドルウェア使用禁止（プライバシー要件）— design.md §9
 - PDFファイル自体をサーバーへ送信しない — 解析はクライアント完結
-- design.md §8 の正規ルート: `/`・`/proposal`・`/syllabus`・`/syllabus/[code]`・`/privacy`
+- design.md §8 の正規ルート: `/`・`/proposal`・`/syllabus`・`/syllabus/[code]`・`/mydata`・`/privacy`（PC・モバイル共通。`/import` は `/` への転送のみ）
 - `lib/chat.ts` の `courseMessages` フィールドは design.md §5.2.2 では `syllabusPerCourse` として定義されているが、実装名が異なる（機能は同等）
 - SSE は `fetch` + `ReadableStream` 方式で実装済み。`lib/chatApi.ts` の `readSSE` 共通ヘルパー経由で全チャット系エンドポイントに対応
-- `coursesToTimetable` は `lib/timetable.ts` に一本化済み（`MobileProposalPage.tsx` / `TimetablePanel.tsx` / `MobileTimetablePage.tsx` から共用）
+- 時間割表は PC・モバイルとも `lib/timetable.ts` の `coursesToSlotTable` を使う（`TimetablePanel.tsx` / `app/_components/TimetableGrid.tsx`）。`coursesToTimetable` はどの画面からも使っていない
 - 検索結果のタグは2段（`buildTagMap()` で候補 → `resolveTags()` で履修可否を掛けて3軸に決める）。入口は `lib/useTagMap.ts` の `useTagMap()` だけで、**`Map` ではなく関数を返す**（呼び出し側が2段目を掛け忘れないため。`Map` に戻さない）— 設計書 §6.1.3
 - 履修可否の判定規則は設計書 §6.1.3 に1か所で書き、実装は frontend（`lib/eligibility.ts`）と backend（`proposal_agent.py` の `fetch_eligibility()`）の2か所にある。取得経路が違うため実装は分かれる。**片方だけ直さないこと**
 - 履修要項を引くキーは (課程コード, 入学年度)。プロファイルの `program` は課程名なので `lib/programs.ts` でコードに解決する — design.md §4.4.2
