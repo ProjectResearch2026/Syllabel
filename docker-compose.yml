@@ -1,6 +1,13 @@
 # DGX Spark 上のサービス定義(design.md §3.2.2)。
 # 本ファイルが定義するのは vllm のみ。backend は公開 VM 側に置くため
 # ここでは定義しない(§3.2.1)。起動は `docker compose up -d vllm`。
+
+# **プロジェクト名をサービス名 Syllabel で固定する。** 省略するとクローン先の
+# ディレクトリ名が使われ、クローンし直すだけで別プロジェクトになる。
+# 旧名(courseregistrationai)から移るときは、旧コンテナが 127.0.0.1:8001 を
+# 握ったままだと衝突するため、先に一度だけ消す(§3.2.2):
+#   docker compose -p courseregistrationai rm -sf vllm
+name: syllabel
 services:
   vllm:
     # **タグを固定する。** `latest` は次の pull で実体が黙って変わり、設計書に

@@ -4,6 +4,7 @@ import "./globals.css";
 import Header from "@/components/Header";
 import BottomTabBar from "@/components/BottomTabBar";
 import AiLayer from "@/components/ai/AiLayer";
+import { CreditSummaryProvider } from "@/lib/creditSummary";
 
 /*
  * 全書体を IBM Plex Sans JP に統一する。
@@ -35,29 +36,35 @@ export default function RootLayout({
       className={ibmPlexSansJP.variable}
     >
       <body className="min-h-screen flex flex-col font-ui bg-surface-gray">
-        {/* デスクトップ用ヘッダー */}
-        <div className="hidden md:block">
-          <Header />
-        </div>
         {/*
-          pb はタブバー（80px）の高さ分。Ask Bar のある画面は各ページで追加する。
-          PC では ui-design_pc.pen の PageBody に合わせ、左右 16px・下 8px の
-          余白を本文の外側に持たせる（カードがグレーの地に浮く）。
+          単位の集計と卒業要件の判定。ヘッダーの単位数と履修提案の帯が同じ値を見るため、
+          ここで1回だけ引く(lib/creditSummary.tsx)
         */}
-        <main className="flex min-h-0 flex-1 flex-col pb-20 md:px-4 md:pb-2">
-          {children}
-        </main>
-        {/* モバイル用ボトムタブ（AI導線マップに従い 時間割 / シラバス / マイデータ の3つ） */}
-        <div className="md:hidden">
-          <BottomTabBar />
-        </div>
-        {/*
-          AIアシスタント。ページではなく全画面共通のオーバーレイとして置く。
-          「別ページへ移動した」感を出さないための設計意図（★ AI導線マップ）。
-        */}
-        <div className="md:hidden">
-          <AiLayer />
-        </div>
+        <CreditSummaryProvider>
+          {/* デスクトップ用ヘッダー */}
+          <div className="hidden md:block">
+            <Header />
+          </div>
+          {/*
+            pb はタブバー（80px）の高さ分。Ask Bar のある画面は各ページで追加する。
+            PC では ui-design_pc.pen の PageBody に合わせ、左右 16px・下 8px の
+            余白を本文の外側に持たせる（カードがグレーの地に浮く）。
+          */}
+          <main className="flex min-h-0 flex-1 flex-col pb-20 md:px-4 md:pb-2">
+            {children}
+          </main>
+          {/* モバイル用ボトムタブ（AI導線マップに従い 時間割 / シラバス / マイデータ の3つ） */}
+          <div className="md:hidden">
+            <BottomTabBar />
+          </div>
+          {/*
+            AIアシスタント。ページではなく全画面共通のオーバーレイとして置く。
+            「別ページへ移動した」感を出さないための設計意図（★ AI導線マップ）。
+          */}
+          <div className="md:hidden">
+            <AiLayer />
+          </div>
+        </CreditSummaryProvider>
       </body>
     </html>
   );

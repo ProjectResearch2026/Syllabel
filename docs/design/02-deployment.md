@@ -1,4 +1,4 @@
-# 履修登録支援AIチャットボット 設計書(v0.9.56)— §3 デプロイ構成
+# 履修登録支援AIチャットボット 設計書(v0.9.62)— §3 デプロイ構成
 
 > 本ファイルは [`docs/design.md`](../design.md) の一部である。§番号は設計書全体で通し番号であり、他ファイルの節を `§X.Y` の形で参照する。全ファイルの対応表は [design.md](../design.md) の「0.3 本書の構成」を参照。
 
@@ -142,6 +142,16 @@ rootless Podman で3つのコンテナを、Podman ネットワーク `syllabel`
 | vllm | `docker-compose.yml` | `127.0.0.1:8001` | LLM 推論。教員側の中継経由でトークンゲートウェイから呼ばれる(★1) |
 | api-clean(既存) | `docker-compose.clean.yml` | **`127.0.0.1:5050` → コンテナ 5000** | シラバス情報提供 API。トークンゲートウェイ経由で引かれる(★2) |
 | postgres-clean(既存) | `docker-compose.clean.yml` | **`127.0.0.1:5433` → コンテナ 5432** | シラバス DB。本プロジェクトは直接触らない |
+
+**compose のプロジェクト名はサービス名 `syllabel` に固定する**(`docker-compose.yml` の `name:`)。省略時はクローン先のディレクトリ名がプロジェクト名になり、クローンし直すだけで別プロジェクトとして扱われてしまう。コンテナは `syllabel-vllm-1`、ネットワークは `syllabel_app-net` になる。
+
+**旧名(`courseregistrationai`)から移るときは、旧コンテナを先に一度だけ消す。** 旧コンテナ `courseregistrationai-vllm-1` が `127.0.0.1:8001` を握ったままだと、新しいコンテナはポートが衝突して起動しない。リポジトリを更新してから次の順で行う。モデルの読み込みが終わるまで(数分)vllm は応答しない。
+
+1. `docker compose -p courseregistrationai rm -sf vllm`
+2. `docker compose up -d vllm`
+3. `docker compose ps` で `syllabel-vllm-1` が healthy になるのを待つ
+
+旧ネットワーク `courseregistrationai_app-net` は、他のコンテナが接続していなければ `docker network rm` で消してよい。
 
 **ホストをまたぐ通信は backend を起点とする2本である**(★1 = backend → vllm、★2 = backend → api-clean)。**いずれも教員側のトークンゲートウェイを経由する**(§3.4.3、§3.4.4)。**どちらも DGX Spark に本プロジェクト固有のものを置かない。**
 

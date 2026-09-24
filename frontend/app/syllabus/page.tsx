@@ -12,6 +12,7 @@ import SyllabusFilters from "./_components/SyllabusFilters";
 import SyllabusChatPanel from "./_components/SyllabusChatPanel";
 import SyllabusProfileNotice from "./_components/SyllabusProfileNotice";
 import MobileSyllabusPage from "./_components/MobileSyllabusPage";
+import SyllabusQueryMemory from "./_components/SyllabusQueryMemory";
 
 /** 1ページに並べる件数。表示だけの都合であり、取得は全件行う(§6.2) */
 const LIMIT = 30;
@@ -50,6 +51,11 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
 
   return (
     <>
+      {/* 検索条件を覚えておき、ヘッダーから戻ったときに開き直す(§8) */}
+      <Suspense>
+        <SyllabusQueryMemory />
+      </Suspense>
+
       {/* モバイル */}
       <div className="flex-1 md:hidden">
         <Suspense>
