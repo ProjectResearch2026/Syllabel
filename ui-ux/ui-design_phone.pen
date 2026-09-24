@@ -34744,10 +34744,6 @@
                           "name": "CardRow",
                           "width": "fill_container",
                           "fill": "#FFE8E9",
-                          "stroke": "#E60012",
-                          "strokeWidth": {
-                            "left": 4
-                          },
                           "gap": 8,
                           "padding": [
                             10,
@@ -34872,11 +34868,6 @@
                           "name": "CardRow_3Q",
                           "width": "fill_container",
                           "fill": "#FFE8E9",
-                          "stroke": "#E60012",
-                          "strokeWidth": {
-                            "bottom": 1,
-                            "left": 4
-                          },
                           "gap": 8,
                           "padding": [
                             10,
@@ -34974,10 +34965,11 @@
                           "name": "CardRow_4Q",
                           "width": "fill_container",
                           "fill": "#EAEEF5",
-                          "stroke": "#1A2B4E",
+                          "stroke": "$L:--border",
                           "strokeWidth": {
-                            "left": 4
+                            "top": 1
                           },
+                          "strokeAlignment": "inner",
                           "gap": 8,
                           "padding": [
                             10,
