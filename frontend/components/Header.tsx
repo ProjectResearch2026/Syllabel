@@ -9,8 +9,7 @@ import { useStudentStore } from "@/lib/student";
 import { useChatStore } from "@/lib/chat";
 import { useChatHistoryStore } from "@/lib/chatHistory";
 import { useProposalStore } from "@/lib/proposal";
-import { useSyllabusUIStore } from "@/lib/syllabusUI";
-import { listHref } from "@/lib/syllabusQuery";
+import { useCreditSummary } from "@/lib/creditSummary";
 
 /**
  * PC版ヘッダー（ui-design_pc.pen AppHeader）。
@@ -19,13 +18,17 @@ import { listHref } from "@/lib/syllabusQuery";
  * 8px/16px の余白はヘッダー自身が持つため、ページ側は `PageBody` の
  * `px-4 pb-2` だけを気にすればよい。
  *
- * 時間割とシラバス一覧では、ヘッダーカードの直下に帯（単位バー／検索バー）が
+ * 時間割とシラバス一覧では、ヘッダーカードの直下に帯（卒業要件の帯／検索バー）が
  * 続いて**1枚のカードに見える**（下の角丸と余白を落とす）。それ以外の画面では
  * ヘッダーカードが単独で浮く。
  *
  * **取り込みが済むまでナビを出さない。** 成績表を取り込む前は時間割もシラバスの
  * タグ付けも中身が無く、押しても空の画面に着くだけで、取り込みという
  * 唯一やることから注意を逸らす。取り込みが終わった時点（完了画面）から出す。
+ *
+ * **単位数（取得済み・今期登録・卒業残り）はヘッダーに置く**（design.md §8.3.5）。
+ * どの画面からも見え、履修提案の画面では下の帯を卒業要件枠の内訳に空けられる。
+ * 値は `lib/creditSummary.tsx` の共有の集計で、ナビと同じく取り込み前は出さない。
  */
 
 const navItems: {
@@ -78,6 +81,12 @@ export default function Header() {
   const listQuery = useSyllabusUIStore((s) => s.listQuery);
   const attached = isAttached(pathname);
   const showNav = !(isImportFlow(pathname) && !profile);
+  const { completedCredits, currentCredits, remainingCredits } = useCreditSummary();
+  const credits = [
+    { val: completedCredits, label: "取得済み", color: "text-fg-primary" },
+    { val: currentCredits, label: "今期登録", color: "text-accent" },
+    { val: remainingCredits, label: "卒業残り", color: "text-[#5F6B7A]" },
+  ];
 
   /*
    * 消してからトップ(取り込み画面)へ戻す。
@@ -158,8 +167,18 @@ export default function Header() {
           </nav>
         )}
 
-        {/* Right area。設計から学生アバターは外れ、リセットだけが残る */}
+        {/* Right area。単位数とリセット（学生アバターは設計から外れた） */}
         <div className="flex shrink-0 items-center gap-4">
+          {showNav && profile && (
+            <div className="flex items-center gap-8">
+              {credits.map(({ val, label, color }) => (
+                <div key={label} className="flex items-center gap-1.5" title={`${label}単位`}>
+                  <span className={`tabular-nums text-xl font-bold ${color}`}>{val ?? "—"}</span>
+                  <span className="text-xs text-fg-tertiary">{label}</span>
+                </div>
+              ))}
+            </div>
+          )}
           <button
             onClick={handleReset}
             className="flex items-center gap-1.5 text-[13px] text-fg-secondary transition-colors hover:text-fg-primary"

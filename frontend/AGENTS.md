@@ -150,7 +150,7 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 ## 卒業要件枠の内訳
 
-履修提案の画面(PC)は単位バーの下に要件枠ごとの充足状況を出す(design.md §8.3.5、`app/proposal/_components/RequirementsPanel.tsx`)。**数字は `lib/requirements.ts` の `useRequirements()` から採り、画面で足し算しない。** 枠への割り当て・溢れ・算入上限は backend の `requirements.py` が判定する(同じ枠の科目を不足より多く取った分は下流の枠に回る)。今期の時間割(提案の `courses` と登録済みの科目)の分は、それを修得したとみなして2回目を引いた差で出す。提案の store の `courses` に追従するので、時間割を変える経路を足すときは store を書き換えればよい。`profile.program` は課程**コード**で送る(`fetchRequirements()` が差し替える)。
+履修提案の画面(PC)はヘッダーカードの直下の帯に要件枠ごとの充足状況を出す(design.md §8.3.5、`app/proposal/_components/RequirementsPanel.tsx`)。**充足した枠は1つのまとめに畳み、足りない枠だけを1行に並べ、入りきらない分は横にスクロールさせる(折り返さない。スクロールバーは隠し、端のぼかしと矢印ボタンで続きを示す。凡例は ⓘ に畳む)。** 取得済み・今期登録・卒業残りの単位数は PC のヘッダー(`components/Header.tsx`)にある。**ヘッダーと帯の値は `lib/creditSummary.tsx` の `useCreditSummary()` から採る**(`CreditSummaryProvider` がルートのレイアウトで判定を1回だけ引く。各所で `useRequirements()` を呼ばない)。**数字は `lib/requirements.ts` の `useRequirements()` から採り、画面で足し算しない。** 枠への割り当て・溢れ・算入上限は backend の `requirements.py` が判定する(同じ枠の科目を不足より多く取った分は下流の枠に回る)。今期の時間割(提案の `courses` と登録済みの科目)の分は、それを修得したとみなして2回目を引いた差で出す。提案の store の `courses` に追従するので、時間割を変える経路を足すときは store を書き換えればよい。`profile.program` は課程**コード**で送る(`fetchRequirements()` が差し替える)。
 
 ## 課程コードの解決
 
