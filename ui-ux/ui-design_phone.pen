@@ -32604,11 +32604,6 @@
       "name": "Nav/BottomDock",
       "reusable": true,
       "width": 390,
-      "fill": "#FFFFFF",
-      "stroke": "$border-primary",
-      "strokeWidth": {
-        "top": 1
-      },
       "layout": "vertical",
       "padding": 8,
       "children": [
