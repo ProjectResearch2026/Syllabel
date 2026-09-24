@@ -185,6 +185,8 @@ def test_returns_slot_status(minimal):
     assert body["remainingCredits"] == 8
     assert body["satisfied"] is False
     slots = {s["key"]: s for s in body["slots"]}
+    # 画面に出す公式の区分名(§5.1.2)。key とは別に返す
+    assert slots["basic.required"]["name"] == "basic.required"
     assert slots["basic.required"]["earned"] == 4
     assert slots["basic.required"]["shortfall"] == 0
     assert slots["basic.required"]["courses"] == [{"title": "微分積分", "credits": 4}]
@@ -209,6 +211,7 @@ def test_response_is_camel_case(minimal):
     assert body["availableTracks"] == [{"key": "math", "name": "数学系コース"}]
     assert set(body["slots"][0]) == {
         "key",
+        "name",
         "required",
         "earned",
         "shortfall",

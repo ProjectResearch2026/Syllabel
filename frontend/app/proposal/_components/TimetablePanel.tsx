@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { proposalDetailHref } from "@/lib/syllabusQuery";
 import { DAYS, PERIODS, CELL_STYLES, coursesToSlotTable, type SlotEntry } from "@/lib/timetable";
 import { useProposalStore } from "@/lib/proposal";
 
@@ -20,6 +22,32 @@ function EntryBody({ entry, clamp }: { entry: SlotEntry; clamp: string }) {
         )}
       </span>
     </>
+  );
+}
+
+/**
+ * 科目の枠。シラバスコードがあれば講義詳細(`/syllabus/[code]`)へのリンクにする
+ * (design.md §8.3.4)。同じタブのクライアント遷移で開くので、提案と対話は
+ * 残ったまま「時間割に戻る」で戻れる(`proposalDetailHref()`)。
+ */
+function CourseLink({
+  entry,
+  className,
+  children,
+}: {
+  entry: SlotEntry;
+  className: string;
+  children: React.ReactNode;
+}) {
+  if (!entry.code) return <div className={className}>{children}</div>;
+  return (
+    <Link
+      href={proposalDetailHref(entry.code)}
+      aria-label={`${entry.name}のシラバスを開く`}
+      className={`${className} transition-[filter] hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent`}
+    >
+      {children}
+    </Link>
   );
 }
 
@@ -67,29 +95,34 @@ export default function TimetablePanel() {
 
           {DAYS.map((d) => {
             const entries = table[p]?.[d] ?? [];
-            // 1科目ならマス全体を区分の色で塗る。複数なら科目ごとに色の付いた枠を積む
+            // 1科目ならマス全体を区分の色で塗り、マスごとリンクにする。
+            // 複数なら科目ごとに色の付いた枠を積み、枠ごとにリンクにする
             const single = entries.length === 1 ? entries[0] : null;
+            const cellClass = `flex min-w-0 flex-1 flex-col justify-center gap-1 border-r border-border-primary last:border-r-0 ${
+              entries.length > 1 ? "p-1" : "p-2"
+            } ${single ? CELL_STYLES[single.type].cell : "bg-surface-primary"} ${
+              isLoading ? "animate-pulse" : ""
+            }`;
+            if (single) {
+              return (
+                <CourseLink key={d} entry={single} className={cellClass}>
+                  <EntryBody entry={single} clamp="line-clamp-3" />
+                </CourseLink>
+              );
+            }
             return (
-              <div
-                key={d}
-                className={`flex min-w-0 flex-1 flex-col justify-center gap-1 border-r border-border-primary last:border-r-0 ${
-                  entries.length > 1 ? "p-1" : "p-2"
-                } ${single ? CELL_STYLES[single.type].cell : "bg-surface-primary"} ${
-                  isLoading ? "animate-pulse" : ""
-                }`}
-              >
-                {single && <EntryBody entry={single} clamp="line-clamp-3" />}
-                {entries.length > 1 &&
-                  entries.map((entry) => (
-                    <div
-                      key={`${entry.code ?? entry.name}-${entry.quarter ?? ""}`}
-                      className={`flex min-h-0 flex-1 flex-col justify-center gap-0.5 rounded-sm px-1.5 py-1 ${
-                        CELL_STYLES[entry.type].cell
-                      }`}
-                    >
-                      <EntryBody entry={entry} clamp="line-clamp-2" />
-                    </div>
-                  ))}
+              <div key={d} className={cellClass}>
+                {entries.map((entry) => (
+                  <CourseLink
+                    key={`${entry.code ?? entry.name}-${entry.quarter ?? ""}`}
+                    entry={entry}
+                    className={`flex min-h-0 flex-1 flex-col justify-center gap-0.5 rounded-sm px-1.5 py-1 ${
+                      CELL_STYLES[entry.type].cell
+                    }`}
+                  >
+                    <EntryBody entry={entry} clamp="line-clamp-2" />
+                  </CourseLink>
+                ))}
               </div>
             );
           })}
@@ -101,8 +134,9 @@ export default function TimetablePanel() {
           <span className="shrink-0 text-[11px] font-semibold text-fg-secondary">曜日・時限未定</span>
           <div className="flex min-w-0 flex-wrap gap-1.5">
             {unscheduled.map((entry) => (
-              <span
+              <CourseLink
                 key={entry.code ?? entry.name}
+                entry={entry}
                 className={`flex items-center gap-1.5 rounded-sm px-2 py-1 ${CELL_STYLES[entry.type].cell}`}
               >
                 <span className="text-[11px] font-semibold text-fg-primary">{entry.name}</span>
@@ -112,7 +146,7 @@ export default function TimetablePanel() {
                 {entry.quarter && (
                   <span className="text-[9px] font-semibold text-fg-secondary">{entry.quarter}</span>
                 )}
-              </span>
+              </CourseLink>
             ))}
           </div>
         </div>

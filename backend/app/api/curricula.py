@@ -265,9 +265,14 @@ class AssignedCourseOut(_CamelModel):
 
 
 class SlotStatusOut(_CamelModel):
-    """要件枠1つの充足状況。`shortfall` が不足単位(§4.4.5)。"""
+    """要件枠1つの充足状況。`shortfall` が不足単位(§4.4.5)。
+
+    `name` は公式の区分名(「教養教育科目(選択)」「オールフリーゾーン」。§5.1.2)。
+    画面に出すのはこちらで、`key` は内部の識別子である。
+    """
 
     key: str
+    name: str
     required: int
     earned: float
     shortfall: float

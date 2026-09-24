@@ -45,3 +45,30 @@ export function listHref(back: string | string[] | undefined): string {
   const restored = pickListParams(new URLSearchParams(raw)).toString();
   return restored ? `/syllabus?${restored}` : "/syllabus";
 }
+
+/**
+ * 履修提案の時間割(`/proposal`)から開いた詳細画面であることを示す値。
+ * 詳細画面の戻り先を時間割にする(design.md §8.3.4)。
+ */
+const FROM_PROPOSAL = "proposal";
+
+/**
+ * 履修提案の時間割の科目から詳細画面へのリンク。`from=proposal` を付け、
+ * 詳細画面の「戻る」を時間割へ向ける。
+ *
+ * **同じタブで開く(`next/link` のクライアント遷移)。** 学生プロファイルと提案は
+ * ブラウザのメモリにしか無い(永続化しない)ため、別タブで開くと取り込み前の
+ * 状態になり、戻っても提案が消えている。
+ */
+export function proposalDetailHref(code: string): string {
+  return `/syllabus/${encodeURIComponent(code)}?from=${FROM_PROPOSAL}`;
+}
+
+/** 詳細画面の「戻る」の宛先と文言。時間割から開いたなら時間割へ、それ以外は一覧へ。 */
+export function backLink(params: {
+  from?: string | string[];
+  back?: string | string[];
+}): { href: string; label: string } {
+  if (params.from === FROM_PROPOSAL) return { href: "/proposal", label: "時間割に戻る" };
+  return { href: listHref(params.back), label: "シラバス一覧に戻る" };
+}
