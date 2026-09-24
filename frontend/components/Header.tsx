@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import logoMark from "@/public/logo.svg";
 import { RotateCcw } from "lucide-react";
+import { motion } from "motion/react";
+import AnimatedNumber from "@/components/AnimatedNumber";
 import { useStudentStore } from "@/lib/student";
 import { useChatStore } from "@/lib/chat";
 import { useChatHistoryStore } from "@/lib/chatHistory";
@@ -159,9 +161,17 @@ export default function Header() {
                   >
                     {item.label}
                   </span>
-                  <span
-                    className={`h-[2px] w-[60px] ${active ? "bg-accent" : "bg-transparent"}`}
-                  />
+                  {/* 下線は1本だけで、選んだ行き先へ横に滑る(layoutId)。
+                      ヘッダーは画面を移っても作り直されないので、前の位置から動く */}
+                  <span className="relative h-[2px] w-[60px]">
+                    {active && (
+                      <motion.span
+                        layoutId="nav-underline"
+                        className="absolute inset-0 bg-accent"
+                        transition={{ type: "spring", damping: 28, stiffness: 400, mass: 0.6 }}
+                      />
+                    )}
+                  </span>
                 </Link>
               );
             })}
@@ -174,7 +184,12 @@ export default function Header() {
             <div className="flex items-center gap-8">
               {credits.map(({ val, label, color }) => (
                 <div key={label} className="flex items-center gap-1.5" title={`${label}単位`}>
-                  <span className={`tabular-nums text-xl font-bold ${color}`}>{val ?? "—"}</span>
+                  {/* 提案や時間割の変更で値が変わったことが分かるよう、数え上げる */}
+                  <AnimatedNumber
+                    value={val}
+                    className={`inline-block origin-bottom tabular-nums text-xl font-bold transition-transform duration-200 ${color}`}
+                    countingClassName="scale-110"
+                  />
                   <span className="text-xs text-fg-tertiary">{label}</span>
                 </div>
               ))}
