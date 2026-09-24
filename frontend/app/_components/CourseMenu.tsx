@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeftRight, BookOpen, ChevronRight, Sparkles, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
 import { CELL_STYLES, type SlotEntry } from "@/lib/timetable";
@@ -46,6 +46,15 @@ export default function CourseMenu({
   const { entry, day, period, rect } = target;
   const [confirming, setConfirming] = useState(false);
   const style = CELL_STYLES[entry.type];
+  // 開いた直後のスクリムへの click は、開いたタップの続きなので閉じない
+  const openedAt = useRef(0);
+  useEffect(() => {
+    openedAt.current = Date.now();
+  }, [target]);
+  const handleClose = () => {
+    if (Date.now() - openedAt.current < 350) return;
+    onClose();
+  };
 
   const centered = rect.left + rect.width / 2 - MENU_WIDTH / 2;
   const left = Math.min(
@@ -63,7 +72,7 @@ export default function CourseMenu({
       <motion.button
         type="button"
         aria-label="閉じる"
-        onClick={onClose}
+        onClick={handleClose}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.15 }}

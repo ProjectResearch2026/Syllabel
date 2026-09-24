@@ -151,12 +151,16 @@ export default function TimetableGrid({
                 onPointerMove={trackMove}
                 onPointerCancel={cancel}
                 onPointerLeave={cancel}
-                onPointerUp={(e) => {
+                onPointerUp={() => {
                   const wasLongPress = fired.current;
                   cancel();
                   if (wasLongPress) return;
                   if (!first) onTapEmpty?.();
-                  else if (!multi) onTapCourse({ entry: first, day, period, rect: rectOf(e.currentTarget) });
+                }}
+                // 科目は pointerup ではなく click で開く。pointerup でメニューを開くと、
+                // タップのあとに届く click がメニューのスクリムに当たって即座に閉じる
+                onClick={(e) => {
+                  if (first && !multi) onTapCourse({ entry: first, day, period, rect: rectOf(e.currentTarget) });
                 }}
                 className={`relative flex min-w-0 flex-1 flex-col justify-center border-r border-border-primary last:border-r-0 ${
                   multi ? "gap-1 p-1" : "gap-0.5 px-1 py-1.5"
