@@ -42,7 +42,7 @@ export default function SlotPopover({
 
   return (
     <div className="fixed inset-0 z-50 md:hidden">
-      {/* スクリム。タブバーは覆わない */}
+      {/* スクリム */}
       <motion.button
         type="button"
         aria-label="閉じる"
@@ -50,7 +50,7 @@ export default function SlotPopover({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.15 }}
-        className="absolute inset-x-0 bottom-20 top-0 bg-scrim-menu"
+        className="absolute inset-0 bg-scrim-menu"
       />
 
       {/* 長押ししたセルをスクリムの上に残す */}

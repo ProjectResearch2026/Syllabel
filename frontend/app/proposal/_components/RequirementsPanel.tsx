@@ -201,3 +201,75 @@ export default function RequirementsPanel({ view }: { view: RequirementsView }) 
     </div>
   );
 }
+
+/**
+ * 卒業要件の帯（モバイル。ui-design_phone.pen RequirementsStrip）。PC と同じ判定
+ * （`RequirementsView`）を縦2段で出す — 上に充足した枠のまとめ、下に足りない枠の
+ * カード（140px 固定幅・横スクロール）。指で送れるのでスクロールの矢印は置かない。
+ */
+export function MobileRequirementsStrip({ view }: { view: RequirementsView }) {
+  if (view.status === "unavailable") return null;
+  const frame = "flex flex-col gap-2 border-b border-border-primary bg-surface-primary px-4 pb-3 pt-2.5";
+  if (view.status !== "ready") {
+    return (
+      <div className={frame}>
+        <p className="text-[11px] text-fg-muted">
+          {view.status === "loading"
+            ? "卒業要件の充足状況を計算しています…"
+            : "卒業要件の充足状況を取得できませんでした。"}
+        </p>
+      </div>
+    );
+  }
+  const done = view.slots.filter((s) => s.shortfall <= 0);
+  const short = view.slots.filter((s) => s.shortfall > 0);
+  return (
+    <div className={`${frame} transition-opacity ${view.updating ? "opacity-60" : ""}`} aria-busy={view.updating}>
+      {done.length > 0 && (
+        <p className="flex items-center gap-1.5 rounded-md bg-[#ECFDF5] px-2.5 py-1.5">
+          <CircleCheck size={14} className="shrink-0 text-[#059669]" aria-hidden="true" />
+          <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-[#047857]">
+            取得済み：{done.map((s) => s.name).join("・")}
+          </span>
+        </p>
+      )}
+      {short.length > 0 ? (
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {short.map((slot) => {
+            const earnedPct = Math.min(100, (slot.earned / slot.required) * 100);
+            const plannedPct = Math.min(100 - earnedPct, (slot.planned / slot.required) * 100);
+            return (
+              <div
+                key={slot.key}
+                className="flex w-[140px] shrink-0 flex-col gap-[5px] rounded-md border border-[#E5E7EB] bg-surface-primary px-2.5 py-2"
+                title={[slot.name, `あと${fmt(slot.shortfall)}単位`, slot.notes].filter(Boolean).join("\n")}
+              >
+                <span className="truncate text-[10px] font-bold text-fg-primary">{slot.name}</span>
+                <div
+                  className="flex h-1.5 overflow-hidden rounded-[3px] bg-[#E5E7EB]"
+                  role="meter"
+                  aria-label={slot.name}
+                  aria-valuemin={0}
+                  aria-valuemax={slot.required}
+                  aria-valuenow={slot.earned + slot.planned}
+                >
+                  <div className="h-full bg-fg-primary" style={{ width: `${earnedPct}%` }} />
+                  <div className="h-full bg-accent" style={{ width: `${plannedPct}%` }} />
+                </div>
+                <span className="flex items-end gap-[3px] tabular-nums leading-none">
+                  <span className="text-[13px] font-bold text-fg-primary">{fmt(slot.earned)}</span>
+                  {slot.planned > 0 && (
+                    <span className="text-[11px] font-bold text-accent">+{fmt(slot.planned)}</span>
+                  )}
+                  <span className="text-[11px] text-fg-tertiary">/ {slot.required}</span>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <span className="text-xs font-semibold text-[#047857]">今期の時間割で、すべての枠が埋まります</span>
+      )}
+    </div>
+  );
+}

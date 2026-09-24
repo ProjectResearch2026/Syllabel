@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar } from "lucide-react";
+import { Calendar, ChevronDown } from "lucide-react";
 import { sameTerm, termLabel, useTargetTerm } from "@/lib/targetTerm";
 
 /**
@@ -12,10 +12,11 @@ import { sameTerm, termLabel, useTargetTerm } from "@/lib/targetTerm";
  */
 export default function TargetTermSelect({
   disabled = false,
-  compact = false,
+  variant = "pc",
 }: {
   disabled?: boolean;
-  compact?: boolean;
+  /** モバイルは単位バーの直下の1行（ui-design_phone.pen TargetTermRow） */
+  variant?: "pc" | "mobile";
 }) {
   const { estimate, target, chosen, options, select } = useTargetTerm();
   const hint =
@@ -25,18 +26,48 @@ export default function TargetTermSelect({
         ? "今日の日付から推定しています"
         : null;
 
+  const onChange = (value: string) => {
+    const next = options.find((o) => termLabel(o) === value);
+    if (next) select(sameTerm(next, estimate.suggested) && !estimate.conflict ? null : next);
+  };
+
+  if (variant === "mobile") {
+    return (
+      <div className="flex flex-col gap-1 border-b border-border-primary bg-surface-primary px-4 py-2">
+        <label className="flex items-center gap-2.5">
+          <span className="text-xs font-bold text-fg-primary">提案する学期</span>
+          <span className="relative flex items-center">
+            <select
+              value={termLabel(target)}
+              disabled={disabled}
+              onChange={(e) => onChange(e.target.value)}
+              className="appearance-none rounded border border-border-primary bg-surface-primary py-[5px] pl-2.5 pr-7 text-xs font-bold text-fg-primary disabled:opacity-60"
+            >
+              {options.map((o) => (
+                <option key={termLabel(o)} value={termLabel(o)}>
+                  {termLabel(o)}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={14} className="pointer-events-none absolute right-2 text-fg-tertiary" aria-hidden="true" />
+          </span>
+        </label>
+        {hint && (
+          <span className={`text-[10px] ${estimate.conflict ? "text-accent" : "text-fg-faint"}`}>{hint}</span>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className={`flex flex-col ${compact ? "items-stretch" : "items-end"} gap-0.5`}>
+    <div className="flex flex-col items-end gap-0.5">
       <label className="flex items-center gap-2">
         <Calendar size={16} className="shrink-0 text-accent" aria-hidden="true" />
         <span className="text-xs text-fg-tertiary">提案する学期</span>
         <select
           value={termLabel(target)}
           disabled={disabled}
-          onChange={(e) => {
-            const next = options.find((o) => termLabel(o) === e.target.value);
-            if (next) select(sameTerm(next, estimate.suggested) && !estimate.conflict ? null : next);
-          }}
+          onChange={(e) => onChange(e.target.value)}
           className="rounded border border-border-primary bg-surface-primary px-2 py-1 text-[13px] font-semibold text-fg-primary disabled:opacity-60"
         >
           {options.map((o) => (
