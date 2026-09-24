@@ -4762,7 +4762,10 @@
           "type": "ref",
           "ref": "X5cxJK",
           "name": "BottomDock",
-          "width": "fill_container",
+          "width": 390,
+          "layoutPosition": "absolute",
+          "x": 0,
+          "y": 1634,
           "descendants": {
             "DGvCo": {
               "enabled": false
@@ -7353,7 +7356,10 @@
           "type": "ref",
           "ref": "X5cxJK",
           "name": "BottomDock",
-          "width": "fill_container",
+          "width": 390,
+          "layoutPosition": "absolute",
+          "x": 0,
+          "y": 721,
           "descendants": {
             "NJi2n": {
               "fill": "$accent"
@@ -8930,7 +8936,10 @@
           "type": "ref",
           "ref": "X5cxJK",
           "name": "BottomDock",
-          "width": "fill_container",
+          "width": 390,
+          "layoutPosition": "absolute",
+          "x": 0,
+          "y": 409,
           "descendants": {
             "iRujX": {
               "enabled": true
@@ -10527,7 +10536,10 @@
           "type": "ref",
           "ref": "X5cxJK",
           "name": "BottomDock",
-          "width": "fill_container",
+          "width": 390,
+          "layoutPosition": "absolute",
+          "x": 0,
+          "y": 409,
           "descendants": {
             "NJi2n": {
               "fill": "$accent"
@@ -12356,6 +12368,61 @@
           ]
         },
         {
+          "id": "rSZOc",
+          "type": "ref",
+          "ref": "X5cxJK",
+          "name": "BottomDock",
+          "width": "fill_container",
+          "x": 0,
+          "y": 544,
+          "padding": 0,
+          "stroke": [],
+          "descendants": {
+            "vAbsl": {
+              "cornerRadius": 0
+            },
+            "DGvCo": {
+              "enabled": false
+            },
+            "iRujX": {
+              "enabled": false
+            },
+            "rVZOm": {
+              "content": "情報理論"
+            },
+            "NJi2n": {
+              "fill": "$accent"
+            },
+            "H4kce": {
+              "fill": "$accent"
+            },
+            "NNoWD": {
+              "fill": "$accent",
+              "fontWeight": "700"
+            },
+            "lFQUh": {
+              "fill": "#FFFFFF00"
+            },
+            "CqWDo": {
+              "fill": "#6B7280"
+            },
+            "thVEw": {
+              "fill": "#6B7280",
+              "fontWeight": "normal"
+            },
+            "pOjrj": {
+              "fill": "#FFFFFF00"
+            },
+            "mIAye": {
+              "fill": "#6B7280"
+            },
+            "M0B1y": {
+              "fill": "#6B7280",
+              "fontWeight": "normal"
+            }
+          }
+        },
+        {
           "type": "rectangle",
           "id": "WgROH",
           "layoutPosition": "absolute",
@@ -12825,61 +12892,6 @@
               }
             }
           ]
-        },
-        {
-          "id": "rSZOc",
-          "type": "ref",
-          "ref": "X5cxJK",
-          "name": "BottomDock",
-          "width": "fill_container",
-          "x": 0,
-          "y": 544,
-          "padding": 0,
-          "stroke": [],
-          "descendants": {
-            "vAbsl": {
-              "cornerRadius": 0
-            },
-            "DGvCo": {
-              "enabled": false
-            },
-            "iRujX": {
-              "enabled": false
-            },
-            "rVZOm": {
-              "content": "情報理論"
-            },
-            "NJi2n": {
-              "fill": "$accent"
-            },
-            "H4kce": {
-              "fill": "$accent"
-            },
-            "NNoWD": {
-              "fill": "$accent",
-              "fontWeight": "700"
-            },
-            "lFQUh": {
-              "fill": "#FFFFFF00"
-            },
-            "CqWDo": {
-              "fill": "#6B7280"
-            },
-            "thVEw": {
-              "fill": "#6B7280",
-              "fontWeight": "normal"
-            },
-            "pOjrj": {
-              "fill": "#FFFFFF00"
-            },
-            "mIAye": {
-              "fill": "#6B7280"
-            },
-            "M0B1y": {
-              "fill": "#6B7280",
-              "fontWeight": "normal"
-            }
-          }
         }
       ]
     },
@@ -14750,7 +14762,10 @@
           "type": "ref",
           "ref": "X5cxJK",
           "name": "BottomDock",
-          "width": "fill_container",
+          "width": 390,
+          "layoutPosition": "absolute",
+          "x": 0,
+          "y": 894,
           "descendants": {
             "NJi2n": {
               "fill": "#FFFFFF00"
@@ -16327,7 +16342,10 @@
           "type": "ref",
           "ref": "X5cxJK",
           "name": "BottomDock",
-          "width": "fill_container",
+          "width": 390,
+          "layoutPosition": "absolute",
+          "x": 0,
+          "y": 409,
           "descendants": {
             "NJi2n": {
               "fill": "$accent"
@@ -20164,7 +20182,10 @@
           "type": "ref",
           "ref": "X5cxJK",
           "name": "BottomDock",
-          "width": "fill_container",
+          "width": 390,
+          "layoutPosition": "absolute",
+          "x": 0,
+          "y": 640,
           "descendants": {
             "NJi2n": {
               "fill": "$accent"
@@ -21994,7 +22015,10 @@
           "type": "ref",
           "ref": "X5cxJK",
           "name": "BottomDock",
-          "width": "fill_container",
+          "width": 390,
+          "layoutPosition": "absolute",
+          "x": 0,
+          "y": 640,
           "descendants": {
             "NJi2n": {
               "fill": "$accent"
@@ -24392,7 +24416,10 @@
           "type": "ref",
           "ref": "X5cxJK",
           "name": "BottomDock",
-          "width": "fill_container",
+          "width": 390,
+          "layoutPosition": "absolute",
+          "x": 0,
+          "y": 1222,
           "descendants": {
             "NJi2n": {
               "fill": "#FFFFFF00"
@@ -26190,7 +26217,10 @@
           "type": "ref",
           "ref": "X5cxJK",
           "name": "BottomDock",
-          "width": "fill_container",
+          "width": 390,
+          "layoutPosition": "absolute",
+          "x": 0,
+          "y": 895,
           "descendants": {
             "DGvCo": {
               "enabled": true
@@ -27436,7 +27466,10 @@
           "type": "ref",
           "ref": "X5cxJK",
           "name": "BottomDock",
-          "width": "fill_container",
+          "width": 390,
+          "layoutPosition": "absolute",
+          "x": 0,
+          "y": 827,
           "descendants": {
             "DGvCo": {
               "enabled": true
@@ -28674,7 +28707,10 @@
           "type": "ref",
           "ref": "X5cxJK",
           "name": "BottomDock",
-          "width": "fill_container",
+          "width": 390,
+          "layoutPosition": "absolute",
+          "x": 0,
+          "y": 794,
           "descendants": {
             "DGvCo": {
               "enabled": true
@@ -29918,7 +29954,10 @@
           "type": "ref",
           "ref": "X5cxJK",
           "name": "BottomDock",
-          "width": "fill_container",
+          "width": 390,
+          "layoutPosition": "absolute",
+          "x": 0,
+          "y": 1066,
           "descendants": {
             "DGvCo": {
               "enabled": true
@@ -32357,7 +32396,10 @@
           "type": "ref",
           "ref": "X5cxJK",
           "name": "BottomDock",
-          "width": "fill_container",
+          "width": 390,
+          "layoutPosition": "absolute",
+          "x": 0,
+          "y": 1096,
           "descendants": {
             "DGvCo": {
               "enabled": false
@@ -32604,8 +32646,15 @@
       "name": "Nav/BottomDock",
       "reusable": true,
       "width": 390,
+      "fill": "#FFFFFF00",
+      "stroke": "#FFFFFF00",
       "layout": "vertical",
-      "padding": 8,
+      "padding": [
+        8,
+        8,
+        10,
+        8
+      ],
       "children": [
         {
           "type": "frame",
@@ -32614,6 +32663,18 @@
           "width": "fill_container",
           "fill": "$surface-gray",
           "cornerRadius": 16,
+          "stroke": "$border-primary",
+          "strokeWidth": 1,
+          "effect": {
+            "type": "shadow",
+            "shadowType": "outer",
+            "color": "#1A2B4E1F",
+            "offset": {
+              "x": 0,
+              "y": 4
+            },
+            "blur": 20
+          },
           "layout": "vertical",
           "children": [
             {
@@ -32632,7 +32693,7 @@
                   "name": "AskInput",
                   "width": "fill_container",
                   "height": 43,
-                  "fill": "$L:--background",
+                  "fill": "#FFFFFF",
                   "cornerRadius": 100,
                   "gap": 8,
                   "padding": [
