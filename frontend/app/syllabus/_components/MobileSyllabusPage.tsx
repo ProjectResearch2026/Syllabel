@@ -21,14 +21,13 @@ import { SYLLABUS_CONTEXT } from "@/lib/ai";
 import { useSyllabusConversation } from "@/lib/useSyllabusConversation";
 import MobileAiAssistant from "@/components/ai/MobileAiAssistant";
 import SyllabusPagination from "./SyllabusPagination";
-import { TAG_CHIPS, CATEGORY_CHOICES } from "@/lib/syllabusUI";
+import { TAG_CHIPS, CATEGORY_CHOICES, periodChoices } from "@/lib/syllabusUI";
 import { useFilterControls } from "@/lib/useFilterControls";
 import { useTaggedResults } from "@/lib/useTaggedResults";
 import { detailHref } from "@/lib/syllabusQuery";
+import { DAYS } from "@/lib/timetable";
 import CourseTags from "./CourseTags";
 import SyllabusProfileNotice, { CategoryFilterHint } from "./SyllabusProfileNotice";
-
-const DAYS = ["月", "火", "水", "木", "金", "土"];
 
 type Props = {
   /** 条件に当たる**全件**。ページ送りはこの中から切り出す(§6.2) */
@@ -96,6 +95,8 @@ export default function MobileSyllabusPage({
   const campus = searchParams.get("campus") ?? "";
   const term = searchParams.get("term") ?? "";
   const day = searchParams.get("day") ?? "";
+  // 時間割の空きコマから渡ってくる(`MobileProposalPage` の「この時間に入る科目を探す」)
+  const period = searchParams.get("period") ?? "";
 
   const selectClass =
     "w-full h-[34px] border border-[#D1D5DB] rounded px-2.5 text-xs text-[#1A2B4E] bg-white focus:outline-none focus:border-[#1A2B4E] transition-colors";
@@ -185,6 +186,19 @@ export default function MobileSyllabusPage({
           <option value="">すべて</option>
           {DAYS.map((d) => (
             <option key={d} value={d}>{d}曜日</option>
+          ))}
+        </select>
+      ),
+    },
+    {
+      // 曜日と対で「そのコマに入る科目」を絞る。複数コマの科目は**いずれかのコマ**が
+      // 当たれば出る(api-clean 0.3.0 以降。§6.2)ので、「金4・金5」は金5でも出る
+      label: "時限",
+      node: (
+        <select value={period} onChange={(e) => update("period", e.target.value)} className={selectClass}>
+          <option value="">すべて</option>
+          {periodChoices(period).map((p) => (
+            <option key={p} value={p}>{p}限</option>
           ))}
         </select>
       ),

@@ -4,11 +4,10 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useTransition } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { OFFERING_YEAR, FACULTY, type Masters } from "@/lib/syllabus-api";
-import { CATEGORY_CHOICES } from "@/lib/syllabusUI";
+import { CATEGORY_CHOICES, periodChoices } from "@/lib/syllabusUI";
 import { useFilterControls } from "@/lib/useFilterControls";
+import { DAYS } from "@/lib/timetable";
 import { CategoryFilterHint } from "./SyllabusProfileNotice";
-
-const DAYS = ["月", "火", "水", "木", "金", "土"];
 
 type Props = {
   masters: Masters;
@@ -38,6 +37,8 @@ export default function SyllabusFilters({ masters }: Props) {
   const campus = searchParams.get("campus") ?? "";
   const term = searchParams.get("term") ?? "";
   const day = searchParams.get("day") ?? "";
+  // 時間割の空きコマから渡ってくる(`TimetablePanel` の「この時間に入る科目を探す」)
+  const period = searchParams.get("period") ?? "";
 
   const selectClass =
     "w-full appearance-none rounded border border-border-primary bg-surface-primary px-2.5 py-2 text-[13px] text-fg-primary transition-colors focus:border-fg-primary focus:outline-none";
@@ -130,6 +131,19 @@ export default function SyllabusFilters({ masters }: Props) {
           <option value="">すべて</option>
           {DAYS.map((d) => (
             <option key={d} value={d}>{d}曜日</option>
+          ))}
+        </select>
+      ),
+    },
+    {
+      // 曜日と対で「そのコマに入る科目」を絞る。複数コマの科目は**いずれかのコマ**が
+      // 当たれば出る(api-clean 0.3.0 以降。§6.2)ので、「金4・金5」は金5でも出る
+      label: "時限",
+      node: (
+        <select value={period} onChange={(e) => update("period", e.target.value)} className={selectClass}>
+          <option value="">すべて</option>
+          {periodChoices(period).map((p) => (
+            <option key={p} value={p}>{p}限</option>
           ))}
         </select>
       ),
