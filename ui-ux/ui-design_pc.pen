@@ -18318,515 +18318,11 @@
                             },
                             {
                               "type": "frame",
-                              "id": "m05xsk",
-                              "name": "Card_履修条件",
-                              "clip": true,
-                              "width": 352,
-                              "fill": "$surface-primary",
-                              "cornerRadius": 12,
-                              "stroke": "$border-primary",
-                              "strokeWidth": 1,
-                              "layout": "vertical",
-                              "children": [
-                                {
-                                  "type": "frame",
-                                  "id": "Nz8QC",
-                                  "name": "Head",
-                                  "width": "fill_container",
-                                  "stroke": "$card-divider",
-                                  "strokeWidth": {
-                                    "bottom": 1
-                                  },
-                                  "strokeLinejoin": "round",
-                                  "gap": 8,
-                                  "padding": [
-                                    15,
-                                    20
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "eD8FU",
-                                      "name": "I",
-                                      "width": 15,
-                                      "height": 15,
-                                      "icon": "check-check",
-                                      "library": "lucide",
-                                      "fill": "$accent"
-                                    },
-                                    {
-                                      "type": "text",
-                                      "id": "BHS8c",
-                                      "name": "T",
-                                      "fill": "$fg-primary",
-                                      "content": "履修条件",
-                                      "fontFamily": "$font-sans",
-                                      "fontSize": 14,
-                                      "fontWeight": "700"
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "frame",
-                                  "id": "J3S6M",
-                                  "name": "Body",
-                                  "width": "fill_container",
-                                  "layout": "vertical",
-                                  "gap": 14,
-                                  "padding": 20,
-                                  "children": [
-                                    {
-                                      "type": "frame",
-                                      "id": "Y8p8R",
-                                      "name": "Req_先修条件",
-                                      "width": "fill_container",
-                                      "layout": "vertical",
-                                      "gap": 3,
-                                      "children": [
-                                        {
-                                          "type": "text",
-                                          "id": "u2Pfo",
-                                          "name": "L",
-                                          "fill": "$fg-muted",
-                                          "textGrowth": "fixed-width",
-                                          "width": "fill_container",
-                                          "content": "先修条件",
-                                          "lineHeight": 1.4,
-                                          "fontFamily": "$font-sans",
-                                          "fontSize": 10.5,
-                                          "fontWeight": "700",
-                                          "letterSpacing": 0.4
-                                        },
-                                        {
-                                          "type": "text",
-                                          "id": "eDxqc",
-                                          "name": "V",
-                                          "fill": "$fg-primary",
-                                          "textGrowth": "fixed-width",
-                                          "width": "fill_container",
-                                          "content": "なし",
-                                          "lineHeight": 1.5,
-                                          "fontFamily": "$font-sans",
-                                          "fontSize": 13,
-                                          "fontWeight": "500"
-                                        }
-                                      ]
-                                    },
-                                    {
-                                      "type": "frame",
-                                      "id": "pvbHt",
-                                      "name": "Req_前提知識",
-                                      "width": "fill_container",
-                                      "layout": "vertical",
-                                      "gap": 3,
-                                      "children": [
-                                        {
-                                          "type": "text",
-                                          "id": "N3wNJ",
-                                          "name": "L",
-                                          "fill": "$fg-muted",
-                                          "textGrowth": "fixed-width",
-                                          "width": "fill_container",
-                                          "content": "前提知識",
-                                          "lineHeight": 1.4,
-                                          "fontFamily": "$font-sans",
-                                          "fontSize": 10.5,
-                                          "fontWeight": "700",
-                                          "letterSpacing": 0.4
-                                        },
-                                        {
-                                          "type": "text",
-                                          "id": "zhEEM",
-                                          "name": "V",
-                                          "fill": "$fg-primary",
-                                          "textGrowth": "fixed-width",
-                                          "width": "fill_container",
-                                          "content": "プログラミング基礎の内容",
-                                          "lineHeight": 1.5,
-                                          "fontFamily": "$font-sans",
-                                          "fontSize": 13,
-                                          "fontWeight": "500"
-                                        }
-                                      ]
-                                    },
-                                    {
-                                      "type": "frame",
-                                      "id": "z9uNS",
-                                      "name": "Req_持ち物",
-                                      "width": "fill_container",
-                                      "layout": "vertical",
-                                      "gap": 3,
-                                      "children": [
-                                        {
-                                          "type": "text",
-                                          "id": "geZay",
-                                          "name": "L",
-                                          "fill": "$fg-muted",
-                                          "textGrowth": "fixed-width",
-                                          "width": "fill_container",
-                                          "content": "持ち物",
-                                          "lineHeight": 1.4,
-                                          "fontFamily": "$font-sans",
-                                          "fontSize": 10.5,
-                                          "fontWeight": "700",
-                                          "letterSpacing": 0.4
-                                        },
-                                        {
-                                          "type": "text",
-                                          "id": "LvxoN",
-                                          "name": "V",
-                                          "fill": "$fg-primary",
-                                          "textGrowth": "fixed-width",
-                                          "width": "fill_container",
-                                          "content": "ノートPC（毎回）",
-                                          "lineHeight": 1.5,
-                                          "fontFamily": "$font-sans",
-                                          "fontSize": 13,
-                                          "fontWeight": "500"
-                                        }
-                                      ]
-                                    },
-                                    {
-                                      "type": "frame",
-                                      "id": "jBUIC",
-                                      "name": "Req_対象課程",
-                                      "width": "fill_container",
-                                      "layout": "vertical",
-                                      "gap": 3,
-                                      "children": [
-                                        {
-                                          "type": "text",
-                                          "id": "cJsm3",
-                                          "name": "L",
-                                          "fill": "$fg-muted",
-                                          "textGrowth": "fixed-width",
-                                          "width": "fill_container",
-                                          "content": "対象課程",
-                                          "lineHeight": 1.4,
-                                          "fontFamily": "$font-sans",
-                                          "fontSize": 10.5,
-                                          "fontWeight": "700",
-                                          "letterSpacing": 0.4
-                                        },
-                                        {
-                                          "type": "text",
-                                          "id": "Gthf3",
-                                          "name": "V",
-                                          "fill": "$fg-primary",
-                                          "textGrowth": "fixed-width",
-                                          "width": "fill_container",
-                                          "content": "知能情報メディア課程",
-                                          "lineHeight": 1.5,
-                                          "fontFamily": "$font-sans",
-                                          "fontSize": 13,
-                                          "fontWeight": "500"
-                                        }
-                                      ]
-                                    },
-                                    {
-                                      "type": "frame",
-                                      "id": "C7aRxY",
-                                      "name": "Req_配当年次",
-                                      "width": "fill_container",
-                                      "layout": "vertical",
-                                      "gap": 3,
-                                      "children": [
-                                        {
-                                          "type": "text",
-                                          "id": "daxv1",
-                                          "name": "L",
-                                          "fill": "$fg-muted",
-                                          "textGrowth": "fixed-width",
-                                          "width": "fill_container",
-                                          "content": "配当年次",
-                                          "lineHeight": 1.4,
-                                          "fontFamily": "$font-sans",
-                                          "fontSize": 10.5,
-                                          "fontWeight": "700",
-                                          "letterSpacing": 0.4
-                                        },
-                                        {
-                                          "type": "text",
-                                          "id": "h3HJA3",
-                                          "name": "V",
-                                          "fill": "$fg-primary",
-                                          "textGrowth": "fixed-width",
-                                          "width": "fill_container",
-                                          "content": "2年次〜4年次",
-                                          "lineHeight": 1.5,
-                                          "fontFamily": "$font-sans",
-                                          "fontSize": 13,
-                                          "fontWeight": "500"
-                                        }
-                                      ]
-                                    }
-                                  ]
-                                }
-                              ]
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "eJj6b",
-                          "name": "Row_B",
-                          "width": "fill_container",
-                          "gap": 16,
-                          "children": [
-                            {
-                              "type": "frame",
-                              "id": "UDo1Y",
-                              "name": "Card_受講に際しての注意",
-                              "clip": true,
-                              "width": 500,
-                              "fill": "$surface-primary",
-                              "cornerRadius": 12,
-                              "stroke": "$border-primary",
-                              "strokeWidth": 1,
-                              "layout": "vertical",
-                              "children": [
-                                {
-                                  "type": "frame",
-                                  "id": "PKhCx",
-                                  "name": "Head",
-                                  "width": "fill_container",
-                                  "stroke": "$card-divider",
-                                  "strokeWidth": {
-                                    "bottom": 1
-                                  },
-                                  "strokeLinejoin": "round",
-                                  "gap": 8,
-                                  "padding": [
-                                    15,
-                                    20
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "feJ0j",
-                                      "name": "I",
-                                      "width": 15,
-                                      "height": 15,
-                                      "icon": "triangle-alert",
-                                      "library": "lucide",
-                                      "fill": "$accent"
-                                    },
-                                    {
-                                      "type": "text",
-                                      "id": "gXa5R",
-                                      "name": "T",
-                                      "fill": "$fg-primary",
-                                      "content": "受講に際しての注意",
-                                      "fontFamily": "$font-sans",
-                                      "fontSize": 14,
-                                      "fontWeight": "700"
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "frame",
-                                  "id": "Bni4N",
-                                  "name": "Body",
-                                  "width": "fill_container",
-                                  "layout": "vertical",
-                                  "gap": 12,
-                                  "padding": 20,
-                                  "children": [
-                                    {
-                                      "type": "frame",
-                                      "id": "zWuQ3",
-                                      "name": "Banner",
-                                      "width": "fill_container",
-                                      "fill": "$accent-light",
-                                      "cornerRadius": 8,
-                                      "gap": 10,
-                                      "padding": [
-                                        12,
-                                        14
-                                      ],
-                                      "children": [
-                                        {
-                                          "type": "frame",
-                                          "id": "e1G0eD",
-                                          "name": "IconWrap",
-                                          "padding": [
-                                            1,
-                                            0,
-                                            0,
-                                            0
-                                          ],
-                                          "children": [
-                                            {
-                                              "type": "icon",
-                                              "id": "n87Tb",
-                                              "name": "I",
-                                              "width": 15,
-                                              "height": 15,
-                                              "icon": "triangle-alert",
-                                              "library": "lucide",
-                                              "fill": "$accent"
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "text",
-                                          "id": "tpMNU",
-                                          "name": "Txt",
-                                          "fill": "$tag-required-fg",
-                                          "textGrowth": "fixed-width",
-                                          "width": "fill_container",
-                                          "content": "先修条件ではないが、プログラミング基礎の内容を前提とする。未履修の場合は初回までに自習しておくこと。",
-                                          "lineHeight": 1.7,
-                                          "fontFamily": "$font-sans",
-                                          "fontSize": 12.5,
-                                          "fontWeight": "500"
-                                        }
-                                      ]
-                                    },
-                                    {
-                                      "type": "frame",
-                                      "id": "DY8wd",
-                                      "name": "Item",
-                                      "width": "fill_container",
-                                      "gap": 9,
-                                      "children": [
-                                        {
-                                          "type": "frame",
-                                          "id": "fLxC6",
-                                          "name": "DotWrap",
-                                          "padding": [
-                                            8,
-                                            0,
-                                            0,
-                                            0
-                                          ],
-                                          "children": [
-                                            {
-                                              "type": "frame",
-                                              "id": "iZCTd",
-                                              "name": "Dot",
-                                              "width": 4,
-                                              "height": 4,
-                                              "fill": "$fg-icon",
-                                              "cornerRadius": 999
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "text",
-                                          "id": "NpfKq",
-                                          "name": "Txt",
-                                          "fill": "$fg-secondary",
-                                          "textGrowth": "fixed-width",
-                                          "width": "fill_container",
-                                          "content": "演習にはノートPCを持参すること。OSは問わないが、指定の開発環境を事前に導入しておく。",
-                                          "lineHeight": 1.75,
-                                          "fontFamily": "$font-sans",
-                                          "fontSize": 12.5,
-                                          "fontWeight": "normal"
-                                        }
-                                      ]
-                                    },
-                                    {
-                                      "type": "frame",
-                                      "id": "Hnphr",
-                                      "name": "Item",
-                                      "width": "fill_container",
-                                      "gap": 9,
-                                      "children": [
-                                        {
-                                          "type": "frame",
-                                          "id": "bUEXE",
-                                          "name": "DotWrap",
-                                          "padding": [
-                                            8,
-                                            0,
-                                            0,
-                                            0
-                                          ],
-                                          "children": [
-                                            {
-                                              "type": "frame",
-                                              "id": "Mgl6a",
-                                              "name": "Dot",
-                                              "width": 4,
-                                              "height": 4,
-                                              "fill": "$fg-icon",
-                                              "cornerRadius": 999
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "text",
-                                          "id": "MtB6e",
-                                          "name": "Txt",
-                                          "fill": "$fg-secondary",
-                                          "textGrowth": "fixed-width",
-                                          "width": "fill_container",
-                                          "content": "遅刻3回で欠席1回として扱う。",
-                                          "lineHeight": 1.75,
-                                          "fontFamily": "$font-sans",
-                                          "fontSize": 12.5,
-                                          "fontWeight": "normal"
-                                        }
-                                      ]
-                                    },
-                                    {
-                                      "type": "frame",
-                                      "id": "ZdMjp",
-                                      "name": "Item",
-                                      "width": "fill_container",
-                                      "gap": 9,
-                                      "children": [
-                                        {
-                                          "type": "frame",
-                                          "id": "bi4p8",
-                                          "name": "DotWrap",
-                                          "padding": [
-                                            8,
-                                            0,
-                                            0,
-                                            0
-                                          ],
-                                          "children": [
-                                            {
-                                              "type": "frame",
-                                              "id": "b7pARd",
-                                              "name": "Dot",
-                                              "width": 4,
-                                              "height": 4,
-                                              "fill": "$fg-icon",
-                                              "cornerRadius": 999
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "text",
-                                          "id": "WW1iH",
-                                          "name": "Txt",
-                                          "fill": "$fg-secondary",
-                                          "textGrowth": "fixed-width",
-                                          "width": "fill_container",
-                                          "content": "演習課題は指定のフォームから提出する。メール提出は受け付けない。",
-                                          "lineHeight": 1.75,
-                                          "fontFamily": "$font-sans",
-                                          "fontSize": 12.5,
-                                          "fontWeight": "normal"
-                                        }
-                                      ]
-                                    }
-                                  ]
-                                }
-                              ]
-                            },
-                            {
-                              "type": "frame",
                               "id": "ttHiM",
                               "name": "Card_備考",
                               "clip": true,
-                              "width": 500,
+                              "width": 370,
+                              "height": "fill_container",
                               "fill": "$surface-primary",
                               "cornerRadius": 12,
                               "stroke": "$border-primary",
@@ -19132,6 +18628,261 @@
                                           "textGrowth": "fixed-width",
                                           "width": "fill_container",
                                           "content": "講義資料は各回の前日までにポータルに掲載する。",
+                                          "lineHeight": 1.75,
+                                          "fontFamily": "$font-sans",
+                                          "fontSize": 12.5,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "eJj6b",
+                          "name": "Row_B",
+                          "width": "fill_container",
+                          "gap": 16,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "UDo1Y",
+                              "name": "Card_受講に際しての注意",
+                              "width": "fill_container",
+                              "fill": "$surface-primary",
+                              "cornerRadius": 12,
+                              "stroke": "$border-primary",
+                              "strokeWidth": 1,
+                              "layout": "vertical",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "PKhCx",
+                                  "name": "Head",
+                                  "width": "fill_container",
+                                  "stroke": "$card-divider",
+                                  "strokeWidth": {
+                                    "bottom": 1
+                                  },
+                                  "strokeLinejoin": "round",
+                                  "gap": 8,
+                                  "padding": [
+                                    15,
+                                    20
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "icon",
+                                      "id": "feJ0j",
+                                      "name": "I",
+                                      "width": 15,
+                                      "height": 15,
+                                      "icon": "triangle-alert",
+                                      "library": "lucide",
+                                      "fill": "$accent"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "gXa5R",
+                                      "name": "T",
+                                      "fill": "$fg-primary",
+                                      "content": "受講に際しての注意",
+                                      "fontFamily": "$font-sans",
+                                      "fontSize": 14,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "Bni4N",
+                                  "name": "Body",
+                                  "width": "fill_container",
+                                  "layout": "vertical",
+                                  "gap": 12,
+                                  "padding": 20,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "zWuQ3",
+                                      "name": "Banner",
+                                      "width": "fill_container",
+                                      "fill": "$accent-light",
+                                      "cornerRadius": 8,
+                                      "gap": 10,
+                                      "padding": [
+                                        12,
+                                        14
+                                      ],
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "e1G0eD",
+                                          "name": "IconWrap",
+                                          "padding": [
+                                            1,
+                                            0,
+                                            0,
+                                            0
+                                          ],
+                                          "children": [
+                                            {
+                                              "type": "icon",
+                                              "id": "n87Tb",
+                                              "name": "I",
+                                              "width": 15,
+                                              "height": 15,
+                                              "icon": "triangle-alert",
+                                              "library": "lucide",
+                                              "fill": "$accent"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "tpMNU",
+                                          "name": "Txt",
+                                          "fill": "$tag-required-fg",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "先修条件ではないが、プログラミング基礎の内容を前提とする。未履修の場合は初回までに自習しておくこと。",
+                                          "lineHeight": 1.7,
+                                          "fontFamily": "$font-sans",
+                                          "fontSize": 12.5,
+                                          "fontWeight": "500"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "DY8wd",
+                                      "name": "Item",
+                                      "width": "fill_container",
+                                      "gap": 9,
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "fLxC6",
+                                          "name": "DotWrap",
+                                          "padding": [
+                                            8,
+                                            0,
+                                            0,
+                                            0
+                                          ],
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "iZCTd",
+                                              "name": "Dot",
+                                              "width": 4,
+                                              "height": 4,
+                                              "fill": "$fg-icon",
+                                              "cornerRadius": 999
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "NpfKq",
+                                          "name": "Txt",
+                                          "fill": "$fg-secondary",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "演習にはノートPCを持参すること。OSは問わないが、指定の開発環境を事前に導入しておく。",
+                                          "lineHeight": 1.75,
+                                          "fontFamily": "$font-sans",
+                                          "fontSize": 12.5,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "Hnphr",
+                                      "name": "Item",
+                                      "width": "fill_container",
+                                      "gap": 9,
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "bUEXE",
+                                          "name": "DotWrap",
+                                          "padding": [
+                                            8,
+                                            0,
+                                            0,
+                                            0
+                                          ],
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "Mgl6a",
+                                              "name": "Dot",
+                                              "width": 4,
+                                              "height": 4,
+                                              "fill": "$fg-icon",
+                                              "cornerRadius": 999
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "MtB6e",
+                                          "name": "Txt",
+                                          "fill": "$fg-secondary",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "遅刻3回で欠席1回として扱う。",
+                                          "lineHeight": 1.75,
+                                          "fontFamily": "$font-sans",
+                                          "fontSize": 12.5,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "ZdMjp",
+                                      "name": "Item",
+                                      "width": "fill_container",
+                                      "gap": 9,
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "bi4p8",
+                                          "name": "DotWrap",
+                                          "padding": [
+                                            8,
+                                            0,
+                                            0,
+                                            0
+                                          ],
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "b7pARd",
+                                              "name": "Dot",
+                                              "width": 4,
+                                              "height": 4,
+                                              "fill": "$fg-icon",
+                                              "cornerRadius": 999
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "WW1iH",
+                                          "name": "Txt",
+                                          "fill": "$fg-secondary",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "演習課題は指定のフォームから提出する。メール提出は受け付けない。",
                                           "lineHeight": 1.75,
                                           "fontFamily": "$font-sans",
                                           "fontSize": 12.5,
