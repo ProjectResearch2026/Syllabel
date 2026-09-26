@@ -159,7 +159,7 @@ export function useProposalConversation(): ProposalConversation {
   const setMessages = useChatStore((s) => s.setProposalMessages);
   const { entries, archive, restore } = useChatHistory(SCOPE);
   const abortRef = useRef<AbortController | null>(null);
-  // 提案する学期(次に登録する学期)。画面の選択(`TargetTermSelect`)と共有する
+  // 提案する学期(成績表の次の学期)。画面の表示(`TargetTermLabel`)と同じ値を使う
   const { target, grade: targetGrade } = useTargetTerm();
 
   // 履修要項を引くキーは (課程コード, 入学年度)。プロファイルの `program` は課程名

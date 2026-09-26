@@ -1,5 +1,5 @@
 import { apiBase } from "@/lib/api_base";
-import { instructorQueries } from "@/lib/instructorName";
+import { spellInstructorName } from "@/lib/instructorName";
 
 /**
  * backend の読み取り専用エンドポイントのクライアント。design.md §6.1。
@@ -263,67 +263,33 @@ async function fetchAll(params: SearchParams): Promise<SyllabusListItem[]> {
 }
 
 /**
- * 表記の揺れを埋めるために引き直す教員名の、同時実行数。
- *
- * 経路にトークンゲートウェイが挟まるため同時リクエストは控えめにする
- * (`INSTRUCTOR_CONCURRENCY` と同じ理由)。引き直しは入力どおりの語が空振りした
- * ときだけなので、ここに来る回数自体が少ない。
- */
-const INSTRUCTOR_QUERY_CONCURRENCY = 3;
-
-/** `items` を高々 `limit` 本の並列で処理する。結果は `items` の順に並べる */
-async function mapWithLimit<T, R>(
-  items: T[],
-  limit: number,
-  run: (item: T) => Promise<R>,
-): Promise<R[]> {
-  const results = new Array<R>(items.length);
-  let cursor = 0;
-
-  const worker = async () => {
-    while (cursor < items.length) {
-      const index = cursor++;
-      results[index] = await run(items[index]);
-    }
-  };
-
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
-  return results;
-}
-
-/**
  * 教員名で条件に当たる全件を取得する。design.md §6.2。
  *
  * **api-clean の `instructor` は登録された表記のままの部分一致であり、姓名の
- * 区切りの揺れを吸収しない。** 入力どおりの語で空振りしたときは、区切りを
- * 書き換えた語で引き直して束ねる(`lib/instructorName.ts`)。全角スペースを
- * 入れないとフルネームで引けなかったのはこの引き直しが無かったためである。
+ * 区切りの揺れを吸収しない。** 入力どおりの語で空振りしたときは、登録表記を
+ * 組み立て直して引き直す(`lib/instructorName.ts`)。組み立ての問い合わせは
+ * 同じ条件で `limit=1` で引く。
  *
  * 引き直しは**空振りしたときだけ**行う。姓のみ(`山田`)や全角区切りの
  * フルネーム(`山田　太郎`)は入力どおりの1回で当たるため、そちらは従来どおり
  * リクエスト1回で済む。
  *
- * **引き直しのどれかが失敗したら例外をそのまま投げる。** 取れた分だけ返すと、
- * 当たるはずだった語が落ちたときに「見つからない」という誤った答えになる。
+ * **問い合わせのどれかが失敗したら例外をそのまま投げる。** 失敗を「外れ」と
+ * 扱うと、当たるはずだった語が落ちたときに「見つからない」という誤った答えになる。
  */
 async function fetchAllByInstructor(
   rest: Omit<SearchParams, "q" | "instructor" | "limit" | "offset">,
   word: string,
 ): Promise<SyllabusListItem[]> {
-  const [asTyped, ...fallbacks] = instructorQueries(word);
-  const hit = await fetchAll({ ...rest, instructor: asTyped });
-  if (hit.length > 0 || fallbacks.length === 0) return hit;
+  const hit = await fetchAll({ ...rest, instructor: word });
+  if (hit.length > 0) return hit;
 
-  // 書き換えた語は同じ教員に当たり得る(登録表記が科目ごとに違う場合)ため畳む
-  const rounds = await mapWithLimit(fallbacks, INSTRUCTOR_QUERY_CONCURRENCY, (query) =>
-    fetchAll({ ...rest, instructor: query }),
-  );
-  const seen = new Set<string>();
-  return rounds.flat().filter((item) => {
-    if (seen.has(item.syllabus_code)) return false;
-    seen.add(item.syllabus_code);
-    return true;
+  const spelled = await spellInstructorName(word, async (query) => {
+    const raw = await searchSyllabi({ ...rest, instructor: query, limit: 1 });
+    return raw.results.length > 0;
   });
+  if (spelled === null || spelled === word) return hit;
+  return fetchAll({ ...rest, instructor: spelled });
 }
 
 /**
