@@ -8,19 +8,17 @@ import { useStudentStore, type StudentProfile } from "@/lib/student";
  * 学期の成績表を取り込む前提であり、学期は成績表から一意に決まる。**画面では
  * 表示するだけで、選び直させない。**
  *
- * **成績の有無からは推定しない。** 「最新の成績の次の学期」は、休学・留学などで
- * 成績が1件も付かなかった学期があると1年前の学期を指してしまう。成績表には成績と
- * 無関係に学期を決められる欄が2つあるので、それを使う。
+ * **成績表の作成日(`profile.issuedOn`)の月で決める。** 4月は前期の登録期間、
+ * 5〜9月は後期、10〜3月は翌年度の前期。作成日は成績と無関係に決まるので、
+ * 休学・留学などで成績が1件も付かなかった学期があってもずれない(「最新の成績の
+ * 次の学期」ではその場合に1年前の学期を指してしまう)。
  *
- * 1. **在籍年数**(`profile.enrollment.enrolledYears`)— 在籍年数×2 が入学から
- *    経過した学期数なので、入学年度の前期からその数だけ進めた学期が次の学期。
- *    成績表が何学期ぶんかをそのまま表す値であり、**休学中も増える**(在学年数 =
- *    在籍年数 − 休学年数)ので休学を挟んでもずれない。これを正とする
- * 2. **作成日**(`profile.issuedOn`)— 在籍年数が読めなかったときに使う。月で決める。
- *    4月は前期の登録期間、5〜9月は後期、10〜3月は翌年度の前期
+ * **在籍年数は使わない。** 学期単位の値ではなく、その年度を丸1年と数える
+ * (2024年4月入学で 2026-03-11 作成は 2.0、2026-09-02 作成は 3.0)。
+ * 「入学年度の前期+在籍年数×2学期」は9月作成の成績表で1学期先を指す。
+ * 再入学(学籍異動)があると入学日との関係もさらに読みにくくなる。
  *
- * 実物4枚(2024・2025・2026年の9月作成、2026年3月作成)では両者は一致した。
- * どちらも無い(手入力・デモ)ときだけ今日の日付で決め、画面でその旨を示す。
+ * 作成日が無い(手入力・デモ)ときだけ今日の日付で決め、画面でその旨を示す。
  */
 
 export type HalfTerm = "前期" | "後期";
@@ -28,29 +26,16 @@ export type HalfTerm = "前期" | "後期";
 /** `year` は**年度**(4月始まり)。2027年3月は 2026年度 */
 export type TargetTerm = { year: number; term: HalfTerm };
 
-export type TargetTermBasis = "enrollment" | "issuedOn" | "today";
+export type TargetTermBasis = "issuedOn" | "today";
 
 export type TargetTermEstimate = {
   target: TargetTerm;
-  /** 何から決めたか。`today` は成績表が無い(手入力・デモ)ときだけ */
+  /** 何から決めたか。`today` は作成日が無い(手入力・デモ)ときだけ */
   basis: TargetTermBasis;
 };
 
 export function termLabel(t: TargetTerm): string {
   return `${t.year}年度 ${t.term}`;
-}
-
-/** 年度内の通し番号(前期=0, 後期=1)を年度をまたいで数えるための値 */
-function ordinal(t: TargetTerm): number {
-  return t.year * 2 + (t.term === "後期" ? 1 : 0);
-}
-
-function fromOrdinal(n: number): TargetTerm {
-  return { year: Math.floor(n / 2), term: n % 2 === 0 ? "前期" : "後期" };
-}
-
-export function shiftTerm(t: TargetTerm, by: number): TargetTerm {
-  return fromOrdinal(ordinal(t) + by);
 }
 
 /** 暦日から、その日に次に登録する学期を決める */
@@ -59,11 +44,6 @@ export function termFromDate(date: { year: number; month: number }): TargetTerm 
   if (date.month === 4) return { year: fiscalYear, term: "前期" };
   if (date.month >= 5 && date.month <= 9) return { year: fiscalYear, term: "後期" };
   return { year: fiscalYear + 1, term: "前期" };
-}
-
-/** 入学年度と在籍年数(0.5 年刻み)から、次に登録する学期を決める */
-export function termFromEnrollment(admissionYear: number, enrolledYears: number): TargetTerm {
-  return shiftTerm({ year: admissionYear, term: "前期" }, Math.round(enrolledYears * 2));
 }
 
 function parseIssuedOn(issuedOn: string): { year: number; month: number } | null {
@@ -81,15 +61,9 @@ function today(now: Date): { year: number; month: number } {
 
 /** プロファイルから次の登録学期(成績表の次の学期)を決める */
 export function estimateTargetTerm(
-  profile: Pick<StudentProfile, "issuedOn" | "enrollment" | "admissionYear"> | null,
+  profile: Pick<StudentProfile, "issuedOn"> | null,
   now: Date = new Date(),
 ): TargetTermEstimate {
-  if (profile?.enrollment && profile.admissionYear != null) {
-    return {
-      target: termFromEnrollment(profile.admissionYear, profile.enrollment.enrolledYears),
-      basis: "enrollment",
-    };
-  }
   const issued = profile?.issuedOn ? parseIssuedOn(profile.issuedOn) : null;
   if (issued) return { target: termFromDate(issued), basis: "issuedOn" };
   return { target: termFromDate(today(now)), basis: "today" };
