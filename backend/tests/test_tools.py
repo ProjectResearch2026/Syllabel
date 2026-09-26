@@ -124,21 +124,23 @@ _ROWS = [
     {"syllabus_code": "A1", "instructor": f"山田{FULL_WIDTH}太郎"},
     {"syllabus_code": "A2", "instructor": f"山田{FULL_WIDTH}太郎"},
     {"syllabus_code": "B1", "instructor": f"山田{FULL_WIDTH}花子"},
+    {"syllabus_code": "C1", "instructor": f"オーガスティン{FULL_WIDTH}ジョナサン"},
+    {"syllabus_code": "D1", "instructor": f"ドラグナ{FULL_WIDTH}ラルカ{FULL_WIDTH}マリア"},
 ]
 
 
 def _instructor_handler(captured: list):
-    """`instructor` の部分一致だけを効かせるハンドラ。引いた語を captured に積む。"""
+    """`instructor` の部分一致だけを効かせるハンドラ。引いた (語, limit) を captured に積む。"""
 
     def handler(request: httpx.Request) -> httpx.Response:
         params = dict(request.url.params)
         instructor = params.get("instructor")
-        captured.append(instructor)
-        rows = [r for r in _ROWS if instructor and instructor in r["instructor"]]
         limit = int(params["limit"]) if "limit" in params else None
+        captured.append((instructor, limit))
+        rows = [r for r in _ROWS if instructor and instructor in r["instructor"]]
         return httpx.Response(
             200,
-            json={"count": len(rows), "limit": limit or 20, "offset": 0, "results": rows[:limit]},
+            json={"count": len(rows[:limit]), "limit": limit or 20, "offset": 0, "results": rows[:limit]},
         )
 
     return handler
@@ -153,33 +155,31 @@ async def test_by_instructor_full_width_hits_in_one_request(monkeypatch):
     result = await search_syllabi_by_instructor(f"山田{FULL_WIDTH}太郎")
 
     assert [r["syllabus_code"] for r in result["results"]] == ["A1", "A2"]
-    assert captured == [f"山田{FULL_WIDTH}太郎"]
+    assert captured == [(f"山田{FULL_WIDTH}太郎", None)]
 
 
 @pytest.mark.asyncio
-async def test_by_instructor_half_width_space(monkeypatch):
-    """半角スペースのフルネームでも当たる(全角へ書き換えて引き直す)。"""
+@pytest.mark.parametrize(
+    "keyword, codes",
+    [
+        ("山田 太郎", ["A1", "A2"]),
+        ("山田太郎", ["A1", "A2"]),
+        # 姓が5文字以上・区切りが2つの教員も区切りなしで引ける
+        ("オーガスティンジョナサン", ["C1"]),
+        ("ドラグナラルカマリア", ["D1"]),
+    ],
+)
+async def test_by_instructor_spells_registered_name(monkeypatch, keyword, codes):
+    """入力どおりで外れたら登録表記を組み立て、その語で引き直す。"""
     captured: list = []
     _patch_client(monkeypatch, _instructor_handler(captured))
 
-    result = await search_syllabi_by_instructor("山田 太郎")
+    result = await search_syllabi_by_instructor(keyword)
 
-    assert [r["syllabus_code"] for r in result["results"]] == ["A1", "A2"]
-    assert result["count"] == 2
-    assert captured[0] == "山田 太郎"  # まず入力どおりで引く
-    assert f"山田{FULL_WIDTH}太郎" in captured
-
-
-@pytest.mark.asyncio
-async def test_by_instructor_without_space(monkeypatch):
-    """区切りなしのフルネームでも当たる(区切りを入れる位置を試す)。"""
-    captured: list = []
-    _patch_client(monkeypatch, _instructor_handler(captured))
-
-    result = await search_syllabi_by_instructor("山田太郎")
-
-    assert [r["syllabus_code"] for r in result["results"]] == ["A1", "A2"]
-    assert f"山田{FULL_WIDTH}太郎" in captured
+    assert [r["syllabus_code"] for r in result["results"]] == codes
+    assert captured[0] == (keyword, None)  # まず入力どおりで引く
+    # 組み立ての問い合わせは1件だけ引く
+    assert all(limit == 1 for _, limit in captured[1:-1])
 
 
 @pytest.mark.asyncio
@@ -191,59 +191,54 @@ async def test_by_instructor_surname_only_hits_in_one_request(monkeypatch):
     result = await search_syllabi_by_instructor("山田")
 
     assert [r["syllabus_code"] for r in result["results"]] == ["A1", "A2", "B1"]
-    assert captured == ["山田"]
+    assert captured == [("山田", None)]
+
+
+@pytest.mark.asyncio
+async def test_by_instructor_unknown_name_returns_empty(monkeypatch):
+    """組み立てられなければ入力どおりで引いた結果(0件)を返す。"""
+    captured: list = []
+    _patch_client(monkeypatch, _instructor_handler(captured))
+
+    result = await search_syllabi_by_instructor("存在しない先生")
+
+    assert result["results"] == []
 
 
 @pytest.mark.asyncio
 async def test_by_instructor_passes_other_conditions(monkeypatch):
-    """`instructor` 以外の条件はそのまま api-clean へ渡る。"""
-    captured = {}
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        captured["params"] = dict(request.url.params)
-        return httpx.Response(200, json={"count": 0, "limit": 10, "offset": 0, "results": []})
-
-    _patch_client(monkeypatch, handler)
-    await search_syllabi_by_instructor("山田", faculty="先端理工学部", year=2026, limit=10)
-
-    assert captured["params"]["faculty"] == "先端理工学部"
-    assert captured["params"]["year"] == "2026"
-    assert captured["params"]["limit"] == "10"
-
-
-@pytest.mark.asyncio
-async def test_by_instructor_merged_result_respects_limit(monkeypatch):
-    """束ねた結果が `limit` を超えない(引き直しは語の数だけ結果を増やす)。"""
+    """`instructor` 以外の条件はそのまま api-clean へ渡る(組み立ての問い合わせにも)。"""
+    captured: list = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         params = dict(request.url.params)
-        # 入力どおりの語だけ空振りし、書き換えた語はすべて当たる
-        rows = [] if params.get("instructor") == "山田太郎" else _ROWS
-        limit = int(params["limit"])
-        return httpx.Response(
-            200, json={"count": len(rows), "limit": limit, "offset": 0, "results": rows[:limit]}
-        )
+        captured.append(params)
+        rows = [r for r in _ROWS if params["instructor"] in r["instructor"]]
+        return httpx.Response(200, json={"count": len(rows), "limit": 10, "offset": 0, "results": rows})
 
     _patch_client(monkeypatch, handler)
-    result = await search_syllabi_by_instructor("山田太郎", limit=2)
+    await search_syllabi_by_instructor("山田太郎", faculty="先端理工学部", year=2026, limit=10)
 
-    assert len(result["results"]) == 2
-    assert result["count"] == 2
+    assert len(captured) > 1
+    for params in captured:
+        assert params["faculty"] == "先端理工学部"
+        assert params["year"] == "2026"
+    assert captured[0]["limit"] == "10"
+    assert captured[-1]["limit"] == "10"
 
 
 @pytest.mark.asyncio
-async def test_by_instructor_dedupes_by_code(monkeypatch):
-    """書き換えた語が同じ科目に当たっても重複させない。"""
+async def test_by_instructor_propagates_probe_failure(monkeypatch):
+    """組み立ての問い合わせが失敗したら例外を送出する(「見つからない」と誤答しない)。"""
 
     def handler(request: httpx.Request) -> httpx.Response:
-        params = dict(request.url.params)
-        rows = [] if params.get("instructor") == "山田太郎" else _ROWS[:2]
-        return httpx.Response(200, json={"count": len(rows), "limit": 20, "offset": 0, "results": rows})
+        if dict(request.url.params).get("limit") == "1":
+            return httpx.Response(503, json={"detail": "busy"})
+        return httpx.Response(200, json={"count": 0, "limit": 20, "offset": 0, "results": []})
 
     _patch_client(monkeypatch, handler)
-    result = await search_syllabi_by_instructor("山田太郎")
-
-    assert [r["syllabus_code"] for r in result["results"]] == ["A1", "A2"]
+    with pytest.raises(httpx.HTTPStatusError):
+        await search_syllabi_by_instructor("山田太郎")
 
 
 @pytest.mark.asyncio
