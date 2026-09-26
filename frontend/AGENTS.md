@@ -238,7 +238,7 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 ## PDF解析
 
-- `pdfjs-dist` でテキストレイヤーを抽出
+- `pdfjs-dist` でテキストレイヤーを抽出。**legacy ビルド(`pdfjs-dist/legacy/build/pdf.mjs` と同ビルドの worker)を使い、`page.getTextContent()` は使わずに `streamTextContent()` を `getReader()` で読む**(design.md §4.1.3)。通常ビルドは `Map.prototype.getOrInsertComputed` を持たないブラウザ(Chromium 141 など)で、`getTextContent()` は ReadableStream の非同期反復を持たない Safari(iPhone を含む)で、どちらも取り込みの最初に落ちる
 - 龍谷大学成績表レイアウト前提のルールベースパーサーを実装
 - 評価記号(`T`/`N`/`G`/`D`/`J`/`M`)と数値スコアを認識し合否を判定。100点満点の場合は60点以上を合格
 - 解析失敗時は手入力へのフォールバックを促すメッセージを表示

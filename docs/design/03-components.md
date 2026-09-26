@@ -1,4 +1,4 @@
-# 履修登録支援AIチャットボット 設計書(v0.9.65)— §4 コンポーネント設計
+# 履修登録支援AIチャットボット 設計書(v0.9.66)— §4 コンポーネント設計
 
 > 本ファイルは [`docs/design.md`](../design.md) の一部である。§番号は設計書全体で通し番号であり、他ファイルの節を `§X.Y` の形で参照する。全ファイルの対応表は [design.md](../design.md) の「0.3 本書の構成」を参照。
 
@@ -51,6 +51,7 @@ frontend/
 #### 4.1.3 PDF解析(クライアント側)
 
 - `pdfjs-dist` でテキストレイヤーを抽出
+- **pdfjs-dist は legacy ビルド(`pdfjs-dist/legacy/build/pdf.mjs` と同ビルドの worker)を使い、テキストは `page.streamTextContent()` を `getReader()` で読む(`getTextContent()` は使わない)。** 学生の端末のブラウザは最新とは限らない。pdf.js 6 の通常ビルドの worker は `Map.prototype.getOrInsertComputed` を前提にしており、これを持たないブラウザ(Chromium 141 で確認)では PDF の構造を読めず `Invalid Root reference.` で落ちる。legacy ビルドはこれを core-js で補うが、`getTextContent()` は legacy ビルドでも `for await (… of readableStream)` で読んでおり、ReadableStream の非同期反復を持たない Safari(iPhone を含む)では `undefined is not a function (near '...t of e...')` で落ちる。どちらも成績表の中身とは無関係に、取り込みの最初で必ず落ちる
 - 龍谷大学成績表レイアウト前提のルールベースパーサーを実装
 - 評価記号(`T`/`N`/`G`/`D`/`J`/`M`)と数値スコアを認識し、合否を判定(要件§4.2)
 - 履修グリッドの `***`(登録科目)/ `*`(継続履修中)は**登録済み・成績未確定**(`registered`)として取り込む。成績のセルより後の学期にある印だけを採る(§5.2.1)
