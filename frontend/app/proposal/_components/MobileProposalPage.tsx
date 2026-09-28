@@ -16,7 +16,7 @@ import { useProposalAssistant } from "@/lib/useProposalConversation";
 import MobileAiAssistant from "@/components/ai/MobileAiAssistant";
 import TimetableGrid, { entryKey, type SelectedCourse } from "@/app/_components/TimetableGrid";
 import SlotPopover, { type SlotTarget } from "@/app/_components/SlotPopover";
-import TargetTermSelect from "./TargetTermSelect";
+import TargetTermLabel from "./TargetTermLabel";
 import { MobileRequirementsStrip } from "./RequirementsPanel";
 
 /**
@@ -140,8 +140,8 @@ export default function MobileProposalPage() {
     <div className="flex min-h-full flex-col bg-surface-primary">
       <MobileAppHeader />
       <MobileCreditBar />
-      {/* 提案する学期(lib/targetTerm.ts)。推定は外れ得るので見える場所で直せるようにする */}
-      <TargetTermSelect variant="mobile" disabled={isLoading} />
+      {/* 提案する学期(lib/targetTerm.ts)。成績表の次の学期に固定で、表示だけする */}
+      <TargetTermLabel variant="mobile" />
       <MobileRequirementsStrip view={requirements} />
 
       <div className="relative">
