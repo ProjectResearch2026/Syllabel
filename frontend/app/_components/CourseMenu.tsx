@@ -26,7 +26,8 @@ export type CourseTarget = {
  * 取り消せないので、押したらもう一度確かめる。
  *
  * 見た目は空きコマのメニュー(`SlotPopover`)に揃え、AI への相談も同じく
- * 並びの1つとして置く(モバイルだけ。PC は AI パネルが常に横にある)。
+ * 並びの1つとして置く(`variant`)。PC は右の AI パネルの文脈をその科目にし、
+ * モバイルはシートを開く。
  */
 export default function CourseMenu({
   target,
@@ -35,6 +36,7 @@ export default function CourseMenu({
   onReplace,
   onRemove,
   onAskAi,
+  variant = "mobile",
 }: {
   target: CourseTarget;
   onClose: () => void;
@@ -42,6 +44,8 @@ export default function CourseMenu({
   onReplace: () => void;
   onRemove: () => void;
   onAskAi?: () => void;
+  /** PC は右のAIパネルに文脈を渡す。モバイルはシートを開く */
+  variant?: "mobile" | "pc";
 }) {
   const { entry, day, period, rect } = target;
   const [confirming, setConfirming] = useState(false);
@@ -145,7 +149,7 @@ export default function CourseMenu({
             <Sparkles size={16} className="shrink-0 text-accent" />
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="text-[13px] font-bold text-accent">AIに相談する</span>
-              <span className="text-[10px] text-[#b0555f]">この科目を文脈にしてシートを開く</span>
+              <span className="text-[10px] text-[#b0555f]">この科目を文脈にして{variant === "pc" ? "右のパネルで聞く" : "シートを開く"}</span>
             </span>
             <ChevronRight size={14} className="shrink-0 text-accent" />
           </button>

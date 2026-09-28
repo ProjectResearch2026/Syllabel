@@ -332,12 +332,19 @@ export default function MobileSyllabusPage({
                   )}
                 </span>
 
-                {instructors && (
-                  <div className="flex min-w-0 items-center gap-1 text-xs text-[#4B5563]">
-                    <User size={13} className="shrink-0" aria-hidden="true" />
-                    <span className="truncate">{instructors}</span>
-                  </div>
-                )}
+                {/*
+                  教員名は描いたあとに届く(`useTaggedResults`)。届いた時点で行を足すと
+                  カードが一斉に伸び、一番下まで送った画面が押し戻される。
+                  **取得前から同じ高さの行を置いておき、届いたら中身だけ入れる**(1行に切り詰める)
+                */}
+                <div
+                  className={`flex min-w-0 items-center gap-1 text-xs text-[#4B5563] ${
+                    instructors ? "" : "invisible"
+                  }`}
+                >
+                  <User size={13} className="shrink-0" aria-hidden="true" />
+                  <span className="truncate">{instructors ?? "\u00a0"}</span>
+                </div>
 
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[#E5E7EB] pt-1.5 text-[11px] text-[#4B5563]">
                   <span className="flex items-center gap-1">

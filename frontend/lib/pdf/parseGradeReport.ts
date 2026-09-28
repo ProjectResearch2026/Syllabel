@@ -18,7 +18,7 @@
 import type { Course, CourseTerm, StudentProfile } from "@/lib/student";
 import { PROGRAM_NAME_PATTERN } from "@/lib/programs";
 
-type PdfjsLib = typeof import("pdfjs-dist");
+type PdfjsLib = typeof import("pdfjs-dist/legacy/build/pdf.mjs");
 
 interface PdfjsTextItem {
   str: string;
@@ -138,6 +138,27 @@ function combineEvalTokens(tokens: TextItem[]): string | null {
 // テキスト抽出
 // ---------------------------------------------------------------------------
 
+/**
+ * ページのテキスト要素を集める。
+ *
+ * **`page.getTextContent()` を使わない。** pdf.js 6 の `getTextContent()` は
+ * `for await (… of readableStream)` で読んでおり、ReadableStream の非同期反復を
+ * 持たない Safari(iPhone を含む)では `undefined is not a function` で落ちる。
+ * 同じ中身を返す `streamTextContent()` を `getReader()` で自分で読む。
+ */
+async function readTextItems(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  page: any,
+): Promise<PdfjsTextItem[]> {
+  const reader = (page.streamTextContent() as ReadableStream<{ items: PdfjsTextItem[] }>).getReader();
+  const items: PdfjsTextItem[] = [];
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) return items;
+    items.push(...value.items);
+  }
+}
+
 async function extractItems(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pdfDoc: any,
@@ -145,8 +166,7 @@ async function extractItems(
   const allItems: TextItem[] = [];
   for (let i = 1; i <= pdfDoc.numPages; i++) {
     const page = await pdfDoc.getPage(i);
-    const content = await page.getTextContent();
-    for (const raw of content.items as PdfjsTextItem[]) {
+    for (const raw of await readTextItems(page)) {
       if (!("str" in raw) || !raw.str.trim()) continue;
       allItems.push({
         str: raw.str.trim(),
@@ -666,9 +686,13 @@ function extractEnrollment(items: TextItem[]): StudentProfile["enrollment"] {
 // ---------------------------------------------------------------------------
 
 export async function parseGradeReport(file: File): Promise<ParseResult> {
-  const pdfjsLib: PdfjsLib = await import("pdfjs-dist");
+  // **legacy ビルドを使う。** 通常ビルドは最新のブラウザだけを対象にしており、pdf.js 6 の
+  // worker は `Map.prototype.getOrInsertComputed` を前提にする。これを持たないブラウザ
+  // (Chromium 141 で確認)では PDF の構造を読めず `Invalid Root reference.` で落ちる。
+  // legacy ビルドは core-js で補っている。本体と worker は同じビルドにそろえること
+  const pdfjsLib: PdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
   pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-    "pdfjs-dist/build/pdf.worker.min.mjs",
+    "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
     import.meta.url,
   ).toString();
 

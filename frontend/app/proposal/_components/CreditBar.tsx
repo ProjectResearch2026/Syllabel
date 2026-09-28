@@ -1,8 +1,7 @@
 "use client";
 
-import { useProposalStore } from "@/lib/proposal";
 import { useCreditSummary } from "@/lib/creditSummary";
-import TargetTermSelect from "./TargetTermSelect";
+import TargetTermLabel from "./TargetTermLabel";
 import RequirementsPanel from "./RequirementsPanel";
 
 /**
@@ -13,7 +12,6 @@ import RequirementsPanel from "./RequirementsPanel";
  * 時間割に高さを回すためである。
  */
 export default function CreditBar() {
-  const status = useProposalStore((s) => s.status);
   const { requirements } = useCreditSummary();
 
   return (
@@ -22,9 +20,9 @@ export default function CreditBar() {
       <div className="min-w-0 flex-1">
         <RequirementsPanel view={requirements} />
       </div>
-      {/* 提案する学期。ブラウザの今日の日付ではなく成績表から推定する(lib/targetTerm.ts) */}
+      {/* 提案する学期。成績表の次の学期に固定で、表示だけする(lib/targetTerm.ts) */}
       <div className="shrink-0">
-        <TargetTermSelect disabled={status === "loading"} />
+        <TargetTermLabel />
       </div>
     </div>
   );

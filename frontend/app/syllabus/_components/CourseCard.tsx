@@ -15,7 +15,7 @@ export default function CourseCard({
   course: SyllabusListItem;
   /** 状態 / 区分 / 履修区分のタグ一式(§8) */
   tags: CourseTagsType;
-  /** 担当教員名。一覧APIには無いためサーバ側で補っている(§6.2)。取れなければ null */
+  /** 担当教員名。一覧APIには無いためブラウザで後から補う(§6.2)。取得前・取れなければ null */
   instructors?: string | null;
   /** 詳細画面への宛先。いまの絞り込みを `back` に畳んだものが渡る */
   href: string;
@@ -60,12 +60,18 @@ export default function CourseCard({
           )}
         </p>
 
-        {instructors && (
-          <p className="mt-2 flex min-w-0 items-center gap-1 text-[11.5px] text-fg-secondary">
-            <User size={13} className="shrink-0 text-fg-icon" />
-            <span className="truncate">{instructors}</span>
-          </p>
-        )}
+        {/*
+          教員名は描いたあとに届く(`useTaggedResults`)。届いた時点で行を足すとカードが
+          伸びて並びがずれるため、**取得前から同じ高さの行を置いておき、中身だけ入れる**
+        */}
+        <p
+          className={`mt-2 flex min-w-0 items-center gap-1 text-[11.5px] text-fg-secondary ${
+            instructors ? "" : "invisible"
+          }`}
+        >
+          <User size={13} className="shrink-0 text-fg-icon" />
+          <span className="truncate">{instructors ?? "\u00a0"}</span>
+        </p>
       </div>
 
       <div className="mt-4 grid grid-cols-3 divide-x divide-card-divider border-t border-card-divider pt-3 text-[11px] text-fg-muted">
