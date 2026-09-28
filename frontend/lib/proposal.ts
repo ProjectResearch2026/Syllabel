@@ -1,6 +1,7 @@
 import { create } from "zustand";
-import type { CourseSlot, ProposedCourse } from "@/lib/chatApi";
-import type { HalfTerm } from "@/lib/targetTerm";
+import type { ProposedCourse } from "@/lib/chatApi";
+import type { SyllabusDetail } from "@/lib/syllabus-api";
+import { DAYS } from "@/lib/timetable";
 
 /**
  * 履修提案の受信状態（design.md §5.2.3）。
@@ -11,10 +12,67 @@ import type { HalfTerm } from "@/lib/targetTerm";
  * - `idle`    — **まだ投げていない。** 画面に到達した直後と、再提案で提案を捨てた直後
  * - `loading` — `POST /api/proposal` の応答を受信中。`courses` に入るのは `snapshot`
  *               （§6.1.1）であり確定していない
- * - `done`    — `result` を受け取った。**提案を持っている状態はこれだけである**
+ * - `done`    — `result` を受け取った、または学生が自分で科目を登録した。
+ *               **時間割を持っている状態はこれだけである**
  * - `error`   — 生成に失敗した、または前提（課程コード・入学年度・学年）が揃わず投げられない
  */
 export type ProposalStatus = "idle" | "loading" | "done" | "error";
+
+/**
+ * 時間割の科目の同一性。シラバスコードが無い科目(AI が特定できなかった科目)は
+ * 科目名で見分ける。時間割表の `entryKey()`(`app/_components/TimetableGrid.tsx`)と同じ規則
+ */
+export function courseKey(course: { syllabusCode: string | null; title: string }): string {
+  return course.syllabusCode ?? course.title;
+}
+
+/** 学生が自分で登録した科目に付ける理由。提案チャットにもこのまま渡る */
+export const MANUAL_REASON = "学生が自分で時間割に登録した科目";
+
+/**
+ * シラバス(講義詳細)から時間割の科目を作る。`category` は学生の課程での履修区分
+ * (`必修` など。タグが出ない科目は null)で、時間割のセルの色に使う
+ */
+export type SyllabusForTimetable = Pick<
+  SyllabusDetail,
+  "syllabus_code" | "course_title" | "slots" | "day_of_week" | "period" | "term_name" | "credits"
+>;
+
+export function courseFromSyllabus(syllabus: SyllabusForTimetable, category: string | null): ProposedCourse {
+  const slots = (syllabus.slots ?? []).flatMap((s) =>
+    (DAYS as readonly string[]).includes(s.day)
+      ? [{ term: s.term, day: s.day as NonNullable<ProposedCourse["day"]>, period: s.period }]
+      : [],
+  );
+  const first = slots[0];
+  const day = (DAYS as readonly string[]).includes(syllabus.day_of_week)
+    ? (syllabus.day_of_week as NonNullable<ProposedCourse["day"]>)
+    : null;
+  return {
+    syllabusCode: syllabus.syllabus_code,
+    title: syllabus.course_title,
+    day: first?.day ?? day,
+    period: first?.period ?? (day && syllabus.period ? syllabus.period : null),
+    term: first?.term ?? (syllabus.term_name || null),
+    slots,
+    credits: syllabus.credits,
+    category,
+    reason: MANUAL_REASON,
+  };
+}
+
+/** 入れ替え(「別の科目に変更」)で外す科目。シラバスで次の科目を選ぶあいだ持つ */
+export type ReplaceTarget = {
+  key: string;
+  title: string;
+  /** 押したマス。シラバスをこの曜日・時限で絞って開く */
+  day?: string;
+  period?: number;
+};
+
+function sumCredits(courses: ProposedCourse[]): number {
+  return courses.reduce((sum, c) => sum + (c.credits ?? 0), 0);
+}
 
 type ProposalStore = {
   status: ProposalStatus;
@@ -27,6 +85,8 @@ type ProposalStore = {
    * ここだけ**である。
    */
   preferences: string;
+  /** 「別の科目に変更」の途中。シラバスで選んだ科目がこの科目と入れ替わる */
+  replacing: ReplaceTarget | null;
 
   setStatus: (status: ProposalStatus) => void;
   /**
@@ -46,13 +106,23 @@ type ProposalStore = {
    * 次の案内に前回の条件を示し、学生が差分だけ書き足せるようにするためである。
    */
   discard: () => void;
-  /**
-   * 講義詳細の「時間割に追加」で、学生が選んだ科目を提案に足す。検査
-   * （`checkAddable()`）を通ったものだけを渡すこと。合計単位もここで足す
-   */
-  addCourse: (course: ProposedCourse) => void;
   /** リセット（要件§4.8）。学生が書いた希望条件を含め、すべて初期値へ戻す */
   clear: () => void;
+
+  /**
+   * 学生が時間割を直接編集する。**提案の生成中は受け付けない** — 届く snapshot に
+   * 上書きされて編集が消えるためである。提案の前(`idle`)や失敗後(`error`)に
+   * 登録したときは、その時間割を持った状態(`done`)にする。
+   *
+   * 単位の和(`totalCredits`)は編集のたびに科目から数え直す。卒業要件の見込みは
+   * `courses` に追従するので、ここを書き換えれば画面の数字もついてくる(§8.3.5)。
+   */
+  addCourse: (course: ProposedCourse) => void;
+  removeCourse: (key: string) => void;
+  /** `key` の科目を `course` に入れ替える。入れ替えが済めば `replacing` も外す */
+  replaceCourse: (key: string, course: ProposedCourse) => void;
+  startReplace: (target: ReplaceTarget) => void;
+  cancelReplace: () => void;
 };
 
 const EMPTY = {
@@ -61,91 +131,51 @@ const EMPTY = {
   totalCredits: 0,
   message: "",
   preferences: "",
+  replacing: null as ReplaceTarget | null,
 };
+
+/** 編集後の時間割。編集で時間割を持った状態になる */
+function edited(courses: ProposedCourse[]) {
+  return { status: "done" as ProposalStatus, courses, totalCredits: sumCredits(courses) };
+}
 
 export const useProposalStore = create<ProposalStore>((set) => ({
   ...EMPTY,
 
   setStatus: (status) => set({ status }),
   begin: (preferences) =>
-    set({ status: "loading", preferences, courses: [], totalCredits: 0, message: "" }),
+    set({ status: "loading", preferences, courses: [], totalCredits: 0, message: "", replacing: null }),
   setSnapshot: (courses, totalCredits, message) => set({ courses, totalCredits, message }),
   setResult: (courses, totalCredits, message) =>
     set({ status: "done", courses, totalCredits, message }),
-  discard: () => set({ status: "idle", courses: [], totalCredits: 0, message: "" }),
-  addCourse: (course) =>
-    set((state) => ({
-      courses: [...state.courses, course],
-      totalCredits: state.totalCredits + (course.credits ?? 0),
-    })),
+  discard: () => set({ status: "idle", courses: [], totalCredits: 0, message: "", replacing: null }),
   clear: () => set({ ...EMPTY }),
+
+  addCourse: (course) =>
+    set((s) => {
+      if (s.status === "loading") return {};
+      const key = courseKey(course);
+      if (s.courses.some((c) => courseKey(c) === key)) return {};
+      return edited([...s.courses, course]);
+    }),
+  removeCourse: (key) =>
+    set((s) => {
+      if (s.status === "loading") return {};
+      return edited(s.courses.filter((c) => courseKey(c) !== key));
+    }),
+  replaceCourse: (key, course) =>
+    set((s) => {
+      if (s.status === "loading") return {};
+      const nextKey = courseKey(course);
+      // 元の科目の位置に入れる。入れ替え先がすでに時間割にあれば二重に持たない
+      const courses = s.courses.flatMap((c) => {
+        const k = courseKey(c);
+        if (k === key) return [course];
+        return k === nextKey ? [] : [c];
+      });
+      if (!s.courses.some((c) => courseKey(c) === key)) courses.push(course);
+      return { ...edited(courses), replacing: null };
+    }),
+  startReplace: (target) => set({ replacing: target }),
+  cancelReplace: () => set({ replacing: null }),
 }));
-
-// 開講学期 → 占めるクォーター。`backend/app/schemas/proposal.py` の `_QUARTERS` と同じ。
-// サ集(夏期集中)はクォーターに属さないので載せない
-const QUARTERS: Record<string, readonly number[]> = {
-  前期: [1, 2],
-  後期: [3, 4],
-  通年: [1, 2, 3, 4],
-  "1Q": [1],
-  "2Q": [2],
-  "3Q": [3],
-  "4Q": [4],
-};
-
-function quartersOf(term: string | null | undefined): readonly number[] | null {
-  if (!term) return null;
-  return QUARTERS[term.normalize("NFKC").replace(/\s/g, "")] ?? null;
-}
-
-/** その科目が占めるコマ。`slots` が無ければ1コマ目だけとみなす */
-function occupied(course: Pick<ProposedCourse, "slots" | "day" | "period" | "term">): CourseSlot[] {
-  if (course.slots && course.slots.length > 0) return course.slots;
-  if (course.day && course.period != null)
-    return [{ term: course.term, day: course.day, period: course.period }];
-  return [];
-}
-
-/** 2つのコマが重なるか。`backend` の `slots_clash()` と同じ規則 */
-function slotsClash(a: CourseSlot, b: CourseSlot): boolean {
-  if (a.day !== b.day || a.period !== b.period) return false;
-  const qa = quartersOf(a.term);
-  const qb = quartersOf(b.term);
-  if (qa && qb) return qa.some((q) => qb.includes(q));
-  return a.term === b.term;
-}
-
-/**
- * 科目を提案に足せるか。足せないときはその理由を返す（足せるなら null）。
- *
- * 時間割は提案チャットでは組み替えられない（backend の提案チャットは文章で答える
- * だけである。§7.3 規則7）。そこで講義詳細から直接足すが、**提案の生成が
- * 検査しているコマ重複と学期違いはここでも検査する** — 通さずに足すと、
- * 同じマスに2科目が重なった時間割や、対象学期に開講されない科目の入った
- * 時間割ができてしまう。
- */
-export function checkAddable(
-  course: ProposedCourse,
-  current: ProposedCourse[],
-  targetTerm: HalfTerm,
-): string | null {
-  if (course.syllabusCode && current.some((c) => c.syllabusCode === course.syllabusCode)) {
-    return "この科目はすでに時間割に入っています。";
-  }
-
-  const slots = occupied(course);
-  const target = QUARTERS[targetTerm];
-  const terms = slots.length > 0 ? slots.map((s) => s.term ?? course.term) : [course.term];
-  const quarters = terms.map(quartersOf);
-  if (quarters.some((q) => q !== null) && !quarters.some((q) => q?.some((x) => target.includes(x)))) {
-    return `この科目は${course.term ?? "対象外の学期"}の開講のため、${targetTerm}の時間割には追加できません。`;
-  }
-
-  for (const other of current) {
-    const clash = slots.find((s) => occupied(other).some((o) => slotsClash(s, o)));
-    if (clash) {
-      return `${clash.day}${clash.period}限の「${other.title}」と重なるため追加できません。`;
-    }
-  }
-  return null;
-}

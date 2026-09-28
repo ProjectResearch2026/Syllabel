@@ -82,3 +82,14 @@ export function backLink(params: {
   if (params.from === FROM_PROPOSAL) return { href: "/proposal", label: "時間割に戻る" };
   return { href: listHref(params.back), label: "シラバス一覧に戻る" };
 }
+
+/**
+ * 時間割のマスからシラバス一覧を開くリンク。そのコマ(曜日・時限)で絞った一覧にする。
+ * 空きコマに科目を入れるときと、科目を別の科目に変更するときに使う。コマの無い
+ * 科目(集中講義など)からは素の一覧を開く
+ */
+export function slotSearchHref(day?: string | null, period?: number | null): string {
+  if (!day || period == null) return "/syllabus";
+  const params = new URLSearchParams({ day, period: String(period) });
+  return `/syllabus?${params.toString()}`;
+}

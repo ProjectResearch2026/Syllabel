@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { proposalDetailHref } from "@/lib/syllabusQuery";
 import { DAYS, PERIODS, CELL_STYLES, coursesToSlotTable, type SlotEntry } from "@/lib/timetable";
 import { useProposalStore } from "@/lib/proposal";
+import { useTimetableEditing } from "@/lib/useTimetableEditing";
 import { courseContext, slotContext, useAiStore, type AiContext } from "@/lib/ai";
+import CourseMenu, { type CourseTarget } from "@/app/_components/CourseMenu";
 import SlotPopover, { type SlotTarget } from "@/app/_components/SlotPopover";
 
 /** 科目の同一性。key に使い、科目が入れ替わったマスだけを作り直して現れる動きを流す */
@@ -57,41 +58,43 @@ function EntryBody({ entry, clamp }: { entry: SlotEntry; clamp: string }) {
 }
 
 /**
- * 科目の枠。**押すとまず選択になり、右のAIパネルの文脈がその科目に絞られる。**
- * 選択中の科目をもう一度押すと講義詳細(`/syllabus/[code]`)を開く(design.md §8.3.4。
- * モバイルの `TimetableGrid` と同じ2回押し)。同じタブのクライアント遷移で開くので、
- * 提案と対話は残ったまま「時間割に戻る」で戻れる(`proposalDetailHref()`)。
+ * 科目の枠。押すとその場のメニュー(`CourseMenu`)を開き、講義詳細を開く
+ * (design.md §8.3.4。同じタブのクライアント遷移なので「時間割に戻る」で戻れる)・
+ * 別の科目に変更する・時間割から外す・AIに相談する を選ぶ。AIに相談すると
+ * 右のAIパネルの文脈がその科目に絞られ、枠が選択中になる。生成中は押せない。
  */
 function CourseButton({
   entry,
+  day,
+  period,
   selected,
-  onPick,
+  onOpen,
   className,
   style,
   children,
 }: {
   entry: SlotEntry;
+  day: string | null;
+  period: number | null;
   selected: boolean;
-  onPick: (entry: SlotEntry) => void;
+  onOpen: ((target: CourseTarget) => void) | null;
   className: string;
   style?: React.CSSProperties;
   children: React.ReactNode;
 }) {
+  const ring = selected ? RING : "";
+  if (!onOpen) return <div className={`${className} ${ring}`} style={style}>{children}</div>;
   return (
     <button
       type="button"
       style={style}
-      onClick={() => onPick(entry)}
-      aria-pressed={selected}
-      aria-label={
-        selected && entry.code
-          ? `${entry.name}のシラバスを開く`
-          : `${entry.name}をAIの文脈にする`
-      }
-      title={selected && entry.code ? "もう一度押すとシラバスを開きます" : undefined}
-      className={`${className} text-left transition-[filter] hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent ${
-        selected ? RING : ""
-      }`}
+      onClick={(e) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        onOpen({ entry, day, period, rect: { top: r.top, left: r.left, width: r.width, height: r.height } });
+      }}
+      aria-haspopup="menu"
+      aria-label={`${entry.name}の操作を開く`}
+      className={`${className} text-left transition-[filter] hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent ${ring}`}
     >
       {children}
     </button>
@@ -111,7 +114,8 @@ function CourseButton({
  *
  * **科目・空きコマは右のAIパネルの文脈になる**（モバイルの AI_STEP2・STEP3 と同じ）。
  * 選択は `useAiStore` の `selection` に置き、パネルの「参照中」と共有する。
- * 空きコマを押すとその場のメニュー（`SlotPopover`）を出す。
+ * 科目を押すとその場のメニュー（`CourseMenu`）、空きコマを押すと `SlotPopover` を出し、
+ * どちらからも「AIに相談する」で文脈にできる。
  */
 export default function TimetablePanel() {
   const router = useRouter();
@@ -125,14 +129,8 @@ export default function TimetablePanel() {
   // まだ投げていない（§5.2.3 の `idle`）。空の表だけを出すと、提案が終わって
   // 何も無いのか、これからなのかが区別できない（§8.3.2）
   const isIdle = status === "idle";
-
-  const pickCourse = (entry: SlotEntry) => {
-    if (isSelected(entry, selection)) {
-      if (entry.code) router.push(proposalDetailHref(entry.code));
-      return;
-    }
-    setSelection(courseContext(entry.name, entry.code));
-  };
+  const editing = useTimetableEditing();
+  const onOpen = editing.editable ? editing.open : null;
 
   const pickSlot = (e: React.MouseEvent<HTMLButtonElement>, day: string, period: number) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -184,21 +182,9 @@ export default function TimetablePanel() {
             const cellClass = `flex min-w-0 flex-1 flex-col justify-center gap-1 border-r border-border-primary last:border-r-0 ${
               entries.length > 1 ? "p-1" : "p-2"
             } ${single ? `${CELL_STYLES[single.type].cell} ${ENTER}` : "bg-surface-primary"}`;
-            if (single) {
-              return (
-                <CourseButton
-                  key={`${d}:${entryKey(single)}`}
-                  entry={single}
-                  selected={isSelected(single, selection)}
-                  onPick={pickCourse}
-                  className={cellClass}
-                  style={enterDelay(order)}
-                >
-                  <EntryBody entry={single} clamp="line-clamp-3" />
-                </CourseButton>
-              );
-            }
             if (entries.length === 0) {
+              // 空きコマ。押すとその場のメニュー(`SlotPopover`)を出し、そのコマで絞った
+              // シラバス一覧から登録するか、AI に聞く
               return (
                 <button
                   key={d}
@@ -211,14 +197,32 @@ export default function TimetablePanel() {
                 />
               );
             }
+            if (single) {
+              return (
+                <CourseButton
+                  key={`${d}:${entryKey(single)}`}
+                  entry={single}
+                  day={d}
+                  period={p}
+                  selected={isSelected(single, selection)}
+                  onOpen={onOpen}
+                  className={cellClass}
+                  style={enterDelay(order)}
+                >
+                  <EntryBody entry={single} clamp="line-clamp-3" />
+                </CourseButton>
+              );
+            }
             return (
               <div key={d} className={cellClass}>
                 {entries.map((entry) => (
                   <CourseButton
                     key={entryKey(entry)}
                     entry={entry}
+                    day={d}
+                    period={p}
                     selected={isSelected(entry, selection)}
-                    onPick={pickCourse}
+                    onOpen={onOpen}
                     className={`flex min-h-0 flex-1 flex-col justify-center gap-0.5 rounded-sm px-1.5 py-1 ${
                       CELL_STYLES[entry.type].cell
                     } ${ENTER}`}
@@ -241,8 +245,10 @@ export default function TimetablePanel() {
               <CourseButton
                 key={entry.code ?? entry.name}
                 entry={entry}
+                day={null}
+                period={null}
                 selected={isSelected(entry, selection)}
-                onPick={pickCourse}
+                onOpen={onOpen}
                 className={`flex items-center gap-1.5 rounded-sm px-2 py-1 ${CELL_STYLES[entry.type].cell} ${ENTER}`}
               >
                 <span className="text-[11px] font-semibold text-fg-primary">{entry.name}</span>
@@ -280,10 +286,29 @@ export default function TimetablePanel() {
           >
             <p className="max-w-[260px] text-center text-[13px] leading-5 text-fg-tertiary">
               右のAI履修アシスタントに希望条件を送ると、ここに時間割が出ます。
+              空きコマを押して、シラバスから自分で登録することもできます。
             </p>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {editing.menu && (
+        <CourseMenu
+          target={editing.menu}
+          onClose={editing.close}
+          onOpenSyllabus={() => editing.openSyllabus(editing.menu!)}
+          onReplace={() => editing.replace(editing.menu!)}
+          onRemove={() => {
+            if (isSelected(editing.menu!.entry, selection)) setSelection(null);
+            editing.remove(editing.menu!);
+          }}
+          onAskAi={() => {
+            setSelection(courseContext(editing.menu!.entry.name, editing.menu!.entry.code));
+            editing.close();
+          }}
+          variant="pc"
+        />
+      )}
 
       {slotTarget && (
         <SlotPopover

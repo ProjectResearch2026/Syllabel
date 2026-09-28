@@ -3,6 +3,7 @@
 import { useCallback, useRef } from "react";
 import { CELL_STYLES, DAYS, PERIODS, type SlotEntry, type SlotTable } from "@/lib/timetable";
 import type { SlotTarget } from "./SlotPopover";
+import type { CourseTarget } from "./CourseMenu";
 
 const LONG_PRESS_MS = 450;
 const MOVE_TOLERANCE = 10;
@@ -10,9 +11,14 @@ const MOVE_TOLERANCE = 10;
 /** 選択中の科目。複数コマの科目はどのマスで選んでも同じ科目として光らせる */
 export type SelectedCourse = { day: string; period: number; key: string };
 
-/** 科目の同一性。シラバスコードが無い科目は名前で見分ける */
+/** 科目の同一性。シラバスコードが無い科目は名前で見分ける(`courseKey()` と同じ規則) */
 export function entryKey(entry: SlotEntry): string {
   return entry.code ?? entry.name;
+}
+
+function rectOf(el: Element): CourseTarget["rect"] {
+  const r = el.getBoundingClientRect();
+  return { top: r.top, left: r.left, width: r.width, height: r.height };
 }
 
 /** 履修区分のタグとクォーターの印（ui-design_phone.pen Tags / Quarter） */
@@ -40,7 +46,8 @@ function Tags({ entry }: { entry: SlotEntry }) {
  *
  * 操作は2つ。
  *  - 科目をタップ → 選択。Ask Bar の文脈がその科目に絞られる（STEP2）。
- *    選択中の科目をもう一度タップすると講義詳細を開く
+ *    同時にその場のメニュー（`CourseMenu`）で、シラバスを開く・別の科目に変更する・
+ *    時間割から外す・AIに相談する を選べる
  *  - 空きコマを長押し → その場のメニュー（STEP3）
  */
 export default function TimetableGrid({
@@ -56,7 +63,7 @@ export default function TimetableGrid({
   unscheduled: SlotEntry[];
   loading?: boolean;
   selected: SelectedCourse | null;
-  onTapCourse: (entry: SlotEntry, day: string | null, period: number | null) => void;
+  onTapCourse: (target: CourseTarget) => void;
   /** 空きコマを軽く押した。選択を外す */
   onTapEmpty?: () => void;
   onLongPressEmpty: (target: SlotTarget) => void;
@@ -149,7 +156,11 @@ export default function TimetableGrid({
                   cancel();
                   if (wasLongPress) return;
                   if (!first) onTapEmpty?.();
-                  else if (!multi) onTapCourse(first, day, period);
+                }}
+                // 科目は pointerup ではなく click で開く。pointerup でメニューを開くと、
+                // タップのあとに届く click がメニューのスクリムに当たって即座に閉じる
+                onClick={(e) => {
+                  if (first && !multi) onTapCourse({ entry: first, day, period, rect: rectOf(e.currentTarget) });
                 }}
                 className={`relative flex min-w-0 flex-1 flex-col justify-center border-r border-border-primary last:border-r-0 ${
                   multi ? "gap-1 p-1" : "gap-0.5 px-1 py-1.5"
@@ -162,7 +173,7 @@ export default function TimetableGrid({
                       <button
                         key={`${entryKey(entry)}-${entry.quarter ?? ""}`}
                         type="button"
-                        onClick={() => onTapCourse(entry, day, period)}
+                        onClick={(e) => onTapCourse({ entry, day, period, rect: rectOf(e.currentTarget) })}
                         className={`flex min-w-0 flex-col gap-0.5 rounded-sm text-left ${
                           isSelected(entry) ? "ring-1 ring-accent" : ""
                         }`}
@@ -196,7 +207,7 @@ export default function TimetableGrid({
               <button
                 key={entryKey(entry)}
                 type="button"
-                onClick={() => onTapCourse(entry, null, null)}
+                onClick={(e) => onTapCourse({ entry, day: null, period: null, rect: rectOf(e.currentTarget) })}
                 className={`flex items-center gap-1 rounded border bg-surface-primary px-1.5 py-1 ${
                   isSelected(entry) ? "border-accent" : "border-border-primary"
                 }`}

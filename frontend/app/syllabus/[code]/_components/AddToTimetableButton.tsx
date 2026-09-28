@@ -1,117 +1,140 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarCheck, CalendarPlus } from "lucide-react";
-import type { CourseSlot, ProposedCourse } from "@/lib/chatApi";
-import type { CourseTarget } from "@/lib/eligibility";
-import { checkAddable, useProposalStore } from "@/lib/proposal";
+import { ArrowLeftRight, CalendarCheck, CalendarPlus, X } from "lucide-react";
+import {
+  courseFromSyllabus,
+  courseKey,
+  useProposalStore,
+  type SyllabusForTimetable,
+} from "@/lib/proposal";
+import { findConflicts, termFits } from "@/lib/timetable";
 import { useTargetTerm } from "@/lib/targetTerm";
 import { useTagMap } from "@/lib/useTagMap";
-
-/** 時間割に置くために要る、シラバスの項目 */
-export type AddableCourse = {
-  code: string;
-  title: string;
-  /** 開講学期(前期 / 後期 / 通年 / 1Q など) */
-  term: string | null;
-  day: string | null;
-  period: number | null;
-  slots?: { term: string | null; day: string; period: number }[];
-  credits: number | null;
-  target: CourseTarget;
-};
+import type { CourseTarget } from "@/lib/eligibility";
 
 /**
  * 「時間割に追加」（ui-design_pc.pen 06_講義詳細 ActionButton）。
  *
- * **押すとこの科目を提案の時間割に足し、時間割画面へ移る。** 以前は提案チャットへ
- * 「追加できますか?」という依頼を置いて移るだけだったが、その依頼は送信されず、
- * 送信しても提案チャットは文章で答えるだけで時間割を変えない（§7.3 規則7）ため、
- * 押しても何も起きなかった。
+ * **学生はこの科目を自分で時間割に登録できる。** 押すと提案の store の `courses` に
+ * 入り、時間割表・今期登録単位・卒業要件の見込みがそれに追従する（§8.3.5）。
+ * AI の提案と同じ一覧に入るので、提案チャットにも「学生が自分で登録した科目」として
+ * 渡る（`MANUAL_REASON`）。
  *
- * 足す前に、提案の生成と同じくコマ重複と学期違いを検査する（`checkAddable()`）。
- * 通らないときは足さずに理由をボタンの下に示す。提案がまだ無いときは足す先が
- * 無いので、時間割画面で提案を作るよう案内する。
+ * AI の提案と違い単位数上限などの検査は通らないため、**入れる前に手元で確かめる**:
+ *  - 時間割の学期（`useTargetTerm()`）と開講学期が合うか
+ *  - 同じ曜日・時限・クォーターに別の科目が入っていないか（`findConflicts()`）
+ * どちらかに当たれば、それでも入れるかを聞く。
  *
- * **提案の時間割にすでに入っている科目では押させない。** 時間割の科目から詳細を
- * 開いたとき(design.md §8.3.4)に追加しても意味が無い。同じ科目の別クラス
- * (コードが違う)は入っていないものとして扱う。
+ * 時間割の「別の科目に変更する」から来たとき（`replacing`）は、入れ替えのボタンになり、
+ * 押すと元の科目と入れ替えて時間割へ戻る。すでに入っている科目では「外す」を出す。
+ * 提案の生成中は届く snapshot に上書きされるので押させない。
  */
-export default function AddToTimetableButton({ course }: { course: AddableCourse }) {
+export default function AddToTimetableButton({
+  syllabus,
+  target,
+}: {
+  syllabus: SyllabusForTimetable;
+  target: CourseTarget;
+}) {
   const router = useRouter();
-  const status = useProposalStore((s) => s.status);
-  const courses = useProposalStore((s) => s.courses);
-  const addCourse = useProposalStore((s) => s.addCourse);
-  const { target } = useTargetTerm();
-  const tags = useTagMap()(course.code, course.target);
-  const [notice, setNotice] = useState<string | null>(null);
+  const { status, courses, replacing, addCourse, removeCourse, replaceCourse, cancelReplace } =
+    useProposalStore();
+  const { target: term } = useTargetTerm();
+  const tags = useTagMap()(syllabus.syllabus_code, target);
 
-  const inProposal = status === "done" && courses.some((c) => c.syllabusCode === course.code);
+  const course = courseFromSyllabus(syllabus, tags.requirement);
+  const key = courseKey(course);
+  const inTimetable = courses.some((c) => courseKey(c) === key);
 
-  if (inProposal) {
+  /** 入れる前の確かめ。学生が「やめる」を選べば false */
+  const confirmFits = (others: typeof courses) => {
+    const warnings: string[] = [];
+    if (!termFits(course.term, term.term)) {
+      warnings.push(`この科目の開講学期（${course.term ?? "未定"}）は、時間割の学期（${term.term}）と異なります。`);
+    }
+    for (const c of findConflicts(course, others)) {
+      warnings.push(`${c.day}曜${c.period}限に「${c.title}」が入っています。`);
+    }
+    if (warnings.length === 0) return true;
+    return window.confirm(`${warnings.join("\n")}\nそれでも時間割に入れますか？`);
+  };
+
+  if (status === "loading") {
     return (
       <span className="flex shrink-0 items-center gap-2 rounded-lg border border-border-primary bg-surface-gray px-[18px] py-2.5">
-        <CalendarCheck size={15} className="text-fg-secondary" aria-hidden="true" />
-        <span className="text-[13.5px] font-bold text-fg-secondary">提案の時間割に入っています</span>
+        <CalendarPlus size={15} className="text-fg-tertiary" aria-hidden="true" />
+        <span className="text-[13.5px] font-bold text-fg-tertiary">提案の作成中は追加できません</span>
       </span>
     );
   }
 
-  const handleClick = () => {
-    if (status === "loading") {
-      setNotice("時間割の提案を作成中です。完成してから追加してください。");
-      return;
-    }
-    if (status !== "done") {
-      setNotice("まだ時間割がありません。先に時間割の画面で提案を作成してください。");
-      return;
-    }
-
-    const proposed: ProposedCourse = {
-      syllabusCode: course.code,
-      title: course.title,
-      day: (course.day || null) as ProposedCourse["day"],
-      period: course.period || null,
-      term: course.term,
-      slots: (course.slots ?? []) as CourseSlot[],
-      credits: course.credits,
-      category: tags.requirement,
-      reason: "講義詳細から追加した科目です。",
+  if (replacing && replacing.key !== key && !inTimetable) {
+    const handleReplace = () => {
+      if (!confirmFits(courses.filter((c) => courseKey(c) !== replacing.key))) return;
+      replaceCourse(replacing.key, course);
+      router.push("/proposal");
     };
-    const problem = checkAddable(proposed, courses, target.term);
-    if (problem) {
-      setNotice(problem);
-      return;
-    }
-    addCourse(proposed);
-    router.push("/proposal");
+    return (
+      <span className="flex shrink-0 flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={handleReplace}
+          className="flex items-center gap-2 rounded-lg bg-accent px-[18px] py-2.5 transition-colors hover:bg-primary-dark"
+        >
+          <ArrowLeftRight size={15} className="text-fg-inverse" aria-hidden="true" />
+          <span className="text-left text-[13.5px] font-bold text-fg-inverse">
+            「{replacing.title}」をこの科目に変更
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={cancelReplace}
+          className="rounded-lg px-2.5 py-2.5 text-[12px] font-semibold text-fg-secondary transition-colors hover:bg-surface-gray"
+        >
+          変更をやめる
+        </button>
+      </span>
+    );
+  }
+
+  if (inTimetable) {
+    return (
+      <span className="flex shrink-0 items-center gap-1.5">
+        <Link
+          href="/proposal"
+          className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border-primary bg-surface-gray px-[18px] py-2.5 transition-colors hover:bg-surface-soft"
+        >
+          <CalendarCheck size={15} className="text-fg-secondary" aria-hidden="true" />
+          <span className="text-[13.5px] font-bold text-fg-secondary">時間割に入っています</span>
+        </Link>
+        <button
+          type="button"
+          onClick={() => removeCourse(key)}
+          aria-label="時間割から外す"
+          className="flex items-center gap-1 rounded-lg border border-border-primary px-3 py-2.5 text-[12px] font-semibold text-accent transition-colors hover:bg-accent-light"
+        >
+          <X size={14} aria-hidden="true" />
+          外す
+        </button>
+      </span>
+    );
+  }
+
+  const handleAdd = () => {
+    if (!confirmFits(courses)) return;
+    addCourse(course);
   };
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <button
-        type="button"
-        onClick={handleClick}
-        className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-accent px-[18px] py-2.5 transition-colors hover:bg-primary-dark"
-      >
-        <CalendarPlus size={15} className="text-fg-inverse" aria-hidden="true" />
-        <span className="text-[13.5px] font-bold text-fg-inverse">時間割に追加</span>
-      </button>
-      {notice && (
-        <p role="status" className="max-w-[280px] text-[11.5px] leading-[17px] text-accent">
-          {notice}
-          {status !== "done" && status !== "loading" && (
-            <>
-              {" "}
-              <Link href="/proposal" className="font-bold underline">
-                時間割へ
-              </Link>
-            </>
-          )}
-        </p>
-      )}
-    </div>
+    <button
+      type="button"
+      onClick={handleAdd}
+      className="flex shrink-0 items-center gap-2 rounded-lg bg-accent px-[18px] py-2.5 transition-colors hover:bg-primary-dark"
+    >
+      <CalendarPlus size={15} className="text-fg-inverse" aria-hidden="true" />
+      <span className="text-[13.5px] font-bold text-fg-inverse">時間割に追加</span>
+    </button>
   );
 }

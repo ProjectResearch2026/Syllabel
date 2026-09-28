@@ -9,13 +9,14 @@ import logoMark from "@/public/logo.svg";
 import { useStudentStore } from "@/lib/student";
 import { useProposalStore } from "@/lib/proposal";
 import { useCreditSummary } from "@/lib/creditSummary";
-import { coursesToSlotTable, type SlotEntry } from "@/lib/timetable";
-import { proposalDetailHref } from "@/lib/syllabusQuery";
+import { coursesToSlotTable } from "@/lib/timetable";
+import { useTimetableEditing } from "@/lib/useTimetableEditing";
 import { courseContext, slotContext, TIMETABLE_CONTEXT, useAiStore } from "@/lib/ai";
 import { useProposalAssistant } from "@/lib/useProposalConversation";
 import MobileAiAssistant from "@/components/ai/MobileAiAssistant";
 import TimetableGrid, { entryKey, type SelectedCourse } from "@/app/_components/TimetableGrid";
 import SlotPopover, { type SlotTarget } from "@/app/_components/SlotPopover";
+import CourseMenu, { type CourseTarget } from "@/app/_components/CourseMenu";
 import TargetTermLabel from "./TargetTermLabel";
 import { MobileRequirementsStrip } from "./RequirementsPanel";
 
@@ -81,24 +82,24 @@ export default function MobileProposalPage() {
 
   const [selected, setSelected] = useState<SelectedCourse | null>(null);
   const [slotTarget, setSlotTarget] = useState<SlotTarget | null>(null);
+  const editing = useTimetableEditing();
 
   // 生成中に届く snapshot も描く（逐次描画。design.md §6.1.1 / §7.2）
   const { table, unscheduled } = coursesToSlotTable(courses);
   const isIdle = status === "idle";
   const isLoading = status === "loading";
 
+  // 科目を押すと選択し（Ask Bar の文脈になる）、その場のメニューを開く。
+  // シラバスを開く・別の科目に変更・時間割から外す はメニューから選ぶ
+  const { editable, open: openMenu } = editing;
   const onTapCourse = useCallback(
-    (entry: SlotEntry, day: string | null, period: number | null) => {
-      const key = entryKey(entry);
-      // 選択中の科目をもう一度押すと講義詳細を開く（§8.3.4。戻り先は時間割）
-      if (selected?.key === key) {
-        if (entry.code) router.push(proposalDetailHref(entry.code));
-        return;
-      }
-      setSelected({ day: day ?? "", period: period ?? 0, key });
+    (target: CourseTarget) => {
+      const { entry, day, period } = target;
+      setSelected({ day: day ?? "", period: period ?? 0, key: entryKey(entry) });
       setSelection(courseContext(entry.name, entry.code));
+      if (editable) openMenu(target);
     },
-    [selected, router, setSelection],
+    [setSelection, editable, openMenu],
   );
 
   const goSyllabus = (target: SlotTarget, openFilters: boolean) => {
@@ -164,6 +165,7 @@ export default function MobileProposalPage() {
           <div className="pointer-events-none absolute inset-0 grid place-items-center bg-surface-primary/80">
             <p className="max-w-[240px] text-center text-xs leading-5 text-fg-tertiary">
               下のAI履修アシスタントに希望条件を送ると、ここに時間割が出ます。
+              空きコマを長押しして、シラバスから自分で登録することもできます。
             </p>
           </div>
         )}
@@ -183,11 +185,31 @@ export default function MobileProposalPage() {
 
       {courses.length > 0 && (
         <p className="px-3 py-2 text-[9px] text-fg-tertiary">
-          科目をタップするとAIの文脈に入り、もう一度タップするとシラバスを開きます
+          科目をタップすると、シラバスを開く・別の科目に変更・時間割から外すを選べます。空きコマを長押しすると科目を探せます
         </p>
       )}
 
       <MobileAiAssistant conversation={conversation} base={TIMETABLE_CONTEXT} />
+
+      {editing.menu && (
+        <CourseMenu
+          target={editing.menu}
+          onClose={editing.close}
+          onOpenSyllabus={() => editing.openSyllabus(editing.menu!)}
+          onReplace={() => editing.replace(editing.menu!)}
+          onRemove={() => {
+            editing.remove(editing.menu!);
+            setSelected(null);
+            setSelection(null);
+          }}
+          onAskAi={() => {
+            const context = courseContext(editing.menu!.entry.name, editing.menu!.entry.code);
+            editing.close();
+            if (conversation.suggestionsFor) openHalf(context);
+            else expand(context);
+          }}
+        />
+      )}
 
       {slotTarget && (
         <SlotPopover
