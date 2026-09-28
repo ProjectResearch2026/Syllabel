@@ -267,3 +267,65 @@ export function coursesToSlotTable(
   }
   return { table, unscheduled };
 }
+
+/**
+ * その学期名が占めるクォーター。前期は 1Q・2Q、後期は 3Q・4Q とする。通年や
+ * 読めない学期名(集中講義など)・null は4つ全部を占めるものとして扱う
+ * (重なりを見落とすより、確かめる側に倒す)
+ */
+function quartersOfTerm(term: string | null | undefined): string[] {
+  const q = quarterOf(term);
+  if (q) return [q];
+  const key = (term ?? "").normalize("NFKC");
+  if (key.includes("前期")) return ["1Q", "2Q"];
+  if (key.includes("後期")) return ["3Q", "4Q"];
+  return [...QUARTERS];
+}
+
+/**
+ * 開講学期が、時間割の学期(前期・後期)に入るか。学生が自分で科目を登録するときに、
+ * 別の学期の科目を入れようとしていないかを確かめる。学期名が読めないものは入るとみなす
+ */
+export function termFits(term: string | null | undefined, half: "前期" | "後期"): boolean {
+  const own = half === "前期" ? ["1Q", "2Q"] : ["3Q", "4Q"];
+  return quartersOfTerm(term).some((q) => own.includes(q));
+}
+
+type TimetableCourse = {
+  title: string;
+  day: string | null;
+  period: number | null;
+  term: string | null;
+  slots?: { term: string | null; day: string; period: number }[];
+};
+
+function termSlots(course: TimetableCourse): { term: string | null; day: string; period: number }[] {
+  if (course.slots && course.slots.length > 0) return course.slots;
+  return course.day && course.period != null ? [{ term: course.term, day: course.day, period: course.period }] : [];
+}
+
+/**
+ * `course` を時間割に入れたときに重なる科目(同じ曜日・時限で、クォーターが重なる)。
+ * 3Q と 4Q のように同じマスでも期間が分かれていれば重ならない(`coursesToSlotTable()`)
+ */
+export function findConflicts(
+  course: TimetableCourse,
+  courses: TimetableCourse[],
+): { day: string; period: number; title: string }[] {
+  const conflicts: { day: string; period: number; title: string }[] = [];
+  for (const slot of termSlots(course)) {
+    const mine = quartersOfTerm(slot.term);
+    for (const other of courses) {
+      const hit = termSlots(other).some(
+        (o) =>
+          o.day === slot.day &&
+          o.period === slot.period &&
+          quartersOfTerm(o.term).some((q) => mine.includes(q)),
+      );
+      if (hit && !conflicts.some((c) => c.title === other.title && c.day === slot.day && c.period === slot.period)) {
+        conflicts.push({ day: slot.day, period: slot.period, title: other.title });
+      }
+    }
+  }
+  return conflicts;
+}

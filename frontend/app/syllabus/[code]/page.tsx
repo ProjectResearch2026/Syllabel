@@ -32,7 +32,7 @@ import RichText from "./_components/RichText";
 import CourseTag from "./_components/CourseTag";
 import CourseTabs, { type CourseTab } from "./_components/CourseTabs";
 import PanelCard from "./_components/PanelCard";
-import AddToTimetableButton, { type AddableCourse } from "./_components/AddToTimetableButton";
+import AddToTimetableButton from "./_components/AddToTimetableButton";
 
 type Params = Promise<{ code: string }>;
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
@@ -286,17 +286,21 @@ export default async function SyllabusDetailPage({
     });
   }
 
-  // 「時間割に追加」で提案に足すときに要る項目だけを渡す
-  const addable: AddableCourse = {
-    code: syllabus.syllabus_code,
-    title: syllabus.course_title,
-    term: syllabus.term_name || null,
-    day: syllabus.day_of_week || null,
-    period: syllabus.period || null,
-    slots: syllabus.slots,
-    credits: syllabus.credits,
-    target: { programs: syllabus.programs, faculties: syllabus.faculties },
-  };
+  // 時間割に入れるのに要る分だけを渡す(クライアントコンポーネントへ本体を丸ごと送らない)
+  const addButton = (
+    <AddToTimetableButton
+      syllabus={{
+        syllabus_code: syllabus.syllabus_code,
+        course_title: syllabus.course_title,
+        slots: syllabus.slots,
+        day_of_week: syllabus.day_of_week,
+        period: syllabus.period,
+        term_name: syllabus.term_name,
+        credits: syllabus.credits,
+      }}
+      target={{ programs: syllabus.programs, faculties: syllabus.faculties }}
+    />
+  );
 
   const hero = (
     /* モバイルは画面幅いっぱいの白地(ui-design_phone.pen 06 Hero)、PC は浮いたカード */
@@ -331,7 +335,7 @@ export default async function SyllabusDetailPage({
             {syllabus.course_title}
           </h1>
           <div className="hidden md:block">
-            <AddToTimetableButton course={addable} />
+            {addButton}
           </div>
         </div>
 
@@ -343,7 +347,7 @@ export default async function SyllabusDetailPage({
 
         {/* モバイルは見出しの下に全幅で置く(ui-design_phone.pen 06 Hero) */}
         <div className="flex flex-col md:hidden [&>*]:w-full [&>*]:justify-center">
-          <AddToTimetableButton course={addable} />
+          {addButton}
         </div>
       </div>
 
