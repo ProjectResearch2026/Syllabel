@@ -1,4 +1,4 @@
-"""教員名で引くときの検索語の展開。design.md §6.1 / §6.2。
+"""教員名で引くときの、登録表記の組み立て。design.md §6.1 / §6.2。
 
 **api-clean の `instructor` は漢字名の部分一致(`instructor.kanji_name ILIKE`)で、
 正規化を持たない。** 姓と名の区切りは登録された表記のまま照合されるため、全角
@@ -8,61 +8,82 @@
 — 照合するのは api-clean であり、教員名を持つのは `GET /syllabi/{code}`(詳細)
 だけで、一覧は教員名を返さない(§6.2)。
 
-そこで**入力の側を api-clean の表記に寄せて引き直す**。区切りの揺れは
-「全角 / 半角 / 無し」の3通りしかない。
+そこで**入力の空白を取り除き、先頭から1文字ずつ伸ばしながら api-clean に当たるかを
+確かめて、登録表記を組み立てる**。次の1文字をそのまま繋げて当たらなければ、
+区切り(全角 → 半角)を挟んで試す。
 
-| 入力 | 引く語 |
+| 入力 | 組み立て |
 |---|---|
-| `山田　太郎`(全角) | 入力どおりで当たる |
-| `山田 太郎`(半角) | `山田　太郎` / `山田太郎` を足す |
-| `山田太郎`(区切りなし) | 区切りを入れる位置が分からないので、姓の長さを1〜4で試す |
-| `山田`(姓のみ) | 部分一致なので入力どおりで当たる |
+| `山田`(姓のみ) | 部分一致なので入力どおりで当たる。組み立てない |
+| `山田　太郎`(全角) | 同上 |
+| `山田 太郎` / `山田太郎` | `山田` → `山田太`(外れ)→ `山田　太` → `山田　太郎` |
+| `オーガスティンジョナサン` | 姓が7文字でも同じ手順で `オーガスティン　ジョナサン` に至る |
+| `ドラグナラルカマリア` | 区切りが2つあっても `ドラグナ　ラルカ　マリア` に至る |
 
-**入力どおりの語を必ず先頭に置く。** 姓のみ・全角区切りのフルネームはこれで
-当たるため、呼び出し側はまず先頭だけを引き、空振りしたときにだけ残りを引けばよい
-(`app/agents/tools.py` の `search_syllabi_by_instructor()`)。
+以前は区切りを入れる位置を姓の長さ1〜4文字で決め打ちしていたため、姓が5文字以上の
+教員(オーガスティン・ヘルナンデス・ナットチー)と、区切りが2つある教員(ドラグナ
+ラルカ マリア)を区切りなしで引けなかった。**確かめながら伸ばすので、姓の長さも
+区切りの数も仮定しない。** 組み立てた語は api-clean に実在する表記の一部であり、
+当て推量の語を束ねることもない。
 
-**`frontend/lib/instructorName.ts` の `instructorQueries()` と同じ規則に保つこと。**
+**入力どおりの語をまず引き、空振りしたときだけ組み立てる**(呼び出し側。
+`app/agents/tools.py` の `search_syllabi_by_instructor()`)。姓のみ・全角区切りの
+フルネームは入力どおりの1回で当たる。
+
+**`frontend/lib/instructorName.ts` の `spellInstructorName()` と同じ規則に保つこと。**
 検索画面(frontend)とシラバスチャット(backend のエージェント)で同じ語の当たり方が
 食い違うと、「検索では出るのにチャットでは知らないと言われる」というねじれが起きる。
 """
 
-#: 姓と名の間に入り得る区切り(全角スペース / 半角スペース / 無し)
-_SEPARATORS = ("　", " ", "")
+from collections.abc import Awaitable, Callable
 
-#: 区切りなしで入力されたときに試す姓の長さの上限。
-#: 日本語の姓はほぼ1〜3文字で、4文字(勅使河原など)が実質の上限である。
-#: 上限を切らないと長い入力で試行が際限なく増える。
-_MAX_SURNAME_LENGTH = 4
+#: 1文字を繋げて外れたときに、その手前に挟んで試す区切り。登録表記は全角スペース
+#: 区切りなので全角を先に試す
+_SEPARATORS = ("　", " ")
+
+#: 組み立て1回あたりの問い合わせの上限。
+#: 登録されている教員名は最長でも14文字(区切り込み。2026年度)で、当たる道を
+#: まっすぐ伸ばせば1文字につき高々3回で済む。偶然当たる寄り道で後戻りが続いても
+#: 問い合わせが際限なく増えないよう、ここで打ち切る。
+_MAX_PROBES = 64
 
 
-def instructor_queries(keyword: str) -> list[str]:
-    """教員名の検索語を、表記の揺れを埋める順に並べて返す。
+async def spell_instructor_name(
+    keyword: str,
+    exists: Callable[[str], Awaitable[bool]],
+) -> str | None:
+    """入力を、api-clean に当たる教員名の表記へ組み立てる。
 
-    先頭は入力そのもの(前後の空白だけ落とす)。以降は当たり得る書き換えで、
-    重複は畳む。空文字や空白だけの入力には空のリストを返す。
+    入力の空白(全角・半角)を取り除き、先頭から1文字ずつ伸ばす。伸ばした語が
+    当たるかは `exists` に問い合わせる。
+
+    Args:
+        keyword: 学生(またはエージェント)が入力した教員名
+        exists: その語で1件以上当たるかを返す関数。`instructor` の部分一致で引く
+
+    Returns:
+        最後の1文字まで当たった語。組み立てられなかったとき(どこかで外れた・
+        問い合わせの上限に達した・入力が空白だけ)は None。
     """
-    word = keyword.strip()
-    if not word:
-        return []
+    chars = "".join(keyword.split())
+    if not chars:
+        return None
 
-    queries: list[str] = []
+    probes = 0
 
-    def add(query: str) -> None:
-        if query and query not in queries:
-            queries.append(query)
+    async def grow(prefix: str, index: int) -> str | None:
+        nonlocal probes
+        if index == len(chars):
+            return prefix
+        # 区切りを挟まない続きを先に試す。外れたら区切りを挟む
+        for candidate in [prefix + chars[index], *(prefix + s + chars[index] for s in _SEPARATORS)]:
+            if probes >= _MAX_PROBES:
+                return None
+            probes += 1
+            if await exists(candidate):
+                spelled = await grow(candidate, index + 1)
+                if spelled is not None:
+                    return spelled
+        return None
 
-    add(word)
-
-    tokens = word.split()
-    if len(tokens) > 1:
-        # 区切りは入力が示している。詰め替えるだけでよい
-        for separator in _SEPARATORS:
-            add(separator.join(tokens))
-        return queries
-
-    # 区切りなし。姓と名の境目が分からないので、区切りを入れる位置を順に試す
-    for surname in range(1, min(_MAX_SURNAME_LENGTH, len(word) - 1) + 1):
-        for separator in _SEPARATORS:
-            add(word[:surname] + separator + word[surname:])
-    return queries
+    return await grow(chars[0], 1)

@@ -8,7 +8,6 @@ import {
   BookMarked,
   Clock3,
   ClipboardCheck,
-  CheckCheck,
   Info,
   List,
   TriangleAlert,
@@ -22,7 +21,6 @@ import { parseGrading } from "@/lib/grading";
 import { courseQuestions } from "@/lib/courseQuestions";
 import { parseNote, registrationFlags, pruneNote } from "@/lib/note";
 import { targetsOf } from "@/lib/courseTarget";
-import { formatGrade } from "@/lib/schedule";
 import CourseMobileAssistant from "../_components/CourseMobileAssistant";
 import CourseChatPanel from "../_components/CourseChatPanel";
 import GradingContent from "../_components/GradingContent";
@@ -34,7 +32,7 @@ import RichText from "./_components/RichText";
 import CourseTag from "./_components/CourseTag";
 import CourseTabs, { type CourseTab } from "./_components/CourseTabs";
 import PanelCard from "./_components/PanelCard";
-import AddToTimetableButton from "./_components/AddToTimetableButton";
+import AddToTimetableButton, { type AddableCourse } from "./_components/AddToTimetableButton";
 
 type Params = Promise<{ code: string }>;
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
@@ -58,18 +56,6 @@ function OverviewSection({
       </h3>
       <div className="text-[13px] leading-6 text-[#333333] md:text-[13.5px] md:text-fg-secondary">{children}</div>
     </section>
-  );
-}
-
-/** 履修条件・備考の「ラベル / 値」1組。 */
-function FieldRow({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
-      <p className="text-[10.5px] font-bold leading-[15px] tracking-[0.4px] text-fg-muted">
-        {label}
-      </p>
-      <p className="text-[13px] font-medium leading-5 text-fg-primary">{value}</p>
-    </div>
   );
 }
 
@@ -103,9 +89,14 @@ export default async function SyllabusDetailPage({
   // チャットのサジェストは、その科目のシラバスで答えられるものだけにする(§7.5)
   const questions = courseQuestions(syllabus);
 
-  const hasBooks =
-    syllabus.textbooks.length > 0 || syllabus.textbook_note || syllabus.reference_note;
-  const hasMaterialsTab = hasBooks || syllabus.advice || noteBody || targets.length > 0;
+  const hasBooks = !!(
+    syllabus.textbooks.length > 0 ||
+    syllabus.textbook_note ||
+    syllabus.reference_note
+  );
+  // 履修条件カードを畳んだので、このタブは教材・注意・備考のどれかがあるときだけ出す。
+  // 以前は対象課程があるだけで(＝ほぼ全科目で)開けてしまっていた
+  const hasMaterialsTab = !!(hasBooks || syllabus.advice || noteBody);
 
   // 書影と書誌の詳細は ISBN から openBD に引く(§6.4)。引けた本だけ書影が付き、
   // 書名を押すと開くようになる。ISBN が要るので詳細の取得より後になるが、
@@ -246,64 +237,66 @@ export default async function SyllabusDetailPage({
       label: "教材・履修上の注意",
       panel: (
         <>
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
-            {hasBooks && (
-              <PanelCard
-                icon={BookMarked}
-                title="テキスト・参考文献"
-                className="min-w-0 flex-1"
-              >
-                <BookList
-                  books={syllabus.textbooks}
-                  textbookNote={syllabus.textbook_note}
-                  referenceNote={syllabus.reference_note}
-                  bookInfo={bookInfo}
-                />
-              </PanelCard>
-            )}
-
-            <PanelCard
-              icon={CheckCheck}
-              title="履修条件"
-              className="w-full shrink-0 xl:w-[352px]"
-            >
-              {registration.length > 0 && (
-                <FieldRow label="登録方法" value={registration.join("・")} />
-              )}
-              {targets.length > 0 && (
-                <FieldRow
-                  label={syllabus.programs.length > 0 ? "対象課程" : "対象学部"}
-                  value={targets.join("・")}
-                />
-              )}
-              <FieldRow label="配当年次" value={formatGrade(syllabus)} />
-              <FieldRow label="単位" value={`${syllabus.credits}単位`} />
-            </PanelCard>
-          </div>
-
-          {(syllabus.advice || noteBody) && (
+          {/*
+            ui-design_pc.pen 06_講義詳細_教材・履修上の注意 Row_A。
+            **「履修条件」カードは置かない。** 対象課程・配当年次・単位は見出しカードの
+            基本情報(`CourseFacts`)に、登録方法は見出しのタグに既に出ており、
+            同じ値を1画面に二度並べていた
+          */}
+          {(hasBooks || noteBody) && (
             <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
-              {syllabus.advice && (
+              {hasBooks && (
                 <PanelCard
-                  icon={TriangleAlert}
-                  title="受講に際しての注意"
+                  icon={BookMarked}
+                  title="テキスト・参考文献"
                   className="min-w-0 flex-1"
                 >
-                  <RichText>{syllabus.advice}</RichText>
+                  <BookList
+                    books={syllabus.textbooks}
+                    textbookNote={syllabus.textbook_note}
+                    referenceNote={syllabus.reference_note}
+                    bookInfo={bookInfo}
+                  />
                 </PanelCard>
               )}
 
+              {/* 備考は右の列。教材が無い科目では1枚で全幅を使う */}
               {noteBody && (
-                <PanelCard icon={Info} title="備考" className="min-w-0 flex-1">
+                <PanelCard
+                  icon={Info}
+                  title="備考"
+                  className={
+                    hasBooks ? "w-full shrink-0 xl:w-[352px]" : "min-w-0 flex-1"
+                  }
+                >
                   <CourseNote note={noteBody} />
                 </PanelCard>
               )}
             </div>
           )}
+
+          {/* Row_B。受講に際しての注意は横に並べず全幅に置く */}
+          {syllabus.advice && (
+            <PanelCard icon={TriangleAlert} title="受講に際しての注意">
+              <RichText>{syllabus.advice}</RichText>
+            </PanelCard>
+          )}
         </>
       ),
     });
   }
+
+  // 「時間割に追加」で提案に足すときに要る項目だけを渡す
+  const addable: AddableCourse = {
+    code: syllabus.syllabus_code,
+    title: syllabus.course_title,
+    term: syllabus.term_name || null,
+    day: syllabus.day_of_week || null,
+    period: syllabus.period || null,
+    slots: syllabus.slots,
+    credits: syllabus.credits,
+    target: { programs: syllabus.programs, faculties: syllabus.faculties },
+  };
 
   const hero = (
     /* モバイルは画面幅いっぱいの白地(ui-design_phone.pen 06 Hero)、PC は浮いたカード */
@@ -338,7 +331,7 @@ export default async function SyllabusDetailPage({
             {syllabus.course_title}
           </h1>
           <div className="hidden md:block">
-            <AddToTimetableButton title={syllabus.course_title} code={syllabus.syllabus_code} />
+            <AddToTimetableButton course={addable} />
           </div>
         </div>
 
@@ -350,7 +343,7 @@ export default async function SyllabusDetailPage({
 
         {/* モバイルは見出しの下に全幅で置く(ui-design_phone.pen 06 Hero) */}
         <div className="flex flex-col md:hidden [&>*]:w-full [&>*]:justify-center">
-          <AddToTimetableButton title={syllabus.course_title} code={syllabus.syllabus_code} />
+          <AddToTimetableButton course={addable} />
         </div>
       </div>
 
