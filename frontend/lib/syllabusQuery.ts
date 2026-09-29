@@ -20,6 +20,7 @@ export const LIST_QUERY_KEYS = [
   "term",
   "day",
   "period",
+  "grade",
   "offset",
   "filters",
 ] as const;

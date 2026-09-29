@@ -23,12 +23,15 @@ import MobileAiAssistant from "@/components/ai/MobileAiAssistant";
 import SyllabusPagination from "./SyllabusPagination";
 import { TAG_CHIPS, CATEGORY_CHOICES } from "@/lib/syllabusUI";
 import { useFilterControls } from "@/lib/useFilterControls";
+import { PERIODS } from "@/lib/timetable";
 import { useTaggedResults } from "@/lib/useTaggedResults";
 import { detailHref } from "@/lib/syllabusQuery";
 import CourseTags from "./CourseTags";
 import SyllabusProfileNotice, { CategoryFilterHint } from "./SyllabusProfileNotice";
 
 const DAYS = ["月", "火", "水", "木", "金", "土"];
+/** 対象年次の選択肢。api-clean の `grade` の値域(1〜4)と同じ */
+const GRADES = [1, 2, 3, 4];
 
 type Props = {
   /** 条件に当たる**全件**。ページ送りはこの中から切り出す(§6.2) */
@@ -96,6 +99,8 @@ export default function MobileSyllabusPage({
   const campus = searchParams.get("campus") ?? "";
   const term = searchParams.get("term") ?? "";
   const day = searchParams.get("day") ?? "";
+  const period = searchParams.get("period") ?? "";
+  const grade = searchParams.get("grade") ?? "";
 
   const selectClass =
     "w-full h-[34px] border border-[#D1D5DB] rounded px-2.5 text-xs text-[#1A2B4E] bg-white focus:outline-none focus:border-[#1A2B4E] transition-colors";
@@ -131,6 +136,25 @@ export default function MobileSyllabusPage({
           {program && (
             <span className="text-[10px] leading-snug text-[#6B7280]">
               その課程が対象の科目のみ
+            </span>
+          )}
+        </>
+      ),
+    },
+    {
+      // 配当年次の範囲(`grade_min`〜`grade_max`)にこの年次を含む科目に絞る(§6.2)
+      label: "対象年次",
+      node: (
+        <>
+          <select value={grade} onChange={(e) => update("grade", e.target.value)} className={selectClass}>
+            <option value="">すべて</option>
+            {GRADES.map((g) => (
+              <option key={g} value={g}>{g}年次</option>
+            ))}
+          </select>
+          {grade && (
+            <span className="text-[10px] leading-snug text-[#6B7280]">
+              {grade}年次で履修できる科目のみ
             </span>
           )}
         </>
@@ -185,6 +209,17 @@ export default function MobileSyllabusPage({
           <option value="">すべて</option>
           {DAYS.map((d) => (
             <option key={d} value={d}>{d}曜日</option>
+          ))}
+        </select>
+      ),
+    },
+    {
+      label: "時限",
+      node: (
+        <select value={period} onChange={(e) => update("period", e.target.value)} className={selectClass}>
+          <option value="">すべて</option>
+          {PERIODS.map((p) => (
+            <option key={p} value={p}>{p}限</option>
           ))}
         </select>
       ),

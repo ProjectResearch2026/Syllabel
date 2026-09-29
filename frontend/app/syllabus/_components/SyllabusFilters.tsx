@@ -6,9 +6,12 @@ import { SlidersHorizontal } from "lucide-react";
 import { OFFERING_YEAR, FACULTY, type Masters } from "@/lib/syllabus-api";
 import { CATEGORY_CHOICES } from "@/lib/syllabusUI";
 import { useFilterControls } from "@/lib/useFilterControls";
+import { PERIODS } from "@/lib/timetable";
 import { CategoryFilterHint } from "./SyllabusProfileNotice";
 
 const DAYS = ["月", "火", "水", "木", "金", "土"];
+/** 対象年次の選択肢。api-clean の `grade` の値域(1〜4)と同じ */
+const GRADES = [1, 2, 3, 4];
 
 type Props = {
   masters: Masters;
@@ -38,6 +41,8 @@ export default function SyllabusFilters({ masters }: Props) {
   const campus = searchParams.get("campus") ?? "";
   const term = searchParams.get("term") ?? "";
   const day = searchParams.get("day") ?? "";
+  const period = searchParams.get("period") ?? "";
+  const grade = searchParams.get("grade") ?? "";
 
   const selectClass =
     "w-full appearance-none rounded border border-border-primary bg-surface-primary px-2.5 py-2 text-[13px] text-fg-primary transition-colors focus:border-fg-primary focus:outline-none";
@@ -75,6 +80,25 @@ export default function SyllabusFilters({ masters }: Props) {
           {program && (
             <span className="text-[11px] leading-snug text-fg-secondary">
               その課程が対象の科目のみ。全学向けの教養教育科目は外れます
+            </span>
+          )}
+        </>
+      ),
+    },
+    {
+      // 配当年次の範囲(`grade_min`〜`grade_max`)にこの年次を含む科目に絞る(§6.2)
+      label: "対象年次",
+      node: (
+        <>
+          <select value={grade} onChange={(e) => update("grade", e.target.value)} className={selectClass}>
+            <option value="">すべて</option>
+            {GRADES.map((g) => (
+              <option key={g} value={g}>{g}年次</option>
+            ))}
+          </select>
+          {grade && (
+            <span className="text-[11px] leading-snug text-fg-secondary">
+              {grade}年次で履修できる科目のみ
             </span>
           )}
         </>
@@ -130,6 +154,17 @@ export default function SyllabusFilters({ masters }: Props) {
           <option value="">すべて</option>
           {DAYS.map((d) => (
             <option key={d} value={d}>{d}曜日</option>
+          ))}
+        </select>
+      ),
+    },
+    {
+      label: "時限",
+      node: (
+        <select value={period} onChange={(e) => update("period", e.target.value)} className={selectClass}>
+          <option value="">すべて</option>
+          {PERIODS.map((p) => (
+            <option key={p} value={p}>{p}限</option>
           ))}
         </select>
       ),
