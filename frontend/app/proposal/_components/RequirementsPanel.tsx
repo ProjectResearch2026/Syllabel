@@ -169,7 +169,7 @@ function DoneSummary({ slots, updating }: { slots: SlotProgress[]; updating: boo
  * 凡例も行を割かず ⓘ に畳む。
  *
  * 数字は `POST /api/requirements` の判定(`lib/requirements.ts`)であり、手元で
- * 足し算しない。今期の時間割(提案・登録済み)の分は赤で重ね、時間割が変われば追従する。
+ * 足し算しない。今期の時間割(提案の科目)の分は赤で重ね、時間割が変われば追従する。
  */
 export default function RequirementsPanel({ view }: { view: RequirementsView }) {
   if (view.status === "unavailable") return null;

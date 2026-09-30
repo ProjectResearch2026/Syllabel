@@ -157,7 +157,7 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 ## 卒業要件枠の内訳
 
-履修提案の画面はヘッダーカードの直下の帯(PC)・単位バーと提案する学期の下(モバイル。`MobileRequirementsStrip`)に要件枠ごとの充足状況を出す(design.md §8.3.5、`app/proposal/_components/RequirementsPanel.tsx`)。**充足した枠(修得済みの単位だけで充足した枠。見込みでは決めない — `SlotProgress.earnedShortfall`)は1つのまとめに畳み、足りない枠だけを1行に並べ、入りきらない分は横にスクロールさせる(折り返さない。PC はスクロールバーを隠し、端のぼかしと矢印ボタンで続きを示し、凡例は ⓘ に畳む。モバイルは指で送るので矢印を置かない)。** 取得済み・今期登録・卒業残りの単位数は PC のヘッダー(`components/Header.tsx`)とモバイルの時間割の単位バーにある。**ヘッダーと帯の値は `lib/creditSummary.tsx` の `useCreditSummary()` から採る**(`CreditSummaryProvider` がルートのレイアウトで判定を1回だけ引く。各所で `useRequirements()` を呼ばない)。**数字は `lib/requirements.ts` の `useRequirements()` から採り、画面で足し算しない。** 枠への割り当て・溢れ・算入上限は backend の `requirements.py` が判定する(同じ枠の科目を不足より多く取った分は下流の枠に回る)。今期の時間割(提案の `courses` と登録済みの科目)の分は、それを修得したとみなして2回目を引いた差で出す。提案の store の `courses` に追従するので、時間割を変える経路を足すときは store を書き換えればよい。`profile.program` は課程**コード**で送る(`fetchRequirements()` が差し替える)。
+履修提案の画面はヘッダーカードの直下の帯(PC)・単位バーと提案する学期の下(モバイル。`MobileRequirementsStrip`)に要件枠ごとの充足状況を出す(design.md §8.3.5、`app/proposal/_components/RequirementsPanel.tsx`)。**充足した枠(修得済みの単位だけで充足した枠。見込みでは決めない — `SlotProgress.earnedShortfall`)は1つのまとめに畳み、足りない枠だけを1行に並べ、入りきらない分は横にスクロールさせる(折り返さない。PC はスクロールバーを隠し、端のぼかしと矢印ボタンで続きを示し、凡例は ⓘ に畳む。モバイルは指で送るので矢印を置かない)。** 取得済み・今期登録・卒業残りの単位数は PC のヘッダー(`components/Header.tsx`)とモバイルの時間割の単位バーにある。**ヘッダーと帯の値は `lib/creditSummary.tsx` の `useCreditSummary()` から採る**(`CreditSummaryProvider` がルートのレイアウトで判定を1回だけ引く。各所で `useRequirements()` を呼ばない)。**数字は `lib/requirements.ts` の `useRequirements()` から採り、画面で足し算しない。** 枠への割り当て・溢れ・算入上限は backend の `requirements.py` が判定する(同じ枠の科目を不足より多く取った分は下流の枠に回る)。今期の時間割(提案の `courses`)の分は、それを修得したとみなして2回目を引いた差で出す。**登録済み(`registered`)の科目は今期の時間割に入れない**(成績表に `***` で載るのは終わった学期の成績発表待ちの科目で、提案する学期の科目ではない)。提案の store の `courses` に追従するので、時間割を変える経路を足すときは store を書き換えればよい。`profile.program` は課程**コード**で送る(`fetchRequirements()` が差し替える)。
 
 ## 課程コードの解決
 
@@ -261,5 +261,8 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 ## 龍谷祭デモ向け機能
 
-- `frontend/lib/dummy/` に複数パターンのダミー学生プロファイルを用意し、「デモモード」ボタンから読み込めるようにする
+- ダミー学生は `lib/dummy/profiles.json` の48件(課程6 × 提案を受ける学年4 × 提案する学期2)。**手で書き換えず** `backend/scripts/generate_dummy_profiles.py` で作り直す(履修要項と api-clean の開講実績から組み立てる。検査は `backend/tests/test_dummy_profiles.py`)。約100KBあるので、選んだときに `loadDemoProfile()` が `import()` する
+- 選ぶ部品は `app/_components/DemoPicker.tsx` ひとつで、取り込み画面(PC・モバイル)とマイデータ(PC)・設定(モバイル)で共用する。学期の初期値は `defaultDemoTerm()`(3〜8月は前期、9〜2月は後期)
+- デモの学生は `profile.demo` を持ち、**提案する学期は `demo.target` に固定する**(`lib/targetTerm.ts`。今日の日付から決めない)。`grade` は提案する学期の学年である
+- 1年前期(`isFreshmanDemo()`)は成績が1件も無い。取り込み確認・完了の画面では「取り込み」と言わず「新入生として始める」とする
 - 展示用端末では「PDF取り込み」を無効化する

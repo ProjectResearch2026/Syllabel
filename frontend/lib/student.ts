@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import type { DemoKey } from "@/lib/dummy/profiles";
+import type { TargetTerm } from "@/lib/targetTerm";
 
 export type CourseTerm =
   | "前期"
@@ -43,6 +45,13 @@ export type StudentProfile = {
    * 作成は 3.0)ため学期が分からない(`lib/targetTerm.ts`)。手入力・デモでは null
    */
   enrollment?: EnrollmentYears | null;
+  /**
+   * デモの学生(`lib/dummy/profiles.ts`)だけが持つ。来場者が選んだ学年・課程・学期と、
+   * 提案する学期。**デモでは提案する学期を今日の日付から決めない** — ダミーの成績は
+   * 決まった時点のもので、日付で決めると成績の続きではない学期を提案してしまう。
+   * `grade` はこのとき提案する学期の学年である
+   */
+  demo?: { key: DemoKey; target: TargetTerm } | null;
 };
 
 export type EnrollmentYears = {

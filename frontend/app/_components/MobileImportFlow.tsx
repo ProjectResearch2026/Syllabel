@@ -22,7 +22,8 @@ import {
 } from "lucide-react";
 import { isUnearned, useStudentStore, type StudentProfile } from "@/lib/student";
 import { useCreditSummary } from "@/lib/creditSummary";
-import { DUMMY_PROFILES } from "@/lib/dummy/profiles";
+import { demoLabel, isFreshmanDemo } from "@/lib/dummy/profiles";
+import DemoPicker from "./DemoPicker";
 import ManualInputForm from "./ManualInputForm";
 import PrivacyConsentModal from "./PrivacyConsentModal";
 
@@ -99,9 +100,9 @@ export default function MobileImportFlow() {
     setStep(1);
   };
 
-  const handleDemoLoad = (index: number) => {
+  const handleDemoLoad = (profile: StudentProfile) => {
     setDemoOpen(false);
-    stage(DUMMY_PROFILES[index].profile, `デモ: ${DUMMY_PROFILES[index].label}`);
+    stage(profile, `デモ: ${profile.demo ? demoLabel(profile.demo.key) : ""}・${profile.program ?? ""}`);
   };
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -141,6 +142,9 @@ export default function MobileImportFlow() {
     if (pending) setProfile(pending);
     setStep(2);
   };
+
+  // 1年前期のデモは入学直後で成績表が無い。「取り込み」とは言わず、新入生として始める
+  const freshman = isFreshmanDemo(pending);
 
   if (parseState.type === "manual") {
     return (
@@ -266,15 +270,9 @@ export default function MobileImportFlow() {
                     style={{ originY: "top" }}
                     className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#D1D5DB] rounded-lg shadow-md overflow-hidden z-10"
                   >
-                    {DUMMY_PROFILES.map((p, i) => (
-                      <button
-                        key={p.label}
-                        onClick={() => handleDemoLoad(i)}
-                        className="w-full h-12 px-4 flex items-center text-left active:bg-[#EEF1F8] transition-colors border-b border-[#E5E7EB] last:border-b-0"
-                      >
-                        <span className="text-sm text-[#1A2B4E]">{p.label}</span>
-                      </button>
-                    ))}
+                    <div className="p-4">
+                      <DemoPicker onLoad={handleDemoLoad} />
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -310,7 +308,9 @@ export default function MobileImportFlow() {
           transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
           className="flex flex-col gap-5 p-5"
         >
-          <h2 className="text-[15px] font-bold text-[#1A2B4E]">取り込み内容の確認</h2>
+          <h2 className="text-[15px] font-bold text-[#1A2B4E]">
+            {freshman ? "新入生として始める" : "取り込み内容の確認"}
+          </h2>
 
           <div className="rounded-lg border border-[#D1D5DB] overflow-hidden">
             {/* Card header */}
@@ -319,9 +319,15 @@ export default function MobileImportFlow() {
                 <FileCheck size={18} className="text-[#E60012] shrink-0" />
                 <span className="text-[13px] font-semibold text-[#1A2B4E] truncate">{fileName}</span>
               </div>
-              <span className="shrink-0 px-2 py-[3px] rounded bg-[#D1FAE5] text-[10px] font-semibold text-[#065F46]">
-                読み込み完了
-              </span>
+              {freshman ? (
+                <span className="shrink-0 px-2 py-[3px] rounded bg-surface-soft text-[10px] font-semibold text-fg-secondary">
+                  成績なし
+                </span>
+              ) : (
+                <span className="shrink-0 px-2 py-[3px] rounded bg-[#D1FAE5] text-[10px] font-semibold text-[#065F46]">
+                  読み込み完了
+                </span>
+              )}
             </div>
 
             {/* Summary rows */}
@@ -329,7 +335,7 @@ export default function MobileImportFlow() {
               { label: "学年", value: `${pending?.grade ?? "-"}回生` },
               { label: "課程", value: pending?.program ?? "-" },
               { label: "取得済み単位", value: `${totalCredits}単位` },
-              { label: "判定科目数", value: `${passedCount}科目` },
+              ...(freshman ? [] : [{ label: "判定科目数", value: `${passedCount}科目` }]),
               // 未修得は単位に数えないが、再履修の提案に使うので取り込んだことを見せる
               ...(unearnedCourses.length > 0
                 ? [{ label: "未修得科目（再履修の対象）", value: `${unearnedCourses.length}科目` }]
@@ -350,11 +356,13 @@ export default function MobileImportFlow() {
               </div>
             ))}
 
-            {/* Course preview */}
+            {/* Course preview。新入生には見せる科目が無い */}
+            {!freshman && (
             <div className="flex items-center justify-between h-9 px-3.5 bg-[#EEF0F5] border-b border-[#E5E7EB]">
               <span className="text-[11px] font-semibold text-[#4B5563]">取り込まれた科目（一部）</span>
               <span className="text-[11px] text-[#E60012] tabular-nums">全{courses.length}件 →</span>
             </div>
+            )}
             {courses.slice(0, 5).map((c, i) => {
               const fail = isUnearned(c);
               const scoreLabel =
@@ -379,6 +387,12 @@ export default function MobileImportFlow() {
             })}
           </div>
 
+          {freshman && (
+            <p className="text-xs leading-relaxed text-[#4B5563]">
+              入学したばかりで、成績表はまだありません。1年前期の必修を中心に、はじめての時間割を提案します。
+            </p>
+          )}
+
           {/* Warning */}
           {unearnedCourses.length > 0 && (
             <div className="flex items-center gap-2 px-3 py-2.5 bg-[#FFF3CD] border-l-[3px] border-[#F59E0B] rounded-r">
@@ -395,7 +409,9 @@ export default function MobileImportFlow() {
             className="w-full h-[52px] rounded-lg bg-[#E60012] flex items-center justify-center gap-2 active:bg-[#b7000c] transition-colors"
           >
             <CircleCheck size={20} className="text-white" />
-            <span className="text-[15px] font-bold text-white">この内容で取り込む</span>
+            <span className="text-[15px] font-bold text-white">
+              {freshman ? "この学生で始める" : "この内容で取り込む"}
+            </span>
           </button>
           <button
             onClick={() => setStep(0)}
@@ -425,9 +441,11 @@ export default function MobileImportFlow() {
             >
               <CircleCheck size={40} className="text-[#E60012]" />
             </motion.div>
-            <h2 className="text-[22px] font-bold text-[#1A2B4E]">インポート完了！</h2>
+            <h2 className="text-[22px] font-bold text-[#1A2B4E]">
+              {freshman ? "準備ができました！" : "インポート完了！"}
+            </h2>
             <p className="text-sm text-[#4B5563] text-center leading-relaxed">
-              成績データが正常に取り込まれました。
+              {freshman ? "入学したばかりの学生として始めます。" : "成績データが正常に取り込まれました。"}
               <br />
               AIアシスタントが履修分析を開始できます。
             </p>

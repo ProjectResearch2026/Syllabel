@@ -22,7 +22,8 @@ import { AnimatePresence, motion, type Variants } from "motion/react";
 import StepBar from "./StepBar";
 import PrivacyConsentModal from "./PrivacyConsentModal";
 import { isUnearned, useStudentStore, type StudentProfile } from "@/lib/student";
-import { DUMMY_PROFILES } from "@/lib/dummy/profiles";
+import { demoLabel, isFreshmanDemo } from "@/lib/dummy/profiles";
+import DemoPicker from "./DemoPicker";
 
 /**
  * 成績表の取り込み（ui-design_pc.pen 01〜03_Import）。
@@ -84,9 +85,9 @@ export default function PcImportPage() {
     setStep(1);
   };
 
-  const handleDemoLoad = (index: number) => {
+  const handleDemoLoad = (profile: StudentProfile) => {
     setDemoOpen(false);
-    stage(DUMMY_PROFILES[index].profile, `デモ: ${DUMMY_PROFILES[index].label}`);
+    stage(profile, `デモ: ${profile.demo ? demoLabel(profile.demo.key) : ""}・${profile.program ?? ""}`);
   };
 
   const handleFileSelect = useCallback((file: File) => {
@@ -314,15 +315,9 @@ export default function PcImportPage() {
                       transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
                       className="absolute inset-x-0 top-full z-10 mt-1 origin-top overflow-hidden rounded border border-border-primary bg-surface-primary shadow-popover"
                     >
-                      {DUMMY_PROFILES.map((p, i) => (
-                        <button
-                          key={p.label}
-                          onClick={() => handleDemoLoad(i)}
-                          className="flex h-11 w-full items-center gap-2 border-b border-[#E5E7EB] px-4 text-left transition-colors last:border-b-0 hover:bg-surface-soft"
-                        >
-                          <span className="text-sm text-fg-primary">{p.label}</span>
-                        </button>
-                      ))}
+                      <div className="p-4">
+                        <DemoPicker onLoad={handleDemoLoad} />
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -334,6 +329,64 @@ export default function PcImportPage() {
     }
 
     // ---- 2段目: 確認 ----
+    // 1年前期のデモは入学直後で成績表が無い。「取り込み」とは言わず、新入生として始める
+    const freshman = isFreshmanDemo(pending);
+    if (step === 1 && freshman) {
+      return (
+        <CenterColumn>
+          <StepBar current={1} />
+
+          <div className="flex w-[480px] flex-col gap-4">
+            <h3 className="text-base font-bold text-fg-primary">新入生として始める</h3>
+
+            <div className="overflow-hidden rounded-lg border border-border-primary bg-surface-primary">
+              <div className="flex h-12 items-center justify-between border-b border-[#E5E7EB] px-4">
+                <span className="truncate text-[13px] font-semibold text-fg-primary">{fileName}</span>
+                <span className="shrink-0 rounded bg-surface-soft px-2 py-[3px] text-[11px] font-semibold text-fg-secondary">
+                  成績なし
+                </span>
+              </div>
+              {[
+                { label: "学年", value: "1回生" },
+                { label: "課程", value: pending?.program ?? "-" },
+                { label: "取得済み単位", value: "0単位" },
+              ].map((row, i, rows) => (
+                <div
+                  key={row.label}
+                  className={`flex h-10 items-center justify-between px-4 ${
+                    i % 2 === 0 ? "bg-surface-gray" : "bg-surface-primary"
+                  } ${i < rows.length - 1 ? "border-b border-[#E5E7EB]" : ""}`}
+                >
+                  <span className="text-xs text-fg-secondary">{row.label}</span>
+                  <span className="tabular-nums text-[13px] font-semibold text-fg-primary">{row.value}</span>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-xs leading-relaxed text-fg-secondary">
+              入学したばかりで、成績表はまだありません。1年前期の必修を中心に、はじめての時間割を提案します。
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setStep(0)}
+                className="flex h-11 items-center justify-center gap-2 rounded border border-fg-primary px-5 transition-colors hover:bg-surface-soft"
+              >
+                <ChevronLeft size={16} className="text-fg-primary" aria-hidden="true" />
+                <span className="text-sm font-semibold text-fg-primary">戻る</span>
+              </button>
+              <button
+                onClick={handleConfirm}
+                className="flex h-11 flex-1 items-center justify-center rounded bg-accent transition-colors hover:bg-primary-dark"
+              >
+                <span className="text-sm font-semibold text-fg-inverse">この学生で始める</span>
+              </button>
+            </div>
+          </div>
+        </CenterColumn>
+      );
+    }
+
     if (step === 1) {
       const rows = [
         { label: "学年", value: `${pending?.grade ?? "-"}回生` },
@@ -424,9 +477,11 @@ export default function PcImportPage() {
           >
             <CircleCheck size={40} className="text-accent" aria-hidden="true" />
           </motion.span>
-          <h2 className="text-2xl font-bold text-fg-primary">インポート完了！</h2>
+          <h2 className="text-2xl font-bold text-fg-primary">
+            {freshman ? "準備ができました！" : "インポート完了！"}
+          </h2>
           <p className="w-90 text-center text-sm leading-6 text-fg-secondary">
-            成績データが正常に取り込まれました。
+            {freshman ? "入学したばかりの学生として始めます。" : "成績データが正常に取り込まれました。"}
             <br />
             AIアシスタントが履修分析を開始できます。
           </p>

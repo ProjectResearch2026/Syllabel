@@ -50,7 +50,7 @@ export async function fetchRequirements(
   return res.json();
 }
 
-/** 画面に出す要件枠1つ。`planned` は今期の時間割(提案・登録済み)を修得したときに増える単位 */
+/** 画面に出す要件枠1つ。`planned` は今期の時間割(提案の科目)を修得したときに増える単位 */
 export type SlotProgress = {
   key: string;
   name: string;
@@ -86,11 +86,15 @@ export type RequirementsView =
     };
 
 /**
- * 今期の時間割の科目を「修得した」とみなす形にする。提案の科目と、登録済みで
- * 成績が未確定の科目(`registered`)の両方である。単位が分からない科目は数えない。
+ * 今期の時間割(提案の科目)を「修得した」とみなす形にする。単位が分からない科目は数えない。
+ *
+ * **登録済みで成績が未確定の科目(`registered`)は入れない。** 成績表は学期の成績が
+ * 確定してから公開される(3月中旬・9月初旬)ので、そこに `***` で載るのは**終わった学期の
+ * 成績発表待ちの科目**であり、提案する学期の時間割ではない。入れると、提案していないのに
+ * その単位が「今期で埋まる分」として赤く積まれ、卒業残りからも引かれていた。
  */
-function plannedCourses(profile: StudentProfile, courses: ProposedCourse[], target: TargetTerm): Course[] {
-  const proposed: Course[] = courses
+function plannedCourses(courses: ProposedCourse[], target: TargetTerm): Course[] {
+  return courses
     .filter((c) => c.credits != null)
     .map((c) => ({
       title: c.title,
@@ -99,10 +103,6 @@ function plannedCourses(profile: StudentProfile, courses: ProposedCourse[], targ
       credits: c.credits as number,
       status: "passed",
     }));
-  const registered: Course[] = profile.completedCourses
-    .filter((c) => c.status === "registered")
-    .map((c) => ({ ...c, status: "passed" }));
-  return [...proposed, ...registered];
 }
 
 /** 提案の snapshot は生成中に何度も届くので、落ち着いてから見込みを計算し直す */
@@ -112,7 +112,7 @@ const PLANNED_DEBOUNCE_MS = 300;
  * 卒業要件枠ごとの修得済み単位と、今期の時間割による見込みを返す。design.md §8.3.5。
  *
  * `POST /api/requirements` を2回引く。1回目はプロファイルのまま(修得済み)、2回目は
- * 今期の時間割(提案の科目・登録済みの科目)を修得したとみなして足したもの(見込み)。
+ * 今期の時間割(提案の科目)を修得したとみなして足したもの(見込み)。
  * 枠ごとの差が「今期で埋まる単位」である。**枠への割り当ては backend の判定に任せる** —
  * 同じ枠の科目を不足より多く取った分は下流の枠(オールフリーゾーンなど)に回るため、
  * 科目の区分から手元で足し算すると枠が食い違う。
@@ -130,7 +130,7 @@ export function useRequirements(
   const admissionYear = resolveAdmissionYear(profile);
 
   const planned = useMemo(
-    () => (profile ? plannedCourses(profile, courses, target) : []),
+    () => (profile ? plannedCourses(courses, target) : []),
     [profile, courses, target],
   );
   // 同じ中身の時間割で計算し直さないよう、中身を文字列にして比べる

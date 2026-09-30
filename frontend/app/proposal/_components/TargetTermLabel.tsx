@@ -2,13 +2,16 @@
 
 import { Calendar } from "lucide-react";
 import { termLabel, useTargetTerm } from "@/lib/targetTerm";
+import { useStudentStore } from "@/lib/student";
+import { demoSummary } from "@/lib/dummy/profiles";
 
 /**
  * 履修提案の対象学期(次に登録する学期)の表示。design.md §8.3。
  *
  * **提案するのは取り込んだ成績表の次の学期であり、学生には選び直させない**
  * (`lib/targetTerm.ts`)。どの学期の提案かが分かるよう、見える場所に出すだけにする。
- * 成績表が無い(手入力・デモ)ときだけ今日の日付で決めるので、その旨を添える。
+ * 成績表が無い手入力のときだけ今日の日付で決めるので、その旨を添える。デモの学生は
+ * どの時点の学生かを添える(龍谷祭の時期には、前期の学生の提案はもう終わった学期になる)。
  */
 export default function TargetTermLabel({
   variant = "pc",
@@ -17,7 +20,13 @@ export default function TargetTermLabel({
   variant?: "pc" | "mobile";
 }) {
   const { target, basis } = useTargetTerm();
-  const hint = basis === "today" ? "今日の日付から決めています" : null;
+  const demo = useStudentStore((s) => s.profile?.demo);
+  const hint =
+    basis === "today"
+      ? "今日の日付から決めています"
+      : demo
+        ? `デモ：${demoSummary(demo.key)}`
+        : null;
 
   if (variant === "mobile") {
     return (

@@ -10,9 +10,8 @@ import {
   Database,
   Trash2,
   ChevronRight,
-  ChevronDown,
 } from "lucide-react";
-import { isUnearned, useStudentStore, type Course } from "@/lib/student";
+import { isUnearned, useStudentStore, type Course, type StudentProfile } from "@/lib/student";
 import { useChatStore } from "@/lib/chat";
 import { useChatHistoryStore } from "@/lib/chatHistory";
 import { useProposalStore } from "@/lib/proposal";
@@ -20,7 +19,8 @@ import { useSyllabusUIStore } from "@/lib/syllabusUI";
 import { useCreditSummary } from "@/lib/creditSummary";
 import { useGraduationCredits } from "@/lib/curricula";
 import { resolveAdmissionYear } from "@/lib/programs";
-import { DUMMY_PROFILES } from "@/lib/dummy/profiles";
+import { demoLabel, isFreshmanDemo } from "@/lib/dummy/profiles";
+import DemoPicker from "@/app/_components/DemoPicker";
 import ManualInputForm from "@/app/_components/ManualInputForm";
 
 /** 修得済み科目は先頭の数件だけ出し、残りは「すべて表示」で開く */
@@ -155,8 +155,7 @@ export default function MobileSettingsPage() {
   const [showAllPassed, setShowAllPassed] = useState(false);
 
   // いま読み込んでいるのがデモのプロファイルか。デモを選ぶとその内容に差し替わる
-  const demoIndex = DUMMY_PROFILES.findIndex((d) => d.profile === profile);
-  const [demoOn, setDemoOn] = useState(demoIndex >= 0);
+  const [demoOn, setDemoOn] = useState(profile?.demo != null);
 
   const handleReset = () => {
     if (confirm("学生データ・成績情報・対話履歴をすべて消去しますか? この操作は取り消せません。")) {
@@ -170,11 +169,9 @@ export default function MobileSettingsPage() {
   };
 
   /** デモの学生に切り替える。前の学生の提案を残すと食い違うので捨てる */
-  const loadDemo = (index: number) => {
-    const demo = DUMMY_PROFILES[index];
-    if (!demo) return;
+  const loadDemo = (next: StudentProfile) => {
     clearProposal();
-    setProfile(demo.profile);
+    setProfile(next);
   };
 
   const courses = profile?.completedCourses ?? [];
@@ -230,10 +227,18 @@ export default function MobileSettingsPage() {
             <FileText size={20} className="shrink-0 text-accent" aria-hidden="true" />
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="truncate text-[13px] font-semibold text-fg-primary">
-                {profile ? "取り込んだ成績表" : "成績データが未登録です"}
+                {profile?.demo
+                  ? `デモの学生（${demoLabel(profile.demo.key)}）`
+                  : profile
+                    ? "取り込んだ成績表"
+                    : "成績データが未登録です"}
               </span>
               <span className="text-[11px] text-fg-secondary">
-                {profile ? `${courses.length}科目を認識・ブラウザ内で保持中` : "成績表PDFを取り込んでください"}
+                {isFreshmanDemo(profile)
+                  ? "入学したばかりで、成績はまだありません"
+                  : profile
+                    ? `${courses.length}科目を認識・ブラウザ内で保持中`
+                    : "成績表PDFを取り込んでください"}
               </span>
             </div>
             <button
@@ -334,35 +339,17 @@ export default function MobileSettingsPage() {
             <Toggle
               on={demoOn}
               label="展示用ダミーデータを使用"
-              onToggle={() => {
-                const next = !demoOn;
-                setDemoOn(next);
-                if (next && demoIndex < 0) loadDemo(0);
-              }}
+              onToggle={() => setDemoOn((v) => !v)}
             />
           </div>
           {demoOn && (
             <div className="px-5 pb-3.5 pt-2.5">
-              <span className="relative flex items-center">
-                <select
-                  aria-label="ダミーデータ"
-                  value={demoIndex >= 0 ? demoIndex : ""}
-                  onChange={(e) => loadDemo(Number(e.target.value))}
-                  className="h-9 w-full appearance-none rounded border border-border-primary bg-surface-primary px-2.5 pr-8 text-xs text-fg-primary"
-                >
-                  {demoIndex < 0 && <option value="">選択してください</option>}
-                  {DUMMY_PROFILES.map((d, i) => (
-                    <option key={d.label} value={i}>
-                      {d.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={14}
-                  className="pointer-events-none absolute right-2.5 text-fg-secondary"
-                  aria-hidden="true"
-                />
-              </span>
+              <DemoPicker
+                key={profile?.demo ? `${profile.demo.key.programCode}-${profile.demo.key.grade}-${profile.demo.key.term}` : "none"}
+                initial={profile?.demo?.key}
+                onLoad={loadDemo}
+                submitLabel="この学生に切り替える"
+              />
             </div>
           )}
         </Group>
