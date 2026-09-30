@@ -6,6 +6,7 @@ import BottomDock from "@/components/BottomDock";
 import { CreditSummaryProvider } from "@/lib/creditSummary";
 import MotionProvider from "@/components/MotionProvider";
 import ReplaceBanner from "@/components/ReplaceBanner";
+import { SITE_DESCRIPTION, SITE_TITLE } from "@/lib/site";
 
 /*
  * 全書体を IBM Plex Sans JP に統一する。
@@ -22,8 +23,8 @@ const ibmPlexSansJP = IBM_Plex_Sans_JP({
 });
 
 export const metadata: Metadata = {
-  title: "Syllabel｜履修登録支援AIチャットボット",
-  description: "龍谷大学 知能情報メディア課程 履修登録支援システム",
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
 };
 
 export default function RootLayout({
