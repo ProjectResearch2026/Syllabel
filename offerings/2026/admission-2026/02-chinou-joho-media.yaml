@@ -1,10 +1,6 @@
 # 知能情報メディア課程 2026年度 開講科目(科目名 → シラバスコード)
 # design.md §5.1.4。curricula/admission-2026/02-chinou-joho-media.yaml 側の title と1文字も違わない原表記をキーにする
-# シラバスコード未付与。resolved の値は空配列のプレースホルダで、api-clean との突合
-# (backend/scripts/build_offerings.py、§4.2.1)で埋める。科目名の集合は curricula 側と
-# 過不足なく一致させてある(§4.4.3 の検査対象)。
-# 突合の結果、2026年度に開講されない科目は not_offered へ、科目名が解決できない科目は
-# unresolved へ移す。現時点ではどちらも未判定のため空にしている。
+# 科目名の集合(resolved・not_offered・unresolved の和)は curricula 側と過不足なく一致させてある。
 offering_year: 2026
 admission_year: 2026                # 対応する curricula/admission-2026/ のコホート
 program_code: "02"
