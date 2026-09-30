@@ -25,6 +25,12 @@ export const CATEGORY_CHOICES = [
 ] as const;
 
 /**
+ * 対象年次の絞り込みの選択肢(URL のクエリ `grade`)。api-clean の `grade` の値域
+ * (1〜4)と同じで、`grade_min <= grade <= grade_max` の科目に絞る(§6.2)。
+ */
+export const GRADE_CHOICES = [1, 2, 3, 4] as const;
+
+/**
  * 時限の絞り込みの選択肢(URL のクエリ `period`。`day` と対で使う)。
  *
  * **時間割の空きコマから「この時間に入る科目を探す」で渡ってくる `period` を、

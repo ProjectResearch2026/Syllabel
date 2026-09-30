@@ -21,7 +21,7 @@ import { SYLLABUS_CONTEXT } from "@/lib/ai";
 import { useSyllabusConversation } from "@/lib/useSyllabusConversation";
 import MobileAiAssistant from "@/components/ai/MobileAiAssistant";
 import SyllabusPagination from "./SyllabusPagination";
-import { TAG_CHIPS, CATEGORY_CHOICES, periodChoices } from "@/lib/syllabusUI";
+import { TAG_CHIPS, CATEGORY_CHOICES, periodChoices, GRADE_CHOICES } from "@/lib/syllabusUI";
 import { useFilterControls } from "@/lib/useFilterControls";
 import { useTaggedResults } from "@/lib/useTaggedResults";
 import { detailHref } from "@/lib/syllabusQuery";
@@ -97,6 +97,7 @@ export default function MobileSyllabusPage({
   const day = searchParams.get("day") ?? "";
   // 時間割の空きコマから渡ってくる(`MobileProposalPage` の「この時間に入る科目を探す」)
   const period = searchParams.get("period") ?? "";
+  const grade = searchParams.get("grade") ?? "";
 
   const selectClass =
     "w-full h-[34px] border border-[#D1D5DB] rounded px-2.5 text-xs text-[#1A2B4E] bg-white focus:outline-none focus:border-[#1A2B4E] transition-colors";
@@ -132,6 +133,25 @@ export default function MobileSyllabusPage({
           {program && (
             <span className="text-[10px] leading-snug text-[#6B7280]">
               その課程が対象の科目のみ
+            </span>
+          )}
+        </>
+      ),
+    },
+    {
+      // 配当年次の範囲(`grade_min`〜`grade_max`)にこの年次を含む科目に絞る(§6.2)
+      label: "対象年次",
+      node: (
+        <>
+          <select value={grade} onChange={(e) => update("grade", e.target.value)} className={selectClass}>
+            <option value="">すべて</option>
+            {GRADE_CHOICES.map((g) => (
+              <option key={g} value={g}>{g}年次</option>
+            ))}
+          </select>
+          {grade && (
+            <span className="text-[10px] leading-snug text-[#6B7280]">
+              {grade}年次で履修できる科目のみ
             </span>
           )}
         </>

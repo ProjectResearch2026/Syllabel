@@ -19,6 +19,16 @@ const LIMIT = 30;
 
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
 
+/**
+ * URL の数値クエリを読む。api-clean の値域(`period` 1〜7、`grade` 1〜4)を外れる値は
+ * 条件にしない。そのまま送ると backend が 422 を返し、一覧ごと落ちるため
+ */
+function intParam(value: string | string[] | undefined, min: number, max: number): number | undefined {
+  if (typeof value !== "string") return undefined;
+  const n = Number(value);
+  return Number.isInteger(n) && n >= min && n <= max ? n : undefined;
+}
+
 export default async function SyllabusPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
 
@@ -28,8 +38,11 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
   const campus = typeof sp.campus === "string" ? sp.campus : undefined;
   const term = typeof sp.term === "string" ? sp.term : undefined;
   const day = typeof sp.day === "string" ? sp.day : undefined;
-  // 時間割の空きコマ長押しメニューから「この時間に入る科目を探す」で渡ってくる
-  const period = typeof sp.period === "string" ? parseInt(sp.period, 10) : undefined;
+  // 時限は絞り込みパネルのほか、時間割の空きコマ長押しメニューから
+  // 「この時間に入る科目を探す」でも渡ってくる
+  const period = intParam(sp.period, 1, 7);
+  // 対象年次。`grade_min <= grade <= grade_max` の科目に絞る(§6.2)
+  const grade = intParam(sp.grade, 1, 4);
   const offset = typeof sp.offset === "string" ? parseInt(sp.offset, 10) : 0;
   // 開講年度と学部は固定する。URL に `year` / `faculty` が付いていても見ない
   const year = OFFERING_YEAR;
@@ -44,7 +57,7 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
   // backend だけが古い(このエンドポイントを持たない)ときに 404 で一覧が
   // 真っ白になる事故が実際に起きた。引けなければタグを出さずに続ける
   const [data, masters, courseTargets] = await Promise.all([
-    searchCourses({ keyword, faculty, program, campus, term, day, period, year }),
+    searchCourses({ keyword, faculty, program, campus, term, day, period, grade, year }),
     getMasters(),
     fetchCourseTargets(year, faculty).catch(() => null),
   ]);
