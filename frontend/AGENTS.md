@@ -195,6 +195,10 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 **絞り込みの選択肢は `lib/syllabusUI.ts` の `TAG_CHIPS` / `CATEGORY_CHOICES`。** チップは履修区分と状態、セレクトは区分。**URL のクエリには持たない**(履修要項との突合から決まる値であり、api-clean に投げる検索条件ではない)。
 
+**曜日・時限(`day` / `period`)はこれと違って URL のクエリに持つ**(api-clean に投げる検索条件である)。時限のセレクトの選択肢は `periodChoices()`(時間割表と同じ 1〜5。範囲外の値が URL に付いていたときだけ足す)。**時間割の空きコマの「この時間に入る科目を探す」はこの2つを付けて一覧を開く**ので、セレクトを落とすと絞り込みが見えないまま効く状態になる。
+
+**対象年次(`grade`)も URL のクエリに持つ。** 選択肢は `GRADE_CHOICES`(1〜4)。`page.tsx` は `period` / `grade` を api-clean の値域(1〜7 / 1〜4)の整数のときだけ検索条件にする(値域外を渡すと 422 で一覧が落ちる)。
+
 **検索条件(キーワード・開講期など)は URL のクエリが正本。** ヘッダー・タブバーの「シラバス」は素の `/syllabus` ではなく `listHref(listQuery)` に向ける。`listQuery` は一覧を開いているあいだ `SyllabusQueryMemory` が URL から書き写す(design.md §8)。直書きの `/syllabus` に戻すと、時間割などを経由しただけで検索語が消える。
 
 1. `GET /api/syllabi` の検索結果

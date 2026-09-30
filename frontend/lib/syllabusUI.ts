@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { Category, CourseType, CurriculaData } from "@/lib/syllabus-api";
 import { canRegister, type CourseTarget } from "@/lib/eligibility";
 import { normalizeTitle } from "@/lib/courseTitle";
+import { PERIODS } from "@/lib/timetable";
 
 /** 区分の絞り込みで「絞らない」を表す値。 */
 export const ALL_CATEGORIES = "すべて";
@@ -22,6 +23,34 @@ export const CATEGORY_CHOICES = [
   "専門応用",
   "専門関連",
 ] as const;
+
+/**
+ * 対象年次の絞り込みの選択肢(URL のクエリ `grade`)。api-clean の `grade` の値域
+ * (1〜4)と同じで、`grade_min <= grade <= grade_max` の科目に絞る(§6.2)。
+ */
+export const GRADE_CHOICES = [1, 2, 3, 4] as const;
+
+/**
+ * 時限の絞り込みの選択肢(URL のクエリ `period`。`day` と対で使う)。
+ *
+ * **時間割の空きコマから「この時間に入る科目を探す」で渡ってくる `period` を、
+ * 検索画面でも見えて・外せる形にするための選択肢である。** 以前は曜日だけが
+ * セレクトにあり、時限は URL に付いているのに画面のどこにも出ていなかったため、
+ * 空きコマから来た学生には絞り込みが効いていること自体が分からず、続きの検索で
+ * 時限を選び直すことも外すこともできなかった。
+ *
+ * 並べるのは時間割表と同じ `PERIODS`(1〜5)。api-clean は 1〜7 を受けるが
+ * (§6.2)、時間割に置けるのはこの5コマであり、空きコマ起点の導線もこの範囲に
+ * しかならない。**範囲外の値が URL に付いていたときはそれを足す** — 選択肢に
+ * 無い値を `<select>` に渡すと選択が空に見え、効いている絞り込みを外せなくなる。
+ */
+export function periodChoices(current: string): number[] {
+  const known = [...PERIODS] as number[];
+  const value = Number(current);
+  return current && Number.isInteger(value) && !known.includes(value)
+    ? [...known, value].sort((a, b) => a - b)
+    : known;
+}
 
 type SyllabusUIStore = {
   /** 履修区分または状態での絞り込み(`必修` / `選択必修` / `選択` / `随意` / `修得済み`) */

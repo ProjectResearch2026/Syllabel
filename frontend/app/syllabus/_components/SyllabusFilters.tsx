@@ -4,14 +4,10 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useTransition } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { OFFERING_YEAR, FACULTY, type Masters } from "@/lib/syllabus-api";
-import { CATEGORY_CHOICES } from "@/lib/syllabusUI";
+import { CATEGORY_CHOICES, periodChoices, GRADE_CHOICES } from "@/lib/syllabusUI";
 import { useFilterControls } from "@/lib/useFilterControls";
-import { PERIODS } from "@/lib/timetable";
+import { DAYS } from "@/lib/timetable";
 import { CategoryFilterHint } from "./SyllabusProfileNotice";
-
-const DAYS = ["月", "火", "水", "木", "金", "土"];
-/** 対象年次の選択肢。api-clean の `grade` の値域(1〜4)と同じ */
-const GRADES = [1, 2, 3, 4];
 
 type Props = {
   masters: Masters;
@@ -41,6 +37,7 @@ export default function SyllabusFilters({ masters }: Props) {
   const campus = searchParams.get("campus") ?? "";
   const term = searchParams.get("term") ?? "";
   const day = searchParams.get("day") ?? "";
+  // 時間割の空きコマから渡ってくる(`TimetablePanel` の「この時間に入る科目を探す」)
   const period = searchParams.get("period") ?? "";
   const grade = searchParams.get("grade") ?? "";
 
@@ -92,7 +89,7 @@ export default function SyllabusFilters({ masters }: Props) {
         <>
           <select value={grade} onChange={(e) => update("grade", e.target.value)} className={selectClass}>
             <option value="">すべて</option>
-            {GRADES.map((g) => (
+            {GRADE_CHOICES.map((g) => (
               <option key={g} value={g}>{g}年次</option>
             ))}
           </select>
@@ -159,11 +156,13 @@ export default function SyllabusFilters({ masters }: Props) {
       ),
     },
     {
+      // 曜日と対で「そのコマに入る科目」を絞る。複数コマの科目は**いずれかのコマ**が
+      // 当たれば出る(api-clean 0.3.0 以降。§6.2)ので、「金4・金5」は金5でも出る
       label: "時限",
       node: (
         <select value={period} onChange={(e) => update("period", e.target.value)} className={selectClass}>
           <option value="">すべて</option>
-          {PERIODS.map((p) => (
+          {periodChoices(period).map((p) => (
             <option key={p} value={p}>{p}限</option>
           ))}
         </select>
