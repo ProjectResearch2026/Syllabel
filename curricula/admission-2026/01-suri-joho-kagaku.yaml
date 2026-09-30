@@ -1,24 +1,45 @@
-# 先端理工学部 数理・情報科学課程 2026年度入学者向け履修要項
-# 出典: https://rishu.ryukoku.ac.jp/curriculum/faculty-rikou/s04/ （年度を含まないURLが最新年度）
-#   設置科目・先修制・進級要件・別表は HTML テーブルから機械転記した（2026年度版は画像化されていない）。
-#   卒業要件単位（最低）数表のみ画像のため、拡大して読み取り合計124単位を検算した。
-#   registration_limits（履修登録制限単位数）は上記ページに無く、
-#   https://rishu.ryukoku.ac.jp/knowledge/no5-01/ の【5】履修登録「2．履修登録制限単位数」
-#   の先端理工学部の表から転記した。
-
+# 数理・情報科学課程 2026年度入学 履修要項データ
+# 出典:
+#   https://rishu.ryukoku.ac.jp/curriculum/faculty-rikou/s04/ (専攻科目・学修プログラム。年度を含まないURLが最新年度)
+#   https://rishu.ryukoku.ac.jp/knowledge/no5-01/ (履修登録制限単位数)
+# 構成:
+#   graduation / requirement_slots - 卒業要件の総単位数と要件枠
+#   credit_caps                    - 特定科目群の卒業要件算入上限
+#   registration_limits            - 履修登録制限単位数(CAP制)
+#   courses                        - 専攻科目(教養教育科目は 00-liberal-arts.yaml)
+# 2025年度入学版との差分:
+#   - 見出しの版表記が「2026年度以降入学生」になった
+#   - 「クラウドコンピューティング演習」(専門基礎科目・選択)が設置科目から外れた
 program:
-  code: "01"
+  code: "01"                        # 課程コード2桁。シラバスコード先頭4桁(Y001)と一致する一次識別子
   name: "数理・情報科学課程"
   name_aliases: []
 admission_year: 2026
-curriculum_version: "2026年度以降入学生"
-duplicate_of: null
-
+curriculum_version: "2026年度以降入学生"      # 履修要項の見出しの版表記(§4.4.1)
+duplicate_of: null                  # 他コホートの複製ではないため null(§5.1.2)
+tracks:                             # 課程内コース区分。値は履修要項の「専門応用科目の履修要件」別表から転記
+  - key: "math"
+    name: "数学系コース"
+    constraints:
+      - {slot: "applied.required_elective", track_group: "数学系", pool: 18, min: 13}
+      - {slot: "applied.elective", track_group: "数学系", pool: 21, min: 14}
+  - key: "info"
+    name: "情報系コース"
+    constraints:
+      - {slot: "applied.required_elective", track_group: "情報系", pool: 13, min: 9}
+      - {slot: "applied.elective", track_group: "情報系", pool: 25, min: 14}
+  - key: "sogo"
+    name: "総合コース"
+    constraints:                      # 総合コースは両群から浅く取ることを求められる(別表 総合コース列)
+      - {slot: "applied.required_elective", track_group: "数学系", pool: 18, min: 9}
+      - {slot: "applied.required_elective", track_group: "情報系", pool: 13, min: 4}
 graduation:
   total_credits: 124
-  excluded_types: ["随意"]
+  excluded_types: ["随意"]            # 卒業要件単位に算入しない type
 
-requirement_slots:                  # 卒業要件単位（最低）数表から転記
+# 専攻科目・フリーゾーンの要件枠。liberal.* は共通ファイルが持つ(design §5.1.2)
+# 合計 96 + 教養 28 = 124 単位。検算はマージ後に行う(§4.4.3)
+requirement_slots:
   - key: "basic.required"
     name: "専門基礎科目(必修)"
     credits: 9
@@ -46,36 +67,19 @@ requirement_slots:                  # 卒業要件単位（最低）数表から
     name: "専門関連科目"
     credits: 0
     accepts: {category: "専門関連科目"}
-    overflow_to: "free.faculty"           # 注記D
+    overflow_to: "free.faculty"           # 注記D 他課程ファイルから導出(§4.4.3)
   - key: "free.faculty"
     name: "学部フリーゾーン"
     credits: 6
     accepts: {category: ["専門基礎科目", "専門応用科目", "専門関連科目"]}
-    overflow_to: "free.all"           # 注記E
+    overflow_to: "free.all"           # 注記E 教養教育科目は不可
   - key: "free.all"
     name: "オールフリーゾーン"
     credits: 10
     accepts: {category: "any"}
-    # 注記F
+    # 注記F 区分を問わない
 
-tracks:                             # 別表「コース毎の履修要件」から転記
-  - key: "math"
-    name: "数学系コース"
-    constraints:
-      - {slot: "applied.required_elective", track_group: "数学系", pool: 18, min: 13}
-      - {slot: "applied.elective", track_group: "数学系", pool: 21, min: 14}
-  - key: "info"
-    name: "情報系コース"
-    constraints:
-      - {slot: "applied.required_elective", track_group: "情報系", pool: 13, min: 9}
-      - {slot: "applied.elective", track_group: "情報系", pool: 25, min: 14}
-  - key: "sogo"
-    name: "総合コース"
-    constraints:
-      - {slot: "applied.required_elective", track_group: "数学系", pool: 18, min: 9}
-      - {slot: "applied.required_elective", track_group: "情報系", pool: 13, min: 4}
-
-prerequisites:                      # 先修制(専攻科目)。「（2）先修制（専攻科目）」の表から転記
+prerequisites:                      # 先修制(専攻科目)。履修要項「（2）先修制（専攻科目）」の表から転記
   - title: "数理情報演習"
     min_credits:
       - {credits: 52}
@@ -99,7 +103,7 @@ prerequisites:                      # 先修制(専攻科目)。「（2）先修
     all_of: ["特別研究Ⅰ", "セミナーⅡ"]
     notes: "「特別研究Ⅰ」および「セミナーⅡ」を修得していること。"
 
-grade_up_requirements:
+grade_up_requirements:              # 進級要件
   - to_grade: 2
     conditions: null
   - to_grade: 3
@@ -107,7 +111,8 @@ grade_up_requirements:
   - to_grade: 4
     conditions: null
 
-registration_limits:                # 出典: knowledge/no5-01/【5】履修登録「2．履修登録制限単位数」
+# 履修登録制限単位数(CAP制)の定義
+registration_limits:
   by_semester:
     - semesters: [1, 2, 3, 4]
       max_credits_per_semester: 22
@@ -122,7 +127,6 @@ registration_limits:                # 出典: knowledge/no5-01/【5】履修登�
     随意科目、サマーセッション科目、「海外英語研修」、大学コンソーシアム京都の単位互換科目、
     放送大学科目は制限単位数に含まれない。
   gpa_exception: "前学期までの累積GPA3.5以上の学生は、申請により各学期2単位まで制限を拡大できる（毎学期初めの履修登録期間に先端理工学部教務課へ申請）"
-
 # 特定科目群の卒業要件算入上限。超過分は overflow_to 先に計上し、null はどこにも計上しない(§5.1.5)
 # 出典: 設置科目表の備考
 credit_caps:
@@ -140,7 +144,15 @@ credit_caps:
     max_credits: 2
     overflow_to: null
 
-courses:                            # 「7. 設置科目」の HTML テーブルから機械転記
+# 各授業の定義
+# - type: 必修 / 選択必修 / 選択 / 随意
+# - grade・term・quarters: 配当年次・学期・クォーター
+# - シラバスコードは持たない。開講年度ファイル(offerings/<年度>/)が科目名で結合する(design §5.1.1)
+#
+# 2026年度版の設置科目表は画像ではなく HTML のテーブルであり、そこから転記した。
+# 卒業要件単位(最低)数表のみ画像で、2024・2025年度版と同一URLの画像を参照している。
+courses:
+  # ---- 専門基礎科目 ----
   - title: "微積分及び演習Ⅰ"
     category: "専門基礎科目"
     type: "必修"
@@ -253,7 +265,7 @@ courses:                            # 「7. 設置科目」の HTML テーブル
     grade: 1
     term: "前期"
     quarters: ["1Q", "2Q"]
-    notes: "配当年次において必ず履修登録してください。ただし、必修科目ではありませんので、不合格であった場合も再履修する必要はありません。"
+    notes: "配当年次に必ず履修登録。不合格でも再履修不要"
   - title: "理工学のすすめ"
     category: "専門基礎科目"
     type: "選択"
@@ -261,7 +273,7 @@ courses:                            # 「7. 設置科目」の HTML テーブル
     grade: 1
     term: "後期"
     quarters: ["3Q", "4Q"]
-    notes: "配当年次において必ず履修登録してください。ただし、必修科目ではありませんので、不合格であった場合も再履修する必要はありません。"
+    notes: "配当年次に必ず履修登録。不合格でも再履修不要"
   - title: "数理情報基礎演習A"
     category: "専門基礎科目"
     type: "随意"
@@ -269,7 +281,6 @@ courses:                            # 「7. 設置科目」の HTML テーブル
     grade: 1
     term: "前期"
     quarters: ["1Q", "2Q"]
-    notes: "随意科目（卒業要件単位に含まれません）"
   - title: "数理情報基礎演習B"
     category: "専門基礎科目"
     type: "随意"
@@ -277,7 +288,7 @@ courses:                            # 「7. 設置科目」の HTML テーブル
     grade: 1
     term: "後期"
     quarters: ["3Q", "4Q"]
-    notes: "随意科目（卒業要件単位に含まれません）"
+  # ---- 専門応用科目: 必修 ----
   - title: "プロジェクト演習"
     category: "専門応用科目"
     type: "必修"
@@ -327,6 +338,7 @@ courses:                            # 「7. 設置科目」の HTML テーブル
     grade: 4
     term: "後期"
     quarters: ["3Q", "4Q"]
+  # ---- 専門応用科目: 選択必修（数学系・情報系共通） ----
   - title: "微積分及び演習Ⅱ"
     category: "専門応用科目"
     type: "選択必修"
@@ -335,7 +347,6 @@ courses:                            # 「7. 設置科目」の HTML テーブル
     grade: 1
     term: "後期"
     quarters: ["3Q", "4Q"]
-    notes: "履修指導科目"
   - title: "線形代数及び演習Ⅱ"
     category: "専門応用科目"
     type: "選択必修"
@@ -344,7 +355,6 @@ courses:                            # 「7. 設置科目」の HTML テーブル
     grade: 1
     term: "後期"
     quarters: ["3Q", "4Q"]
-    notes: "履修指導科目"
   - title: "微分方程式Ⅰ"
     category: "専門応用科目"
     type: "選択必修"
@@ -353,7 +363,6 @@ courses:                            # 「7. 設置科目」の HTML テーブル
     grade: 2
     term: "前期"
     quarters: ["1Q", "2Q"]
-    notes: "履修指導科目"
   - title: "集合と論理"
     category: "専門応用科目"
     type: "選択必修"
@@ -370,7 +379,6 @@ courses:                            # 「7. 設置科目」の HTML テーブル
     grade: 2
     term: "前期"
     quarters: ["1Q", "2Q"]
-    notes: "履修指導科目"
   - title: "フーリエ解析及び演習"
     category: "専門応用科目"
     type: "選択必修"
@@ -387,7 +395,6 @@ courses:                            # 「7. 設置科目」の HTML テーブル
     grade: 1
     term: "後期"
     quarters: ["3Q", "4Q"]
-    notes: "履修指導科目"
   - title: "確率統計Ⅰ"
     category: "専門応用科目"
     type: "選択必修"
@@ -396,7 +403,6 @@ courses:                            # 「7. 設置科目」の HTML テーブル
     grade: 2
     term: "前期"
     quarters: ["1Q", "2Q"]
-    notes: "履修指導科目"
   - title: "情報処理システムⅠ"
     category: "専門応用科目"
     type: "選択必修"
@@ -405,7 +411,6 @@ courses:                            # 「7. 設置科目」の HTML テーブル
     grade: 1
     term: "後期"
     quarters: ["3Q", "4Q"]
-    notes: "履修指導科目"
   - title: "情報処理システムⅡ"
     category: "専門応用科目"
     type: "選択必修"
@@ -422,7 +427,6 @@ courses:                            # 「7. 設置科目」の HTML テーブル
     grade: 1
     term: "後期"
     quarters: ["3Q", "4Q"]
-    notes: "履修指導科目"
   - title: "プログラミング及び実習Ⅲ"
     category: "専門応用科目"
     type: "選択必修"
@@ -431,7 +435,6 @@ courses:                            # 「7. 設置科目」の HTML テーブル
     grade: 2
     term: "前期"
     quarters: ["1Q", "2Q"]
-    notes: "履修指導科目"
   - title: "数値計算法及び演習"
     category: "専門応用科目"
     type: "選択必修"
@@ -440,7 +443,7 @@ courses:                            # 「7. 設置科目」の HTML テーブル
     grade: 2
     term: "前期"
     quarters: ["1Q", "2Q"]
-    notes: "履修指導科目"
+  # ---- 専門応用科目: 選択 ----
   - title: "微分方程式Ⅱ"
     category: "専門応用科目"
     type: "選択"
