@@ -22,7 +22,7 @@ const ibmPlexSansJP = IBM_Plex_Sans_JP({
 });
 
 export const metadata: Metadata = {
-  title: "履修登録支援AIチャットボット",
+  title: "Syllabel",
   description: "龍谷大学 知能情報メディア課程 履修登録支援システム",
 };
 

@@ -398,7 +398,7 @@ export default function MobileSettingsPage() {
 
         {/* Version */}
         <div className="flex flex-col items-center gap-[3px] px-5 py-4">
-          <span className="text-[11px] text-[#9CA3AF]">履修登録支援AIチャットボット</span>
+          <span className="text-[11px] text-[#9CA3AF]">Syllabel</span>
           <span className="text-[10px] text-[#D1D5DB]">v0.1.0 · 龍谷大学プロジェクトリサーチ</span>
         </div>
       </div>
