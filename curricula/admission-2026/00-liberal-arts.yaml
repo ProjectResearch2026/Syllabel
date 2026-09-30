@@ -1,32 +1,32 @@
-# 先端理工学部 2026年度入学者向け 教養教育科目
-# 出典: https://rishu.ryukoku.ac.jp/organization/no3/ （教育課程＜共通＞・瀬田キャンパス）
-#   「6. 教養教育科目開設科目」の HTML テーブルから機械転記した。
-#
-# - quarters は持たない。教養教育科目はクォーター制の対象外である(§5.1.3・§5.1.5)。2026年度版の
-#   設置科目表は「配当セメ」列しか持たず、原典にクォーターの表記が一切ない(「2. 履修方法について」
-#   （5）開講方式及び履修方法 も配当セメスター・通年・前期/後期でのみ規定する)。2024・2025年度
-#   入学版と同じ扱いだが、あちらが機械展開した値を削除したのに対し、こちらは転記時から持たない
+# 教養教育科目(先端理工学部【2026年度入学～】版・全課程共通)
+# 出典: https://rishu.ryukoku.ac.jp/organization/no3/ (教育課程＜共通＞ 瀬田キャンパス 先端理工学部【2026年度入学～】・農学部)
+# design.md §5.1.3。教養教育科目の要件枠(liberal.*)と設置科目一覧の唯一の定義元。
+# 課程ファイルからのパス参照は持たず、同一ディレクトリにあることで対応づける(§4.4.2)。
 #
 # 2024・2025年度入学版との違い(design §5.1.3):
 #   - 科目群の軸が新設された。基礎教養/発展教養(course_group)と8つの科目群(subgroup)を持つ
-#   - 設置科目が129件から大幅に増えた
+#   - 設置科目が129件から230件に増え、subcategory に「学部・センター等提供科目」が加わった
+#   - 基幹科目の指定がなくなり、人文科学系・社会科学系の各全科目から1科目(2単位)以上が選択必修になった
 #   - 履修不可の指定が課程単位から学部単位に変わったため not_available_to_programs は現れない
 #   - 卒業要件枠は2024・2025年度入学版と同一(仏教4/言語6/スポーツ2/人文2/社会2/選択12 = 28単位)
-# design との差異(要監修):
-#   - 科目群欄が「学部等提供／アドバンスト」のように複数値をとる行がある。先頭の値を subgroup に採り、
-#     原文は notes に残した
-#   - 1科目が基礎教養と発展教養の両方に属する行がある(原典で rowspan により2行に分かれる)。
-#     基礎教養側を course_group / subgroup に採り、もう一方は notes に残した
-# 転記対象外:
-#   - 理工学のすすめ（先端理工学部提供科目【先端理工学部履修不可】）
-#   - 教養教育科目特別講義（対象：農学部 「教養教育科目特別講義」は複数の科目が開講されますが、卒業要件単位）
-
-admission_year: 2026
-liberal_arts_version: "2026"
+#
+# - シラバスコードは持たない。開講年度ファイル(offerings/<開講年度>/admission-2026/00-liberal-arts.yaml)が
+#   科目名で結合する(§5.1.1)
+# - kikan は requirement_slots を2024・2025年度入学版と共通にするため、選択必修である人文科学系・
+#   社会科学系の全科目に付けた(原典に基幹科目の印はない)
+# - course_group / subgroup は設置科目表の「基礎/発展」「科目群」欄に対応する。科目群欄が
+#   「学部等提供／アドバンスト」のように複数の値をとる行は先頭の値を subgroup に採り、原文を notes に
+#   残した。1科目が基礎教養と発展教養の両方に属する行(原典で rowspan により2行に分かれる)は
+#   基礎教養側を採り、発展教養側を notes に残した
+# - quarters は持たない。教養教育科目はクォーター制の対象外である(§5.1.3・§5.1.5)。設置科目表の列は
+#   「配当セメ」のみで、原典にクォーターの表記がない
+admission_year: 2026                # このファイルが属するコホート。ディレクトリ名と一致させる
+liberal_arts_version: "2026"        # 履修要項の版(先端理工学部【2026年度入学～】)
 applies_to: ["先端理工学部"]
-duplicate_of: null
+duplicate_of: null                  # 複製元。このファイルが原本のため null
 
-requirement_slots:                  # 卒業要件単位（最低）数表(各課程共通)から転記
+# 教養教育科目の卒業要件枠(合計28単位)。accepts の記法は §5.1.5
+requirement_slots:
   - key: "liberal.buddhism"
     name: "教養教育科目(必修・仏教)"
     credits: 4
@@ -35,7 +35,7 @@ requirement_slots:                  # 卒業要件単位（最低）数表(各�
     name: "教養教育科目(必修・言語)"
     credits: 6
     accepts: {subcategory: "必修外国語科目"}
-    overflow_to: "liberal.elective"
+    overflow_to: "liberal.elective"           # 履修要項 注記A
   - key: "liberal.general.humanities"
     name: "教養教育科目(選択必修〈基幹〉・人文)"
     credits: 2
@@ -53,8 +53,8 @@ requirement_slots:                  # 卒業要件単位（最低）数表(各�
   - key: "liberal.elective"
     name: "教養教育科目(選択)"
     credits: 12
-    accepts: {category: "教養教育科目"}
-    overflow_to: "free.all"
+    accepts: {category: "教養教育科目"}       # 上位枠に収まらない教養教育科目の受け皿
+    overflow_to: "free.all"                   # 参照先は課程ファイル。解決はマージ後(§4.4.3)
 
 prerequisites:
   # 先修制。出典 /organization/no3/ の「3. 言語科目 (3)選択外国語科目の履修 ⑥選択外国語科目の先修制」の表と、
@@ -141,14 +141,15 @@ prerequisites:
       - credits: 4
         from: ["英語総合1（Ａ）", "英語総合1（Ｂ）", "英語総合2（Ａ）", "英語総合2（Ｂ）", "英語総合3"]
     notes: "「英語総合1（A）, 1（B）, 2（A）, 2（B）, 3」のうち4単位以上修得していること"
+# 卒業要件への算入上限。max_credits を超えた分は overflow_to 先に計上し、null はどこにも計上しない
 credit_caps:
   - titles: ["教養教育科目特別講義"]
     max_credits: 2
     overflow_to: null
-    notes: "対象：先端理工学部「教養教育科目特別講義」は複数の科目が開講されますが、卒業要件単位として認められるのは1科目（2単位）までです。（余剰分はフリーゾーンに計上されません）"
+    notes: "設置科目表 備考「「教養教育科目特別講義」は複数の科目が開講されますが、卒業要件単位として認められるのは1科目（2単位）までです。（余剰分はフリーゾーンに計上されません）」"
 
 courses:
-  # ---- （1）「仏教の思想」科目 ----
+  # ---- 「仏教の思想」科目 (6科目) ----
   - title: "仏教の思想A"
     category: "教養教育科目"
     subcategory: "「仏教の思想」科目"
@@ -156,7 +157,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    notes: "科目群欄: 仏教の思想。2科目（4単位）必修"
   - title: "仏教の思想B"
     category: "教養教育科目"
     subcategory: "「仏教の思想」科目"
@@ -164,7 +164,6 @@ courses:
     credits: 2
     grade: 1
     term: "後期"
-    notes: "科目群欄: 仏教の思想。2科目（4単位）必修"
   - title: "歎異抄の思想Ⅰ"
     category: "教養教育科目"
     subcategory: "「仏教の思想」科目"
@@ -192,6 +191,7 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
+  # 配当セメスターが「3・4」(2年次の第3・第4セメスター)にまたがる4単位科目のため term を通年とした
   - title: "真宗教団史"
     category: "教養教育科目"
     subcategory: "「仏教の思想」科目"
@@ -201,8 +201,8 @@ courses:
     credits: 4
     grade: 2
     term: "通年"
-    notes: "科目群欄: 学部等提供／アドバンスト。文学部提供科目【文学部履修不可】。配当セメスターは「3・4」(2年次の第3・第4セメスターにまたがる)。他の「仏教の思想」科目が2単位・単一セメスターであるのに対し本科目のみ4単位であることから通年科目と判断した"
-  # ---- （2）言語科目 ----
+    notes: "科目群欄: 学部等提供／アドバンスト"
+  # ---- 必修外国語科目 (6科目) ----
   - title: "英語総合1（Ａ）"
     category: "教養教育科目"
     subcategory: "必修外国語科目"
@@ -210,7 +210,6 @@ courses:
     credits: 1
     grade: 1
     term: "前期"
-    notes: "必修外国語科目"
   - title: "英語総合1（Ｂ）"
     category: "教養教育科目"
     subcategory: "必修外国語科目"
@@ -218,7 +217,6 @@ courses:
     credits: 1
     grade: 1
     term: "前期"
-    notes: "必修外国語科目"
   - title: "英語総合2（Ａ）"
     category: "教養教育科目"
     subcategory: "必修外国語科目"
@@ -226,7 +224,6 @@ courses:
     credits: 1
     grade: 1
     term: "後期"
-    notes: "必修外国語科目"
   - title: "英語総合2（Ｂ）"
     category: "教養教育科目"
     subcategory: "必修外国語科目"
@@ -234,7 +231,6 @@ courses:
     credits: 1
     grade: 1
     term: "後期"
-    notes: "必修外国語科目"
   - title: "英語総合3"
     category: "教養教育科目"
     subcategory: "必修外国語科目"
@@ -242,7 +238,6 @@ courses:
     credits: 1
     grade: 2
     term: "前期"
-    notes: "必修外国語科目、トピック別クラス編成"
   - title: "英語総合4"
     category: "教養教育科目"
     subcategory: "必修外国語科目"
@@ -250,7 +245,7 @@ courses:
     credits: 1
     grade: 2
     term: "後期"
-    notes: "必修外国語科目、トピック別クラス編成"
+  # ---- 選択外国語科目 (39科目) ----
   - title: "英語セミナーＡ"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -307,7 +302,7 @@ courses:
     credits: 2
     grade: 1
     term: "後期"
-    notes: "1年次生と2年次生のみ履修可"
+    notes: "1・2年次のみ履修可能。履修登録制限単位数(CAP)の対象外"
   - title: "ドイツ語ⅠＡ"
     category: "教養教育科目"
     subcategory: "選択外国語科目"
@@ -526,7 +521,7 @@ courses:
     grade: 1
     term: "前期"
     notes: "留学生対象科目"
-  # ---- 人文科学系科目【選択必修】 ----
+  # ---- 人文科学系科目 (30科目) ----
   - title: "哲学入門"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -647,7 +642,7 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "科目群欄: 学部等提供／アドバンスト。文学部提供科目"
+    notes: "科目群欄: 学部等提供／アドバンスト"
   - title: "西洋の文学Ｄ"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -658,7 +653,7 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "科目群欄: 学部等提供／アドバンスト。文学部提供科目"
+    notes: "科目群欄: 学部等提供／アドバンスト"
   - title: "言語学入門"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -819,7 +814,7 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "科目群欄: 学部等提供／アドバンスト。国際学部提供科目"
+    notes: "科目群欄: 学部等提供／アドバンスト"
   - title: "文化交流論"
     category: "教養教育科目"
     subcategory: "人文科学系科目"
@@ -830,8 +825,8 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "科目群欄: 学部等提供／アドバンスト。国際学部提供科目"
-  # ---- 社会科学系科目【選択必修】 ----
+    notes: "科目群欄: 学部等提供／アドバンスト"
+  # ---- 社会科学系科目 (37科目) ----
   - title: "日本国憲法"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -1113,7 +1108,7 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "科目群欄: 学部等提供／アドバンスト。政策学部提供科目"
+    notes: "科目群欄: 学部等提供／アドバンスト"
   - title: "グローバル・シチズンシップＢ（民主主義）"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -1124,7 +1119,7 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "科目群欄: 学部等提供／アドバンスト。政策学部提供科目"
+    notes: "科目群欄: 学部等提供／アドバンスト"
   - title: "グローバル・シチズンシップＣ（平和構築）"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -1135,7 +1130,7 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "科目群欄: 学部等提供／アドバンスト。政策学部提供科目"
+    notes: "科目群欄: 学部等提供／アドバンスト"
   - title: "グローバル・シチズンシップＤ（人間の安全保障）"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -1146,7 +1141,7 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "科目群欄: 学部等提供／アドバンスト。政策学部提供科目"
+    notes: "科目群欄: 学部等提供／アドバンスト"
   - title: "データサイエンス・ＡＩ入門"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -1157,7 +1152,7 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    notes: "発展教養としての区分: 発展教養・全学共通／アクティブ・ラーニング。データサイエンス教育プログラム運営委員会提供科目"
+    notes: "発展教養としての区分: 発展教養・全学共通／アクティブ・ラーニング"
   - title: "データサイエンス基礎"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -1168,7 +1163,7 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "発展教養としての区分: 発展教養・アドバンスト／アクティブ・ラーニング。データサイエンス教育プログラム運営委員会提供科目"
+    notes: "発展教養としての区分: 発展教養・アドバンスト／アクティブ・ラーニング"
   - title: "ＡＩ基礎"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -1179,7 +1174,7 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "発展教養としての区分: 発展教養・アドバンスト／アクティブ・ラーニング。データサイエンス教育プログラム運営委員会提供科目"
+    notes: "発展教養としての区分: 発展教養・アドバンスト／アクティブ・ラーニング"
   - title: "教養教育ゼミナール（社会科学）"
     category: "教養教育科目"
     subcategory: "社会科学系科目"
@@ -1210,7 +1205,7 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-  # ---- 自然科学系科目【先端理工学部：選択科目、農学部：選択必修科目】 ----
+  # ---- 自然科学系科目 (15科目) ----
   - title: "生活の中の数学"
     category: "教養教育科目"
     subcategory: "自然科学系科目"
@@ -1292,7 +1287,7 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "科目群欄: アドバンスト／ アクティブ・ラーニング"
+    notes: "科目群欄: アドバンスト／アクティブ・ラーニング"
   - title: "里山学"
     category: "教養教育科目"
     subcategory: "自然科学系科目"
@@ -1302,7 +1297,7 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    notes: "科目群欄: アドバンスト／ アクティブ・ラーニング"
+    notes: "科目群欄: アドバンスト／アクティブ・ラーニング"
   - title: "植物の自然誌"
     category: "教養教育科目"
     subcategory: "自然科学系科目"
@@ -1312,7 +1307,6 @@ courses:
     credits: 2
     grade: 1
     term: "後期"
-    notes: "【農学部履修不可】"
   - title: "環境の科学"
     category: "教養教育科目"
     subcategory: "自然科学系科目"
@@ -1349,8 +1343,7 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    notes: "【農学部食品栄養学科履修不可】"
-  # ---- スポーツ科学系科目 ----
+  # ---- スポーツ科学系科目 (6科目) ----
   - title: "健康とスポーツ"
     category: "教養教育科目"
     subcategory: "スポーツ科学系科目"
@@ -1378,7 +1371,6 @@ courses:
     credits: 1
     grade: 1
     term: "前期"
-    notes: "先端理工学部必修科目、農学部選択科目"
   - title: "スポーツ技術学Ｂ"
     category: "教養教育科目"
     subcategory: "スポーツ科学系科目"
@@ -1388,7 +1380,6 @@ courses:
     credits: 1
     grade: 1
     term: "後期"
-    notes: "先端理工学部必修科目、農学部選択科目"
   - title: "スポーツ文化論"
     category: "教養教育科目"
     subcategory: "スポーツ科学系科目"
@@ -1407,7 +1398,7 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-  # ---- 学部・センター等提供科目 ----
+  # ---- 学部・センター等提供科目 (90科目) ----
   - title: "キャリア入門"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1417,7 +1408,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    notes: "キャリアセンター提供科目"
   - title: "キャリア・ディスカバリー"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1427,7 +1417,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "キャリアセンター提供科目"
   - title: "みんなのコミュニケーションＡ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1437,7 +1426,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    notes: "グローバル教育推進センター提供科目"
   - title: "みんなのコミュニケーションＢ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1447,7 +1435,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    notes: "グローバル教育推進センター提供科目"
   - title: "Inclusive Communication"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1457,7 +1444,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    notes: "グローバル教育推進センター提供科目"
   - title: "みんなで学ぶ国際ビジネス事情"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1467,7 +1453,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    notes: "グローバル教育推進センター提供科目"
   - title: "英語で学ぶ日本の社会Ａ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1477,7 +1462,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    notes: "グローバル教育推進センター提供科目"
   - title: "英語で学ぶ日本の社会Ｂ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1487,7 +1471,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    notes: "グローバル教育推進センター提供科目"
   - title: "仏教SDGs 概論"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1497,7 +1480,6 @@ courses:
     credits: 2
     grade: 1
     term: "後期"
-    notes: "ユヌスソーシャルビジネスリサーチセンター（RyukokuExtensionCenter）提供科目"
   - title: "アントレプレナーシップ入門"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1507,7 +1489,6 @@ courses:
     credits: 2
     grade: 1
     term: "後期"
-    notes: "ユヌスソーシャルビジネスリサーチセンター（RyukokuExtensionCenter）提供科目"
   - title: "テクノロジーと事業創出"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1517,7 +1498,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "ユヌスソーシャルビジネスリサーチセンター（RyukokuExtensionCenter）提供科目"
   - title: "ソーシャルインパクト概論"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1527,7 +1507,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "ユヌスソーシャルビジネスリサーチセンター（RyukokuExtensionCenter）提供科目"
   - title: "協創イノベーションラボ（PBL型企業連携）"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1537,7 +1516,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "ユヌスソーシャルビジネスリサーチセンター（RyukokuExtensionCenter）提供科目"
   - title: "アカデミック・ライティング入門"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1547,7 +1525,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    notes: "学修支援・教育開発センター提供科目"
   - title: "ボランティア・NPO 入門"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1557,7 +1534,6 @@ courses:
     credits: 2
     grade: 1
     term: "前期"
-    notes: "ボランティア・NPO活動センター提供科目"
   - title: "仏教美術入門Ａ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1567,7 +1543,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "文学部提供科目"
   - title: "仏教美術入門Ｂ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1577,7 +1552,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "文学部提供科目"
   - title: "サンスクリット語仏典入門Ａ１"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1587,7 +1561,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "文学部提供科目"
   - title: "サンスクリット語仏典入門Ａ２"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1597,7 +1570,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "文学部提供科目"
   - title: "チベット語仏典入門Ａ１"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1607,7 +1579,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "文学部提供科目"
   - title: "チベット語仏典入門Ａ２"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1617,7 +1588,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "文学部提供科目"
   - title: "古典文学講読（Ａ）Ａ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1627,7 +1597,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "文学部提供科目"
   - title: "古典文学講読（Ａ）Ｂ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1637,7 +1606,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "文学部提供科目"
   - title: "近代文学講読（Ｃ）Ａ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1647,7 +1615,7 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "科目群欄: 学部等提供／アクティブ・ラーニング。文学部提供科目"
+    notes: "科目群欄: 学部等提供／アクティブ・ラーニング"
   - title: "近代文学講読（Ｃ）Ｂ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1657,7 +1625,7 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "科目群欄: 学部等提供／アクティブ・ラーニング。文学部提供科目"
+    notes: "科目群欄: 学部等提供／アクティブ・ラーニング"
   - title: "情報出版学講読（Ｂ）Ａ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1667,7 +1635,7 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "科目群欄: 学部等提供／アクティブ・ラーニング。文学部提供科目"
+    notes: "科目群欄: 学部等提供／アクティブ・ラーニング"
   - title: "脳と心"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1677,7 +1645,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "心理学部提供科目"
   - title: "仏教と心理学"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1687,7 +1654,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "心理学部提供科目"
   - title: "経済英語Ⅰ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1697,7 +1663,6 @@ courses:
     credits: 2
     grade: 1
     term: "後期"
-    notes: "経済学部提供科目"
   - title: "経済英語Ⅱ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1707,7 +1672,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "経済学部提供科目"
   - title: "経済英語Ⅲ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1717,7 +1681,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "経済学部提供科目"
   - title: "経済社会論入門"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1727,7 +1690,6 @@ courses:
     credits: 2
     grade: 1
     term: "後期"
-    notes: "経済学部提供科目"
   - title: "地域産業活性化プロジェクトⅠ（京の老舗と不易流行）"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1737,7 +1699,6 @@ courses:
     credits: 4
     grade: 2
     term: "前期"
-    notes: "経済学部提供科目"
   - title: "地域産業活性化プロジェクトⅡ（京の老舗と不易流行）"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1747,7 +1708,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "経済学部提供科目"
   - title: "留学英語Ⅰ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1757,7 +1717,6 @@ courses:
     credits: 4
     grade: 2
     term: "前期"
-    notes: "経済学部提供科目"
   - title: "留学英語Ⅱ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1767,7 +1726,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "経済学部提供科目"
   - title: "留学英語Ⅲ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1777,7 +1735,6 @@ courses:
     credits: 4
     grade: 2
     term: "後期"
-    notes: "経済学部提供科目"
   - title: "留学英語Ⅳ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1787,7 +1744,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "経済学部提供科目"
   - title: "経営科学"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1797,7 +1753,7 @@ courses:
     credits: 2
     grade: 3
     term: "前期"
-    notes: "科目群欄: 学部等提供／融合型。経営学部提供科目"
+    notes: "科目群欄: 学部等提供／融合型"
   - title: "社会データ分析"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1807,7 +1763,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "経営学部提供科目"
   - title: "ワークルール入門"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1817,7 +1772,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "経営学部提供科目"
   - title: "消費者問題論"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1827,7 +1781,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "経営学部提供科目"
   - title: "比較社会政策"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1837,7 +1790,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "政策学部提供科目"
   - title: "公務員論"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1847,7 +1799,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "政策学部提供科目"
   - title: "国際ビジネス論"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1857,7 +1808,6 @@ courses:
     credits: 2
     grade: 3
     term: "前期"
-    notes: "政策学部提供科目"
   - title: "財政学"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1867,7 +1817,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "政策学部提供科目"
   - title: "地方財政論"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1877,7 +1826,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "政策学部提供科目"
   - title: "地域レジリエンス論"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1887,7 +1835,7 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "科目群欄: 学部等提供／融合型。政策学部提供科目"
+    notes: "科目群欄: 学部等提供／融合型"
   - title: "地域課題発見演習"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1897,7 +1845,7 @@ courses:
     credits: 4
     grade: 2
     term: "前期"
-    notes: "科目群欄: 学部等提供／アクティブ・ラーニング。政策学部提供科目"
+    notes: "科目群欄: 学部等提供／アクティブ・ラーニング"
   - title: "会話分析入門A"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1907,7 +1855,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "国際学部提供科目"
   - title: "会話分析入門B"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1917,7 +1864,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "国際学部提供科目"
   - title: "言語習得論"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1927,7 +1873,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "国際学部提供科目"
   - title: "異文化間コミュニケーション論"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1937,7 +1882,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "国際学部提供科目"
   - title: "Introduction to Sociolinguistics"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1947,7 +1891,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "国際学部提供科目"
   - title: "国際関係入門"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1957,7 +1900,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "国際学部提供科目"
   - title: "政治思想概論"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1967,7 +1909,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "国際学部提供科目"
   - title: "国際開発協力論"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1977,7 +1918,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "国際学部提供科目"
   - title: "Introduction to Cultural Anthropology"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1987,7 +1927,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "国際学部提供科目"
   - title: "文化遺産学"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -1997,7 +1936,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "国際学部提供科目"
   - title: "南アジアの言語"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2007,7 +1945,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "国際学部提供科目"
   - title: "グローバリゼーションとアフリカ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2017,7 +1954,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "国際学部提供科目"
   - title: "グローバリゼーションと東アジア"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2027,7 +1963,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "国際学部提供科目"
   - title: "グローバリゼーションと南アジア"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2037,7 +1972,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "国際学部提供科目"
   - title: "グローバリゼーションとヨーロッパ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2047,7 +1981,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "国際学部提供科目"
   - title: "グローバリゼーションとラテンアメリカ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2057,7 +1990,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "国際学部提供科目"
   - title: "グローバル・ガバナンス論"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2067,7 +1999,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "国際学部提供科目"
   - title: "宗教文化学入門"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2077,7 +2008,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "国際学部提供科目"
   - title: "日本語教育入門"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2087,7 +2017,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "国際学部提供科目"
   - title: "世界文学入門"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2097,7 +2026,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "国際学部提供科目"
   - title: "都市計画入門"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2107,7 +2035,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "国際学部提供科目"
   - title: "自然人類学入門"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2117,7 +2044,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "国際学部提供科目"
   - title: "差別と排除の社会学"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2127,7 +2053,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "社会学部提供科目"
   - title: "市民社会の歴史と現在"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2137,7 +2062,6 @@ courses:
     credits: 2
     grade: 3
     term: "前期"
-    notes: "社会学部提供科目"
   - title: "社会学の歴史と理論"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2147,7 +2071,6 @@ courses:
     credits: 2
     grade: 3
     term: "後期"
-    notes: "社会学部提供科目"
   - title: "アートと社会"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2157,7 +2080,6 @@ courses:
     credits: 2
     grade: 3
     term: "前期"
-    notes: "社会学部提供科目"
   - title: "宗教社会学"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2167,7 +2089,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "社会学部提供科目"
   - title: "子ども社会学"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2177,7 +2098,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "社会学部提供科目"
   - title: "社会参画技法"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2187,7 +2107,7 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "科目群欄: 学部等提供／アクティブ・ラーニング。社会学部提供科目"
+    notes: "科目群欄: 学部等提供／アクティブ・ラーニング"
   - title: "社会起業演習A"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2197,7 +2117,7 @@ courses:
     credits: 2
     grade: 4
     term: "前期"
-    notes: "科目群欄: 学部等提供／アクティブ・ラーニング。社会学部提供科目"
+    notes: "科目群欄: 学部等提供／アクティブ・ラーニング"
   - title: "社会起業演習B"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2207,7 +2127,7 @@ courses:
     credits: 2
     grade: 4
     term: "後期"
-    notes: "科目群欄: 学部等提供／アクティブ・ラーニング。社会学部提供科目"
+    notes: "科目群欄: 学部等提供／アクティブ・ラーニング"
   - title: "音楽社会学"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2217,7 +2137,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "社会学部提供科目"
   - title: "カルチュラルスタディーズ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2227,7 +2146,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "社会学部提供科目"
   - title: "情報社会論"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2237,7 +2155,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "社会学部提供科目"
   - title: "デジタルメディア論"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2247,7 +2164,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "社会学部提供科目"
   - title: "農業を支える植物細胞の力"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2257,7 +2173,6 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-    notes: "農学部提供科目【農学部履修不可】"
   - title: "英語コミュニケーションⅠ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2267,7 +2182,6 @@ courses:
     credits: 2
     grade: 2
     term: "後期"
-    notes: "国際関係コース提供科目"
   - title: "英語コミュニケーションⅡ"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2277,7 +2191,6 @@ courses:
     credits: 2
     grade: 3
     term: "前期"
-    notes: "国際関係コース提供科目"
   - title: "Global Understanding in English"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2287,7 +2200,7 @@ courses:
     credits: 4
     grade: 3
     term: "前期"
-    notes: "科目群欄: 学部等提供／ アクティブ・ラーニング。英語コミュニケーションコース提供科目"
+    notes: "科目群欄: 学部等提供／アクティブ・ラーニング"
   - title: "Forum"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2297,7 +2210,7 @@ courses:
     credits: 2
     grade: 3
     term: "前期"
-    notes: "科目群欄: 学部等提供／ アクティブ・ラーニング。英語コミュニケーションコース提供科目"
+    notes: "科目群欄: 学部等提供／アクティブ・ラーニング"
   - title: "自然保護論"
     category: "教養教育科目"
     subcategory: "学部・センター等提供科目"
@@ -2307,13 +2220,11 @@ courses:
     credits: 2
     grade: 3
     term: "後期"
-    notes: "環境サイエンスコース提供科目"
-  # ---- 教養教育科目特別講義 ----
+  # ---- 教養教育科目特別講義 (1科目) ----
   - title: "教養教育科目特別講義"
     category: "教養教育科目"
-    subcategory: "教養特別講義科目"
+    subcategory: "教養教育科目特別講義"
     type: "選択"
     credits: 2
     grade: 1
     term: "前期"
-    notes: "科目群欄: ー。対象：先端理工学部「教養教育科目特別講義」は複数の科目が開講されますが、卒業要件単位として認められるのは1科目（2単位）までです。（余剰分はフリーゾーンに計上されません）"
