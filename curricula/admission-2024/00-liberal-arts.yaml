@@ -1034,10 +1034,10 @@ courses:
     credits: 2
     grade: 2
     term: "前期"
-  # ---- 教養特別講義科目 (1科目) ----
+  # ---- 教養教育科目特別講義 (1科目) ----
   - title: "教養教育科目特別講義"
     category: "教養教育科目"
-    subcategory: "教養特別講義科目"
+    subcategory: "教養教育科目特別講義"
     type: "選択"
     credits: 2
     grade: 1
