@@ -2,8 +2,7 @@
 # design.md §5.1.4。curricula/admission-2025/ 側の title と1文字も違わない原表記をキーにする
 # 生成元: offerings/2026/admission-2024/05-oyo-kagaku.yaml から科目名一致で引き継いだ
 # 2025年度入学生も2026年度に開講される同じ科目を履修するため、科目名が共通するものは
-# 同じシラバスコードになる。名称が変わった科目は unresolved に置き、api-clean との
-# 突合(backend/scripts/build_offerings.py、§4.2.1)で解決する。
+# 同じシラバスコードになる。
 offering_year: 2026
 admission_year: 2025                # 対応する curricula/admission-2025/ のコホート
 program_code: "05"
