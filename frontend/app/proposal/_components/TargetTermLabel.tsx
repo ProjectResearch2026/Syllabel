@@ -3,7 +3,7 @@
 import { Calendar } from "lucide-react";
 import { termLabel, useTargetTerm } from "@/lib/targetTerm";
 import { useStudentStore } from "@/lib/student";
-import { demoSummary } from "@/lib/dummy/profiles";
+import { demoShortSummary } from "@/lib/dummy/profiles";
 
 /**
  * 履修提案の対象学期(次に登録する学期)の表示。design.md §8.3。
@@ -25,7 +25,7 @@ export default function TargetTermLabel({
     basis === "today"
       ? "今日の日付から決めています"
       : demo
-        ? `デモ：${demoSummary(demo.key)}`
+        ? demoShortSummary(demo.key)
         : null;
 
   if (variant === "mobile") {

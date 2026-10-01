@@ -93,6 +93,17 @@ export function isFreshmanDemo(profile: StudentProfile | null | undefined): bool
 export const DEMO_TARGET_YEAR = 2026;
 
 /**
+ * `demoSummary()` の短い版。時間割の画面の「提案する学期」に添える1行で、スマホでは
+ * これが2行に折れると時間割の5限がボトムドックの下に隠れていた
+ */
+export function demoShortSummary(key: Pick<DemoKey, "grade" | "term">): string {
+  if (key.grade === 1 && key.term === "前期") return "デモ：入学直後（成績なし）";
+  const admissionYear = DEMO_TARGET_YEAR - key.grade + 1;
+  const last = key.term === "前期" ? `${key.grade - 1}年後期` : `${key.grade}年前期`;
+  return `デモ：${admissionYear}年度入学・${last}までの成績`;
+}
+
+/**
  * デモの学生がどんな学生かの一文。提案する学期が過ぎていても不自然にならないよう、
  * **いつの時点の学生か**を言う(龍谷祭は10月頃で、前期の学生の提案はもう終わった学期になる)
  */

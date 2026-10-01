@@ -258,12 +258,17 @@ export default function RequirementsPanel({ view }: { view: RequirementsView }) 
 
 /**
  * 卒業要件の帯（モバイル。ui-design_phone.pen RequirementsStrip）。PC と同じ判定
- * （`RequirementsView`）を縦2段で出す — 上に充足した枠のまとめ、下に足りない枠の
- * カード（140px 固定幅・横スクロール）。指で送れるのでスクロールの矢印は置かない。
+ * （`RequirementsView`）を**横1列に詰めて**出す — 先頭に充足した枠の件数のチップ、
+ * 続けて足りない枠のカード（横スクロール。指で送れるので矢印は置かない）。
+ *
+ * 時間割を大きく見せるため、帯は1列に収める。以前は充足した枠の名前を並べた行
+ * （最大2行）とカード（名前・バー・単位の3段）の2段組みで、時間割の高さを削っていた。
+ * 充足した枠の名前はチップを押すと開く。
  */
 export function MobileRequirementsStrip({ view }: { view: RequirementsView }) {
+  const [doneOpen, setDoneOpen] = useState(false);
   if (view.status === "unavailable") return null;
-  const frame = "flex flex-col gap-2 border-b border-border-primary bg-surface-primary px-4 pb-3 pt-2.5";
+  const frame = "flex flex-col gap-1.5 border-b border-border-primary bg-surface-primary px-4 py-2";
   if (view.status !== "ready") {
     return (
       <div className={frame}>
@@ -279,57 +284,70 @@ export function MobileRequirementsStrip({ view }: { view: RequirementsView }) {
   const short = view.slots.filter((s) => s.earnedShortfall > 0);
   return (
     <div className={`${frame} transition-opacity ${view.updating ? "opacity-60" : ""}`} aria-busy={view.updating}>
-      {done.length > 0 && (
-        <p className="flex items-center gap-1.5 rounded-md bg-[#ECFDF5] px-2.5 py-1.5">
-          <CircleCheck size={14} className="shrink-0 text-[#059669]" aria-hidden="true" />
-          <span className="min-w-0 flex-1 text-[11px] font-bold leading-snug text-[#047857]">
-            取得済み：{done.map((s) => shortSlotName(s.name)).join("・")}
-          </span>
-        </p>
-      )}
-      {short.length > 0 ? (
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {short.map((slot) => {
+      <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {done.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setDoneOpen((v) => !v)}
+            aria-expanded={doneOpen}
+            className="flex shrink-0 flex-col items-start justify-center gap-0.5 rounded-md bg-[#ECFDF5] px-2.5 py-1.5"
+          >
+            <span className="flex items-center gap-1 text-[10px] font-bold text-[#047857]">
+              <CircleCheck size={12} className="shrink-0 text-[#059669]" aria-hidden="true" />
+              取得済み
+            </span>
+            <span className="text-[11px] font-bold leading-none text-[#047857] tabular-nums">
+              {done.length}枠 {doneOpen ? "▴" : "▾"}
+            </span>
+          </button>
+        )}
+        {short.length > 0 ? (
+          short.map((slot) => {
             const pct = barWidths(slot);
             return (
               <div
                 key={slot.key}
-                className="flex w-[140px] shrink-0 flex-col gap-[5px] rounded-md border border-[#E5E7EB] bg-surface-primary px-2.5 py-2"
+                className="flex w-[128px] shrink-0 flex-col justify-center gap-1 rounded-md border border-[#E5E7EB] bg-surface-primary px-2 py-1.5"
                 title={slotTitle(slot)}
               >
-                <span className="truncate text-[10px] font-bold text-fg-primary">{shortSlotName(slot.name)}</span>
-                <div
-                  className="flex h-1.5 overflow-hidden rounded-[3px] bg-[#E5E7EB]"
-                  role="meter"
-                  aria-label={slot.name}
-                  aria-valuemin={0}
-                  aria-valuemax={slot.required}
-                  aria-valuenow={slot.earned + slot.planned}
-                >
-                  <div className={`h-full bg-fg-primary ${BAR_MOTION}`} style={{ width: `${pct.earned}%` }} />
-                  <div className={`h-full bg-pending ${BAR_MOTION}`} style={{ width: `${pct.pending}%` }} />
-                  <div className={`h-full bg-accent ${BAR_MOTION}`} style={{ width: `${pct.planned}%` }} />
-                </div>
-                <span className="flex items-end gap-[3px] tabular-nums leading-none">
-                  <span className="text-[13px] font-bold text-fg-primary">{fmt(slot.earned)}</span>
-                  {slot.pending > 0 && (
-                    <span className="text-[11px] font-bold text-pending-fg">+{fmt(slot.pending)}</span>
-                  )}
-                  {slot.planned > 0 && (
-                    <span className="text-[11px] font-bold text-accent">+{fmt(slot.planned)}</span>
-                  )}
-                  <span className="text-[11px] text-fg-tertiary">/ {slot.required}</span>
+                <span className="truncate text-[10px] font-bold leading-tight text-fg-primary">
+                  {shortSlotName(slot.name)}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="flex h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-[#E5E7EB]"
+                    role="meter"
+                    aria-label={slot.name}
+                    aria-valuemin={0}
+                    aria-valuemax={slot.required}
+                    aria-valuenow={slot.earned + slot.planned}
+                  >
+                    <span className={`h-full bg-fg-primary ${BAR_MOTION}`} style={{ width: `${pct.earned}%` }} />
+                    <span className={`h-full bg-pending ${BAR_MOTION}`} style={{ width: `${pct.pending}%` }} />
+                    <span className={`h-full bg-accent ${BAR_MOTION}`} style={{ width: `${pct.planned}%` }} />
+                  </span>
+                  <span className="shrink-0 text-[10px] leading-none tabular-nums text-fg-tertiary">
+                    <span className="font-bold text-fg-primary">{fmt(slot.earned)}</span>
+                    {slot.pending > 0 && <span className="font-bold text-pending-fg">+{fmt(slot.pending)}</span>}
+                    {slot.planned > 0 && <span className="font-bold text-accent">+{fmt(slot.planned)}</span>}/
+                    {slot.required}
+                  </span>
                 </span>
               </div>
             );
-          })}
-        </div>
-      ) : (
-        <span className="text-xs font-semibold text-[#047857]">すべての枠を修得済みです</span>
+          })
+        ) : (
+          <span className="self-center text-xs font-semibold text-[#047857]">すべての枠を修得済みです</span>
+        )}
+      </div>
+      {doneOpen && (
+        <p className="rounded-md bg-[#ECFDF5] px-2.5 py-1.5 text-[11px] font-bold leading-snug text-[#047857]">
+          {done.map((s) => shortSlotName(s.name)).join("・")}
+        </p>
       )}
       {/* 指ではツールチップを開けないので、成績発表待ちがあるときだけ色の意味を1行で添える */}
       {view.pendingCredits > 0 && (
-        <p className="flex items-center gap-1.5 text-[10px] text-fg-secondary">
+        <p className="flex items-center gap-1.5 text-[10px] leading-none text-fg-secondary">
           <span className="size-2 shrink-0 rounded-full bg-pending" aria-hidden="true" />
           成績発表待ち {fmt(view.pendingCredits)}単位（合格すれば算入）
         </p>
