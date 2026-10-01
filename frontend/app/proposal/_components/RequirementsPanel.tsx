@@ -9,10 +9,35 @@ function fmt(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
 
-/** バーのツールチップ。今期の時間割で埋まる枠は、不足ではなくそう書く */
+/**
+ * バーのツールチップ。今期の時間割で埋まる枠は、不足ではなくそう書く。
+ * 不足の単位には成績発表待ちの分を含めない(合格が決まっていない)ので、その分は別の行に書く
+ */
 function slotTitle(slot: SlotProgress): string {
   const rest = slot.shortfall > 0 ? `あと${fmt(slot.shortfall)}単位` : "今期の時間割で埋まります";
-  return [slot.name, rest, slot.notes].filter(Boolean).join("\n");
+  const pending = slot.pending > 0 ? `成績発表待ち ${fmt(slot.pending)}単位（合格すれば算入）` : null;
+  return [slot.name, rest, pending, slot.notes].filter(Boolean).join("\n");
+}
+
+/**
+ * 枠の名前を帯に収まる長さに詰める。公式の区分名(`slot.name`)は「教養教育科目(必修・仏教)」の
+ * ように**区別に要る部分が括弧の中にある**ため、末尾を「…」で切ると「教養教育科目(必修…」と
+ * なり、どの枠か分からなくなっていた。共通の頭(「科目」「教養教育」)を削り、括弧の中を残す。
+ * 公式の区分名はツールチップと読み上げで出す
+ */
+export function shortSlotName(name: string): string {
+  return name
+    .replace(/^教養教育科目/, "教養")
+    .replace(/^(専門基礎|専門応用|専門関連)科目/, "$1")
+    .replace("選択必修〈基幹〉・", "基幹・");
+}
+
+/** バーの幅。修得済み(紺)・成績発表待ち(薄い紺)・今期(赤)の順に積み、100% で打ち切る */
+function barWidths(slot: SlotProgress) {
+  const earned = Math.min(100, (slot.earned / slot.required) * 100);
+  const pending = Math.min(100 - earned, (slot.pending / slot.required) * 100);
+  const planned = Math.min(100 - earned - pending, (slot.planned / slot.required) * 100);
+  return { earned, pending, planned };
 }
 
 /**
@@ -22,35 +47,37 @@ function slotTitle(slot: SlotProgress): string {
 const BAR_MOTION = "transition-[width] duration-500 ease-out motion-reduce:transition-none";
 
 /**
- * 足りない要件枠1つ。バーは修得済み(紺)と今期の時間割で埋まる分(赤)を積む。
+ * 足りない要件枠1つ。バーは修得済み(紺)・成績発表待ち(薄い紺)・今期の時間割で埋まる分(赤)を積む。
  * 不足の単位数は「修得済み+今期 / 必要」から読めるので行を割かず、ツールチップに出す
  */
 function SlotRow({ slot }: { slot: SlotProgress }) {
-  const earnedPct = Math.min(100, (slot.earned / slot.required) * 100);
-  const plannedPct = Math.min(100 - earnedPct, (slot.planned / slot.required) * 100);
+  const pct = barWidths(slot);
   return (
     <div
       className="flex min-w-0 flex-col gap-1"
       title={slotTitle(slot)}
     >
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="truncate text-[11px] font-semibold text-fg-primary">{slot.name}</span>
-        <span className="shrink-0 tabular-nums text-[11px] text-fg-secondary">
+      {/* 名前に1行を与える(単位数と並べると名前に残る幅が半分ほどになり、短くしても切れる) */}
+      <span className="truncate text-[11px] font-semibold text-fg-primary">{shortSlotName(slot.name)}</span>
+      <div className="flex items-center gap-2">
+        <div
+          className="flex h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-surface-soft"
+          role="meter"
+          aria-label={slot.name}
+          aria-valuemin={0}
+          aria-valuemax={slot.required}
+          aria-valuenow={slot.earned + slot.planned}
+        >
+          <div className={`h-full bg-fg-primary ${BAR_MOTION}`} style={{ width: `${pct.earned}%` }} />
+          <div className={`h-full bg-pending ${BAR_MOTION}`} style={{ width: `${pct.pending}%` }} />
+          <div className={`h-full bg-accent ${BAR_MOTION}`} style={{ width: `${pct.planned}%` }} />
+        </div>
+        <span className="shrink-0 tabular-nums text-[11px] leading-none text-fg-secondary">
           {fmt(slot.earned)}
+          {slot.pending > 0 && <span className="font-bold text-pending-fg">+{fmt(slot.pending)}</span>}
           {slot.planned > 0 && <span className="font-bold text-accent">+{fmt(slot.planned)}</span>}
           <span className="text-fg-muted"> / {slot.required}</span>
         </span>
-      </div>
-      <div
-        className="flex h-1.5 overflow-hidden rounded-full bg-surface-soft"
-        role="meter"
-        aria-label={slot.name}
-        aria-valuemin={0}
-        aria-valuemax={slot.required}
-        aria-valuenow={slot.earned + slot.planned}
-      >
-        <div className={`h-full bg-fg-primary ${BAR_MOTION}`} style={{ width: `${earnedPct}%` }} />
-        <div className={`h-full bg-accent ${BAR_MOTION}`} style={{ width: `${plannedPct}%` }} />
       </div>
     </div>
   );
@@ -119,7 +146,7 @@ function ScrollRow({ children }: { children: React.ReactNode }) {
  * バーの凡例。帯を1行に保つため常には出さず、ⓘ に乗せる・フォーカスしたときだけ開く。
  * 数値の「+4」はバーの赤と同じ色なので、凡例を開かなくても読める
  */
-function LegendInfo({ updating }: { updating: boolean }) {
+function LegendInfo({ updating, pending }: { updating: boolean; pending: boolean }) {
   return (
     <span className="group relative inline-flex">
       <button type="button" aria-label="バーの見方" className="text-fg-muted transition-colors hover:text-fg-primary">
@@ -133,6 +160,12 @@ function LegendInfo({ updating }: { updating: boolean }) {
           <span className="size-2 rounded-full bg-fg-primary" aria-hidden="true" />
           修得済み
         </span>
+        {pending && (
+          <span className="flex items-center gap-1">
+            <span className="size-2 rounded-full bg-pending" aria-hidden="true" />
+            成績発表待ち
+          </span>
+        )}
         <span className="flex items-center gap-1">
           <span className="size-2 rounded-full bg-accent" aria-hidden="true" />
           今期で埋まる分
@@ -144,16 +177,25 @@ function LegendInfo({ updating }: { updating: boolean }) {
 }
 
 /** 充足した枠のまとめ。枠ごとのバーは出さず、名前だけを1つに畳む */
-function DoneSummary({ slots, updating }: { slots: SlotProgress[]; updating: boolean }) {
-  const names = slots.map((s) => s.name).join("・");
+function DoneSummary({
+  slots,
+  updating,
+  pending,
+}: {
+  slots: SlotProgress[];
+  updating: boolean;
+  pending: boolean;
+}) {
+  const names = slots.map((s) => shortSlotName(s.name)).join("・");
   return (
-    <div className="flex w-[190px] shrink-0 flex-col gap-1 rounded-md bg-[#ECFDF5] px-3 py-2">
+    <div className="flex w-[250px] shrink-0 flex-col gap-1 rounded-md bg-[#ECFDF5] px-3 py-2">
       <span className="flex items-center gap-1.5 text-xs font-bold text-[#047857]">
         <CircleCheck size={14} className="shrink-0 text-done-tag" aria-hidden="true" />
         取得済み
-        <LegendInfo updating={updating} />
+        <LegendInfo updating={updating} pending={pending} />
       </span>
-      <span className="truncate text-[10px] text-[#047857]" title={names}>
+      {/* 1行で切ると2つ目以降の枠が読めないので、2行まで折り返す */}
+      <span className="line-clamp-2 text-[10px] leading-snug text-[#047857]" title={slots.map((s) => s.name).join("\n")}>
         {names}
       </span>
     </div>
@@ -169,7 +211,7 @@ function DoneSummary({ slots, updating }: { slots: SlotProgress[]; updating: boo
  * 凡例も行を割かず ⓘ に畳む。
  *
  * 数字は `POST /api/requirements` の判定(`lib/requirements.ts`)であり、手元で
- * 足し算しない。今期の時間割(提案・登録済み)の分は赤で重ね、時間割が変われば追従する。
+ * 足し算しない。今期の時間割(提案の科目)の分は赤で重ね、時間割が変われば追従する。
  */
 export default function RequirementsPanel({ view }: { view: RequirementsView }) {
   if (view.status === "unavailable") return null;
@@ -191,9 +233,9 @@ export default function RequirementsPanel({ view }: { view: RequirementsView }) 
       aria-busy={view.updating}
     >
       {done.length > 0 ? (
-        <DoneSummary slots={done} updating={view.updating} />
+        <DoneSummary slots={done} updating={view.updating} pending={view.pendingCredits > 0} />
       ) : (
-        <LegendInfo updating={view.updating} />
+        <LegendInfo updating={view.updating} pending={view.pendingCredits > 0} />
       )}
       {/*
         枠名(公式の区分名)が読める幅を保ち、入りきらない分は横にスクロールさせる。
@@ -240,23 +282,22 @@ export function MobileRequirementsStrip({ view }: { view: RequirementsView }) {
       {done.length > 0 && (
         <p className="flex items-center gap-1.5 rounded-md bg-[#ECFDF5] px-2.5 py-1.5">
           <CircleCheck size={14} className="shrink-0 text-[#059669]" aria-hidden="true" />
-          <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-[#047857]">
-            取得済み：{done.map((s) => s.name).join("・")}
+          <span className="min-w-0 flex-1 text-[11px] font-bold leading-snug text-[#047857]">
+            取得済み：{done.map((s) => shortSlotName(s.name)).join("・")}
           </span>
         </p>
       )}
       {short.length > 0 ? (
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {short.map((slot) => {
-            const earnedPct = Math.min(100, (slot.earned / slot.required) * 100);
-            const plannedPct = Math.min(100 - earnedPct, (slot.planned / slot.required) * 100);
+            const pct = barWidths(slot);
             return (
               <div
                 key={slot.key}
                 className="flex w-[140px] shrink-0 flex-col gap-[5px] rounded-md border border-[#E5E7EB] bg-surface-primary px-2.5 py-2"
                 title={slotTitle(slot)}
               >
-                <span className="truncate text-[10px] font-bold text-fg-primary">{slot.name}</span>
+                <span className="truncate text-[10px] font-bold text-fg-primary">{shortSlotName(slot.name)}</span>
                 <div
                   className="flex h-1.5 overflow-hidden rounded-[3px] bg-[#E5E7EB]"
                   role="meter"
@@ -265,11 +306,15 @@ export function MobileRequirementsStrip({ view }: { view: RequirementsView }) {
                   aria-valuemax={slot.required}
                   aria-valuenow={slot.earned + slot.planned}
                 >
-                  <div className={`h-full bg-fg-primary ${BAR_MOTION}`} style={{ width: `${earnedPct}%` }} />
-                  <div className={`h-full bg-accent ${BAR_MOTION}`} style={{ width: `${plannedPct}%` }} />
+                  <div className={`h-full bg-fg-primary ${BAR_MOTION}`} style={{ width: `${pct.earned}%` }} />
+                  <div className={`h-full bg-pending ${BAR_MOTION}`} style={{ width: `${pct.pending}%` }} />
+                  <div className={`h-full bg-accent ${BAR_MOTION}`} style={{ width: `${pct.planned}%` }} />
                 </div>
                 <span className="flex items-end gap-[3px] tabular-nums leading-none">
                   <span className="text-[13px] font-bold text-fg-primary">{fmt(slot.earned)}</span>
+                  {slot.pending > 0 && (
+                    <span className="text-[11px] font-bold text-pending-fg">+{fmt(slot.pending)}</span>
+                  )}
                   {slot.planned > 0 && (
                     <span className="text-[11px] font-bold text-accent">+{fmt(slot.planned)}</span>
                   )}
@@ -281,6 +326,13 @@ export function MobileRequirementsStrip({ view }: { view: RequirementsView }) {
         </div>
       ) : (
         <span className="text-xs font-semibold text-[#047857]">すべての枠を修得済みです</span>
+      )}
+      {/* 指ではツールチップを開けないので、成績発表待ちがあるときだけ色の意味を1行で添える */}
+      {view.pendingCredits > 0 && (
+        <p className="flex items-center gap-1.5 text-[10px] text-fg-secondary">
+          <span className="size-2 shrink-0 rounded-full bg-pending" aria-hidden="true" />
+          成績発表待ち {fmt(view.pendingCredits)}単位（合格すれば算入）
+        </p>
       )}
     </div>
   );

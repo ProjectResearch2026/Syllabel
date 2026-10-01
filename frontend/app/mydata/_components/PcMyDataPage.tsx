@@ -18,8 +18,10 @@ import { useChatStore } from "@/lib/chat";
 import { useChatHistoryStore } from "@/lib/chatHistory";
 import { useProposalStore } from "@/lib/proposal";
 import { useSyllabusUIStore } from "@/lib/syllabusUI";
-import { DUMMY_PROFILES } from "@/lib/dummy/profiles";
+import { demoLabel, isFreshmanDemo } from "@/lib/dummy/profiles";
+import DemoPicker from "@/app/_components/DemoPicker";
 import ManualInputForm from "@/app/_components/ManualInputForm";
+import { useReplaceStudent } from "@/lib/replaceStudent";
 
 const GRADUATION_CREDITS = 124;
 
@@ -33,8 +35,6 @@ export default function PcMyDataPage() {
   // 生成済みの提案と、学生が書いた希望条件もここで消す（要件§4.8、§5.2.3）
   const clearProposal = useProposalStore((s) => s.clear);
   const resetSyllabusUI = useSyllabusUIStore((s) => s.reset);
-  const [demoMode, setDemoMode] = useState(false);
-  const [demoIndex, setDemoIndex] = useState(0);
   // 学年・課程と取り込んだ科目の編集。モバイルのマイデータと同じフォームを開く
   const [editing, setEditing] = useState(false);
 
@@ -44,19 +44,8 @@ export default function PcMyDataPage() {
     window.scrollTo({ top: 0 });
   };
 
-  const handleDemoToggle = () => {
-    if (!demoMode) {
-      setProfile(DUMMY_PROFILES[demoIndex].profile);
-    } else {
-      clearProfile();
-    }
-    setDemoMode((v) => !v);
-  };
-
-  const handleDemoSelect = (index: number) => {
-    setDemoIndex(index);
-    setProfile(DUMMY_PROFILES[index].profile);
-  };
+  /** デモの学生に切り替える。前の学生の提案と会話は捨てる */
+  const handleDemoLoad = useReplaceStudent();
 
   const handleReset = () => {
     if (confirm("取り込んだ成績・対話履歴をすべて消去しますか? この操作は取り消せません。")) {
@@ -167,10 +156,14 @@ export default function PcMyDataPage() {
               <FileText size={20} className="shrink-0 text-accent" aria-hidden="true" />
               <div className="flex flex-col gap-0.5 min-w-0">
                 <span className="truncate text-[13px] font-semibold text-fg-primary">
-                  成績表_2024.pdf
+                  {profile.demo
+                    ? `デモの学生（${demoLabel(profile.demo.key)}・${profile.program}）`
+                    : "成績表PDF"}
                 </span>
                 <span className="text-[11px] text-fg-secondary">
-                  {profile.completedCourses.length}科目を認識・ブラウザ内で保持中
+                  {isFreshmanDemo(profile)
+                    ? "入学したばかりで、成績はまだありません"
+                    : `${profile.completedCourses.length}科目を認識・ブラウザ内で保持中`}
                 </span>
               </div>
             </div>
@@ -211,35 +204,15 @@ export default function PcMyDataPage() {
             <Monitor size={18} className="text-accent" aria-hidden="true" />
             <h2 className="text-[15px] font-bold text-fg-primary">デモモード</h2>
           </div>
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[13px] font-semibold text-fg-primary">展示用ダミーデータを使用</span>
-              <span className="text-[11px] text-fg-secondary">
-                龍谷祭の展示端末ではPDF取り込みを無効化します
-              </span>
-            </div>
-            <button
-              role="switch"
-              aria-checked={demoMode}
-              onClick={handleDemoToggle}
-              className={`w-11 h-6 rounded-full p-0.5 flex items-center transition-colors shrink-0 ${
-                demoMode ? "justify-end bg-accent" : "justify-start bg-border-primary"
-              }`}
-            >
-              <span className="size-5 rounded-full bg-surface-primary shadow-sm" />
-            </button>
-          </div>
-          {demoMode && (
-            <select
-              value={demoIndex}
-              onChange={(e) => handleDemoSelect(Number(e.target.value))}
-              className="w-full rounded border border-border-primary bg-surface-gray px-3 py-2 text-[13px] text-fg-primary focus:border-fg-primary focus:outline-none"
-            >
-              {DUMMY_PROFILES.map((p, i) => (
-                <option key={i} value={i}>{p.label}</option>
-              ))}
-            </select>
-          )}
+          <p className="text-[11px] text-fg-secondary">
+            展示用のダミー学生に切り替えます。学年・課程・履修を組む学期を選んでください。
+          </p>
+          <DemoPicker
+            key={profile.demo ? `${profile.demo.key.programCode}-${profile.demo.key.grade}-${profile.demo.key.term}` : "none"}
+            initial={profile.demo?.key}
+            onLoad={handleDemoLoad}
+            submitLabel="この学生に切り替える"
+          />
         </section>
 
         {/* Danger zone */}
@@ -314,7 +287,11 @@ function CourseSection({
               {course.rawScore && (
                 <span
                   className={`rounded px-1.5 py-0.5 text-center text-xs font-semibold ${
-                    unearned ? "bg-[#FEE2E2] text-[#991B1B]" : "bg-[#EFF6FF] text-fg-primary"
+                    unearned
+                      ? "bg-[#FEE2E2] text-[#991B1B]"
+                      : course.status === "registered"
+                        ? "bg-pending-bg text-pending-fg"
+                        : "bg-[#EFF6FF] text-fg-primary"
                   }`}
                 >
                   {course.rawScore}

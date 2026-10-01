@@ -50,13 +50,18 @@ export async function fetchRequirements(
   return res.json();
 }
 
-/** 画面に出す要件枠1つ。`planned` は今期の時間割(提案・登録済み)を修得したときに増える単位 */
+/** 画面に出す要件枠1つ。`planned` は今期の時間割(提案の科目)を修得したときに増える単位 */
 export type SlotProgress = {
   key: string;
   name: string;
   required: number;
   earned: number;
   planned: number;
+  /**
+   * 成績発表待ち(`registered`)の科目に合格したときに増える単位。修得済みでも今期の
+   * 時間割でもないので、どちらとも別の色で出す(`shortfall` には含めない)
+   */
+  pending: number;
   /** 今期の時間割をすべて修得したあとの不足単位 */
   shortfall: number;
   /**
@@ -79,6 +84,8 @@ export type RequirementsView =
       earnedCredits: number;
       /** 今期の時間割で卒業要件に算入される単位(上限や溢れで数えられない分は入らない) */
       plannedCredits: number;
+      /** 成績発表待ちの科目に合格したときに卒業要件に算入される単位 */
+      pendingCredits: number;
       /** 今期の時間割をすべて修得したあとの卒業残り単位 */
       remainingCredits: number;
       /** 見込みの計算が最新の時間割に追いついていない(提案の生成中・再計算中) */
@@ -86,11 +93,15 @@ export type RequirementsView =
     };
 
 /**
- * 今期の時間割の科目を「修得した」とみなす形にする。提案の科目と、登録済みで
- * 成績が未確定の科目(`registered`)の両方である。単位が分からない科目は数えない。
+ * 今期の時間割(提案の科目)を「修得した」とみなす形にする。単位が分からない科目は数えない。
+ *
+ * **登録済みで成績が未確定の科目(`registered`)は入れない。** 成績表は学期の成績が
+ * 確定してから公開される(3月中旬・9月初旬)ので、そこに `***` で載るのは**終わった学期の
+ * 成績発表待ちの科目**であり、提案する学期の時間割ではない。入れると、提案していないのに
+ * その単位が「今期で埋まる分」として赤く積まれ、卒業残りからも引かれていた。
  */
-function plannedCourses(profile: StudentProfile, courses: ProposedCourse[], target: TargetTerm): Course[] {
-  const proposed: Course[] = courses
+function plannedCourses(courses: ProposedCourse[], target: TargetTerm): Course[] {
+  return courses
     .filter((c) => c.credits != null)
     .map((c) => ({
       title: c.title,
@@ -99,10 +110,6 @@ function plannedCourses(profile: StudentProfile, courses: ProposedCourse[], targ
       credits: c.credits as number,
       status: "passed",
     }));
-  const registered: Course[] = profile.completedCourses
-    .filter((c) => c.status === "registered")
-    .map((c) => ({ ...c, status: "passed" }));
-  return [...proposed, ...registered];
 }
 
 /** 提案の snapshot は生成中に何度も届くので、落ち着いてから見込みを計算し直す */
@@ -112,7 +119,7 @@ const PLANNED_DEBOUNCE_MS = 300;
  * 卒業要件枠ごとの修得済み単位と、今期の時間割による見込みを返す。design.md §8.3.5。
  *
  * `POST /api/requirements` を2回引く。1回目はプロファイルのまま(修得済み)、2回目は
- * 今期の時間割(提案の科目・登録済みの科目)を修得したとみなして足したもの(見込み)。
+ * 今期の時間割(提案の科目)を修得したとみなして足したもの(見込み)。
  * 枠ごとの差が「今期で埋まる単位」である。**枠への割り当ては backend の判定に任せる** —
  * 同じ枠の科目を不足より多く取った分は下流の枠(オールフリーゾーンなど)に回るため、
  * 科目の区分から手元で足し算すると枠が食い違う。
@@ -130,26 +137,40 @@ export function useRequirements(
   const admissionYear = resolveAdmissionYear(profile);
 
   const planned = useMemo(
-    () => (profile ? plannedCourses(profile, courses, target) : []),
+    () => (profile ? plannedCourses(courses, target) : []),
     [profile, courses, target],
   );
   // 同じ中身の時間割で計算し直さないよう、中身を文字列にして比べる
   const plannedKey = JSON.stringify(planned);
 
-  const [base, setBase] = useState<{ profile: StudentProfile; result: RequirementsResult } | null>(
-    null,
-  );
+  const [base, setBase] = useState<{
+    profile: StudentProfile;
+    result: RequirementsResult;
+    /** 成績発表待ちの科目に合格したとみなした判定。そうした科目が無ければ null */
+    pending: RequirementsResult | null;
+  } | null>(null);
   const [baseError, setBaseError] = useState<StudentProfile | null>(null);
   const [withPlan, setWithPlan] = useState<{ key: string; result: RequirementsResult } | null>(
     null,
   );
 
-  // 修得済み(プロファイルのまま)。プロファイルが変わったときだけ引く
+  // 修得済み(プロファイルのまま)と、成績発表待ちの科目に合格したとみなしたもの。
+  // どちらもプロファイルが変わったときだけ引く
   useEffect(() => {
     if (!profile || !programCode || admissionYear == null) return;
     const ctrl = new AbortController();
-    fetchRequirements(profile, programCode, admissionYear, ctrl.signal)
-      .then((result) => setBase({ profile, result }))
+    const hasPending = profile.completedCourses.some((c) => c.status === "registered");
+    const withPending: StudentProfile = {
+      ...profile,
+      completedCourses: profile.completedCourses.map((c) =>
+        c.status === "registered" ? { ...c, status: "passed" } : c,
+      ),
+    };
+    Promise.all([
+      fetchRequirements(profile, programCode, admissionYear, ctrl.signal),
+      hasPending ? fetchRequirements(withPending, programCode, admissionYear, ctrl.signal) : null,
+    ])
+      .then(([result, pending]) => setBase({ profile, result, pending }))
       .catch((err) => {
         if ((err as Error).name !== "AbortError") setBaseError(profile);
       });
@@ -184,6 +205,7 @@ export function useRequirements(
   // 使わず、修得済みだけを出して「更新中」とする
   const after = planned.length === 0 ? before : withPlan?.key === plannedKey ? withPlan.result : null;
   const afterSlots = new Map((after ?? before).slots.map((s) => [s.key, s]));
+  const pendingSlots = new Map((base.pending ?? before).slots.map((s) => [s.key, s]));
 
   const slots = before.slots
     // `required: 0` の枠は受け皿を持たない通過点(§4.4.5)。画面には出さない
@@ -196,6 +218,7 @@ export function useRequirements(
         required: s.required,
         earned: s.earned,
         planned: Math.max(0, next.earned - s.earned),
+        pending: Math.max(0, (pendingSlots.get(s.key)?.earned ?? s.earned) - s.earned),
         shortfall: next.shortfall,
         earnedShortfall: s.shortfall,
         notes: s.notes,
@@ -208,6 +231,7 @@ export function useRequirements(
     totalCredits: before.totalCredits,
     earnedCredits: before.earnedCredits,
     plannedCredits: Math.max(0, (after ?? before).earnedCredits - before.earnedCredits),
+    pendingCredits: Math.max(0, (base.pending ?? before).earnedCredits - before.earnedCredits),
     remainingCredits: (after ?? before).remainingCredits,
     updating: after === null,
   };

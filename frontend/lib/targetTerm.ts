@@ -18,7 +18,8 @@ import { useStudentStore, type StudentProfile } from "@/lib/student";
  * 「入学年度の前期+在籍年数×2学期」は9月作成の成績表で1学期先を指す。
  * 再入学(学籍異動)があると入学日との関係もさらに読みにくくなる。
  *
- * 作成日が無い(手入力・デモ)ときだけ今日の日付で決め、画面でその旨を示す。
+ * デモの学生は選んだ学期(`profile.demo.target`)に固定する。作成日が無い手入力の
+ * ときだけ今日の日付で決め、画面でその旨を示す。
  */
 
 export type HalfTerm = "前期" | "後期";
@@ -26,11 +27,11 @@ export type HalfTerm = "前期" | "後期";
 /** `year` は**年度**(4月始まり)。2027年3月は 2026年度 */
 export type TargetTerm = { year: number; term: HalfTerm };
 
-export type TargetTermBasis = "issuedOn" | "today";
+export type TargetTermBasis = "issuedOn" | "demo" | "today";
 
 export type TargetTermEstimate = {
   target: TargetTerm;
-  /** 何から決めたか。`today` は作成日が無い(手入力・デモ)ときだけ */
+  /** 何から決めたか。`today` は作成日が無い手入力のときだけ */
   basis: TargetTermBasis;
 };
 
@@ -61,9 +62,10 @@ function today(now: Date): { year: number; month: number } {
 
 /** プロファイルから次の登録学期(成績表の次の学期)を決める */
 export function estimateTargetTerm(
-  profile: Pick<StudentProfile, "issuedOn"> | null,
+  profile: Pick<StudentProfile, "issuedOn" | "demo"> | null,
   now: Date = new Date(),
 ): TargetTermEstimate {
+  if (profile?.demo) return { target: profile.demo.target, basis: "demo" };
   const issued = profile?.issuedOn ? parseIssuedOn(profile.issuedOn) : null;
   if (issued) return { target: termFromDate(issued), basis: "issuedOn" };
   return { target: termFromDate(today(now)), basis: "today" };
@@ -77,11 +79,13 @@ export function estimateTargetTerm(
  * 作成後に休学した場合だけである)。
  */
 export function gradeAt(
-  profile: Pick<StudentProfile, "grade" | "issuedOn"> | null,
+  profile: Pick<StudentProfile, "grade" | "issuedOn" | "demo"> | null,
   target: TargetTerm,
   now: Date = new Date(),
 ): 1 | 2 | 3 | 4 | null {
   if (!profile || profile.grade == null) return null;
+  // デモの学年は、はじめから提案する学期の学年である
+  if (profile.demo) return profile.grade;
   const issued = profile.issuedOn ? parseIssuedOn(profile.issuedOn) : null;
   const reference = fiscalYearOf(issued ?? today(now));
   const grade = profile.grade + (target.year - reference);
