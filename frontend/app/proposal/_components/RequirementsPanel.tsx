@@ -282,7 +282,8 @@ export function MobileRequirementsStrip({ view }: { view: RequirementsView }) {
       {done.length > 0 && (
         <p className="flex items-center gap-1.5 rounded-md bg-[#ECFDF5] px-2.5 py-1.5">
           <CircleCheck size={14} className="shrink-0 text-[#059669]" aria-hidden="true" />
-          <span className="min-w-0 flex-1 text-[11px] font-bold leading-snug text-[#047857]">
+          {/* 2行まで。それ以上に伸ばすと時間割の5限が画面の下に押し出される */}
+          <span className="line-clamp-2 min-w-0 flex-1 text-[11px] font-bold leading-snug text-[#047857]">
             取得済み：{done.map((s) => shortSlotName(s.name)).join("・")}
           </span>
         </p>

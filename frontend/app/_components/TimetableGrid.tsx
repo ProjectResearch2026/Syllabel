@@ -7,6 +7,10 @@ import type { CourseTarget } from "./CourseMenu";
 
 const LONG_PRESS_MS = 450;
 const MOVE_TOLERANCE = 10;
+/** 1コマの高さ(px)。画面に収めるときは呼び出し側が `rowHeight` で詰める */
+export const DEFAULT_ROW_HEIGHT = 72;
+/** 詰めても下回らない高さ。科目名2行と区分のバッジが収まる */
+export const MIN_ROW_HEIGHT = 52;
 
 /** 選択中の科目。複数コマの科目はどのマスで選んでも同じ科目として光らせる */
 export type SelectedCourse = { day: string; period: number; key: string };
@@ -58,6 +62,7 @@ export default function TimetableGrid({
   onTapCourse,
   onTapEmpty,
   onLongPressEmpty,
+  rowHeight,
 }: {
   table: SlotTable;
   unscheduled: SlotEntry[];
@@ -67,6 +72,8 @@ export default function TimetableGrid({
   /** 空きコマを軽く押した。選択を外す */
   onTapEmpty?: () => void;
   onLongPressEmpty: (target: SlotTarget) => void;
+  /** 1コマの高さ(px)。省略時は `DEFAULT_ROW_HEIGHT` */
+  rowHeight?: number;
 }) {
   const timer = useRef<number | null>(null);
   const fired = useRef(false);
@@ -128,7 +135,11 @@ export default function TimetableGrid({
       </div>
 
       {PERIODS.map((period) => (
-        <div key={period} className="flex h-[72px] border-b border-border-primary">
+        <div
+          key={period}
+          className="flex border-b border-border-primary"
+          style={{ height: rowHeight ?? DEFAULT_ROW_HEIGHT }}
+        >
           <div className="flex w-7 shrink-0 flex-col items-center justify-center border-r border-border-primary bg-cell-free">
             <span className="tabular-nums text-[13px] font-bold leading-none text-fg-primary">{period}</span>
             <span className="text-[9px] text-fg-secondary">限</span>

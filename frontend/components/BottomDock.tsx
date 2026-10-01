@@ -87,11 +87,11 @@ export default function BottomDock() {
 
       {mode === "full" ? null : half ? (
         /* ハーフシートの下に貼り付く（STEP4）。タブは見えたまま */
-        <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border-primary bg-surface-gray">
+        <nav data-bottom-dock className="fixed inset-x-0 bottom-0 z-50 border-t border-border-primary bg-surface-gray">
           {tabRow}
         </nav>
       ) : (
-        <nav className="fixed inset-x-0 bottom-0 z-50 px-2 pb-2.5 pt-2">
+        <nav data-bottom-dock className="fixed inset-x-0 bottom-0 z-50 px-2 pb-2.5 pt-2">
           <div className="flex flex-col rounded-2xl border border-border-primary bg-surface-gray shadow-dock">
             <AnimatePresence>
               {dock && context && (

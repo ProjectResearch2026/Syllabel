@@ -15,8 +15,7 @@ import {
   ArrowRight,
   AlertCircle,
   Loader2,
-  ChevronDown,
-  ChevronUp,
+  X,
 } from "lucide-react";
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import StepBar from "./StepBar";
@@ -177,6 +176,56 @@ export default function PcImportPage() {
       {step === 0 && importState.type === "consent" && (
         <PrivacyConsentModal onAccept={handleConsentAccept} onCancel={handleConsentCancel} />
       )}
+      {/*
+        デモの学生を選ぶ欄は画面の中央に開く。ボタンの下に開いていた頃は、取り込みの
+        カードが画面の中ほどにあるため欄の下半分が画面の外に出て、スクロールしないと
+        「この学生で試す」まで届かなかった
+      */}
+      <AnimatePresence>
+        {step === 0 && demoOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center px-4"
+            onKeyDown={(e) => e.key === "Escape" && setDemoOpen(false)}
+          >
+            <motion.div
+              className="absolute inset-0 bg-black/50"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              onClick={() => setDemoOpen(false)}
+            />
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="demo-dialog-title"
+              className="relative flex max-h-[calc(100dvh-32px)] w-[440px] flex-col gap-4 overflow-y-auto rounded-2xl bg-surface-primary p-6 shadow-xl"
+              initial={{ opacity: 0, scale: 0.96, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.98, y: 4 }}
+              transition={{ duration: 0.16, ease: [0.25, 0.1, 0.25, 1] }}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-col gap-1">
+                  <h2 id="demo-dialog-title" className="text-lg font-bold text-fg-primary">
+                    ダミーデータで試す
+                  </h2>
+                  <p className="text-xs text-fg-secondary">展示用のダミー学生で、成績表なしで体験できます。</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDemoOpen(false)}
+                  aria-label="閉じる"
+                  className="grid size-8 shrink-0 place-items-center rounded-full text-fg-secondary transition-colors hover:bg-surface-soft"
+                >
+                  <X size={18} aria-hidden="true" />
+                </button>
+              </div>
+              <DemoPicker onLoad={handleDemoLoad} />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       <AnimatePresence mode="wait" initial={false} custom={dir}>
         <motion.div
           key={step}
@@ -293,37 +342,14 @@ export default function PcImportPage() {
                 <div className="h-px flex-1 bg-[#E5E7EB]" />
               </div>
 
-              <div className="relative">
-                <button
-                  onClick={() => setDemoOpen((o) => !o)}
-                  className="flex h-11 w-full items-center justify-center gap-2 rounded border border-fg-primary transition-colors hover:bg-surface-soft"
-                >
-                  <Play size={16} className="text-fg-primary" aria-hidden="true" />
-                  <span className="text-sm font-semibold text-fg-primary">
-                    ダミーデータで試す（展示用）
-                  </span>
-                  {demoOpen ? (
-                    <ChevronUp size={15} className="text-fg-primary" aria-hidden="true" />
-                  ) : (
-                    <ChevronDown size={15} className="text-fg-primary" aria-hidden="true" />
-                  )}
-                </button>
-                <AnimatePresence>
-                  {demoOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                      transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
-                      className="absolute inset-x-0 top-full z-10 mt-1 origin-top overflow-hidden rounded border border-border-primary bg-surface-primary shadow-popover"
-                    >
-                      <div className="p-4">
-                        <DemoPicker onLoad={handleDemoLoad} />
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+              <button
+                onClick={() => setDemoOpen(true)}
+                aria-haspopup="dialog"
+                className="flex h-11 w-full items-center justify-center gap-2 rounded border border-fg-primary transition-colors hover:bg-surface-soft"
+              >
+                <Play size={16} className="text-fg-primary" aria-hidden="true" />
+                <span className="text-sm font-semibold text-fg-primary">ダミーデータで試す（展示用）</span>
+              </button>
             </div>
           </div>
         </div>

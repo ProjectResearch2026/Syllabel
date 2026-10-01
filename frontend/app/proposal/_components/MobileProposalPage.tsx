@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -14,7 +14,12 @@ import { useTimetableEditing } from "@/lib/useTimetableEditing";
 import { courseContext, slotContext, TIMETABLE_CONTEXT, useAiStore } from "@/lib/ai";
 import { useProposalAssistant } from "@/lib/useProposalConversation";
 import MobileAiAssistant from "@/components/ai/MobileAiAssistant";
-import TimetableGrid, { entryKey, type SelectedCourse } from "@/app/_components/TimetableGrid";
+import TimetableGrid, {
+  DEFAULT_ROW_HEIGHT,
+  MIN_ROW_HEIGHT,
+  entryKey,
+  type SelectedCourse,
+} from "@/app/_components/TimetableGrid";
 import SlotPopover, { type SlotTarget } from "@/app/_components/SlotPopover";
 import CourseMenu, { type CourseTarget } from "@/app/_components/CourseMenu";
 import TargetTermLabel from "./TargetTermLabel";
@@ -69,12 +74,54 @@ function MobileCreditBar() {
  * **この画面に来ただけでは提案を撃たない**（design.md §8.3）。提案前に Ask Bar を
  * 押すと、全画面のシートで希望条件を聞く（AI_STEP0）。
  */
+/** 曜日の見出しの高さ(px)。`TimetableGrid` の `h-8` */
+const GRID_HEADER_HEIGHT = 32;
+
+/**
+ * 時間割の5限までが、ボトムドックに隠れずに1画面に収まる1コマの高さを返す。
+ *
+ * 時間割より上(単位バー・提案する学期・卒業要件の帯)の高さは学生と端末で変わり、
+ * 72px 固定では背の低い端末で5限がドックの下に隠れていた。表の上端から画面の下端までの
+ * 余りを5コマで割り、`MIN_ROW_HEIGHT`〜`DEFAULT_ROW_HEIGHT` に収める(下回る端末ではスクロールする)。
+ * 表の上端はコマの高さに依らないので、高さを変えても計算は揺れない
+ */
+function useFittedRowHeight(gridRef: RefObject<HTMLDivElement | null>, pageRef: RefObject<HTMLDivElement | null>) {
+  const [height, setHeight] = useState(DEFAULT_ROW_HEIGHT);
+  useEffect(() => {
+    const grid = gridRef.current;
+    const page = pageRef.current;
+    if (!grid || !page) return;
+    const update = () => {
+      const top = grid.getBoundingClientRect().top + window.scrollY;
+      const dock = document.querySelector("[data-bottom-dock]")?.getBoundingClientRect().height ?? 0;
+      const room = window.innerHeight - top - dock - GRID_HEADER_HEIGHT;
+      // 1コマごとに下罫線 1px がある
+      const fitted = Math.floor(room / PERIOD_COUNT) - 1;
+      setHeight(Math.min(DEFAULT_ROW_HEIGHT, Math.max(MIN_ROW_HEIGHT, fitted)));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(page);
+    window.addEventListener("resize", update);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, [gridRef, pageRef]);
+  return height;
+}
+
+const PERIOD_COUNT = 5;
+
 export default function MobileProposalPage() {
   const router = useRouter();
   const profile = useStudentStore((s) => s.profile);
   const { status, courses } = useProposalStore();
   const { requirements } = useCreditSummary();
   const conversation = useProposalAssistant();
+  const pageRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const rowHeight = useFittedRowHeight(gridRef, pageRef);
 
   const setSelection = useAiStore((s) => s.setSelection);
   const openHalf = useAiStore((s) => s.openHalf);
@@ -138,15 +185,16 @@ export default function MobileProposalPage() {
   }
 
   return (
-    <div className="flex min-h-full flex-col bg-surface-primary">
+    <div ref={pageRef} className="flex min-h-full flex-col bg-surface-primary">
       <MobileAppHeader />
       <MobileCreditBar />
       {/* 提案する学期(lib/targetTerm.ts)。成績表の次の学期に固定で、表示だけする */}
       <TargetTermLabel variant="mobile" />
       <MobileRequirementsStrip view={requirements} />
 
-      <div className="relative">
+      <div ref={gridRef} className="relative">
         <TimetableGrid
+          rowHeight={rowHeight}
           table={table}
           unscheduled={unscheduled}
           loading={isLoading}
