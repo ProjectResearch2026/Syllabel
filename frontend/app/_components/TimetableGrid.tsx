@@ -11,6 +11,8 @@ const MOVE_TOLERANCE = 10;
 export const DEFAULT_ROW_HEIGHT = 72;
 /** 詰めても下回らない高さ。科目名2行と区分のバッジが収まる */
 export const MIN_ROW_HEIGHT = 52;
+/** 画面に余りがあるときに伸ばす上限。科目名が長くても3行で収まる */
+export const MAX_ROW_HEIGHT = 96;
 
 /** 選択中の科目。複数コマの科目はどのマスで選んでも同じ科目として光らせる */
 export type SelectedCourse = { day: string; period: number; key: string };

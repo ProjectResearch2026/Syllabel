@@ -16,6 +16,7 @@ import { useProposalAssistant } from "@/lib/useProposalConversation";
 import MobileAiAssistant from "@/components/ai/MobileAiAssistant";
 import TimetableGrid, {
   DEFAULT_ROW_HEIGHT,
+  MAX_ROW_HEIGHT,
   MIN_ROW_HEIGHT,
   entryKey,
   type SelectedCourse,
@@ -78,11 +79,12 @@ function MobileCreditBar() {
 const GRID_HEADER_HEIGHT = 32;
 
 /**
- * 時間割の5限までが、ボトムドックに隠れずに1画面に収まる1コマの高さを返す。
+ * 時間割の5限までが、ボトムドックに隠れずに1画面にちょうど収まる1コマの高さを返す。
  *
  * 時間割より上(単位バー・提案する学期・卒業要件の帯)の高さは学生と端末で変わり、
  * 72px 固定では背の低い端末で5限がドックの下に隠れていた。表の上端から画面の下端までの
- * 余りを5コマで割り、`MIN_ROW_HEIGHT`〜`DEFAULT_ROW_HEIGHT` に収める(下回る端末ではスクロールする)。
+ * 余りを5コマで割り、`MIN_ROW_HEIGHT`〜`MAX_ROW_HEIGHT` に収める。背の高い端末では表を伸ばして
+ * 画面を埋め、下限を下回る端末ではスクロールする。
  * 表の上端はコマの高さに依らないので、高さを変えても計算は揺れない
  */
 function useFittedRowHeight(gridRef: RefObject<HTMLDivElement | null>, pageRef: RefObject<HTMLDivElement | null>) {
@@ -97,7 +99,7 @@ function useFittedRowHeight(gridRef: RefObject<HTMLDivElement | null>, pageRef: 
       const room = window.innerHeight - top - dock - GRID_HEADER_HEIGHT;
       // 1コマごとに下罫線 1px がある
       const fitted = Math.floor(room / PERIOD_COUNT) - 1;
-      setHeight(Math.min(DEFAULT_ROW_HEIGHT, Math.max(MIN_ROW_HEIGHT, fitted)));
+      setHeight(Math.min(MAX_ROW_HEIGHT, Math.max(MIN_ROW_HEIGHT, fitted)));
     };
     update();
     const ro = new ResizeObserver(update);
