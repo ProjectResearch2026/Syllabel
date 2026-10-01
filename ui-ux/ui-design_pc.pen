@@ -2454,7 +2454,7 @@
                               "id": "e6R6Zd",
                               "name": "CTALabel",
                               "fill": "$fg-inverse",
-                              "content": "履修提案を見る",
+                              "content": "履修提案を受ける",
                               "fontFamily": "$font-sans",
                               "fontSize": 15,
                               "fontWeight": "700"
@@ -2492,7 +2492,7 @@
                               "id": "WZeuL",
                               "name": "CTALabel",
                               "fill": "$academic-navy",
-                              "content": "シラバスをみる",
+                              "content": "シラバスを見る",
                               "fontFamily": "$font-sans",
                               "fontSize": 15,
                               "fontWeight": "700"

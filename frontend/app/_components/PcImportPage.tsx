@@ -532,14 +532,14 @@ export default function PcImportPage() {
             onClick={() => router.push("/proposal")}
             className="flex h-12 items-center justify-center gap-2 rounded bg-accent transition-colors hover:bg-primary-dark"
           >
-            <span className="text-[15px] font-bold text-fg-inverse">履修提案を見る</span>
+            <span className="text-[15px] font-bold text-fg-inverse">履修提案を受ける</span>
             <ArrowRight size={18} className="text-fg-inverse" aria-hidden="true" />
           </button>
           <button
             onClick={() => router.push("/syllabus")}
             className="flex h-12 items-center justify-center gap-2 rounded border-2 border-fg-primary transition-colors hover:bg-surface-soft"
           >
-            <span className="text-[15px] font-bold text-fg-primary">シラバスをみる</span>
+            <span className="text-[15px] font-bold text-fg-primary">シラバスを見る</span>
             <ArrowRight size={18} className="text-fg-primary" aria-hidden="true" />
           </button>
         </div>
