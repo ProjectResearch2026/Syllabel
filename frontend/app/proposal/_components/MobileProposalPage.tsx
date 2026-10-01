@@ -73,7 +73,8 @@ function MobileCreditBar() {
  * 以前のモバイルは `/` に時間割、`/proposal` に別物の提案チャットを持っていた。
  *
  * **この画面に来ただけでは提案を撃たない**（design.md §8.3）。提案前に Ask Bar を
- * 押すと、全画面のシートで希望条件を聞く（AI_STEP0）。
+ * 押すと、ハーフシートで希望条件を聞く。送るとシートを閉じ、時間割が埋まっていく
+ * ところを見せる（§8.3.1）。
  */
 /** 曜日の見出しの高さ(px)。`TimetableGrid` の `h-8` */
 const GRID_HEADER_HEIGHT = 32;
@@ -127,7 +128,6 @@ export default function MobileProposalPage() {
 
   const setSelection = useAiStore((s) => s.setSelection);
   const openHalf = useAiStore((s) => s.openHalf);
-  const expand = useAiStore((s) => s.expand);
 
   const [selected, setSelected] = useState<SelectedCourse | null>(null);
   const [slotTarget, setSlotTarget] = useState<SlotTarget | null>(null);
@@ -227,7 +227,7 @@ export default function MobileProposalPage() {
                 <span className="size-1.5 animate-bounce rounded-full bg-accent [animation-delay:150ms]" />
                 <span className="size-1.5 animate-bounce rounded-full bg-accent/40 [animation-delay:300ms]" />
               </span>
-              <span className="text-[11px] text-fg-secondary">提案を作っています（4〜5分）</span>
+              <span className="text-[11px] text-fg-secondary">提案を作っています（1〜2分）</span>
             </span>
           </div>
         )}
@@ -255,8 +255,7 @@ export default function MobileProposalPage() {
           onAskAi={() => {
             const context = courseContext(editing.menu!.entry.name, editing.menu!.entry.code);
             editing.close();
-            if (conversation.suggestionsFor) openHalf(context);
-            else expand(context);
+            openHalf(context);
           }}
         />
       )}
@@ -272,9 +271,8 @@ export default function MobileProposalPage() {
             setSelected(null);
             setSelection(context);
             setSlotTarget(null);
-            // 提案前はサジェストが無いので、希望条件を聞く全画面で開く（AI_STEP0）
-            if (conversation.suggestionsFor) openHalf(context);
-            else expand(context);
+            // 提案前はサジェストの代わりに希望条件を聞く会話がハーフシートに出る
+            openHalf(context);
           }}
         />
       )}

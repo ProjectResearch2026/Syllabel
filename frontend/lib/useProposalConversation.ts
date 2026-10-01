@@ -19,7 +19,7 @@ import {
  * 履修提案画面（`/proposal`）の対話。design.md §8.3。
  *
  * **提案は学生の指示で始める。画面に到達しただけでは `POST /api/proposal` を
- * 撃たない**（§8.3）。提案は1回に4〜5分かかり（§7.2）、その1本は希望条件
+ * 撃たない**（§8.3）。提案は1回に1分強かかり（§7.2）、その1本は希望条件
  * （`preferences`）を含めて投げるものだからである。
  *
  * **1つの入力欄が、提案の有無によって2つの口に向かう**（§8.3.1）。
@@ -56,22 +56,31 @@ const FALLBACK_SUMMARY =
   "卒業要件から逆算し、今期の履修を提案しました。ご質問があればお気軽にどうぞ。";
 
 /**
+ * 提案の生成中に出す文言（§4.1.4）。実測は1回 70〜80 秒前後（§7.2。2026-09-23）で、
+ * 学年・課程によって前後するため幅を持たせる
+ */
+export const PROPOSAL_THINKING_LABEL = "提案を作っています。1〜2分ほどかかります";
+
+/**
  * 希望条件の入力欄に添える断り書き（§9.1）。取り込み時の確認ウィンドウが同意を
  * 得ているのは成績表についてであり、**学生がその場で自由に書く文章までは覆わない。**
  */
 export const PREFERENCES_NOTE =
   "入力した内容は学内のAIサーバへ送られ、100日間記録されます。";
 
-/** 何を書けばよいかが分かるように例を添える（§8.3.2） */
+/**
+ * 何を書けばよいかが分かるように例を添える（§8.3.2）。モバイルはハーフシートに
+ * 入力欄・断り書きと並べて出すので、そこに収まる長さに保つ
+ */
 const INTRO_TEXT = [
-  "どんな履修にしたいか、希望を教えてください。提案はそれから作ります。",
+  "どんな履修にしたいか教えてください。希望に沿って時間割を提案します。",
   "",
   "例:",
   "- 午前中の科目を多めにしたい",
   "- 必修だけ知りたい",
   "- 週に1日は空けたい",
   "",
-  "希望が無ければ「希望条件なしで提案する」を押してください。卒業要件から逆算して組みます。",
+  "特に無ければ「希望条件なしで提案する」を押してください。",
 ].join("\n");
 
 /** 再提案の案内。前回の条件を示し、差分だけ書き足せるようにする（§8.3.3） */
@@ -131,7 +140,7 @@ export type ProposalConversation = {
   streaming: boolean;
   /**
    * 提案そのものを生成中（`POST /api/proposal`）。チャットの受信中とは分ける —
-   * こちらは4〜5分かかり得る（§7.2）ため、生成中の文言に所要時間を添える（§4.1.4）。
+   * こちらは1分強かかる（§7.2）ため、生成中の文言に所要時間を添える（§4.1.4）。
    */
   generating: boolean;
   /** 提案を持っている。入力欄の宛先がこれで決まる（§8.3.1） */
@@ -379,7 +388,8 @@ export function useProposalConversation(): ProposalConversation {
  * 提案を持っていないあいだ、入力欄は希望条件の受け口である（§8.3.1）。モバイルでは
  * このとき**ハーフシートのサジェストを出さない**（`suggestionsFor` が null）。
  * サジェストの質問は提案チャットに向けたもので、提案前に送ると希望条件として
- * 提案が1本焼かれてしまう。
+ * 提案が1本焼かれてしまう。代わりにハーフシートに案内と入力欄を出し、送ったら
+ * シートを閉じて、時間割が埋まっていくところを見せる。
  */
 export function useProposalAssistant(): AiConversation {
   const conversation = useProposalConversation();
@@ -415,8 +425,16 @@ export function useProposalAssistant(): AiConversation {
       title: "AI履修アシスタント",
       messages,
       streaming,
-      // 提案の生成は時間がかかり得る（§7.2）ので、待たせる長さを先に伝える（§4.1.4）
-      thinkingLabel: generating ? "提案を作っています。4〜5分ほどかかります" : undefined,
+      // 提案の生成は時間がかかる（§7.2）ので、待たせる長さを先に伝える（§4.1.4）
+      thinkingLabel: generating ? PROPOSAL_THINKING_LABEL : undefined,
+      // 提案前は質問ではなく希望条件を受ける（§8.3.1）。生成中は押すと進み具合が見える
+      askLabel: generating
+        ? "提案を作っています…"
+        : !holdsProposal && canStart
+          ? "AIに希望を伝えて提案を受ける"
+          : undefined,
+      sendDismissesSheet: !holdsProposal,
+      hideBaseContext: !holdsProposal,
       placeholder: holdsProposal ? "提案について質問する…" : "希望条件を入力（例: 午前中を多めに）",
       inputDisabled: !canStart,
       send: sendWithContext,
@@ -425,7 +443,13 @@ export function useProposalAssistant(): AiConversation {
         ? []
         : holdsProposal
           ? [{ label: "条件を変えて提案し直す", onClick: restart }]
-          : [{ label: "希望条件なしで提案する", onClick: startWithoutPreferences }],
+          : [
+              {
+                label: "希望条件なしで提案する",
+                onClick: startWithoutPreferences,
+                dismissesSheet: true,
+              },
+            ],
       // 学生がその場で書く文章が記録されることを、書く場所の傍らで示す（§9.1）
       note: canStart ? PREFERENCES_NOTE : undefined,
       history,

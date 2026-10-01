@@ -40,7 +40,6 @@ export default function BottomDock() {
   const dock = useAiStore((s) => s.dock);
   const selection = useAiStore((s) => s.selection);
   const openHalf = useAiStore((s) => s.openHalf);
-  const expand = useAiStore((s) => s.expand);
   // シラバスへは最後の検索条件を付けて戻る(§8)
   const listQuery = useSyllabusUIStore((s) => s.listQuery);
 
@@ -100,7 +99,7 @@ export default function BottomDock() {
                   <motion.button
                     layoutId="ai-bar"
                     type="button"
-                    onClick={() => (dock.openFull ? expand(context) : openHalf(context))}
+                    onClick={() => openHalf(context)}
                     style={{ borderRadius: 9999 }}
                     transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
                     className={`flex h-[43px] w-full items-center gap-2 bg-surface-primary pl-3 pr-1.5 text-left transition-colors active:bg-surface-soft ${
@@ -108,7 +107,7 @@ export default function BottomDock() {
                     }`}
                   >
                     {hasChip && <ContextChip context={context} size="sm" />}
-                    <span className="min-w-0 flex-1 truncate text-[13px] text-fg-muted">AIに質問…</span>
+                    <span className="min-w-0 flex-1 truncate text-[13px] text-fg-muted">{dock.label}</span>
                     <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent">
                       <ArrowUp size={16} className="text-fg-inverse" aria-hidden="true" />
                     </span>

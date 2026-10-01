@@ -28,7 +28,7 @@ export type AiContext = {
   slot?: { day: string; period: number };
 };
 
-export const TIMETABLE_CONTEXT: AiContext = { kind: "timetable", label: "表示中の時間割" };
+export const TIMETABLE_CONTEXT: AiContext = { kind: "timetable", label: "この時間割" };
 export const SYLLABUS_CONTEXT: AiContext = { kind: "syllabus", label: "この検索結果" };
 
 export function slotContext(day: string, period: number): AiContext {
@@ -47,12 +47,12 @@ export function courseContext(name: string, code?: string): AiContext {
 export type AskDock = {
   /** 選択が無いときの文脈（時間割・検索結果・その講義） */
   base: AiContext;
-  /**
-   * ハーフシートを飛ばして全画面で開く。提案前の時間割がこれにあたる
-   * （AI_STEP0。サジェストより先に希望条件を聞く）
-   */
-  openFull: boolean;
+  /** Ask Bar に出す一言。押すと何が起きるかを書く（会話の `askLabel`） */
+  label: string;
 };
+
+/** Ask Bar の既定の一言 */
+export const DEFAULT_ASK_LABEL = "AIに質問…";
 
 type AiStore = {
   mode: AiMode;
@@ -132,8 +132,23 @@ export type AiConversation = {
   quickAsks?: string[];
   /** モバイルの全画面シートにだけ出す定型の質問（ui-design_phone.pen STEP5 QuickChips） */
   sheetQuickAsks?: string[];
-  /** 文章を送るのではなく、その場で何かを起こすボタン（提案の開始・再提案など。§8.3） */
-  actions?: { label: string; onClick: () => void }[];
+  /**
+   * 文章を送るのではなく、その場で何かを起こすボタン（提案の開始・再提案など。§8.3）。
+   * `dismissesSheet` は押すとモバイルのシートを閉じる（結果が背後の画面に出るもの）
+   */
+  actions?: { label: string; onClick: () => void; dismissesSheet?: boolean }[];
+  /**
+   * 送るとモバイルのシートを閉じて背後の画面を見せる。提案前の時間割がこれにあたる —
+   * 送った本文は希望条件になり、提案は時間割表に逐次描かれる（design.md §8.3.1）
+   */
+  sendDismissesSheet?: boolean;
+  /** ボトムドックの Ask Bar に出す一言。既定は `DEFAULT_ASK_LABEL` */
+  askLabel?: string;
+  /**
+   * 画面全体の文脈（`base`）を「について質問」として出さない。提案前の時間割は
+   * 表が空で、参照するものが無い（科目・コマを選んだときは出す）
+   */
+  hideBaseContext?: boolean;
   /** 入力欄の下に出す断り書き（希望条件の記録についてなど。§9.1） */
   note?: string;
   /** 「最近のチャット」。新しい順 */
