@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { isUnearned, useStudentStore, type StudentProfile } from "@/lib/student";
 import { useCreditSummary } from "@/lib/creditSummary";
+import { useReplaceStudent } from "@/lib/replaceStudent";
 import { demoLabel, isFreshmanDemo } from "@/lib/dummy/profiles";
 import DemoPicker from "./DemoPicker";
 import ManualInputForm from "./ManualInputForm";
@@ -85,7 +86,8 @@ type ParseState =
 export default function MobileImportFlow() {
   const router = useRouter();
   const profile = useStudentStore((s) => s.profile);
-  const setProfile = useStudentStore((s) => s.setProfile);
+  // 前の学生の提案と会話は持ち越さない(別の学生に差し替える)
+  const replaceStudent = useReplaceStudent();
   const { currentCredits, remainingCredits } = useCreditSummary();
 
   const [step, setStep] = useState(0);
@@ -139,7 +141,7 @@ export default function MobileImportFlow() {
   const registeredCount = courses.filter((c) => c.status === "registered").length;
 
   const handleConfirm = () => {
-    if (pending) setProfile(pending);
+    if (pending) replaceStudent(pending);
     setStep(2);
   };
 

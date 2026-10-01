@@ -11,7 +11,7 @@ import {
   Trash2,
   ChevronRight,
 } from "lucide-react";
-import { isUnearned, useStudentStore, type Course, type StudentProfile } from "@/lib/student";
+import { isUnearned, useStudentStore, type Course } from "@/lib/student";
 import { useChatStore } from "@/lib/chat";
 import { useChatHistoryStore } from "@/lib/chatHistory";
 import { useProposalStore } from "@/lib/proposal";
@@ -21,6 +21,7 @@ import { useGraduationCredits } from "@/lib/curricula";
 import { resolveAdmissionYear } from "@/lib/programs";
 import { demoLabel, isFreshmanDemo } from "@/lib/dummy/profiles";
 import DemoPicker from "@/app/_components/DemoPicker";
+import { useReplaceStudent } from "@/lib/replaceStudent";
 import ManualInputForm from "@/app/_components/ManualInputForm";
 
 /** 修得済み科目は先頭の数件だけ出し、残りは「すべて表示」で開く */
@@ -175,11 +176,8 @@ export default function MobileSettingsPage() {
     }
   };
 
-  /** デモの学生に切り替える。前の学生の提案を残すと食い違うので捨てる */
-  const loadDemo = (next: StudentProfile) => {
-    clearProposal();
-    setProfile(next);
-  };
+  /** デモの学生に切り替える。前の学生の提案と会話は捨てる */
+  const loadDemo = useReplaceStudent();
 
   const courses = profile?.completedCourses ?? [];
   const passed = courses.filter((c) => c.status === "passed");

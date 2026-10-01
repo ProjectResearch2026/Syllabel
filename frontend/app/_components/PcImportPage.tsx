@@ -21,7 +21,8 @@ import {
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import StepBar from "./StepBar";
 import PrivacyConsentModal from "./PrivacyConsentModal";
-import { isUnearned, useStudentStore, type StudentProfile } from "@/lib/student";
+import { isUnearned, type StudentProfile } from "@/lib/student";
+import { useReplaceStudent } from "@/lib/replaceStudent";
 import { demoLabel, isFreshmanDemo } from "@/lib/dummy/profiles";
 import DemoPicker from "./DemoPicker";
 
@@ -63,7 +64,8 @@ function CenterColumn({ children }: { children: React.ReactNode }) {
 
 export default function PcImportPage() {
   const router = useRouter();
-  const setProfile = useStudentStore((s) => s.setProfile);
+  // 前の学生の提案と会話は持ち越さない(別の学生に差し替える)
+  const replaceStudent = useReplaceStudent();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [step, setStepState] = useState(0);
@@ -164,7 +166,7 @@ export default function PcImportPage() {
     pending?.completedCourses.filter((c) => c.status === "registered").length ?? 0;
 
   const handleConfirm = () => {
-    if (pending) setProfile(pending);
+    if (pending) replaceStudent(pending);
     setStep(2);
   };
 

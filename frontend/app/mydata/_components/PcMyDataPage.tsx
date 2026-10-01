@@ -13,7 +13,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import { isUnearned, useStudentStore, type Course, type StudentProfile } from "@/lib/student";
+import { isUnearned, useStudentStore, type Course } from "@/lib/student";
 import { useChatStore } from "@/lib/chat";
 import { useChatHistoryStore } from "@/lib/chatHistory";
 import { useProposalStore } from "@/lib/proposal";
@@ -21,6 +21,7 @@ import { useSyllabusUIStore } from "@/lib/syllabusUI";
 import { demoLabel, isFreshmanDemo } from "@/lib/dummy/profiles";
 import DemoPicker from "@/app/_components/DemoPicker";
 import ManualInputForm from "@/app/_components/ManualInputForm";
+import { useReplaceStudent } from "@/lib/replaceStudent";
 
 const GRADUATION_CREDITS = 124;
 
@@ -43,11 +44,8 @@ export default function PcMyDataPage() {
     window.scrollTo({ top: 0 });
   };
 
-  /** デモの学生に切り替える。前の学生の提案を残すと食い違うので捨てる */
-  const handleDemoLoad = (next: StudentProfile) => {
-    clearProposal();
-    setProfile(next);
-  };
+  /** デモの学生に切り替える。前の学生の提案と会話は捨てる */
+  const handleDemoLoad = useReplaceStudent();
 
   const handleReset = () => {
     if (confirm("取り込んだ成績・対話履歴をすべて消去しますか? この操作は取り消せません。")) {
