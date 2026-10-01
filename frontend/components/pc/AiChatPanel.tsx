@@ -40,9 +40,12 @@ export type PanelContext = {
 export default function AiChatPanel({
   conversation,
   context,
+  autoFocus = false,
 }: {
   conversation: AiConversation;
   context?: PanelContext;
+  /** 入力欄に最初からフォーカスする（mount 時だけ効く） */
+  autoFocus?: boolean;
 }) {
   const current = context ? (context.selection ?? context.base) : undefined;
   const scoped = context?.selection != null;
@@ -104,6 +107,7 @@ export default function AiChatPanel({
             : undefined
         }
         onSend={(text) => conversation.send(text, current)}
+        autoFocus={autoFocus}
       />
     </aside>
   );

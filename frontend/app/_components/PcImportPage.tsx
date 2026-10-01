@@ -22,6 +22,7 @@ import StepBar from "./StepBar";
 import PrivacyConsentModal from "./PrivacyConsentModal";
 import { isUnearned, type StudentProfile } from "@/lib/student";
 import { useReplaceStudent } from "@/lib/replaceStudent";
+import { useAiStore } from "@/lib/ai";
 import { demoLabel, isFreshmanDemo } from "@/lib/dummy/profiles";
 import DemoPicker from "./DemoPicker";
 
@@ -529,7 +530,11 @@ export default function PcImportPage() {
             タグ付きのシラバス検索への入口になる */}
         <div className="flex w-[520px] flex-col gap-4 motion-safe:animate-rise-in [animation-delay:350ms]">
           <button
-            onClick={() => router.push("/proposal")}
+            onClick={() => {
+              // 時間割に着いたら AI の入力欄をすぐ出す（§8.3.1）。希望条件を聞くのが次の一手
+              useAiStore.getState().setOpenOnArrival(true);
+              router.push("/proposal");
+            }}
             className="flex h-12 items-center justify-center gap-2 rounded bg-accent transition-colors hover:bg-primary-dark"
           >
             <span className="text-[15px] font-bold text-fg-inverse">履修提案を受ける</span>

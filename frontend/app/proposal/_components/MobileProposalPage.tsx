@@ -116,6 +116,28 @@ function useFittedRowHeight(gridRef: RefObject<HTMLDivElement | null>, pageRef: 
 
 const PERIOD_COUNT = 5;
 
+/**
+ * 取り込み完了の「履修提案を受ける」から来たら、ハーフシートを開いて希望条件を聞く
+ * （design.md §8.3.1）。PC は AI パネルが常に見えているので開かない（入力欄への
+ * フォーカスは `ChatPanel` がする）。入力欄にはフォーカスしない — キーボードが
+ * 案内の吹き出しを覆うため、読んでから書いてもらう。
+ *
+ * 印は次の tick で下ろす。開発時の StrictMode は effect を「実行 → 片づけ → 実行」と
+ * 2度回し、片づけで `MobileAiAssistant` がシートを閉じる。同じ effect の中で下ろすと
+ * 2度目に開けない
+ */
+function useOpenOnArrival() {
+  const openOnArrival = useAiStore((s) => s.openOnArrival);
+  const setOpenOnArrival = useAiStore((s) => s.setOpenOnArrival);
+  const openHalf = useAiStore((s) => s.openHalf);
+  useEffect(() => {
+    if (!openOnArrival) return;
+    if (window.matchMedia("(max-width: 767px)").matches) openHalf(TIMETABLE_CONTEXT);
+    const timer = setTimeout(() => setOpenOnArrival(false), 0);
+    return () => clearTimeout(timer);
+  }, [openOnArrival, openHalf, setOpenOnArrival]);
+}
+
 export default function MobileProposalPage() {
   const router = useRouter();
   const profile = useStudentStore((s) => s.profile);
@@ -128,6 +150,7 @@ export default function MobileProposalPage() {
 
   const setSelection = useAiStore((s) => s.setSelection);
   const openHalf = useAiStore((s) => s.openHalf);
+  useOpenOnArrival();
 
   const [selected, setSelected] = useState<SelectedCourse | null>(null);
   const [slotTarget, setSlotTarget] = useState<SlotTarget | null>(null);
