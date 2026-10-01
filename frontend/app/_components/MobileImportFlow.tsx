@@ -23,6 +23,7 @@ import {
 import { isUnearned, useStudentStore, type StudentProfile } from "@/lib/student";
 import { useCreditSummary } from "@/lib/creditSummary";
 import { useReplaceStudent } from "@/lib/replaceStudent";
+import { useAiStore } from "@/lib/ai";
 import { demoLabel, isFreshmanDemo } from "@/lib/dummy/profiles";
 import DemoPicker from "./DemoPicker";
 import ManualInputForm from "./ManualInputForm";
@@ -471,7 +472,11 @@ export default function MobileImportFlow() {
             <h2 className="text-[15px] font-bold text-[#1A2B4E]">次のステップ</h2>
 
             <button
-              onClick={() => router.push("/proposal")}
+              onClick={() => {
+                // 時間割に着いたら AI の入力欄をすぐ出す（§8.3.1）。希望条件を聞くのが次の一手
+                useAiStore.getState().setOpenOnArrival(true);
+                router.push("/proposal");
+              }}
               className="w-full flex items-center gap-3 px-4 py-3.5 rounded-lg bg-[#E60012] text-left"
             >
               <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">

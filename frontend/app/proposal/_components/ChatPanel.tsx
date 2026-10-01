@@ -20,9 +20,13 @@ export default function ChatPanel() {
   const conversation = useProposalAssistant();
   const selection = useAiStore((s) => s.selection);
   const setSelection = useAiStore((s) => s.setSelection);
+  // 取り込み完了の「履修提案を受ける」から来たら、希望条件の欄にすぐ書けるようにする
+  // （§8.3.1）。印はモバイルの時間割（`MobileProposalPage`）が下ろす
+  const openOnArrival = useAiStore((s) => s.openOnArrival);
   return (
     <AiChatPanel
       conversation={conversation}
+      autoFocus={openOnArrival}
       context={{
         base: TIMETABLE_CONTEXT,
         selection,

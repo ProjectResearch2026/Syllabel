@@ -60,6 +60,12 @@ type AiStore = {
   /** Ask Bar に引き継がれる選択状態（科目をタップ中／コマを長押し中） */
   selection: AiContext | null;
   dock: AskDock | null;
+  /**
+   * 次に開く時間割で AI をすぐ使えるようにする（取り込み完了の「履修提案を受ける」。
+   * design.md §8.3.1）。モバイルはハーフシートを開き、PC は AI パネルの入力欄に
+   * フォーカスする。時間割の画面が mount 時に1度だけ読んで下ろす
+   */
+  openOnArrival: boolean;
 
   /** STEP1〜3 → STEP4。文脈を引き継いでハーフシートを開く */
   openHalf: (context: AiContext) => void;
@@ -73,6 +79,7 @@ type AiStore = {
   setSelection: (selection: AiContext | null) => void;
   setContext: (context: AiContext) => void;
   setDock: (dock: AskDock | null) => void;
+  setOpenOnArrival: (value: boolean) => void;
 };
 
 export const useAiStore = create<AiStore>((set) => ({
@@ -80,6 +87,7 @@ export const useAiStore = create<AiStore>((set) => ({
   context: TIMETABLE_CONTEXT,
   selection: null,
   dock: null,
+  openOnArrival: false,
 
   openHalf: (context) => set({ mode: "half", context }),
   expand: (context) => set((s) => ({ mode: "full", context: context ?? s.context })),
@@ -89,6 +97,7 @@ export const useAiStore = create<AiStore>((set) => ({
   setSelection: (selection) => set({ selection }),
   setContext: (context) => set({ context }),
   setDock: (dock) => set({ dock }),
+  setOpenOnArrival: (openOnArrival) => set({ openOnArrival }),
 }));
 
 /* ------------------------------------------------------------------ */
