@@ -19,6 +19,19 @@ function slotTitle(slot: SlotProgress): string {
   return [slot.name, rest, pending, slot.notes].filter(Boolean).join("\n");
 }
 
+/**
+ * 枠の名前を帯に収まる長さに詰める。公式の区分名(`slot.name`)は「教養教育科目(必修・仏教)」の
+ * ように**区別に要る部分が括弧の中にある**ため、末尾を「…」で切ると「教養教育科目(必修…」と
+ * なり、どの枠か分からなくなっていた。共通の頭(「科目」「教養教育」)を削り、括弧の中を残す。
+ * 公式の区分名はツールチップと読み上げで出す
+ */
+export function shortSlotName(name: string): string {
+  return name
+    .replace(/^教養教育科目/, "教養")
+    .replace(/^(専門基礎|専門応用|専門関連)科目/, "$1")
+    .replace("選択必修〈基幹〉・", "基幹・");
+}
+
 /** バーの幅。修得済み(紺)・成績発表待ち(薄い紺)・今期(赤)の順に積み、100% で打ち切る */
 function barWidths(slot: SlotProgress) {
   const earned = Math.min(100, (slot.earned / slot.required) * 100);
@@ -44,26 +57,27 @@ function SlotRow({ slot }: { slot: SlotProgress }) {
       className="flex min-w-0 flex-col gap-1"
       title={slotTitle(slot)}
     >
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="truncate text-[11px] font-semibold text-fg-primary">{slot.name}</span>
-        <span className="shrink-0 tabular-nums text-[11px] text-fg-secondary">
+      {/* 名前に1行を与える(単位数と並べると名前に残る幅が半分ほどになり、短くしても切れる) */}
+      <span className="truncate text-[11px] font-semibold text-fg-primary">{shortSlotName(slot.name)}</span>
+      <div className="flex items-center gap-2">
+        <div
+          className="flex h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-surface-soft"
+          role="meter"
+          aria-label={slot.name}
+          aria-valuemin={0}
+          aria-valuemax={slot.required}
+          aria-valuenow={slot.earned + slot.planned}
+        >
+          <div className={`h-full bg-fg-primary ${BAR_MOTION}`} style={{ width: `${pct.earned}%` }} />
+          <div className={`h-full bg-pending ${BAR_MOTION}`} style={{ width: `${pct.pending}%` }} />
+          <div className={`h-full bg-accent ${BAR_MOTION}`} style={{ width: `${pct.planned}%` }} />
+        </div>
+        <span className="shrink-0 tabular-nums text-[11px] leading-none text-fg-secondary">
           {fmt(slot.earned)}
           {slot.pending > 0 && <span className="font-bold text-pending-fg">+{fmt(slot.pending)}</span>}
           {slot.planned > 0 && <span className="font-bold text-accent">+{fmt(slot.planned)}</span>}
           <span className="text-fg-muted"> / {slot.required}</span>
         </span>
-      </div>
-      <div
-        className="flex h-1.5 overflow-hidden rounded-full bg-surface-soft"
-        role="meter"
-        aria-label={slot.name}
-        aria-valuemin={0}
-        aria-valuemax={slot.required}
-        aria-valuenow={slot.earned + slot.planned}
-      >
-        <div className={`h-full bg-fg-primary ${BAR_MOTION}`} style={{ width: `${pct.earned}%` }} />
-        <div className={`h-full bg-pending ${BAR_MOTION}`} style={{ width: `${pct.pending}%` }} />
-        <div className={`h-full bg-accent ${BAR_MOTION}`} style={{ width: `${pct.planned}%` }} />
       </div>
     </div>
   );
@@ -172,15 +186,16 @@ function DoneSummary({
   updating: boolean;
   pending: boolean;
 }) {
-  const names = slots.map((s) => s.name).join("・");
+  const names = slots.map((s) => shortSlotName(s.name)).join("・");
   return (
-    <div className="flex w-[190px] shrink-0 flex-col gap-1 rounded-md bg-[#ECFDF5] px-3 py-2">
+    <div className="flex w-[250px] shrink-0 flex-col gap-1 rounded-md bg-[#ECFDF5] px-3 py-2">
       <span className="flex items-center gap-1.5 text-xs font-bold text-[#047857]">
         <CircleCheck size={14} className="shrink-0 text-done-tag" aria-hidden="true" />
         取得済み
         <LegendInfo updating={updating} pending={pending} />
       </span>
-      <span className="truncate text-[10px] text-[#047857]" title={names}>
+      {/* 1行で切ると2つ目以降の枠が読めないので、2行まで折り返す */}
+      <span className="line-clamp-2 text-[10px] leading-snug text-[#047857]" title={slots.map((s) => s.name).join("\n")}>
         {names}
       </span>
     </div>
@@ -267,8 +282,8 @@ export function MobileRequirementsStrip({ view }: { view: RequirementsView }) {
       {done.length > 0 && (
         <p className="flex items-center gap-1.5 rounded-md bg-[#ECFDF5] px-2.5 py-1.5">
           <CircleCheck size={14} className="shrink-0 text-[#059669]" aria-hidden="true" />
-          <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-[#047857]">
-            取得済み：{done.map((s) => s.name).join("・")}
+          <span className="min-w-0 flex-1 text-[11px] font-bold leading-snug text-[#047857]">
+            取得済み：{done.map((s) => shortSlotName(s.name)).join("・")}
           </span>
         </p>
       )}
@@ -282,7 +297,7 @@ export function MobileRequirementsStrip({ view }: { view: RequirementsView }) {
                 className="flex w-[140px] shrink-0 flex-col gap-[5px] rounded-md border border-[#E5E7EB] bg-surface-primary px-2.5 py-2"
                 title={slotTitle(slot)}
               >
-                <span className="truncate text-[10px] font-bold text-fg-primary">{slot.name}</span>
+                <span className="truncate text-[10px] font-bold text-fg-primary">{shortSlotName(slot.name)}</span>
                 <div
                   className="flex h-1.5 overflow-hidden rounded-[3px] bg-[#E5E7EB]"
                   role="meter"
