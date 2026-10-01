@@ -143,7 +143,7 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 実体は `components/ai/MarkdownText.tsx` ひとつで、**吹き出しを描くのは `components/ai/ChatMessageList.tsx` の1か所だけである** — PCのパネル(`components/pc/AiChatPanel.tsx`)とモバイルの AI シート(`components/ai/MobileAiAssistant.tsx`)がこれを共有し、ヘッダー・定型の質問・入力欄も `components/ai/ChatParts.tsx` を共有する。**会話の吹き出しを新しく作らず、ここを通す。****吹き出しごとに描き方を写さない。** 字の大きさ・行間・色だけを `className` で外から与える。
 
-**会話の中身も PC とモバイルで共有する**(design.md §4.1.5)。画面ごとの会話を `AiConversation`(`lib/ai.ts`)の形で作り — 時間割は `useProposalAssistant()`(`lib/useProposalConversation.ts`)、シラバス一覧は `useSyllabusConversation()`、講義詳細は `useCourseConversation()` — PC のパネルとモバイルのシートの双方に渡す。両者は同時に mount されるので、**送信中かどうかは各自の state ではなく吹き出しの `streaming` から導く**(片方から送ったときにもう片方が送信できてしまわないように)。モバイルの時間割のシートは提案の入力欄そのもので、提案前は全画面で希望条件を受ける(design.md §8.3.1)。
+**会話の中身も PC とモバイルで共有する**(design.md §4.1.5)。画面ごとの会話を `AiConversation`(`lib/ai.ts`)の形で作り — 時間割は `useProposalAssistant()`(`lib/useProposalConversation.ts`)、シラバス一覧は `useSyllabusConversation()`、講義詳細は `useCourseConversation()` — PC のパネルとモバイルのシートの双方に渡す。両者は同時に mount されるので、**送信中かどうかは各自の state ではなく吹き出しの `streaming` から導く**(片方から送ったときにもう片方が送信できてしまわないように)。モバイルの時間割のシートは提案の入力欄そのもので、提案前はハーフシートで希望条件を受け、送るとシートを閉じて時間割が埋まっていくところを見せる(design.md §8.3.1)。
 
 - `react-markdown` + `remark-gfm`(表・取り消し線・チェックリスト)+ `remark-breaks`(段落内の単独改行)。**`remark-breaks` を外さない** — Markdown の既定では単独改行が消えるが、日本語の回答は1文ずつ改行して返ってくる
 - **`rehype-raw` を入れてはならない。** 生のHTMLを描かないことで、モデルの出力がDOMに流れる口を塞いでいる

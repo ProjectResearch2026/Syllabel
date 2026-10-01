@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Maximize2, Minimize2, Repeat, X } from "lucide-react";
 import {
+  DEFAULT_ASK_LABEL,
   sheetInputPlaceholder,
   useAiStore,
   type AiContext,
@@ -38,12 +39,13 @@ export default function MobileAiAssistant({
   const setDock = useAiStore((s) => s.setDock);
   const setSelection = useAiStore((s) => s.setSelection);
 
-  // サジェストを持たない会話（提案前の時間割）は、ハーフを飛ばして全画面で開く（STEP0）
-  const openFull = !conversation.suggestionsFor?.(base);
+  // Ask Bar は押すと何が起きるかを書く。提案前の時間割は質問ではなく希望条件を
+  // 受ける欄なので「AIに質問…」とは書かない（design.md §8.3.1）
+  const label = conversation.askLabel ?? DEFAULT_ASK_LABEL;
 
   useEffect(() => {
-    setDock({ base, openFull });
-  }, [base, openFull, setDock]);
+    setDock({ base, label });
+  }, [base, label, setDock]);
 
   // 他の画面へ移ったら Ask Bar ごと片づける。文脈を持ち越さない
   useEffect(
@@ -117,10 +119,32 @@ function AiSheet({ conversation, base }: { conversation: AiConversation; base: A
 
   const full = mode === "full";
   const suggestions = conversation.suggestionsFor?.(context) ?? null;
-  // 学生がまだ何も聞いていないうちは、ハーフシートにサジェストを出す（STEP4）
-  const asked = conversation.messages.some((m) => m.role === "user");
-  const showSuggestions = !full && !asked && suggestions !== null;
   const scoped = context.kind !== base.kind || context.label !== base.label;
+  // 学生がまだ何も聞いていないうちは、ハーフシートにサジェストを出す（STEP4）。
+  // ただし画面全体の文脈で、挨拶のあとに AI が書いたもの（履修提案の説明）が
+  // あるときは会話を出す。サジェストで覆うと、提案の説明が全画面にしないと読めない
+  const asked = conversation.messages.some((m) => m.role === "user");
+  const showSuggestions =
+    !full && !asked && suggestions !== null && (scoped || conversation.messages.length <= 1);
+  // 提案前の時間割は表が空で、「この時間割について」と出しても指すものが無い
+  const showContext = scoped || !conversation.hideBaseContext;
+
+  // 送った結果が背後の画面に出るもの（提案の開始）は、シートを閉じてそれを見せる。
+  // 時間割は生成中も snapshot のたびに描かれる（§6.1.1）ので、全画面で覆わない
+  const dismissing = {
+    ...conversation,
+    actions: conversation.actions?.map((action) =>
+      action.dismissesSheet
+        ? {
+            ...action,
+            onClick: () => {
+              close();
+              action.onClick();
+            },
+          }
+        : action,
+    ),
+  };
 
   const icon = "text-fg-muted";
 
@@ -131,7 +155,13 @@ function AiSheet({ conversation, base }: { conversation: AiConversation; base: A
       style={{ borderRadius: "20px 20px 0 0" }}
       transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
       className={`fixed inset-x-0 z-50 flex flex-col overflow-hidden bg-surface-gray shadow-sheet ${
-        full ? "top-3 bottom-0" : "bottom-[58px] h-96"
+        full
+          ? "top-3 bottom-0"
+          : showSuggestions
+            ? "bottom-[58px] h-96"
+            : // 会話を出すハーフは、案内の吹き出しと入力欄・断り書きが入る高さにする。
+              // 背後の画面の上端は残す（全画面で覆わない）
+              "bottom-[58px] h-[min(480px,calc(100dvh-58px-96px))]"
       }`}
       role="dialog"
       aria-modal="true"
@@ -185,13 +215,11 @@ function AiSheet({ conversation, base }: { conversation: AiConversation; base: A
           }
         />
 
-        {/* 参照中の文脈。科目・コマを参照中なら、入れ替えアイコンで画面全体の文脈に戻す */}
-        {full ? (
+        {/* 何について聞くか。科目・コマに絞っているなら、入れ替えアイコンで画面全体の文脈に戻す */}
+        {!showContext ? null : full ? (
           <div className="flex h-[46px] shrink-0 items-center gap-2 border-b border-border-subtle px-4">
             <ContextChip context={context} rounded="full" />
-            <span className="flex-1 truncate text-[11px] text-fg-secondary">
-              {asked ? "を参照中 ・ 追加で質問中" : "を参照中"}
-            </span>
+            <span className="flex-1 truncate text-[11px] text-fg-secondary">について質問</span>
             {scoped && (
               <button type="button" onClick={() => setContext(base)} aria-label={`${base.label}に戻す`}>
                 <Repeat size={15} className={icon} />
@@ -201,7 +229,7 @@ function AiSheet({ conversation, base }: { conversation: AiConversation; base: A
         ) : (
           <div className="flex shrink-0 items-center gap-1.5 px-4 pt-2.5">
             <ContextChip context={context} rounded="md" />
-            <span className="text-[11px] text-fg-secondary">を参照中</span>
+            <span className="text-[11px] text-fg-secondary">について質問</span>
           </div>
         )}
 
@@ -223,25 +251,30 @@ function AiSheet({ conversation, base }: { conversation: AiConversation; base: A
           />
         )}
 
-        {/* クイックチップ・提案の開始／再提案は全画面のときだけ（STEP0・STEP5） */}
-        {full && (
+        {/* サジェストを出していないときは、クイックチップと提案の開始・再提案を出す
+            （STEP5。ハーフは時間割のクイックチップだけ。ほかの画面はサジェストが担う） */}
+        {(full || !showSuggestions) && (
           <ChatQuickAsks
             conversation={
-              conversation.sheetQuickAsks
-                ? { ...conversation, quickAsks: conversation.sheetQuickAsks }
-                : conversation
+              full
+                ? { ...dismissing, quickAsks: conversation.sheetQuickAsks ?? conversation.quickAsks }
+                : { ...dismissing, quickAsks: conversation.sheetQuickAsks ?? [] }
             }
             onAsk={(q) => conversation.send(q, context)}
-            className="shrink-0 overflow-x-auto px-4 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            // 折り返して並べる。横スクロールにすると、末尾の「条件を変えて提案し直す」が
+            // 画面の外に切れ、押せることに気づけない
+            className="shrink-0 flex-wrap px-4 py-2"
           />
         )}
 
         <ChatInputBar
-          conversation={{ ...conversation, note: full ? conversation.note : undefined }}
+          // 断り書きは書く場所の傍らに出す（§9.1）。ハーフでも会話を出していれば書ける
+          conversation={{ ...conversation, note: full || !showSuggestions ? conversation.note : undefined }}
           placeholder={sheetInputPlaceholder(context, conversation.placeholder)}
-          // 自分で書いて送ると全画面に上げる（STEP4 → STEP5）
           onSend={(text) => {
-            if (!full) expand();
+            // 提案の開始はシートを閉じて時間割を見せる。質問は全画面に上げる（STEP4 → STEP5）
+            if (conversation.sendDismissesSheet) close();
+            else if (!full) expand();
             conversation.send(text, context);
           }}
         />
