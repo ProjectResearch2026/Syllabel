@@ -478,7 +478,7 @@ export default function MobileImportFlow() {
                 <CalendarCheck size={20} className="text-white" />
               </div>
               <div className="flex-1 flex flex-col gap-0.5">
-                <span className="text-sm font-semibold text-white">履修提案を見る</span>
+                <span className="text-sm font-semibold text-white">履修提案を受ける</span>
                 <span className="text-xs text-white/80">卒業要件から逆算して今期の時間割を提案</span>
               </div>
               <ChevronRight size={18} className="text-white shrink-0" />
@@ -494,7 +494,7 @@ export default function MobileImportFlow() {
                 <BookOpen size={20} className="text-[#059669]" />
               </div>
               <div className="flex-1 flex flex-col gap-0.5">
-                <span className="text-sm font-semibold text-[#1A2B4E]">シラバスをみる</span>
+                <span className="text-sm font-semibold text-[#1A2B4E]">シラバスを見る</span>
                 <span className="text-xs text-[#4B5563]">履修できる科目にタグを付けて表示</span>
               </div>
               <ChevronRight size={18} className="text-[#9CA3AF] shrink-0" />

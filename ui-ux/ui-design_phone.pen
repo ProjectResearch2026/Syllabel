@@ -2730,7 +2730,7 @@
                 {
                   "type": "frame",
                   "id": "ox1ob",
-                  "name": "ActionCard_履修提案を見る",
+                  "name": "ActionCard_履修提案を受ける",
                   "width": "fill_container",
                   "fill": "#E60012",
                   "stroke": "#E60012",
@@ -2780,7 +2780,7 @@
                           "fill": "#FFFFFF",
                           "textGrowth": "fixed-width",
                           "width": "fill_container",
-                          "content": "履修提案を見る",
+                          "content": "履修提案を受ける",
                           "fontFamily": "$font-sans",
                           "fontSize": 14,
                           "fontWeight": "600"
@@ -2814,7 +2814,7 @@
                 {
                   "type": "frame",
                   "id": "F9Kr8J",
-                  "name": "ActionCard_シラバスをみる",
+                  "name": "ActionCard_シラバスを見る",
                   "width": "fill_container",
                   "fill": "#FFFFFF",
                   "stroke": "#E5E7EB",
@@ -2864,7 +2864,7 @@
                           "fill": "$fg-primary",
                           "textGrowth": "fixed-width",
                           "width": "fill_container",
-                          "content": "シラバスをみる",
+                          "content": "シラバスを見る",
                           "fontFamily": "$font-sans",
                           "fontSize": 14,
                           "fontWeight": "600"
