@@ -289,7 +289,11 @@ function CourseSection({
               {course.rawScore && (
                 <span
                   className={`rounded px-1.5 py-0.5 text-center text-xs font-semibold ${
-                    unearned ? "bg-[#FEE2E2] text-[#991B1B]" : "bg-[#EFF6FF] text-fg-primary"
+                    unearned
+                      ? "bg-[#FEE2E2] text-[#991B1B]"
+                      : course.status === "registered"
+                        ? "bg-pending-bg text-pending-fg"
+                        : "bg-[#EFF6FF] text-fg-primary"
                   }`}
                 >
                   {course.rawScore}

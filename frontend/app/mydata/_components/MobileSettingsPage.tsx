@@ -120,14 +120,21 @@ function CourseRow({ course, last }: { course: Course; last?: boolean }) {
         <span className="text-[10px] text-fg-secondary">{meta}</span>
       </div>
       <span className="shrink-0 text-[11px] text-fg-secondary">{course.credits}単位</span>
-      {course.status !== "registered" && course.rawScore && (
-        <span
-          className={`flex h-[22px] min-w-7 shrink-0 items-center justify-center rounded px-1 text-xs font-bold tabular-nums text-white ${
-            unearned ? "bg-[#BA1A1A]" : "bg-[#1A2B4E]"
-          }`}
-        >
-          {course.rawScore}
+      {course.status === "registered" ? (
+        // 成績発表待ち。卒業要件のバーと同じ薄い紺で示す
+        <span className="flex h-[22px] shrink-0 items-center justify-center rounded bg-pending-bg px-1.5 text-[10px] font-bold text-pending-fg">
+          発表待ち
         </span>
+      ) : (
+        course.rawScore && (
+          <span
+            className={`flex h-[22px] min-w-7 shrink-0 items-center justify-center rounded px-1 text-xs font-bold tabular-nums text-white ${
+              unearned ? "bg-[#BA1A1A]" : "bg-[#1A2B4E]"
+            }`}
+          >
+            {course.rawScore}
+          </span>
+        )
       )}
     </div>
   );

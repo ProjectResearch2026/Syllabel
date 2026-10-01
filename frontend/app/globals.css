@@ -38,6 +38,11 @@
   --color-chart-red-3: #f0666f;
   --color-chart-red-4: #f9bfc4;
 
+  /* 成績発表待ち（成績表の ***）。修得済みの紺を薄めた色で「まだ確定していない修得」を表す */
+  --color-pending: #7a8cb0; /* 卒業要件のバー（白地と 3:1 以上） */
+  --color-pending-fg: #52628a; /* 文字（白地で 4.5:1 以上） */
+  --color-pending-bg: #eef1f7; /* バッジの地 */
+
   --color-fg-muted: #8a93a3; /* 補助テキスト・アイコン */
   --color-fg-icon: #98a2b3; /* カード内アイコン（fg-muted より薄め） */
   --color-fg-faint: #9ca3af; /* プレースホルダ */
