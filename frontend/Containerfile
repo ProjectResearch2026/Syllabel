@@ -1,11 +1,11 @@
 # ---- deps: 依存だけ入れる層（package*.json が変わらない限り再利用される）----
-FROM docker.io/library/node:22-alpine AS deps
+FROM docker.io/library/node:26-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
 # ---- builder: ビルド ----
-FROM docker.io/library/node:22-alpine AS builder
+FROM docker.io/library/node:26-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -15,7 +15,7 @@ ENV NODE_OPTIONS=--max-old-space-size=3072
 RUN npm run build
 
 # ---- runner: 実行に必要な物だけ ----
-FROM docker.io/library/node:22-alpine AS runner
+FROM docker.io/library/node:26-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
