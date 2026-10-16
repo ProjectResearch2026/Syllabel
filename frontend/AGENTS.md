@@ -21,8 +21,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 | 技術 | バージョン | 用途 |
 |---|---|---|
-| Next.js | 16.2.10 | Webフレームワーク(App Router) |
-| React | 19.2.4 | UIライブラリ |
+| Next.js | 16.4.1 | Webフレームワーク(App Router) |
+| React | 19.2.9 | UIライブラリ |
 | TypeScript | ^5 | 言語 |
 | Tailwind CSS | ^4 | スタイリング |
 | Zustand | — | クライアント状態管理(永続化オフ) |
