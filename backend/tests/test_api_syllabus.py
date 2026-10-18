@@ -265,3 +265,32 @@ def test_course_targets_upstream_failure_is_502(monkeypatch):
 
     resp = client.get("/api/course-targets", params={"year": 2026, "faculty": FACULTY})
     assert resp.status_code == 502
+
+
+# ---------------------------------------------------------------------------
+# 接続失敗・タイムアウト(httpx.RequestError)は 502。捕まえないと 500 になる
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize(
+    ("attr", "path"),
+    [
+        ("search_syllabi", "/api/syllabi"),
+        ("get_syllabus", "/api/syllabi/B12345"),
+        ("get_masters", "/api/masters"),
+    ],
+)
+@pytest.mark.parametrize("error", ["connect", "timeout"])
+def test_unreachable_upstream_is_502(monkeypatch, attr, path, error):
+    import httpx
+
+    async def mock_unreachable(*args, **kwargs):
+        req = httpx.Request("GET", "http://test/")
+        if error == "connect":
+            raise httpx.ConnectError("connection refused", request=req)
+        raise httpx.ReadTimeout("timed out", request=req)
+
+    import app.api.syllabus as mod
+    monkeypatch.setattr(mod, attr, mock_unreachable)
+
+    resp = client.get(path)
+    assert resp.status_code == 502

@@ -44,6 +44,10 @@ async def api_search_syllabi(
         if e.response.status_code == 404:
             raise HTTPException(status_code=404)
         raise HTTPException(status_code=502, detail="upstream error")
+    except httpx.RequestError as e:
+        # 接続失敗・タイムアウト。捕まえないと 500 になり、backend の不具合と
+        # 区別がつかない。`/course-targets` と同じく上流の失敗として 502 を返す
+        raise HTTPException(status_code=502, detail="upstream error") from e
 
 
 @router.get("/syllabi/{code}")
@@ -54,6 +58,8 @@ async def api_get_syllabus(code: str):
         if e.response.status_code == 404:
             raise HTTPException(status_code=404)
         raise HTTPException(status_code=502, detail="upstream error")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail="upstream error") from e
 
 
 @router.get("/masters")
@@ -64,6 +70,8 @@ async def api_get_masters():
         if e.response.status_code == 404:
             raise HTTPException(status_code=404)
         raise HTTPException(status_code=502, detail="upstream error")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail="upstream error") from e
 
 
 # --- GET /api/course-targets(§6.1.3 / §8) ---
