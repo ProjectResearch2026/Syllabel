@@ -36,7 +36,7 @@ export type TaggedResults = {
 };
 
 /**
- * 検索結果にタグを付け、絞り込んでから表示するページを切り出す。design.md §8。
+ * 検索結果にタグを付け、絞り込んでから表示するページを切り出す。design.md §6.1.4 / §8.2。
  *
  * **絞り込みは検索結果の全件に効く。** タグは学生プロファイルとの突合で決まり
  * (§6.1)、プロファイルはブラウザにしか無いため api-clean の検索条件にできない。
@@ -47,8 +47,7 @@ export type TaggedResults = {
  *
  * **ページ送りはこの絞り込み後の並びに対して行う。** `offset` は URL に持ったまま
  * (詳細画面から戻ったときに位置を保つため。`lib/syllabusQuery.ts`)、その値で
- * 絞り込み後の配列を切る。総件数も絞り込み後の件数になるため、
- * 「1,219件」と表示しながら16件しか出ない、という食い違いが起きない。
+ * 絞り込み後の配列を切る。総件数も絞り込み後の件数とする。
  *
  * **`offset` が絞り込み後の件数を超えていたら最後のページを出す。** URL の `offset` と
  * 絞り込み(クライアント状態)は別の場所にあるため、片方だけが変わるとずれる
@@ -77,19 +76,22 @@ export function useTaggedResults(
 ): TaggedResults {
   const activeTag = useSyllabusUIStore((s) => s.activeTag);
   const activeCategory = useSyllabusUIStore((s) => s.activeCategory);
+  const activeSubcategory = useSyllabusUIStore((s) => s.activeSubcategory);
   const tagOf = useTagMap();
 
   const filtered = useMemo(() => {
     const tagged = results.map((course) => {
       // **対象課程が分からないときは `undefined` を渡す。** 空配列を渡してはならない
       // — 空配列は「課程指定なし(＝履修可)」を意味するため、引けなかったコードを
-      // 全部履修可と扱ってしまい、PR #100 で直した誤タグが戻る(§6.1.3)
+      // 全部履修可と扱ってしまう(§6.1.3)
       const programs = targets?.[course.syllabus_code];
       const target = programs === undefined ? undefined : targetOfPrograms(programs, faculty);
       return { course, tags: tagOf(course.syllabus_code, target) };
     });
-    return tagged.filter(({ tags }) => matchesFilter(tags, activeTag, activeCategory));
-  }, [results, targets, faculty, tagOf, activeTag, activeCategory]);
+    return tagged.filter(({ tags }) =>
+      matchesFilter(tags, activeTag, activeCategory, activeSubcategory),
+    );
+  }, [results, targets, faculty, tagOf, activeTag, activeCategory, activeSubcategory]);
 
   const lastPageStart = Math.max(0, Math.ceil(filtered.length / limit) - 1) * limit;
   const start = Math.min(offset, lastPageStart);
@@ -118,7 +120,7 @@ export function useTaggedResults(
     visible: page.map((p) => ({ ...p, instructors: instructors[p.course.syllabus_code] ?? null })),
     matched: filtered.length,
     total: results.length,
-    filtering: isFiltering(activeTag, activeCategory),
+    filtering: isFiltering(activeTag, activeCategory, activeSubcategory),
     offset: start,
   };
 }

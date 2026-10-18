@@ -4,7 +4,12 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useTransition } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { OFFERING_YEAR, FACULTY, type Masters } from "@/lib/syllabus-api";
-import { CATEGORY_CHOICES, periodChoices, GRADE_CHOICES } from "@/lib/syllabusUI";
+import {
+  CATEGORY_CHOICES,
+  SUBCATEGORY_CHOICES,
+  periodChoices,
+  GRADE_CHOICES,
+} from "@/lib/syllabusUI";
 import { useFilterControls } from "@/lib/useFilterControls";
 import { DAYS } from "@/lib/timetable";
 import { CategoryFilterHint } from "./SyllabusProfileNotice";
@@ -14,7 +19,8 @@ type Props = {
 };
 
 export default function SyllabusFilters({ masters }: Props) {
-  const { activeCategory, selectCategory } = useFilterControls();
+  const { activeCategory, activeSubcategory, selectCategory, selectSubcategory } =
+    useFilterControls();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -122,6 +128,25 @@ export default function SyllabusFilters({ masters }: Props) {
         </>
       ),
     },
+    // 分野は教養教育科目の内訳なので、区分が教養教育のときだけ出す(§8.2.2)
+    ...(activeCategory === "教養教育"
+      ? [
+          {
+            label: "分野",
+            node: (
+              <select
+                value={activeSubcategory}
+                onChange={(e) => selectSubcategory(e.target.value)}
+                className={selectClass}
+              >
+                {SUBCATEGORY_CHOICES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            ),
+          },
+        ]
+      : []),
     {
       label: "キャンパス",
       node: (
