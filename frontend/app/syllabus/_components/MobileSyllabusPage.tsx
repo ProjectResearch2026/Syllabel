@@ -23,6 +23,7 @@ import MobileAiAssistant from "@/components/ai/MobileAiAssistant";
 import SyllabusPagination from "./SyllabusPagination";
 import { TAG_CHIPS, CATEGORY_CHOICES, periodChoices, GRADE_CHOICES } from "@/lib/syllabusUI";
 import { useFilterControls } from "@/lib/useFilterControls";
+import { useSearchInput } from "@/lib/useSearchInput";
 import { useTaggedResults } from "@/lib/useTaggedResults";
 import { detailHref } from "@/lib/syllabusQuery";
 import { DAYS } from "@/lib/timetable";
@@ -77,6 +78,8 @@ export default function MobileSyllabusPage({
   );
 
   const q = searchParams.get("q") ?? "";
+  // 1文字ごとには検索しない。IME の確定と入力の停止を待つ(`lib/useSearchInput.ts`)
+  const searchInput = useSearchInput();
 
   const update = useCallback(
     (key: string, value: string) => {
@@ -246,8 +249,7 @@ export default function MobileSyllabusPage({
           <Search size={18} className="text-[#9CA3AF] shrink-0" />
           <input
             type="search"
-            defaultValue={q}
-            onChange={(e) => update("q", e.target.value)}
+            {...searchInput}
             placeholder="科目名・教員名で検索"
             className="flex-1 min-w-0 bg-transparent text-sm text-[#1A2B4E] placeholder-[#9CA3AF] outline-none"
           />
