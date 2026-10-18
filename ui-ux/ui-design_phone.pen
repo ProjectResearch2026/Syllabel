@@ -13303,35 +13303,6 @@
               "fontFamily": "$font-sans",
               "fontSize": 12,
               "fontWeight": "normal"
-            },
-            {
-              "type": "frame",
-              "id": "OM3Gt",
-              "name": "SortBtn",
-              "gap": 4,
-              "alignItems": "center",
-              "children": [
-                {
-                  "type": "text",
-                  "id": "bKNuq",
-                  "name": "SortLabel",
-                  "fill": "$fg-primary",
-                  "content": "配当年次順",
-                  "fontFamily": "$font-sans",
-                  "fontSize": 13,
-                  "fontWeight": "normal"
-                },
-                {
-                  "type": "icon",
-                  "id": "ivXUN",
-                  "name": "SortIcon",
-                  "width": 14,
-                  "height": 14,
-                  "icon": "chevron-down",
-                  "library": "lucide",
-                  "fill": "$fg-primary"
-                }
-              ]
             }
           ]
         },
@@ -22963,35 +22934,6 @@
               "fontFamily": "$font-sans",
               "fontSize": 12,
               "fontWeight": "normal"
-            },
-            {
-              "type": "frame",
-              "id": "e1JRig",
-              "name": "SortBtn",
-              "gap": 4,
-              "alignItems": "center",
-              "children": [
-                {
-                  "type": "text",
-                  "id": "G3wLK",
-                  "name": "SortLabel",
-                  "fill": "$fg-primary",
-                  "content": "配当年次順",
-                  "fontFamily": "$font-sans",
-                  "fontSize": 13,
-                  "fontWeight": "normal"
-                },
-                {
-                  "type": "icon",
-                  "id": "jzIRC",
-                  "name": "SortIcon",
-                  "width": 14,
-                  "height": 14,
-                  "icon": "chevron-down",
-                  "library": "lucide",
-                  "fill": "$fg-primary"
-                }
-              ]
             }
           ]
         },

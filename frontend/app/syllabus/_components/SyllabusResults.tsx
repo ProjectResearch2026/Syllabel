@@ -49,8 +49,8 @@ export default function SyllabusResults({
   return (
     <>
       {/*
-        ui-design_pc.pen ResultHeader。件数と内訳を1行に収める。デザインにある並び順の表示
-        (「配当年次順」)は置かない — 並びは api-clean の返すシラバスコード順で選べず、
+        ui-design_pc.pen ResultHeader。件数と内訳を1行に収める。並び順の表示(「配当年次順」)は
+        デザインからも外した — 並びは api-clean の返すシラバスコード順で選べず、
         表示どおりに並べても学年の専門科目が後ろのページに回るだけだった
       */}
       <div className="flex shrink-0 items-center justify-between gap-4">
