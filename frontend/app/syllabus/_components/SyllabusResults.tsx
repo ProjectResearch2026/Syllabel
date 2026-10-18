@@ -1,7 +1,6 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { ArrowUpDown } from "lucide-react";
 import type { MatchedBy, SyllabusListItem } from "@/lib/syllabus-api";
 import { detailHref } from "@/lib/syllabusQuery";
 import { useTaggedResults } from "@/lib/useTaggedResults";
@@ -39,7 +38,7 @@ export default function SyllabusResults({
 }) {
   // 詳細へ移っても絞り込みを失わないよう、いまのクエリをリンクに畳む
   const searchParams = useSearchParams();
-  const { visible, matched, total, filtering } = useTaggedResults(
+  const { visible, matched, total, filtering, offset: start } = useTaggedResults(
     results,
     targets,
     faculty,
@@ -49,7 +48,11 @@ export default function SyllabusResults({
 
   return (
     <>
-      {/* ui-design_pc.pen ResultHeader。件数・内訳・並び順を1行に収める */}
+      {/*
+        ui-design_pc.pen ResultHeader。件数と内訳を1行に収める。並び順の表示(「配当年次順」)は
+        デザインからも外した — 並びは api-clean の返すシラバスコード順で選べず、
+        表示どおりに並べても学年の専門科目が後ろのページに回るだけだった
+      */}
       <div className="flex shrink-0 items-center justify-between gap-4">
         <h1 className="text-sm font-bold text-fg-primary">
           検索結果 {matched.toLocaleString()}件
@@ -61,7 +64,7 @@ export default function SyllabusResults({
           )}
           {visible.length > 0 && (
             <span className="ml-2 text-xs font-normal text-fg-secondary">
-              {offset + 1}〜{offset + visible.length}件目を表示
+              {start + 1}〜{start + visible.length}件目を表示
             </span>
           )}
           {matchedBy === "instructor" && (
@@ -70,10 +73,6 @@ export default function SyllabusResults({
             </span>
           )}
         </h1>
-        <div className="flex shrink-0 items-center gap-1.5 text-xs text-fg-secondary">
-          <ArrowUpDown size={14} aria-hidden="true" />
-          <span>配当年次順</span>
-        </div>
       </div>
 
       {visible.length === 0 ? (
@@ -98,7 +97,7 @@ export default function SyllabusResults({
       )}
 
       {/* ページ送りは結果の下に一度だけ。上下に出すと1画面に2つ並んで見える */}
-      <SyllabusPagination limit={limit} offset={offset} total={matched} />
+      <SyllabusPagination limit={limit} offset={start} total={matched} />
     </>
   );
 }

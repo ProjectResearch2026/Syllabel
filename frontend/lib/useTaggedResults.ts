@@ -28,6 +28,11 @@ export type TaggedResults = {
   total: number;
   /** 絞り込みが効いているか */
   filtering: boolean;
+  /**
+   * 実際に切り出した位置。URL の `offset` が絞り込み後の件数を超えていたときは
+   * 最後のページの先頭に丸めた値になる。件数表示とページ送りはこちらを使う
+   */
+  offset: number;
 };
 
 /**
@@ -44,6 +49,12 @@ export type TaggedResults = {
  * (詳細画面から戻ったときに位置を保つため。`lib/syllabusQuery.ts`)、その値で
  * 絞り込み後の配列を切る。総件数も絞り込み後の件数になるため、
  * 「1,219件」と表示しながら16件しか出ない、という食い違いが起きない。
+ *
+ * **`offset` が絞り込み後の件数を超えていたら最後のページを出す。** URL の `offset` と
+ * 絞り込み(クライアント状態)は別の場所にあるため、片方だけが変わるとずれる
+ * (マイデータで科目を直して必修が減った、など)。そのまま切ると件数は出ているのに
+ * 一覧が空になる。URL は書き換えない — 履修要項の取得中は一時的に0件になるため、
+ * 届いた時点で元の位置に戻れるようにする。
  *
  * **PC・モバイルの双方から呼ぶ。** 同じ結果でなければならないため、切り出しと
  * 教員名の補完をここに1つだけ置く(§8.1 と同じ理由)。
@@ -80,7 +91,9 @@ export function useTaggedResults(
     return tagged.filter(({ tags }) => matchesFilter(tags, activeTag, activeCategory));
   }, [results, targets, faculty, tagOf, activeTag, activeCategory]);
 
-  const page = useMemo(() => filtered.slice(offset, offset + limit), [filtered, offset, limit]);
+  const lastPageStart = Math.max(0, Math.ceil(filtered.length / limit) - 1) * limit;
+  const start = Math.min(offset, lastPageStart);
+  const page = useMemo(() => filtered.slice(start, start + limit), [filtered, start, limit]);
 
   // 教員名は表示する行のぶんだけ引く(§6.2)。補助情報なので、揃う前でもカードは描く
   const [instructors, setInstructors] = useState<Record<string, string>>({});
@@ -106,5 +119,6 @@ export function useTaggedResults(
     matched: filtered.length,
     total: results.length,
     filtering: isFiltering(activeTag, activeCategory),
+    offset: start,
   };
 }

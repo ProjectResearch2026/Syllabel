@@ -135,7 +135,7 @@ async def test_chat_agent_expands_instructor_notation(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_chat_agent_keeps_plain_search_without_instructor(monkeypatch):
-    """教員名が無いときは従来どおり素通しの search_syllabi を使う。"""
+    """教員名もキーワードも無いときは従来どおり素通しの search_syllabi を使う。"""
     called = {}
 
     async def fail_by_instructor(instructor, **params):  # pragma: no cover - 呼ばれない
@@ -150,7 +150,37 @@ async def test_chat_agent_keeps_plain_search_without_instructor(monkeypatch):
     build_chat_agent.cache_clear()
 
     agent = build_chat_agent()
-    with agent.override(model=_model_calling_search({"q": "情報基礎"})):
-        await agent.run("情報基礎を検索して")
+    with agent.override(model=_model_calling_search({"day": "月"})):
+        await agent.run("月曜の講義を検索して")
 
-    assert called["kwargs"]["q"] == "情報基礎"
+    assert called["kwargs"]["day"] == "月"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("instructor", [None, "山田太郎"])
+async def test_chat_agent_matches_keyword_by_normalized_title(monkeypatch, instructor):
+    """キーワードは api-clean の `q`(正規化の無い ILIKE)に送らず、科目名の表記の揺れを
+    畳んで照合する口(search_syllabi_by_title)へ回す。検索画面と同じ規則(§6.1)。"""
+    called = {}
+
+    async def fake_by_title(q, **params):
+        called["q"] = q
+        called["params"] = params
+        return {"count": 0, "limit": 10, "offset": 0, "results": []}
+
+    async def fail_plain(**kwargs):  # pragma: no cover - 呼ばれない
+        raise AssertionError("キーワードが api-clean の q に素通しされた")
+
+    monkeypatch.setattr("app.agents.chat_agent.search_syllabi_by_title", fake_by_title)
+    monkeypatch.setattr("app.agents.chat_agent.search_syllabi", fail_plain)
+    build_chat_agent.cache_clear()
+
+    args = {"q": "プログラミング基礎演習1"} | ({"instructor": instructor} if instructor else {})
+    agent = build_chat_agent()
+    with agent.override(model=_model_calling_search(args)):
+        await agent.run("プログラミング基礎演習1について")
+
+    assert called["q"] == "プログラミング基礎演習1"
+    assert called["params"]["instructor"] == instructor
+    assert "q" not in called["params"]
+    assert called["params"]["limit"] == 10

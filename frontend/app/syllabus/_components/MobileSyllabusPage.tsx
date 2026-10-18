@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from "motion/react";
 import {
   Search,
   SlidersHorizontal,
-  ChevronDown,
   ArrowUpRight,
   BookOpen,
   MapPin,
@@ -23,6 +22,7 @@ import MobileAiAssistant from "@/components/ai/MobileAiAssistant";
 import SyllabusPagination from "./SyllabusPagination";
 import { TAG_CHIPS, CATEGORY_CHOICES, periodChoices, GRADE_CHOICES } from "@/lib/syllabusUI";
 import { useFilterControls } from "@/lib/useFilterControls";
+import { useSearchInput } from "@/lib/useSearchInput";
 import { useTaggedResults } from "@/lib/useTaggedResults";
 import { detailHref } from "@/lib/syllabusQuery";
 import { DAYS } from "@/lib/timetable";
@@ -68,7 +68,7 @@ export default function MobileSyllabusPage({
   const conversation = useSyllabusConversation();
 
   // タグ付け・絞り込み・ページの切り出しは PC と同じものを使う(§8)
-  const { visible, matched, total, filtering } = useTaggedResults(
+  const { visible, matched, total, filtering, offset: start } = useTaggedResults(
     results,
     targets,
     faculty,
@@ -77,6 +77,8 @@ export default function MobileSyllabusPage({
   );
 
   const q = searchParams.get("q") ?? "";
+  // 1文字ごとには検索しない。IME の確定と入力の停止を待つ(`lib/useSearchInput.ts`)
+  const searchInput = useSearchInput();
 
   const update = useCallback(
     (key: string, value: string) => {
@@ -246,8 +248,7 @@ export default function MobileSyllabusPage({
           <Search size={18} className="text-[#9CA3AF] shrink-0" />
           <input
             type="search"
-            defaultValue={q}
-            onChange={(e) => update("q", e.target.value)}
+            {...searchInput}
             placeholder="科目名・教員名で検索"
             className="flex-1 min-w-0 bg-transparent text-sm text-[#1A2B4E] placeholder-[#9CA3AF] outline-none"
           />
@@ -314,15 +315,11 @@ export default function MobileSyllabusPage({
           {`${matched.toLocaleString()}件の科目`}
           {filtering && `（${total.toLocaleString()}件中）`}
           {visible.length > 0 &&
-            `・${(offset + 1).toLocaleString()}〜${(offset + visible.length).toLocaleString()}件目を表示`}
+            `・${(start + 1).toLocaleString()}〜${(start + visible.length).toLocaleString()}件目を表示`}
           {matchedBy === "instructor" && (
             <span className="ml-1.5">（「{q}」を教員名として検索）</span>
           )}
         </span>
-        <div className="flex shrink-0 items-center gap-1 text-[13px] text-[#1A2B4E]">
-          <span>配当年次順</span>
-          <ChevronDown size={14} />
-        </div>
       </div>
 
       {/* Course list */}
@@ -401,7 +398,7 @@ export default function MobileSyllabusPage({
       )}
 
       <div className="px-4 py-4">
-        <SyllabusPagination limit={limit} offset={offset} total={matched} />
+        <SyllabusPagination limit={limit} offset={start} total={matched} />
       </div>
 
       {/* 時間割と同じ Ask Bar → シートのパターン。参照中の文脈が「この検索結果」に変わるだけ */}

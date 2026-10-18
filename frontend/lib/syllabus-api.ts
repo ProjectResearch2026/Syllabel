@@ -1,5 +1,6 @@
 import { apiBase } from "@/lib/api_base";
 import { spellInstructorName } from "@/lib/instructorName";
+import { matchesTitle } from "@/lib/titleSearch";
 
 /**
  * backend の読み取り専用エンドポイントのクライアント。design.md §6.1。
@@ -295,10 +296,13 @@ async function fetchAllByInstructor(
 /**
  * 検索ボックスの1語(科目名または教員名)でシラバスを検索する。design.md §6.1。
  *
- * api-clean の `q` と `instructor` は別々のパラメータであり、`q` は教員名に
- * 当たらない。検索ボックスは科目名と教員名を1つの入力で受けるため、`q` が
- * 0件のときに `instructor` で引き直す。**両方を同時に送ってはならない**
- * (AND 条件となり必ず0件になる)。
+ * **科目名は api-clean の `q` に投げず、条件に当たる全件を引いてから手元で照合する**
+ * (`lib/titleSearch.ts`)。`q` は正規化の無い `ILIKE` で、「プログラミング基礎演習1」
+ * (登録は `Ⅰ`)や「仏教の思想Ａ」(登録は半角 `A`)が0件になっていた。全件は
+ * キーワードが無いときと同じ取得で、検索画面はもともと全件を引いている(§6.2)。
+ *
+ * 科目名で0件のときは同じ語を教員名として api-clean の `instructor` で引き直す。
+ * 教員名は一覧に無いため手元では照合できない(`lib/instructorName.ts`)。
  */
 export async function searchCourses(
   params: Omit<SearchParams, "q" | "instructor" | "limit" | "offset"> & { keyword?: string },
@@ -311,7 +315,7 @@ export async function searchCourses(
     return { results, total: results.length, matchedBy: null };
   }
 
-  const byTitle = await fetchAll({ ...rest, q: word });
+  const byTitle = (await fetchAll(rest)).filter((row) => matchesTitle(row.course_title, word));
   if (byTitle.length > 0) {
     return { results: byTitle, total: byTitle.length, matchedBy: "title" };
   }
@@ -431,6 +435,32 @@ async function fetchInstructorsOf(code: string, retry = true): Promise<string | 
 }
 
 /**
+ * 教員名の取得を、科目コードごとに1回にまとめるための表(取得中のものも含む)。
+ *
+ * **一覧は PC 用とモバイル用の組み立てが常に両方 mount されている**(CSS で出し分ける。
+ * §8)。それぞれが表示中の行の教員名を引くため、以前は同じ30件の詳細を2回ずつ、
+ * 1ページあたり60本引いていた。取得中の Promise ごと共有すれば、後から来た側は
+ * 同じ取得の完了を待つだけで済む。ページを戻ったときにも引き直さない。
+ *
+ * 持つのは公開されている教員名だけで、学生データは含まない。**失敗した科目は表から
+ * 外す**(次に表示したときに引き直せるように)。ブラウザのメモリにだけあり、
+ * 再読み込みで消える。
+ */
+const instructorCache = new Map<string, Promise<string | null>>();
+
+function instructorsOf(code: string): Promise<string | null> {
+  let pending = instructorCache.get(code);
+  if (!pending) {
+    pending = fetchInstructorsOf(code).then((names) => {
+      if (names === null) instructorCache.delete(code);
+      return names;
+    });
+    instructorCache.set(code, pending);
+  }
+  return pending;
+}
+
+/**
  * 検索結果に担当教員名を補う。`syllabus_code` → 教員名の対応を返す。design.md §6.2。
  *
  * **api-clean の `GET /syllabi` は担当教員を返さない。** 1科目に複数の教員が
@@ -457,7 +487,7 @@ export async function fetchInstructorMap(codes: string[]): Promise<Record<string
   const worker = async () => {
     while (cursor < targets.length) {
       const code = targets[cursor++];
-      const names = await fetchInstructorsOf(code);
+      const names = await instructorsOf(code);
       if (names) map[code] = names;
     }
   };

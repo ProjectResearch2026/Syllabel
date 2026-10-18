@@ -29,6 +29,18 @@ function intParam(value: string | string[] | undefined, min: number, max: number
   return Number.isInteger(n) && n >= min && n <= max ? n : undefined;
 }
 
+/**
+ * URL の `offset` を読む。0 以上の整数だけを受け、ページの先頭(`limit` の倍数)に切り下げる。
+ * それ以外(`abc`・負の数)は先頭ページにする。`parseInt` のままだと NaN や負の数が
+ * そのまま `slice()` に渡り、件数は出ているのに一覧が空でページ送りも消えていた。
+ * 件数を超える値は絞り込み後の件数が決まるクライアントで丸める(`useTaggedResults()`)
+ */
+function offsetParam(value: string | string[] | undefined, limit: number): number {
+  if (typeof value !== "string") return 0;
+  const n = Number(value);
+  return Number.isInteger(n) && n > 0 ? n - (n % limit) : 0;
+}
+
 export default async function SyllabusPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
 
@@ -43,7 +55,7 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
   const period = intParam(sp.period, 1, 7);
   // 対象年次。`grade_min <= grade <= grade_max` の科目に絞る(§6.2)
   const grade = intParam(sp.grade, 1, 4);
-  const offset = typeof sp.offset === "string" ? parseInt(sp.offset, 10) : 0;
+  const offset = offsetParam(sp.offset, LIMIT);
   // 開講年度と学部は固定する。URL に `year` / `faculty` が付いていても見ない
   const year = OFFERING_YEAR;
   const faculty = FACULTY;

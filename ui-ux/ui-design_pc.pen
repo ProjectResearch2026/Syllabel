@@ -6038,35 +6038,6 @@
                               "fontWeight": "normal"
                             }
                           ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "w39KHt",
-                          "name": "SortWrap",
-                          "gap": 6,
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "icon",
-                              "id": "VQx1Z",
-                              "name": "SortIcon",
-                              "width": 14,
-                              "height": 14,
-                              "icon": "arrow-up-down",
-                              "library": "lucide",
-                              "fill": "$fg-secondary"
-                            },
-                            {
-                              "type": "text",
-                              "id": "jWO7T",
-                              "name": "SortLabel",
-                              "fill": "$fg-secondary",
-                              "content": "配当年次順",
-                              "fontFamily": "$font-sans",
-                              "fontSize": 12,
-                              "fontWeight": "normal"
-                            }
-                          ]
                         }
                       ]
                     },
