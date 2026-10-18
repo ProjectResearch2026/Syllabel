@@ -8,7 +8,7 @@
 渡さない(§4.4.3):
 
 - `requirement_slots[].accepts` による科目の割り当て(キーは `category` /
-  `subcategory` / `type` / `kikan` の AND、配列は OR、`category: "any"` は予約値)
+  `subcategory` / `type` の AND、配列は OR、`category: "any"` は予約値)
 - `requirement_slots[].overflow_to` のカスケード3系統(教養選択必修→教養選択→
   オールフリー / 専門応用選択必修→専門応用選択→学部フリー / 専門基礎選択・
   専門関連→学部フリー→オールフリー)
@@ -147,7 +147,7 @@ class RequirementsResult(BaseModel):
 def accepts_course(accepts: Accepts, course: CurriculumCourse) -> bool:
     """`accepts` が科目を受け入れるか(§5.1.5)。
 
-    キーは `category` / `subcategory` / `type` / `kikan` で**複数キーは AND**、
+    キーは `category` / `subcategory` / `type` で**複数キーは AND**、
     値が配列のときはそのいずれかに一致(OR)。`category: "any"` は区分を問わない
     ことを表す予約値であり、`any` という名前の区分は存在しない。
     """
@@ -160,8 +160,6 @@ def accepts_course(accepts: Accepts, course: CurriculumCourse) -> bool:
     if accepts.type is not None:
         if course.type not in _as_list(accepts.type):
             return False
-    if accepts.kikan is not None and course.kikan != accepts.kikan:
-        return False
     return True
 
 
@@ -175,7 +173,7 @@ def _specificity(accepts: Accepts) -> int:
     同じ科目を受け入れる枠が複数あるとき、条件の多い枠から先に埋める
     (`basic.required` は `free.faculty` より具体的、という順序づけ)。
     """
-    keys = ("category", "subcategory", "type", "kikan")
+    keys = ("category", "subcategory", "type")
     given = [getattr(accepts, key) for key in keys]
     count = sum(1 for value in given if value is not None)
     return count - 1 if accepts.category == "any" else count

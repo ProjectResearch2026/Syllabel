@@ -152,18 +152,32 @@ export type Category =
   | "専門基礎科目"
   | "専門応用科目"
   | "専門関連科目";
+/**
+ * 教養教育科目の分野。`backend/app/schemas/curriculum.py` の `Subcategory` と同じ9値。
+ * design.md §5.1.5。
+ */
+export type Subcategory =
+  | "「仏教の思想」科目"
+  | "必修外国語科目"
+  | "選択外国語科目"
+  | "人文科学系科目"
+  | "社会科学系科目"
+  | "自然科学系科目"
+  | "スポーツ科学系科目"
+  | "教養教育科目特別講義"
+  | "学部・センター等提供科目";
 
 /** マージ後の科目1件。design.md §6.1(`backend/app/api/curricula.py` の `CourseOut`)。 */
 export type CurriculaCourse = {
   title: string;
   category: Category;
-  subcategory: string | null;
+  /** 分野。教養教育科目だけが持ち、専攻科目では null */
+  subcategory: Subcategory | null;
   type: CourseType;
   credits: number;
   grade: number;
   term: CurriculaTerm;
   quarters: Quarter[] | null;
-  kikan: boolean;
   /**
    * 当該課程の設置科目なら true、他課程から導出した専門関連科目なら false。
    * 他課程の `type: 必修` はその課程の学生にとっての必修であり、区別せずに

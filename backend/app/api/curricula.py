@@ -100,7 +100,6 @@ class CourseOut(_CamelModel):
     grade: int
     term: Term
     quarters: list[Quarter] | None = None
-    kikan: bool
     own: bool
     syllabus_codes: list[str]
 
@@ -145,7 +144,6 @@ def _build(loaded: LoadedCurriculum) -> CurriculaResponse:
                 grade=c.grade,
                 term=c.term,
                 quarters=c.quarters,
-                kikan=c.kikan,
                 own=c.own,
                 syllabus_codes=loaded.syllabus_codes(c),
             )

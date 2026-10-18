@@ -410,12 +410,25 @@ OFFICIAL_SLOT_NAMES = {
 }
 
 
+# 2026年度入学版は基幹科目の指定が無く、人文・社会の全科目が選択必修になった(§5.1.3)
+OFFICIAL_SLOT_NAMES_BY_YEAR = {
+    2026: {
+        "liberal.general.humanities": "教養教育科目(選択必修・人文)",
+        "liberal.general.social": "教養教育科目(選択必修・社会)",
+    },
+}
+
+
 def test_real_data_slot_names_are_official():
     """実データの全要件枠が公式の名前を持つこと。内部の key を名前に使わない。"""
     loaded = load_curricula(_settings(REPO_ROOT))
     for item in loaded.values():
         for slot in item.curriculum.requirement_slots:
-            assert slot.name == OFFICIAL_SLOT_NAMES[slot.key], (
+            year = item.curriculum.admission_year
+            expected = OFFICIAL_SLOT_NAMES_BY_YEAR.get(year, {}).get(
+                slot.key, OFFICIAL_SLOT_NAMES[slot.key]
+            )
+            assert slot.name == expected, (
                 item.curriculum.program.name,
                 item.curriculum.admission_year,
                 slot.key,

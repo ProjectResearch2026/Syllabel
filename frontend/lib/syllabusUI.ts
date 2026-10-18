@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Category, CourseType, CurriculaData } from "@/lib/syllabus-api";
+import type { Category, CourseType, CurriculaData, Subcategory } from "@/lib/syllabus-api";
 import { canRegister, type CourseTarget } from "@/lib/eligibility";
 import { normalizeTitle } from "@/lib/courseTitle";
 import { PERIODS } from "@/lib/timetable";
@@ -8,12 +8,14 @@ import { PERIODS } from "@/lib/timetable";
 export const ALL_CATEGORIES = "すべて";
 /** 履修区分・状態の絞り込みで「絞らない」を表す値。 */
 export const ALL_TAGS = "すべて";
+/** 分野の絞り込みで「絞らない」を表す値。 */
+export const ALL_SUBCATEGORIES = "すべて";
 
 /**
  * 絞り込みの選択肢。**PC・モバイルで同じものを使うため、ここに1つだけ置く。**
  *
- * 履修区分と状態はチップに、区分はセレクトに出す(§8)。チップに7値を並べると
- * 1行に収まらないため、軸で分けている。
+ * 履修区分と状態はチップに、区分と分野はセレクトに出す(§8.2.2)。分野のセレクトは
+ * 区分が `教養教育` のときだけ出す。
  */
 export const TAG_CHIPS = [ALL_TAGS, "必修", "選択必修", "選択", "随意", "修得済み"] as const;
 export const CATEGORY_CHOICES = [
@@ -22,6 +24,36 @@ export const CATEGORY_CHOICES = [
   "専門基礎",
   "専門応用",
   "専門関連",
+] as const;
+
+/**
+ * 分野(教養教育科目の `subcategory`)の表示名。design.md §8.2.1。
+ *
+ * 履修要項の区分名から括弧と末尾の「科目」を除いた形にする。並びは
+ * `backend/app/schemas/curriculum.py` の `Subcategory` の定義順に合わせる。
+ */
+const SUBCATEGORY_LABEL = {
+  "「仏教の思想」科目": "仏教の思想",
+  必修外国語科目: "必修外国語",
+  選択外国語科目: "選択外国語",
+  人文科学系科目: "人文科学系",
+  社会科学系科目: "社会科学系",
+  自然科学系科目: "自然科学系",
+  スポーツ科学系科目: "スポーツ科学系",
+  教養教育科目特別講義: "教養教育科目特別講義",
+  "学部・センター等提供科目": "学部・センター等提供",
+} as const satisfies Record<Subcategory, string>;
+
+export type SubcategoryTag = (typeof SUBCATEGORY_LABEL)[Subcategory];
+
+/**
+ * 分野の絞り込みの選択肢。区分が `教養教育` のときだけ出す(§8.2.2)。
+ * コホートによっては該当する科目の無い値もある(`学部・センター等提供` は
+ * 2026年度入学版のみ)。
+ */
+export const SUBCATEGORY_CHOICES = [
+  ALL_SUBCATEGORIES,
+  ...Object.values(SUBCATEGORY_LABEL),
 ] as const;
 
 /**
@@ -58,7 +90,11 @@ type SyllabusUIStore = {
   setActiveTag: (tag: string) => void;
   /** 区分での絞り込み(`教養教育` / `専門基礎` / `専門応用` / `専門関連`) */
   activeCategory: string;
+  /** 区分を変える。**分野は `すべて` に戻す**(分野は教養教育科目の内訳であるため) */
   setActiveCategory: (category: string) => void;
+  /** 分野での絞り込み(`人文科学系` など)。区分が `教養教育` のときだけ選べる */
+  activeSubcategory: string;
+  setActiveSubcategory: (subcategory: string) => void;
   /**
    * 最後に開いていた一覧のクエリ(`q=…&term=…`)。`LIST_QUERY_KEYS` で濾したもの。
    * ヘッダー・タブバーの「シラバス」をここへ向け、他の画面から戻っても
@@ -71,9 +107,9 @@ type SyllabusUIStore = {
 };
 
 /**
- * 検索画面の絞り込み状態。design.md §8。
+ * 検索画面の絞り込み状態。design.md §8.2。
  *
- * **URL のクエリに持たない。** 区分・履修区分は履修要項と学生プロファイルの突合から
+ * **URL のクエリに持たない。** 区分・分野・履修区分は履修要項と学生プロファイルの突合から
  * 決まる値であり(§6.1)、api-clean に投げる検索条件ではないため、サーバ側描画の
  * 入力にはならない。PC・モバイルで同じ状態を共有し、画面遷移をまたいで保つ。
  *
@@ -86,24 +122,34 @@ export const useSyllabusUIStore = create<SyllabusUIStore>((set) => ({
   activeTag: ALL_TAGS,
   setActiveTag: (tag) => set({ activeTag: tag }),
   activeCategory: ALL_CATEGORIES,
-  setActiveCategory: (category) => set({ activeCategory: category }),
+  setActiveCategory: (category) =>
+    set({ activeCategory: category, activeSubcategory: ALL_SUBCATEGORIES }),
+  activeSubcategory: ALL_SUBCATEGORIES,
+  setActiveSubcategory: (subcategory) => set({ activeSubcategory: subcategory }),
   listQuery: "",
   setListQuery: (query) => set({ listQuery: query }),
-  reset: () => set({ activeTag: ALL_TAGS, activeCategory: ALL_CATEGORIES, listQuery: "" }),
+  reset: () =>
+    set({
+      activeTag: ALL_TAGS,
+      activeCategory: ALL_CATEGORIES,
+      activeSubcategory: ALL_SUBCATEGORIES,
+      listQuery: "",
+    }),
 }));
 
 /**
- * 検索結果のカードに付すタグ。design.md §8。
+ * 検索結果のカードに付すタグ。design.md §8.2.1。
  *
- * **3つの軸に分ける。** 卒業要件の枠は (区分 × 履修区分) で決まっており
+ * **軸を分ける。** 卒業要件の枠は (区分 × 履修区分) で決まり
  * (`basic.required` = 専門基礎科目 × 必修、`applied.elective` = 専門応用科目 × 選択、…)、
- * 1つの軸に潰すとその対応が消える。学生が「この科目がどの枠を埋めるのか」を
- * 読み取れるようにするため、履修要項の構造をそのまま出す。
+ * 教養教育科目の枠はさらに分野で分かれる(`liberal.general.humanities` = 人文科学系科目
+ * × 選択必修、…)。1つの軸に潰すとその対応が消えるため、履修要項の構造をそのまま出す。
  *
  * | 軸 | 値 |
  * |---|---|
  * | 状態 | `修得済み` |
  * | 区分 | `教養教育` / `専門基礎` / `専門応用` / `専門関連` |
+ * | 分野 | 教養教育科目のみ。`SUBCATEGORY_LABEL` の表示名 |
  * | 履修区分 | `必修` / `選択必修` / `選択` / `随意` |
  */
 export type CourseCategoryTag = "教養教育" | "専門基礎" | "専門応用" | "専門関連";
@@ -118,6 +164,8 @@ export type CourseTags = {
   completed: boolean;
   /** 区分 */
   category: CourseCategoryTag | null;
+  /** 分野。教養教育科目だけが持つ */
+  subcategory: SubcategoryTag | null;
   /**
    * 履修区分。**修得済みのときと専門関連科目のときは null になる**
    * (`resolveTags()` の規則を参照)
@@ -126,7 +174,12 @@ export type CourseTags = {
 };
 
 /** タグが1つも無い状態。 */
-export const NO_TAGS: CourseTags = { completed: false, category: null, requirement: null };
+export const NO_TAGS: CourseTags = {
+  completed: false,
+  category: null,
+  subcategory: null,
+  requirement: null,
+};
 
 /** 履修要項の区分名(`専門基礎科目`)をタグの表記(`専門基礎`)にする。 */
 const CATEGORY_LABEL: Record<Category, CourseCategoryTag> = {
@@ -140,13 +193,14 @@ const CATEGORY_LABEL: Record<Category, CourseCategoryTag> = {
 type TagCandidate = {
   completed: boolean;
   category: Category;
+  subcategory: Subcategory | null;
   type: CourseType;
   own: boolean;
 };
 
 /**
  * 検索結果に付すタグの**候補**を、履修要項（`GET /api/curricula`）と学生プロファイルを
- * 突き合わせて作る。design.md §6.1 / §8。
+ * 突き合わせて作る。design.md §8.2.1。
  *
  * 突合はシラバスコードによる結合を第一とする。1科目に複数のクラスが対応し得る
  * ため `syllabusCodes` は配列であり、そのすべてを同じ候補に対応づける。コードを
@@ -158,7 +212,7 @@ type TagCandidate = {
  *
  * **同じコードが複数の科目レコードから来たときは先に現れたものを採る。** backend は
  * マージ後の `courses` を「当該課程の設置科目 → 教養教育科目 → 他課程から導出した
- * 専門関連科目（課程コード順）」の順で返すため（§4.4.3）、先頭優先は
+ * 専門関連科目（課程コード順）」の順で返すため（§6.1）、先頭優先は
  * 「自課程の設置科目を優先し、次いで課程コードの小さい出典を採る」になり、
  * backend 側の科目索引（`requirements.py` の `_course_index()`）と同じ順序になる。
  * ただし**修得済みか否かはレコードをまたいで OR で採る**。修得は学生の成績の事実で
@@ -180,13 +234,14 @@ export function buildTagMap(
       const completed = passedByTitle || passedCodes.has(code);
       const current = map.get(code);
       if (current) {
-        // 区分・履修区分は先頭優先、修得済みだけは OR
+        // 区分・分野・履修区分は先頭優先、修得済みだけは OR
         if (completed) current.completed = true;
         continue;
       }
       map.set(code, {
         completed,
         category: course.category,
+        subcategory: course.subcategory,
         type: course.type,
         own: course.own,
       });
@@ -196,19 +251,20 @@ export function buildTagMap(
 }
 
 /**
- * 候補に履修可否を掛けて、実際に出すタグを決める。design.md §6.1.3 / §8。
+ * 候補に履修可否を掛けて、実際に出すタグを決める。design.md §6.1.3 / §8.2.1。
  *
  * **履修できないクラスにはタグを出さない。** 判定の根拠と規則は
  * `lib/eligibility.ts` に書いてある。
  *
  * | 状況 | 出すタグ |
  * |---|---|
- * | 履修不可 | なし |
- * | 履修可 × 修得済み | `修得済み` + 区分 |
- * | 履修可 × 未修得 × 自課程の設置科目 | 区分 + 履修区分 |
+ * | 修得済み | `修得済み` + 区分(+ 分野) |
+ * | 履修可 × 未修得 × 自課程の設置科目 | 区分(+ 分野)+ 履修区分 |
  * | 履修可 × 未修得 × 他課程の設置科目 | `専門関連` のみ |
+ * | 履修不可 / 可否を判定できない | なし |
  * | 履修要項に無い | なし |
  *
+ * 分野は教養教育科目だけが持つ。
  * 履修区分を出さない場合が2つある。
  *
  * - **修得済みのとき。** 履修区分は「これから履修する必要があるか」を示す情報で
@@ -223,10 +279,10 @@ export function buildTagMap(
  * **修得済みは履修可否を問わず出す。** 単位を修得した事実であり、そのクラスを
  * これから履修できるかとは無関係である。
  *
- * **対象課程が分からないときはタグを出さない。** 一覧は表示中のぶんだけシラバス詳細を
- * 引いて対象課程を得ており（§6.2）、その取得が失敗したコードでは可否が判定できない。
- * **履修可否の正本は対象課程である**という原則に従い、判定できないものについては
- * 何も主張しない。
+ * **対象課程が分からないときはタグを出さない。** 一覧は `GET /api/course-targets`、
+ * 講義詳細はシラバス詳細から対象課程を得る（§6.1.3）。取得できなかったコードでは
+ * 可否が判定できず、**履修可否の正本は対象課程である**という原則に従い、判定できない
+ * ものについては何も主張しない。
  *
  * @param target 当該コードの対象課程・対象学部。取得できなければ `undefined`
  * @param programName 学生プロファイルの課程名（`StudentProfile.program`）
@@ -239,45 +295,63 @@ export function resolveTags(
   if (!candidate) return NO_TAGS;
 
   const category = CATEGORY_LABEL[candidate.category] ?? null;
+  const subcategory = candidate.subcategory ? SUBCATEGORY_LABEL[candidate.subcategory] : null;
 
-  if (candidate.completed) return { completed: true, category, requirement: null };
+  if (candidate.completed) return { completed: true, category, subcategory, requirement: null };
   if (!target || !canRegister(target, programName)) return NO_TAGS;
   // 他課程の設置科目。この学生にとっての区分は専門関連科目であり、履修区分は持たない
-  if (!candidate.own) return { completed: false, category: "専門関連", requirement: null };
+  if (!candidate.own) {
+    return { completed: false, category: "専門関連", subcategory: null, requirement: null };
+  }
 
-  return { completed: false, category, requirement: candidate.type };
+  return { completed: false, category, subcategory, requirement: candidate.type };
 }
 
 /** タグが1つでも付いているか。 */
 export function hasTags(tags: CourseTags): boolean {
-  return tags.completed || tags.category !== null || tags.requirement !== null;
+  return (
+    tags.completed ||
+    tags.category !== null ||
+    tags.subcategory !== null ||
+    tags.requirement !== null
+  );
 }
 
 /**
- * 絞り込みに一致するか。design.md §8。
+ * 絞り込みに一致するか。design.md §8.2.2。
  *
- * 2つの軸は AND で効く。`修得済み` は履修区分ではなく状態の軸だが、
- * 学生の探し方（「もう取った科目を除きたい」）に沿うため同じチップの並びに置く。
+ * 軸どうしは AND で効く。`修得済み` は履修区分ではなく状態の軸だが、
+ * 学生の探し方に沿うため同じチップの並びに置く。
  */
 export function matchesFilter(
   tags: CourseTags,
   activeTag: string,
   activeCategory: string,
+  activeSubcategory: string,
 ): boolean {
   if (activeCategory !== ALL_CATEGORIES && tags.category !== activeCategory) return false;
+  if (activeSubcategory !== ALL_SUBCATEGORIES && tags.subcategory !== activeSubcategory) {
+    return false;
+  }
   if (activeTag === ALL_TAGS) return true;
   if (activeTag === "修得済み") return tags.completed;
   return tags.requirement === activeTag;
 }
 
 /**
- * タグでの絞り込みが効いているか。design.md §8。
+ * タグでの絞り込みが効いているか。design.md §8.2.2。
  *
- * 絞り込みが効いているあいだは、件数の表示を絞り込み後のものに切り替える
- * (`useTaggedResults()`)。かつては「いま表示している30件のうちn件」という
- * 但し書きも出していたが、**絞り込みが検索結果の全件に効くようになったため
- * 不要になった**(§6.2 で全件を引くようにした)。
+ * 絞り込みが効いているあいだは、件数の表示を絞り込み後のものに切り替え、
+ * 絞る前の母数を併記する(`useTaggedResults()`。§6.1.4)。
  */
-export function isFiltering(activeTag: string, activeCategory: string): boolean {
-  return activeTag !== ALL_TAGS || activeCategory !== ALL_CATEGORIES;
+export function isFiltering(
+  activeTag: string,
+  activeCategory: string,
+  activeSubcategory: string,
+): boolean {
+  return (
+    activeTag !== ALL_TAGS ||
+    activeCategory !== ALL_CATEGORIES ||
+    activeSubcategory !== ALL_SUBCATEGORIES
+  );
 }

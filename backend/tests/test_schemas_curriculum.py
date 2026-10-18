@@ -131,9 +131,13 @@ def test_liberal_arts_file_content():
 
     courses = {course.title: course for course in liberal.courses}
     assert courses["仏教の思想A"].subcategory == "「仏教の思想」科目"
-    # kikan は省略時 false(§5.1.5)
-    assert courses["仏教の思想A"].kikan is False
-    assert any(course.kikan for course in liberal.courses)
+    # 基幹科目(設置科目表の●印)は type: 選択必修 で表す(§5.1.5)
+    assert courses["倫理学入門"].type == "選択必修"
+    slots = {slot.key: slot for slot in liberal.requirement_slots}
+    assert slots["liberal.general.humanities"].accepts.model_dump(exclude_none=True) == {
+        "subcategory": "人文科学系科目",
+        "type": "選択必修",
+    }
     # 応用化学課程では履修不可(設置科目表 備考。§5.1.5)
     assert courses["生活の中の化学"].not_available_to_programs == ["05"]
 
@@ -367,19 +371,30 @@ def test_subcategory_belongs_to_liberal_arts_courses_only():
         CurriculumCourse.model_validate(course)
 
 
-def test_kikan_requires_required_elective_type():
-    """`kikan: true` ならば `type: "選択必修"`(§5.1.5 / §4.4.3)。"""
-    CurriculumCourse.model_validate(
-        _minimal_liberal_course(subcategory="人文科学系科目", type="選択必修", kikan=True)
-    )
-    with pytest.raises(ValidationError, match="基幹科目は type: 選択必修"):
+def test_kikan_is_no_longer_a_field():
+    """`kikan` は廃止した。基幹科目は `type: 選択必修` で表す(§5.1.5)。
+
+    未知のキーを拒否するため、古い書き方の YAML はロード時に止まる。
+    """
+    with pytest.raises(ValidationError, match="kikan"):
         CurriculumCourse.model_validate(
-            _minimal_liberal_course(subcategory="人文科学系科目", type="選択", kikan=True)
+            _minimal_liberal_course(subcategory="人文科学系科目", type="選択必修", kikan=True)
         )
+    with pytest.raises(ValidationError, match="kikan"):
+        Accepts.model_validate({"subcategory": "人文科学系科目", "kikan": True})
 
 
-def test_kikan_defaults_to_false():
-    assert CurriculumCourse.model_validate(_minimal_course()).kikan is False
+def test_liberal_arts_2026_has_no_kikan_in_slot_names():
+    """2026年度入学版は基幹科目の指定が無い。人文・社会の全科目が選択必修であり、
+    枠の名前に〈基幹〉を付けない(§5.1.3)。"""
+    liberal = LiberalArtsCurriculum.model_validate(
+        _load(CURRICULA_DIR / "admission-2026" / LIBERAL_ARTS_FILENAME)
+    )
+    slots = {slot.key: slot for slot in liberal.requirement_slots}
+    assert slots["liberal.general.humanities"].name == "教養教育科目(選択必修・人文)"
+    assert slots["liberal.general.social"].name == "教養教育科目(選択必修・社会)"
+    for sub in ("人文科学系科目", "社会科学系科目"):
+        assert all(c.type == "選択必修" for c in liberal.courses if c.subcategory == sub)
 
 
 @pytest.mark.parametrize(
@@ -432,8 +447,8 @@ def test_accepts_accepts_scalar_list_and_any():
     assert Accepts.model_validate({"type": ["選択必修", "選択"]}).type == ["選択必修", "選択"]
     assert Accepts.model_validate({"category": "any"}).category == "any"
     # 複数キーは AND
-    parsed = Accepts.model_validate({"subcategory": "人文科学系科目", "kikan": True})
-    assert (parsed.subcategory, parsed.kikan) == ("人文科学系科目", True)
+    parsed = Accepts.model_validate({"subcategory": "人文科学系科目", "type": "選択必修"})
+    assert (parsed.subcategory, parsed.type) == ("人文科学系科目", "選択必修")
 
 
 def test_any_is_reserved_for_category_only():

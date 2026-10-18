@@ -198,7 +198,6 @@ def test_course_fields_are_camel_case(fixture_data):
         "grade": 1,
         "term": "前期",
         "quarters": ["1Q", "2Q"],
-        "kikan": False,
         "own": True,
         "syllabusCodes": ["G000000001", "G000000002"],
     }

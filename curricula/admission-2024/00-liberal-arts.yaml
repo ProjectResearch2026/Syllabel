@@ -5,8 +5,9 @@
 #
 # - シラバスコードは持たない。開講年度ファイル(offerings/<開講年度>/admission-2024/00-liberal-arts.yaml)が
 #   科目名で結合する(§5.1.1)
-# - kikan(基幹科目)は設置科目表の●印に対応する。2024年度版の設置科目表と照合し、●印33件
-#   (人文22・社会11)が type:"選択必修" の外延と完全一致することを確認済み
+# - 基幹科目(設置科目表の●印)は type: "選択必修" で表す。2024年度版の設置科目表と照合し、
+#   ●印33件(人文22・社会11)が type: "選択必修" の外延と完全一致することを確認済み。
+#   人文科学系・社会科学系の選択必修枠は {subcategory, type: "選択必修"} で受ける
 # - quarters は持たない。教養教育科目はクォーター制の対象外である(§5.1.3・§5.1.5)。履修要項
 #   「教養教育科目の教育目的及び履修方法」Ⅳ が開講方式をセメスター型・通年型の2つと定めており、
 #   設置科目表の列も「配当年次・セメスター」でクォーターの格子を持たない
@@ -29,13 +30,13 @@ requirement_slots:
   - key: "liberal.general.humanities"
     name: "教養教育科目(選択必修〈基幹〉・人文)"
     credits: 2
-    accepts: {subcategory: "人文科学系科目", kikan: true}
+    accepts: {subcategory: "人文科学系科目", type: "選択必修"}
     overflow_to: "liberal.elective"
     notes: "基幹科目に指定された科目から1科目(2単位)以上"
   - key: "liberal.general.social"
     name: "教養教育科目(選択必修〈基幹〉・社会)"
     credits: 2
-    accepts: {subcategory: "社会科学系科目", kikan: true}
+    accepts: {subcategory: "社会科学系科目", type: "選択必修"}
     overflow_to: "liberal.elective"
     notes: "基幹科目に指定された科目から1科目(2単位)以上"
   - key: "liberal.general.sports"
@@ -451,7 +452,6 @@ courses:
     category: "教養教育科目"
     subcategory: "人文科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -459,7 +459,6 @@ courses:
     category: "教養教育科目"
     subcategory: "人文科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -467,7 +466,6 @@ courses:
     category: "教養教育科目"
     subcategory: "人文科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -475,7 +473,6 @@ courses:
     category: "教養教育科目"
     subcategory: "人文科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -483,7 +480,6 @@ courses:
     category: "教養教育科目"
     subcategory: "人文科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -491,7 +487,6 @@ courses:
     category: "教養教育科目"
     subcategory: "人文科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -499,7 +494,6 @@ courses:
     category: "教養教育科目"
     subcategory: "人文科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -507,7 +501,6 @@ courses:
     category: "教養教育科目"
     subcategory: "人文科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "後期"
@@ -515,7 +508,6 @@ courses:
     category: "教養教育科目"
     subcategory: "人文科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -523,7 +515,6 @@ courses:
     category: "教養教育科目"
     subcategory: "人文科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -531,7 +522,6 @@ courses:
     category: "教養教育科目"
     subcategory: "人文科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -539,7 +529,6 @@ courses:
     category: "教養教育科目"
     subcategory: "人文科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 2
     term: "前期"
@@ -547,7 +536,6 @@ courses:
     category: "教養教育科目"
     subcategory: "人文科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -555,7 +543,6 @@ courses:
     category: "教養教育科目"
     subcategory: "人文科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -563,7 +550,6 @@ courses:
     category: "教養教育科目"
     subcategory: "人文科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -571,7 +557,6 @@ courses:
     category: "教養教育科目"
     subcategory: "人文科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "後期"
@@ -579,7 +564,6 @@ courses:
     category: "教養教育科目"
     subcategory: "人文科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -587,7 +571,6 @@ courses:
     category: "教養教育科目"
     subcategory: "人文科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -595,7 +578,6 @@ courses:
     category: "教養教育科目"
     subcategory: "人文科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -603,7 +585,6 @@ courses:
     category: "教養教育科目"
     subcategory: "人文科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -611,7 +592,6 @@ courses:
     category: "教養教育科目"
     subcategory: "人文科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -619,7 +599,6 @@ courses:
     category: "教養教育科目"
     subcategory: "人文科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "後期"
@@ -684,7 +663,6 @@ courses:
     category: "教養教育科目"
     subcategory: "社会科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -692,7 +670,6 @@ courses:
     category: "教養教育科目"
     subcategory: "社会科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -700,7 +677,6 @@ courses:
     category: "教養教育科目"
     subcategory: "社会科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -708,7 +684,6 @@ courses:
     category: "教養教育科目"
     subcategory: "社会科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -716,7 +691,6 @@ courses:
     category: "教養教育科目"
     subcategory: "社会科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -724,7 +698,6 @@ courses:
     category: "教養教育科目"
     subcategory: "社会科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -732,7 +705,6 @@ courses:
     category: "教養教育科目"
     subcategory: "社会科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -740,7 +712,6 @@ courses:
     category: "教養教育科目"
     subcategory: "社会科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -748,7 +719,6 @@ courses:
     category: "教養教育科目"
     subcategory: "社会科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -756,7 +726,6 @@ courses:
     category: "教養教育科目"
     subcategory: "社会科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"
@@ -764,7 +733,6 @@ courses:
     category: "教養教育科目"
     subcategory: "社会科学系科目"
     type: "選択必修"
-    kikan: true
     credits: 2
     grade: 1
     term: "前期"

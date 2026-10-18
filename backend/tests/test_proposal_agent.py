@@ -1762,7 +1762,7 @@ def _real_smoke():
     return loaded.curriculum, completed
 
 
-def test_slot_destinations_follow_kikan_and_overflow():
+def test_slot_destinations_follow_required_elective_and_overflow():
     """〈基幹〉でない社会科学系科目は基幹・社会の枠に入らない(2026-09-23 の実機で誤った)。
 
     合成プロファイルは基幹・社会が2単位不足、教養教育科目(選択)が2単位不足。

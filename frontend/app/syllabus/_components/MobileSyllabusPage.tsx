@@ -20,7 +20,13 @@ import { SYLLABUS_CONTEXT } from "@/lib/ai";
 import { useSyllabusConversation } from "@/lib/useSyllabusConversation";
 import MobileAiAssistant from "@/components/ai/MobileAiAssistant";
 import SyllabusPagination from "./SyllabusPagination";
-import { TAG_CHIPS, CATEGORY_CHOICES, periodChoices, GRADE_CHOICES } from "@/lib/syllabusUI";
+import {
+  TAG_CHIPS,
+  CATEGORY_CHOICES,
+  SUBCATEGORY_CHOICES,
+  periodChoices,
+  GRADE_CHOICES,
+} from "@/lib/syllabusUI";
 import { useFilterControls } from "@/lib/useFilterControls";
 import { useSearchInput } from "@/lib/useSearchInput";
 import { useTaggedResults } from "@/lib/useTaggedResults";
@@ -59,8 +65,10 @@ export default function MobileSyllabusPage({
   const {
     activeTag: activeChip,
     activeCategory,
+    activeSubcategory,
     selectTag: setActiveChip,
     selectCategory: setActiveCategory,
+    selectSubcategory: setActiveSubcategory,
   } = useFilterControls();
   // 空きコマ長押しメニューの「シラバスで絞り込む」から来たときは開いた状態で始める
   const [filterOpen, setFilterOpen] = useState(searchParams.get("filters") === "open");
@@ -179,6 +187,25 @@ export default function MobileSyllabusPage({
         </>
       ),
     },
+    // 分野は教養教育科目の内訳なので、区分が教養教育のときだけ出す(§8.2.2)
+    ...(activeCategory === "教養教育"
+      ? [
+          {
+            label: "分野",
+            node: (
+              <select
+                value={activeSubcategory}
+                onChange={(e) => setActiveSubcategory(e.target.value)}
+                className={selectClass}
+              >
+                {SUBCATEGORY_CHOICES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            ),
+          },
+        ]
+      : []),
     {
       label: "キャンパス",
       node: (

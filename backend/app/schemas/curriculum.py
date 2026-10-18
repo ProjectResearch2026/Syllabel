@@ -94,7 +94,7 @@ def _require_unique(values: list[str], label: str) -> None:
 class Accepts(_YamlModel):
     """要件枠・単位数閾値が受け入れる科目の条件(§5.1.5)。
 
-    キーは `category` / `subcategory` / `type` / `kikan` の4つで、**複数キーは AND**。
+    キーは `category` / `subcategory` / `type` の3つで、**複数キーは AND**。
     値が配列のときはそのいずれかに一致(OR)を表す。`category: "any"` は
     区分を問わないことを表す予約値であり、`any` という名前の区分は存在しない。
     """
@@ -102,14 +102,13 @@ class Accepts(_YamlModel):
     category: Category | Literal["any"] | list[Category] | None = None
     subcategory: Subcategory | list[Subcategory] | None = None
     type: CourseType | list[CourseType] | None = None
-    kikan: bool | None = None
 
     @model_validator(mode="after")
     def check_not_empty(self) -> "Accepts":
         """条件を1つも持たない `accepts` は受け入れる科目が定まらない(§5.1.5)。"""
         if all(getattr(self, name) is None for name in type(self).model_fields):
             raise ValueError(
-                "accepts が空です: category / subcategory / type / kikan の"
+                "accepts が空です: category / subcategory / type の"
                 "いずれかを指定してください(区分を問わない場合は category: any)"
             )
         return self
@@ -199,7 +198,6 @@ class CurriculumCourse(_YamlModel):
     course_group: CourseGroup | None = None
     subgroup: Subgroup | None = None
     track_groups: list[str] | None = None
-    kikan: bool = False
     credits: int = Field(ge=1)
     grade: int = Field(ge=1, le=4)
     term: Term
@@ -215,15 +213,6 @@ class CurriculumCourse(_YamlModel):
                 raise ValueError(f"教養教育科目には subcategory が必要です: {self.title}")
         elif self.subcategory is not None:
             raise ValueError(f"専攻科目は subcategory を持ちません: {self.title}")
-        return self
-
-    @model_validator(mode="after")
-    def check_kikan_is_required_elective(self) -> "CurriculumCourse":
-        """`kikan: true` の科目は `type: "選択必修"` であること(§5.1.5 / §4.4.3)。"""
-        if self.kikan and self.type != "選択必修":
-            raise ValueError(
-                f"基幹科目は type: 選択必修 であること: {self.title}(type: {self.type})"
-            )
         return self
 
     @model_validator(mode="after")
