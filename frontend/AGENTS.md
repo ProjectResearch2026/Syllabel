@@ -230,7 +230,7 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 | 対象課程（全件ぶん） | `fetchCourseTargets()` → `GET /api/course-targets`（gzip 約4KB。ETag が効く）。**引けなければ null にしてタグを出さずに続ける** — この口の失敗で一覧を落としてはならない |
 | 担当教員名（表示中の行ぶん） | `fetchInstructorMap()` を**ブラウザから**呼ぶ（どの行が表示されるかを知っているのはブラウザだけ） |
 
-**絞り込み・ページの切り出し・件数は `lib/useTaggedResults.ts` に集約し、PC とモバイルで共用する。** ページ送りは絞り込み後の並びに対して行い、`offset` は URL に残す（詳細画面から戻ったときに位置を保つため）。**絞り込みを変えたら `offset` を消す**（`lib/useFilterControls.ts`）。消さないと前の絞り込みでのページ位置が残る。
+**絞り込み・ページの切り出し・件数は `lib/useTaggedResults.ts` に集約し、PC とモバイルで共用する。** ページ送りは絞り込み後の並びに対して行い、`offset` は URL に残す（詳細画面から戻ったときに位置を保つため）。**絞り込みを変えたら `offset` を消す**（`lib/useFilterControls.ts`）。消さないと前の絞り込みでのページ位置が残る。**URL の `offset` は `page.tsx` で 0 以上の整数に限ってページの先頭に切り下げ、絞り込み後の件数を超えた分は `useTaggedResults()` が最後のページに丸める**（件数表示とページ送りは丸めた値を使う）。
 
 講義詳細ページはシラバス本体を持っているので追加の取得は要らない。
 
@@ -264,6 +264,6 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 - ダミー学生は `lib/dummy/profiles.json` の48件(課程6 × 提案を受ける学年4 × 提案する学期2)。**手で書き換えず** `backend/scripts/generate_dummy_profiles.py` で作り直す(履修要項と api-clean の開講実績から組み立てる。検査は `backend/tests/test_dummy_profiles.py`)。約100KBあるので、選んだときに `loadDemoProfile()` が `import()` する
 - 選ぶ部品は `app/_components/DemoPicker.tsx` ひとつで、取り込み画面(PC・モバイル)とマイデータ(PC)・設定(モバイル)で共用する。学期の初期値は `defaultDemoTerm()`(3〜8月は前期、9〜2月は後期)
 - デモの学生は `profile.demo` を持ち、**提案する学期は `demo.target` に固定する**(`lib/targetTerm.ts`。今日の日付から決めない)。`grade` は提案する学期の学年である
-- **別の学生に差し替えるときは `lib/replaceStudent.ts` の `useReplaceStudent()` を通す**(成績表の取り込み・デモの学生の切り替え)。前の学生の履修提案と会話を捨ててからプロファイルを入れる。`setProfile` を直接呼ぶと、前の学生の時間割が新しい学生の時間割として残る。同じ学生の学年・科目を直すだけ(マイデータの編集)は `setProfile` でよい
+- **別の学生に差し替えるときは `lib/replaceStudent.ts` の `useReplaceStudent()` を通す**(成績表の取り込み・デモの学生の切り替え)。前の学生の履修提案と会話、シラバス検索の絞り込みと検索条件(`useSyllabusUIStore` の `reset()`)を捨ててからプロファイルを入れる。`setProfile` を直接呼ぶと、前の学生の時間割が新しい学生の時間割として残る。同じ学生の学年・科目を直すだけ(マイデータの編集)は `setProfile` でよい
 - 1年前期(`isFreshmanDemo()`)は成績が1件も無い。取り込み確認・完了の画面では「取り込み」と言わず「新入生として始める」とする
 - 展示用端末では「PDF取り込み」を無効化する

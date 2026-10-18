@@ -39,7 +39,7 @@ export default function SyllabusResults({
 }) {
   // 詳細へ移っても絞り込みを失わないよう、いまのクエリをリンクに畳む
   const searchParams = useSearchParams();
-  const { visible, matched, total, filtering } = useTaggedResults(
+  const { visible, matched, total, filtering, offset: start } = useTaggedResults(
     results,
     targets,
     faculty,
@@ -61,7 +61,7 @@ export default function SyllabusResults({
           )}
           {visible.length > 0 && (
             <span className="ml-2 text-xs font-normal text-fg-secondary">
-              {offset + 1}〜{offset + visible.length}件目を表示
+              {start + 1}〜{start + visible.length}件目を表示
             </span>
           )}
           {matchedBy === "instructor" && (
@@ -98,7 +98,7 @@ export default function SyllabusResults({
       )}
 
       {/* ページ送りは結果の下に一度だけ。上下に出すと1画面に2つ並んで見える */}
-      <SyllabusPagination limit={limit} offset={offset} total={matched} />
+      <SyllabusPagination limit={limit} offset={start} total={matched} />
     </>
   );
 }

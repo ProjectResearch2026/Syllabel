@@ -68,7 +68,7 @@ export default function MobileSyllabusPage({
   const conversation = useSyllabusConversation();
 
   // タグ付け・絞り込み・ページの切り出しは PC と同じものを使う(§8)
-  const { visible, matched, total, filtering } = useTaggedResults(
+  const { visible, matched, total, filtering, offset: start } = useTaggedResults(
     results,
     targets,
     faculty,
@@ -314,7 +314,7 @@ export default function MobileSyllabusPage({
           {`${matched.toLocaleString()}件の科目`}
           {filtering && `（${total.toLocaleString()}件中）`}
           {visible.length > 0 &&
-            `・${(offset + 1).toLocaleString()}〜${(offset + visible.length).toLocaleString()}件目を表示`}
+            `・${(start + 1).toLocaleString()}〜${(start + visible.length).toLocaleString()}件目を表示`}
           {matchedBy === "instructor" && (
             <span className="ml-1.5">（「{q}」を教員名として検索）</span>
           )}
@@ -401,7 +401,7 @@ export default function MobileSyllabusPage({
       )}
 
       <div className="px-4 py-4">
-        <SyllabusPagination limit={limit} offset={offset} total={matched} />
+        <SyllabusPagination limit={limit} offset={start} total={matched} />
       </div>
 
       {/* 時間割と同じ Ask Bar → シートのパターン。参照中の文脈が「この検索結果」に変わるだけ */}
