@@ -143,7 +143,7 @@ export const useSyllabusUIStore = create<SyllabusUIStore>((set) => ({
  * **軸を分ける。** 卒業要件の枠は (区分 × 履修区分) で決まり
  * (`basic.required` = 専門基礎科目 × 必修、`applied.elective` = 専門応用科目 × 選択、…)、
  * 教養教育科目の枠はさらに分野で分かれる(`liberal.general.humanities` = 人文科学系科目
- * × 基幹、…)。1つの軸に潰すとその対応が消えるため、履修要項の構造をそのまま出す。
+ * × 選択必修、…)。1つの軸に潰すとその対応が消えるため、履修要項の構造をそのまま出す。
  *
  * | 軸 | 値 |
  * |---|---|

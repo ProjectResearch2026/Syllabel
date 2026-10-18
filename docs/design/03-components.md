@@ -1,4 +1,4 @@
-# 履修登録支援AIチャットボット 設計書(v0.9.69)— §4 コンポーネント設計
+# 履修登録支援AIチャットボット 設計書(v0.9.81)— §4 コンポーネント設計
 
 > 本ファイルは [`docs/design.md`](../design.md) の一部である。§番号は設計書全体で通し番号であり、他ファイルの節を `§X.Y` の形で参照する。全ファイルの対応表は [design.md](../design.md) の「0.3 本書の構成」を参照。
 
@@ -257,7 +257,6 @@ offerings/
 - 起動時にスキーマバリデーションを実行し、不正があれば起動失敗(転記ミスを早期に検出)。型検査に加えて以下の整合性を検証する:
   - `type` が {必修, 選択必修, 選択, 随意} のいずれかであること。`category` / `subcategory` が §5.1.5 の列挙値のいずれかであること
   - `term` と `quarters` の整合(§5.1.5)。`quarters` は任意であり、教養教育科目は `前期` / `後期` でも持たない(クォーター制の対象外。§5.1.3)。持つ場合のみ `前期` ⇔ `{1Q, 2Q}` / `後期` ⇔ `{3Q, 4Q}` を検査し、`通年` / `サ集` は持たないことを検査する
-  - `kikan: true` の科目が `type: "選択必修"` であること(§5.1.5)
   - `constraints[].slot` および `constraints[].track_group` の参照先が存在すること(前者は `requirement_slots`、後者は `courses[].track_groups`)
   - `by_semester` の各要素が `max_credits_per_semester` と `max_credits_per_year` のどちらか一方のみを持つこと
   - 課程ファイル・教養教育科目ファイルの `admission_year` が、そのファイルが置かれているディレクトリ名の年度と一致すること
@@ -272,7 +271,7 @@ offerings/
 - 任意フィールドは null / 省略を許容する。Pydantic では `Optional` として定義する
 - 個々のリクエストでは、該当課程・該当入学年度のオブジェクトのみを参照する
 - **クライアントへ返すのは科目レイヤに限り、規則レイヤは返さない。** 保持したオブジェクトは用途の異なる次の2層からなる:
-  - **科目レイヤ** — `courses` の科目属性(`title` / `category` / `subcategory` / `type` / `credits` / `grade` / `term` / `quarters` / `kikan`)と、`offerings` の `resolved` が与えるシラバスコード。検索画面のタグ付け(§6.1)はこの層だけで完結する(コードから科目を引き、`type` と既修得科目を突き合わせるだけで、履修要項の規則の解釈を伴わない)ため、`GET /api/curricula`(§6.1)でクライアントへ返す
+  - **科目レイヤ** — `courses` の科目属性(`title` / `category` / `subcategory` / `type` / `credits` / `grade` / `term` / `quarters`)と、`offerings` の `resolved` が与えるシラバスコード。検索画面のタグ付け(§6.1)はこの層だけで完結する(コードから科目を引き、`type` と既修得科目を突き合わせるだけで、履修要項の規則の解釈を伴わない)ため、`GET /api/curricula`(§6.1)でクライアントへ返す
   - **規則レイヤ** — `requirement_slots`(`accepts` / `overflow_to`)・`credit_caps`・`tracks[].constraints`・`prerequisites`・`grade_up_requirements`・`registration_limits`。卒業要件の充足判定に用いる規則であり、クライアントへは返さない(§4.4.5)
   - **この分割の基準はデータ量ではない。** 科目レイヤはタグ付けの都合上マージ後の全課程分を返す必要があり(2024年度入学コホートで650科目、JSON 約109KB / gzip 約6KB)、量としては規則レイヤより大きい。学生データを含まない `GET` であるため ETag / Cache-Control が有効に働き、量は問題にならない。規則レイヤを返さないのは、返せば同じ判定規則の実装がクライアントと backend の2箇所に分かれるためである(§4.4.5)
 

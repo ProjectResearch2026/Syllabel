@@ -213,7 +213,7 @@ def generate(code: str, grade: int, half: str, offered) -> dict:
     withdraw_semester = rng.choice(semesters).number if withdraws and semesters else None
 
     own = [c for c in curriculum.own_courses if c.type != "随意" and c.term in ("前期", "後期", "通年")]
-    liberal_kikan_done = {"人文科学系科目": False, "社会科学系科目": False}
+    liberal_required_done = {"人文科学系科目": False, "社会科学系科目": False}
     extra = REGISTERED_EXTRA.get((code, grade, half))
 
     for sem in semesters:
@@ -248,17 +248,17 @@ def generate(code: str, grade: int, half: str, offered) -> dict:
         if extra and sem is semesters[-1]:
             add(next(c for c in own if c.title == extra), sem.half)
 
-        # 3) 教養教育の選択必修(基幹)。1・2年のうちに人文・社会を1科目ずつ
-        for sub, done in liberal_kikan_done.items():
+        # 3) 教養教育の選択必修(人文・社会)。1・2年のうちに1科目ずつ
+        for sub, done in liberal_required_done.items():
             last_chance = sem.grade == 2 and sem.half == "後期"
             if done or sem.grade > 2 or (not last_chance and rng.random() < 0.5):
                 continue
-            pool = [c for c in own if c.subcategory == sub and c.kikan and c.term == sem.half
+            pool = [c for c in own if c.subcategory == sub and c.type == "選択必修" and c.term == sem.half
                     and c.grade <= sem.grade and not student.is_passed(c)
                     and student.was_offered(c, sem.year, sem.half)]
             if pool:
                 add(rng.choice(pool), sem.half)
-                liberal_kikan_done[sub] = True
+                liberal_required_done[sub] = True
 
         # 4) 教養教育の選択科目
         lo, hi = LIBERAL_ELECTIVES[sem.grade]

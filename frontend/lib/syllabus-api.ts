@@ -178,7 +178,6 @@ export type CurriculaCourse = {
   grade: number;
   term: CurriculaTerm;
   quarters: Quarter[] | null;
-  kikan: boolean;
   /**
    * 当該課程の設置科目なら true、他課程から導出した専門関連科目なら false。
    * 他課程の `type: 必修` はその課程の学生にとっての必修であり、区別せずに

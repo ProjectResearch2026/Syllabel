@@ -254,7 +254,7 @@ def _uncounted(result, reason):
         ({"subcategory": "人文科学系科目"}, True),
         ({"subcategory": ["社会科学系科目"]}, False),
         ({"type": ["選択必修", "選択"]}, True),
-        ({"kikan": True}, False),
+        ({"type": "選択必修"}, False),
         ({"subcategory": "人文科学系科目", "type": "選択"}, True),
         ({"subcategory": "人文科学系科目", "type": "必修"}, False),  # 複数キーは AND
     ],
