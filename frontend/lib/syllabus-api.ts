@@ -435,6 +435,32 @@ async function fetchInstructorsOf(code: string, retry = true): Promise<string | 
 }
 
 /**
+ * 教員名の取得を、科目コードごとに1回にまとめるための表(取得中のものも含む)。
+ *
+ * **一覧は PC 用とモバイル用の組み立てが常に両方 mount されている**(CSS で出し分ける。
+ * §8)。それぞれが表示中の行の教員名を引くため、以前は同じ30件の詳細を2回ずつ、
+ * 1ページあたり60本引いていた。取得中の Promise ごと共有すれば、後から来た側は
+ * 同じ取得の完了を待つだけで済む。ページを戻ったときにも引き直さない。
+ *
+ * 持つのは公開されている教員名だけで、学生データは含まない。**失敗した科目は表から
+ * 外す**(次に表示したときに引き直せるように)。ブラウザのメモリにだけあり、
+ * 再読み込みで消える。
+ */
+const instructorCache = new Map<string, Promise<string | null>>();
+
+function instructorsOf(code: string): Promise<string | null> {
+  let pending = instructorCache.get(code);
+  if (!pending) {
+    pending = fetchInstructorsOf(code).then((names) => {
+      if (names === null) instructorCache.delete(code);
+      return names;
+    });
+    instructorCache.set(code, pending);
+  }
+  return pending;
+}
+
+/**
  * 検索結果に担当教員名を補う。`syllabus_code` → 教員名の対応を返す。design.md §6.2。
  *
  * **api-clean の `GET /syllabi` は担当教員を返さない。** 1科目に複数の教員が
@@ -461,7 +487,7 @@ export async function fetchInstructorMap(codes: string[]): Promise<Record<string
   const worker = async () => {
     while (cursor < targets.length) {
       const code = targets[cursor++];
-      const names = await fetchInstructorsOf(code);
+      const names = await instructorsOf(code);
       if (names) map[code] = names;
     }
   };
