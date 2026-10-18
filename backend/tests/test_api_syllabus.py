@@ -1,4 +1,6 @@
 """app/api/syllabus.py のテスト。app.agents.tools の関数を monkeypatch する。"""
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -265,6 +267,87 @@ def test_course_targets_upstream_failure_is_502(monkeypatch):
 
     resp = client.get("/api/course-targets", params={"year": 2026, "faculty": FACULTY})
     assert resp.status_code == 502
+
+
+@pytest.mark.asyncio
+async def test_course_targets_concurrent_requests_build_once(monkeypatch):
+    """同時に来た要求は組み立てを1本にまとめる。以前は5件同時で5回組み立てていた。"""
+    import asyncio
+
+    import app.api.syllabus as mod
+
+    calls: list[dict] = []
+    search = _fake_search_by_program({None: ["A1"], "課程A": ["A1"]}, calls)
+
+    async def slow_search(**kwargs):
+        await asyncio.sleep(0.01)  # 組み立て中に次の要求が来るようにする
+        return await search(**kwargs)
+
+    monkeypatch.setattr(mod, "search_syllabi", slow_search)
+    monkeypatch.setattr(mod, "get_masters", _fake_masters(["課程A"]))
+
+    results = await asyncio.gather(*(mod._targets_payload(2026, FACULTY) for _ in range(5)))
+
+    assert len({etag for _, etag in results}) == 1
+    assert [c.get("program") for c in calls] == [None, "課程A"]  # 1回分だけ
+
+
+@pytest.mark.asyncio
+async def test_course_targets_expired_returns_stale_and_refreshes_once(monkeypatch):
+    """期限切れでも古い結果をすぐ返し、組み直しは裏で1本だけ走らせる。"""
+    import time
+
+    import app.api.syllabus as mod
+
+    key = (2026, FACULTY)
+    mod._targets_cache[key] = (b"old", '"old"', time.monotonic() - mod._TARGETS_TTL_SECONDS - 1)
+    calls: list[dict] = []
+    monkeypatch.setattr(
+        mod, "search_syllabi", _fake_search_by_program({None: ["A1"], "課程A": ["A1"]}, calls)
+    )
+    monkeypatch.setattr(mod, "get_masters", _fake_masters(["課程A"]))
+
+    first = await mod._targets_payload(*key)
+    second = await mod._targets_payload(*key)
+    assert first == second == (b"old", '"old"')
+
+    await mod._targets_building[key]
+    body, etag = await mod._targets_payload(*key)
+    assert etag != '"old"'
+    assert json.loads(body)["targets"] == {"A1": ["課程A"]}
+    assert [c.get("program") for c in calls] == [None, "課程A"]
+
+
+@pytest.mark.asyncio
+async def test_course_targets_refresh_failure_keeps_stale(monkeypatch):
+    """組み直しに失敗したら古い結果を使い続け、すぐには組み直しを繰り返さない。"""
+    import time
+
+    import httpx
+
+    import app.api.syllabus as mod
+
+    key = (2026, FACULTY)
+    mod._targets_cache[key] = (b"old", '"old"', time.monotonic() - mod._TARGETS_TTL_SECONDS - 1)
+    attempts = 0
+
+    async def boom(**kwargs):
+        nonlocal attempts
+        attempts += 1
+        raise httpx.ConnectError("connection refused")
+
+    monkeypatch.setattr(mod, "search_syllabi", boom)
+    monkeypatch.setattr(mod, "get_masters", _fake_masters(["課程A"]))
+
+    assert await mod._targets_payload(*key) == (b"old", '"old"')
+    with pytest.raises(httpx.ConnectError):
+        await mod._targets_building[key]
+    assert attempts == 1
+
+    # 失敗の直後に来た要求でも古い結果を返し、組み直しは再試行の間隔まで走らせない
+    assert await mod._targets_payload(*key) == (b"old", '"old"')
+    assert key not in mod._targets_building
+    assert attempts == 1
 
 
 # ---------------------------------------------------------------------------

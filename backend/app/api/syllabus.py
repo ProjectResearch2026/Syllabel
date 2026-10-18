@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import json
 import logging
@@ -101,13 +102,21 @@ _MAX_PAGES = 40
 # ため、恒久キャッシュにはしない
 _TARGETS_TTL_SECONDS = 3600
 
+# 期限切れの組み直しに失敗したとき、次に組み直しを試みるまでの間隔(秒)。
+# 古い結果を返し続けるあいだ、上流が落ちていても要求ごとに組み直しを走らせない
+_TARGETS_RETRY_SECONDS = 60
+
 # (開講年度, 学部) → (本文, ETag, 作った時刻)
 _targets_cache: dict[tuple[int, str], tuple[bytes, str, float]] = {}
 
+# (開講年度, 学部) → 組み立て中の作業。同じキーの組み立てを1本にまとめる
+_targets_building: dict[tuple[int, str], asyncio.Task[tuple[bytes, str]]] = {}
+
 
 def clear_targets_cache() -> None:
-    """`_targets_cache` を捨てる(テスト用)。"""
+    """`_targets_cache` と組み立て中の作業を捨てる(テスト用)。"""
     _targets_cache.clear()
+    _targets_building.clear()
 
 
 async def _codes_of(*, year: int, faculty: str, program: str | None = None) -> list[str]:
@@ -154,13 +163,8 @@ async def _build_targets(year: int, faculty: str) -> dict[str, list[str]]:
     return targets
 
 
-async def _targets_payload(year: int, faculty: str) -> tuple[bytes, str]:
-    """レスポンス本文(JSON バイト列)と ETag を返す。"""
-    key = (year, faculty)
-    cached = _targets_cache.get(key)
-    if cached is not None and time.monotonic() - cached[2] < _TARGETS_TTL_SECONDS:
-        return cached[0], cached[1]
-
+async def _build_payload(year: int, faculty: str) -> tuple[bytes, str]:
+    """組み立ててキャッシュに入れ、レスポンス本文(JSON バイト列)と ETag を返す。"""
     targets = await _build_targets(year, faculty)
     body = json.dumps(
         {"offeringYear": year, "faculty": faculty, "targets": targets},
@@ -168,9 +172,57 @@ async def _targets_payload(year: int, faculty: str) -> tuple[bytes, str]:
         separators=(",", ":"),
     ).encode("utf-8")
     etag = f'"{hashlib.sha256(body).hexdigest()[:32]}"'
-    _targets_cache[key] = (body, etag, time.monotonic())
+    _targets_cache[(year, faculty)] = (body, etag, time.monotonic())
     logger.info("対象課程を組み立てました: %s / %d年度 / %d件", faculty, year, len(targets))
     return body, etag
+
+
+def _start_build(key: tuple[int, str]) -> asyncio.Task[tuple[bytes, str]]:
+    """組み立てを始める。同じキーの組み立てが進行中なら、新しく始めずにそれを返す。"""
+    task = _targets_building.get(key)
+    if task is not None:
+        return task
+
+    task = asyncio.create_task(_build_payload(*key))
+    _targets_building[key] = task
+
+    def _done(t: asyncio.Task[tuple[bytes, str]]) -> None:
+        if _targets_building.get(key) is t:
+            del _targets_building[key]
+        if t.cancelled() or t.exception() is None:
+            return
+        # 古い結果が残っていれば返し続け、組み直しは少し間を置いてから試す
+        cached = _targets_cache.get(key)
+        if cached is not None:
+            logger.warning("対象課程の組み直しに失敗しました。前回の結果を使い続けます: %s", key)
+            retry_at = time.monotonic() - _TARGETS_TTL_SECONDS + _TARGETS_RETRY_SECONDS
+            _targets_cache[key] = (cached[0], cached[1], retry_at)
+
+    task.add_done_callback(_done)
+    return task
+
+
+async def _targets_payload(year: int, faculty: str) -> tuple[bytes, str]:
+    """レスポンス本文(JSON バイト列)と ETag を返す。
+
+    **組み立ては (開講年度, 学部) ごとに同時に1本だけにする。** 組み立ては api-clean へ
+    約11リクエスト・1秒前後かかり、以前は結果を入れるのが組み立ての完了後だったため、
+    その間に来た要求がそれぞれ組み立てを始めていた(5件同時で55リクエスト)。経路の
+    トークンゲートウェイは同一トークンの同時リクエストを 503 で弾き得るため、重なると
+    この口が失敗してタグが消える。
+
+    **期限切れでも古い結果をすぐ返し、組み直しは裏で1本だけ走らせる。** 待つのは
+    結果を1つも持たない起動直後だけになる。組み直しに失敗したら古い結果を使い続ける。
+    """
+    key = (year, faculty)
+    cached = _targets_cache.get(key)
+    if cached is not None:
+        if time.monotonic() - cached[2] >= _TARGETS_TTL_SECONDS:
+            _start_build(key)
+        return cached[0], cached[1]
+
+    # 要求が切れても(クライアントの切断)、他の要求が待つ組み立ては止めない
+    return await asyncio.shield(_start_build(key))
 
 
 @router.get("/course-targets")
