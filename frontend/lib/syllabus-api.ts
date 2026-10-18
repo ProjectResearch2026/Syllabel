@@ -209,36 +209,6 @@ export async function searchSyllabi(params: SearchParams): Promise<SyllabusListR
   return res.json();
 }
 
-/**
- * 開講期の並び。前期の登録で取るもの(前期・1Q・2Q)→ 後期(後期・3Q・4Q)→ 通年 → 集中。
- * api-clean の `term` はマスタの8種で、ここに無い表記は最後に回す。
- */
-const TERM_ORDER = ["前期", "1Q", "2Q", "後期", "3Q", "4Q", "通年", "サ集"];
-const DAY_ORDER = ["月", "火", "水", "木", "金", "土", "日"];
-
-function rank(order: string[], value: string | null | undefined): number {
-  const i = value ? order.indexOf(value) : -1;
-  return i === -1 ? order.length : i;
-}
-
-/**
- * 一覧の並び順。**配当年次(`grade_min`)→ 開講期 → 曜日 → 時限 → シラバスコード。** design.md §8。
- *
- * 画面は「配当年次順」と表示しているが、以前は並べ替えておらず api-clean の返す
- * シラバスコード順(`ORDER BY s.year DESC, s.syllabus_code`)のままだった。
- * 曜日・時限は1コマ目で比べる。集中講義など曜日・時限の無いクラスは各開講期の最後に来る。
- * 全件(先端理工学部で約1,300件)の並べ替えは 1ms に満たない。
- */
-function compareByGrade(a: SyllabusListItem, b: SyllabusListItem): number {
-  return (
-    a.grade_min - b.grade_min ||
-    rank(TERM_ORDER, a.term) - rank(TERM_ORDER, b.term) ||
-    rank(DAY_ORDER, a.day_of_week) - rank(DAY_ORDER, b.day_of_week) ||
-    (a.period ?? Number.MAX_SAFE_INTEGER) - (b.period ?? Number.MAX_SAFE_INTEGER) ||
-    (a.syllabus_code < b.syllabus_code ? -1 : a.syllabus_code > b.syllabus_code ? 1 : 0)
-  );
-}
-
 /** `searchCourses()` がキーワードをどちらの条件として引いたか。 */
 export type MatchedBy = "title" | "instructor";
 
@@ -335,13 +305,6 @@ async function fetchAllByInstructor(
  * 教員名は一覧に無いため手元では照合できない(`lib/instructorName.ts`)。
  */
 export async function searchCourses(
-  params: Omit<SearchParams, "q" | "instructor" | "limit" | "offset"> & { keyword?: string },
-): Promise<CourseSearchResponse> {
-  const response = await searchCoursesUnsorted(params);
-  return { ...response, results: [...response.results].sort(compareByGrade) };
-}
-
-async function searchCoursesUnsorted(
   params: Omit<SearchParams, "q" | "instructor" | "limit" | "offset"> & { keyword?: string },
 ): Promise<CourseSearchResponse> {
   const { keyword, ...rest } = params;

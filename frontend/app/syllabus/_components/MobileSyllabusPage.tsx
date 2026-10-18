@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from "motion/react";
 import {
   Search,
   SlidersHorizontal,
-  ArrowUpDown,
   ArrowUpRight,
   BookOpen,
   MapPin,
@@ -321,12 +320,6 @@ export default function MobileSyllabusPage({
             <span className="ml-1.5">（「{q}」を教員名として検索）</span>
           )}
         </span>
-        {/* 並び順は選べない(`searchCourses()` が配当年次順に並べる)。⌄ を付けると
-            押せるメニューに見えるため、PC と同じ並び順の印にする */}
-        <div className="flex shrink-0 items-center gap-1 text-[13px] text-[#1A2B4E]">
-          <ArrowUpDown size={14} aria-hidden="true" />
-          <span>配当年次順</span>
-        </div>
       </div>
 
       {/* Course list */}

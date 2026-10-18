@@ -1,7 +1,6 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { ArrowUpDown } from "lucide-react";
 import type { MatchedBy, SyllabusListItem } from "@/lib/syllabus-api";
 import { detailHref } from "@/lib/syllabusQuery";
 import { useTaggedResults } from "@/lib/useTaggedResults";
@@ -49,7 +48,11 @@ export default function SyllabusResults({
 
   return (
     <>
-      {/* ui-design_pc.pen ResultHeader。件数・内訳・並び順を1行に収める */}
+      {/*
+        ui-design_pc.pen ResultHeader。件数と内訳を1行に収める。デザインにある並び順の表示
+        (「配当年次順」)は置かない — 並びは api-clean の返すシラバスコード順で選べず、
+        表示どおりに並べても学年の専門科目が後ろのページに回るだけだった
+      */}
       <div className="flex shrink-0 items-center justify-between gap-4">
         <h1 className="text-sm font-bold text-fg-primary">
           検索結果 {matched.toLocaleString()}件
@@ -70,10 +73,6 @@ export default function SyllabusResults({
             </span>
           )}
         </h1>
-        <div className="flex shrink-0 items-center gap-1.5 text-xs text-fg-secondary">
-          <ArrowUpDown size={14} aria-hidden="true" />
-          <span>配当年次順</span>
-        </div>
       </div>
 
       {visible.length === 0 ? (
