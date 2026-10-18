@@ -6,7 +6,7 @@ import {
   ShieldCheck,
   Lock,
   WifiOff,
-  Trash2,
+  History,
   Upload,
   Play,
   FileCheck,
@@ -258,16 +258,16 @@ export default function PcImportPage() {
                   安心のプライバシー設計
                 </h2>
                 <p className="w-80 text-center text-sm leading-6 text-fg-secondary">
-                  成績表はブラウザ上でのみ処理されます。外部のAIサービスには送信されず、ページを閉じると即時に消去されます。
+                  成績表はブラウザの中で読み取り、PDFはサーバーへ送りません。AIが提案を作るときは、履修状況を学内のAIサーバーにだけ送ります。送った内容は学内で100日間記録されます。
                 </p>
               </div>
             </div>
 
             <div className="flex flex-col gap-4">
               {[
-                { icon: Lock, label: "学内サーバーのみで処理" },
-                { icon: WifiOff, label: "外部AI不使用" },
-                { icon: Trash2, label: "閉じると即時消去" },
+                { icon: Lock, label: "PDFはブラウザの中だけで読み取り" },
+                { icon: WifiOff, label: "学外のAIサービスは使わない" },
+                { icon: History, label: "AIに送った内容は学内で100日間記録" },
               ].map(({ icon: Icon, label }) => (
                 <div key={label} className="flex items-center gap-3">
                   <Icon size={16} className="shrink-0 text-fg-primary" aria-hidden="true" />
