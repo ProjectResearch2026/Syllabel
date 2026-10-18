@@ -15,7 +15,7 @@
  * 完全一致で突き合わせると、成績表が全角側だったときに修得済みと判定できない。
  * 実際、修得しているのに「修得済み」タグが出ない不具合が出ていた。
  *
- * **backend の `app/curricula/requirements.py` の `normalize_title()` と同じ規則に
+ * **backend の `app/curricula/titles.py` の `normalize_title()` と同じ規則に
  * すること。** 卒業要件の充足判定(backend)と検索のタグ(frontend)で結果が食い違うと、
  * 「残り単位では修得済みなのにタグが出ない」というねじれが起きる。実際それが
  * 起きていた(backend には正規化があり、frontend には無かった)。

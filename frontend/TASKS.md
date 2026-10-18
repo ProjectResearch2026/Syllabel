@@ -76,19 +76,20 @@
   - バッジの実装を `app/syllabus/_components/CourseTags.tsx` に集約（一覧PC・一覧モバイル・詳細の3か所に配色表が写されていた）。**色は履修区分にだけ使う**
   - 絞り込みはチップ＝履修区分と状態、セレクト＝区分。選択肢は `lib/syllabusUI.ts` の `TAG_CHIPS` / `CATEGORY_CHOICES` に一本化
   - タグ付きコードは 304 → 528（2026年度開講・2024年度入学・知能情報メディア課程）
+- [x] **教養教育科目の分野をタグと絞り込みに加えた(設計書 v0.9.80 / §8.2、要件定義書 §4.5)** — 履修要項の `subcategory`(人文科学系科目など)を、区分の直後のバッジ(表示名は括弧と末尾の「科目」を除いた形)と、区分が `教養教育` のときだけ出る「分野」のセレクトに出す。基幹は `選択必修` と一致するため別のタグにしない
 
 ---
 
 ## 未対応（backend 側）
 
 - [ ] **`POST /api/chat/proposal` が backend に未実装** — design.md §6.1 の表にはあるが、ルートが入るまで 404 を返す。frontend 側（`lib/chatApi.ts` の `streamProposalChat`、`lib/useProposalConversation.ts`。PC の `ChatPanel.tsx` とモバイルの AI シートが共有）は接続済み
-- [ ] **`GET /api/syllabi` 系の上流障害が 500 になる** — `backend/app/api/syllabus.py` は `httpx.HTTPStatusError` だけを捕捉しており、接続失敗（`httpx.RequestError`）が素通りする。design.md §6.1 / §3.4.4 の規定は 502
+- [x] **`GET /api/syllabi` 系の上流障害が 500 になる** — 対応済み(接続失敗・タイムアウトも 502。design.md §6.1)。当時の状況: `backend/app/api/syllabus.py` は `httpx.HTTPStatusError` だけを捕捉しており、接続失敗（`httpx.RequestError`）が素通りする。design.md §6.1 / §3.4.4 の規定は 502
 
 ---
 
 ## 既知の問題（未着手。PR1 のスコープ外）
 
-- [ ] **1回生・4回生はタグが1つも出ない** — `getAdmissionYear()` は 1回生→2026年度入学 / 4回生→2023年度入学 を返すが、`curricula/` にあるのは 2024・2025 の2コホートだけ。`GET /api/curricula` が404になり、`useTagMap()` の `catch` が握りつぶすため**画面には何も出ない**。2026年度の履修要項は作成中で正式公開前、4回生は履修提案の対象外という判断のため保留。ただし**デモ用プロファイルの「1回生・電子情報通信課程」がこの状態**（`lib/dummy/profiles.ts`）。少なくとも理由を画面に出す応急処置は要る
+- [ ] **履修要項が引けないとタグが黙って消える** — `curricula/` は 2023〜2026年度入学の全課程が揃ったため、1回生・4回生(2026・2023年度入学)でもタグは出る。ただし対応する履修要項が無い入学年度(例: 2022年度以前の入学で在学中の学生)では `GET /api/curricula` が404になり、`useTagMap()` の `catch` が握りつぶすため**画面には理由が何も出ない**(`SyllabusProfileNotice` はプロファイルが無いときしか出ない)。理由を画面に出す応急処置は要る
 - [x] **修得済みの突合が科目名の完全一致で落ちていた（設計書 v0.9.27 / §6.1.3）** — `lib/courseTitle.ts` の `normalizeTitle()`（NFKC + 空白除去）を新設し、backend の `requirements.py` の `normalize_title()` と同じ規則に揃えた。**大学のデータ自体が混在**しており「仏教の思想A」は履修要項と api-clean が半角 `A`(U+0041)、Web シラバス検索ページが全角 `Ａ`(U+FF21)。成績表PDFも全角側に当たると修得済みタグが出なかった。**backend には正規化があり frontend には無かった**ため、「残り単位では修得済みなのにタグが出ない」というねじれになっていた。**両者は同じ規則に保つこと**
 - [x] **タグの絞り込みが取得済みの30件の中だけで効いていた（設計書 v0.9.28 / §6.1・§6.1.3・§8）** — 検索を**全件取得**に変え、履修可否の判定に要る対象課程は `GET /api/course-targets` を新設してまとめて返すようにした。修得済み 184 コードが 41 ページに散り 35 ページが「該当なし」だった状態が解消し、絞り込み後の件数とページ送りが一致する。**`countCourses()` の500件ブロック探索も不要になった**（`results.length` が総件数）。件数・ページ送り・担当教員名の取得をクライアントへ移し、`lib/useTaggedResults.ts` に集約して PC・モバイルで共用
 
