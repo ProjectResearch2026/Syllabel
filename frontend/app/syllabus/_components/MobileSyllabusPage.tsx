@@ -33,6 +33,7 @@ import { useTaggedResults } from "@/lib/useTaggedResults";
 import { detailHref } from "@/lib/syllabusQuery";
 import { DAYS } from "@/lib/timetable";
 import CourseTags from "./CourseTags";
+import CompletedFilter from "./CompletedFilter";
 import SyllabusProfileNotice, { CategoryFilterHint } from "./SyllabusProfileNotice";
 
 type Props = {
@@ -76,7 +77,7 @@ export default function MobileSyllabusPage({
   const conversation = useSyllabusConversation();
 
   // タグ付け・絞り込み・ページの切り出しは PC と同じものを使う(§8)
-  const { visible, matched, total, filtering, offset: start } = useTaggedResults(
+  const { visible, matched, total, filtering, offset: start, completedCount } = useTaggedResults(
     results,
     targets,
     faculty,
@@ -336,7 +337,8 @@ export default function MobileSyllabusPage({
       <SyllabusProfileNotice />
 
       {/* Results header */}
-      <div className="flex items-center justify-between gap-2 px-4 pt-2.5 pb-1.5 bg-white">
+      {/* 幅が狭いので、修得済みの除き方は件数の下の行に置く */}
+      <div className="flex flex-col items-start gap-1 px-4 pt-2.5 pb-1.5 bg-white">
         <span className="min-w-0 text-xs text-[#4B5563]">
           {/* 絞り込みは全件に効く。件数は絞り込み後のものを出す(§8) */}
           {`${matched.toLocaleString()}件の科目`}
@@ -347,6 +349,7 @@ export default function MobileSyllabusPage({
             <span className="ml-1.5">（「{q}」を教員名として検索）</span>
           )}
         </span>
+        <CompletedFilter completedCount={completedCount} compact />
       </div>
 
       {/* Course list */}

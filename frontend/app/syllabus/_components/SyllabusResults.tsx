@@ -1,5 +1,6 @@
 "use client";
 
+import CompletedFilter from "./CompletedFilter";
 import { useSearchParams } from "next/navigation";
 import type { MatchedBy, SyllabusListItem } from "@/lib/syllabus-api";
 import { detailHref } from "@/lib/syllabusQuery";
@@ -38,7 +39,7 @@ export default function SyllabusResults({
 }) {
   // 詳細へ移っても絞り込みを失わないよう、いまのクエリをリンクに畳む
   const searchParams = useSearchParams();
-  const { visible, matched, total, filtering, offset: start } = useTaggedResults(
+  const { visible, matched, total, filtering, offset: start, completedCount } = useTaggedResults(
     results,
     targets,
     faculty,
@@ -73,6 +74,7 @@ export default function SyllabusResults({
             </span>
           )}
         </h1>
+        <CompletedFilter completedCount={completedCount} />
       </div>
 
       {visible.length === 0 ? (

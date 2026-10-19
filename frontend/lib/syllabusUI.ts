@@ -72,7 +72,18 @@ export function periodChoices(current: string): number[] {
     : known;
 }
 
+/**
+ * 【試作】修得済みの除き方。`switch` = A(「修得済みを除く」スイッチ。既定は OFF)、
+ * `notice` = B(既定で除き、除いた件数と「表示する」を出す)。見比べたら片方に決める
+ */
+export const COMPLETED_UI: "switch" | "notice" =
+  process.env.NEXT_PUBLIC_COMPLETED_UI === "switch" ? "switch" : "notice";
+const HIDE_COMPLETED_DEFAULT = COMPLETED_UI === "notice";
+
 type SyllabusUIStore = {
+  /** 修得済みの科目を一覧から除くか(`修得済み` のチップを選んでいるあいだは効かない) */
+  hideCompleted: boolean;
+  setHideCompleted: (hide: boolean) => void;
   /** 履修区分または状態での絞り込み(`必修` / `選択必修` / `選択` / `随意` / `修得済み`) */
   activeTag: string;
   setActiveTag: (tag: string) => void;
@@ -107,6 +118,8 @@ type SyllabusUIStore = {
  * 他の状態と同じくメモリにだけ持ち、再読み込みで消える。
  */
 export const useSyllabusUIStore = create<SyllabusUIStore>((set) => ({
+  hideCompleted: HIDE_COMPLETED_DEFAULT,
+  setHideCompleted: (hide) => set({ hideCompleted: hide }),
   activeTag: ALL_TAGS,
   setActiveTag: (tag) => set({ activeTag: tag }),
   activeCategory: ALL_CATEGORIES,
@@ -118,6 +131,7 @@ export const useSyllabusUIStore = create<SyllabusUIStore>((set) => ({
   setListQuery: (query) => set({ listQuery: query }),
   reset: () =>
     set({
+      hideCompleted: HIDE_COMPLETED_DEFAULT,
       activeTag: ALL_TAGS,
       activeCategory: ALL_CATEGORIES,
       activeSubcategory: ALL_SUBCATEGORIES,

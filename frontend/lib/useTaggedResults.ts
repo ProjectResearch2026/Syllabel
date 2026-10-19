@@ -5,6 +5,7 @@ import {
   useSyllabusUIStore,
   matchesFilter,
   isFiltering,
+  COMPLETED_UI,
   type CourseTags,
 } from "@/lib/syllabusUI";
 import { useTagMap } from "@/lib/useTagMap";
@@ -28,6 +29,13 @@ export type TaggedResults = {
   total: number;
   /** 絞り込みが効いているか */
   filtering: boolean;
+  /**
+   * 修得済みとして除いた件数(ほかの絞り込みには一致したもの)。除いていないときは、
+   * 一覧に含まれている修得済みの件数
+   */
+  completedCount: number;
+  /** 修得済みを除いているか(`修得済み` のチップを選んでいるあいだは false) */
+  hidingCompleted: boolean;
   /**
    * 実際に切り出した位置。URL の `offset` が絞り込み後の件数を超えていたときは
    * 最後のページの先頭に丸めた値になる。件数表示とページ送りはこちらを使う
@@ -77,9 +85,11 @@ export function useTaggedResults(
   const activeTag = useSyllabusUIStore((s) => s.activeTag);
   const activeCategory = useSyllabusUIStore((s) => s.activeCategory);
   const activeSubcategory = useSyllabusUIStore((s) => s.activeSubcategory);
+  const hideCompleted = useSyllabusUIStore((s) => s.hideCompleted);
+  const hidingCompleted = hideCompleted && activeTag !== "修得済み";
   const tagOf = useTagMap();
 
-  const filtered = useMemo(() => {
+  const matching = useMemo(() => {
     const tagged = results.map((course) => {
       // **対象課程が分からないときは `undefined` を渡す。** 空配列を渡してはならない
       // — 空配列は「課程指定なし(＝履修可)」を意味するため、引けなかったコードを
@@ -92,6 +102,14 @@ export function useTaggedResults(
       matchesFilter(tags, activeTag, activeCategory, activeSubcategory),
     );
   }, [results, targets, faculty, tagOf, activeTag, activeCategory, activeSubcategory]);
+  const completedCount = useMemo(
+    () => (activeTag === "修得済み" ? 0 : matching.filter(({ tags }) => tags.completed).length),
+    [matching, activeTag],
+  );
+  const filtered = useMemo(
+    () => (hidingCompleted ? matching.filter(({ tags }) => !tags.completed) : matching),
+    [matching, hidingCompleted],
+  );
 
   const lastPageStart = Math.max(0, Math.ceil(filtered.length / limit) - 1) * limit;
   const start = Math.min(offset, lastPageStart);
@@ -120,7 +138,12 @@ export function useTaggedResults(
     visible: page.map((p) => ({ ...p, instructors: instructors[p.course.syllabus_code] ?? null })),
     matched: filtered.length,
     total: results.length,
-    filtering: isFiltering(activeTag, activeCategory, activeSubcategory),
+    // B(既定で除く)は除いた件数を別に出すので、母数の併記は明示の絞り込みだけで決める
+    filtering:
+      isFiltering(activeTag, activeCategory, activeSubcategory) ||
+      (COMPLETED_UI === "switch" && hidingCompleted),
+    completedCount,
+    hidingCompleted,
     offset: start,
   };
 }
