@@ -1,7 +1,7 @@
 # 数理・情報科学課程 2024年度入学 履修要項データ
 # 出典:
 #   https://rishu.ryukoku.ac.jp/curriculum/2024/faculty-rikou/s05/ (専攻科目・学修プログラム)
-#   http://rishu.ryukoku.ac.jp/knowledge/no5-01/ (履修登録制限単位数)
+#   https://rishu.ryukoku.ac.jp/knowledge/no5-01/ (履修登録制限単位数)
 # 構成:
 #   graduation / requirement_slots - 卒業要件の総単位数と要件枠
 #   credit_caps                    - 特定科目群の卒業要件算入上限

@@ -1,7 +1,7 @@
 # 応用化学課程 2024年度入学 履修要項データ
 # 出典:
 #   https://rishu.ryukoku.ac.jp/curriculum/2024/faculty-rikou/s05/ (専攻科目・学修プログラム)
-#   http://rishu.ryukoku.ac.jp/knowledge/no5-01/ (履修登録制限単位数)
+#   https://rishu.ryukoku.ac.jp/knowledge/no5-01/ (履修登録制限単位数)
 program:
   code: "05"                        # 課程コード2桁。シラバスコード先頭4桁(Y005)と一致する一次識別子
   name: "応用化学課程"
