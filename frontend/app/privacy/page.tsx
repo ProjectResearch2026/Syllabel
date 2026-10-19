@@ -7,55 +7,79 @@ import {
   FileText,
   Cpu,
   Server,
-  Trash2,
+  History,
   ArrowRight,
   Monitor,
   WifiOff,
   Database,
-  EyeOff,
+  Send,
+  Fingerprint,
+  BookOpen,
   type LucideIcon,
 } from "lucide-react";
 
 /**
- * プライバシーとデータの取り扱い（ui-design_pc.pen 07_プライバシー）。
+ * プライバシーとデータの取り扱い（ui-design_pc.pen 07_プライバシー）。要件§5.6・設計§9。
  *
- * 要件§5 / 設計§9 の「学生のデータをサーバに残さない」を、**実際のデータの流れ**
- * として先に見せ、そのあとに4つの約束を置く。文章より経路の図のほうが早い。
+ * **実際のデータの流れ**を先に見せ、そのあとにデータの扱いを並べる。文章より経路の図のほうが早い。
+ *
+ * **記録が残る事実を、残る範囲とともに書く。** AI に送った内容は学内のトークンゲートウェイに
+ * 100日間記録される（要件§5.2・§5.5）。「消去される」「痕跡は残らない」とは書かない。
+ * 100日後に消えるかは確認できていないため、消えるとも書かない。
  */
+
+const LEAD =
+  "あなたの成績データは学外に送信されず、ブラウザと学内のサーバーの中だけで処理されます。ただし、AIに送った内容は学内のサーバーに100日間記録されます。以下は実際のデータの流れです。";
 
 const FLOW: { icon: LucideIcon; title: string; sub: string }[] = [
   { icon: FileText, title: "成績PDFを選択", sub: "あなたの端末" },
-  { icon: Cpu, title: "ブラウザ内で解析", sub: "PDF.js・端末内" },
-  { icon: Server, title: "学内サーバーで提案", sub: "DGX・学内のみ" },
-  { icon: Trash2, title: "閉じると消去", sub: "痕跡は残らない" },
+  { icon: Cpu, title: "ブラウザ内で解析", sub: "PDFは端末から出ない" },
+  { icon: Server, title: "学内のAIで提案", sub: "履修状況を学内へ送る" },
+  { icon: History, title: "送った内容を記録", sub: "学内のサーバーに100日間" },
 ];
 
 const PRINCIPLES: { icon: LucideIcon; mobileIcon: LucideIcon; title: string; body: string }[] = [
   {
     icon: Monitor,
     mobileIcon: Monitor,
-    title: "ブラウザ上でのみ処理",
-    body: "成績PDFの解析は端末内のPDF.jsで完結。ファイルがサーバーへ届くことはありません。",
+    title: "成績表はブラウザで読み取る",
+    body: "成績PDFの解析は端末内のPDF.jsで完結し、ファイルがサーバーへ届くことはありません。取り込んだ内容はブラウザのメモリにだけあり、リロードやタブを閉じると消えます。",
   },
   {
     icon: WifiOff,
     mobileIcon: CloudOff,
-    title: "外部AIに送信しない",
-    body: "ChatGPT等の外部サービスは一切利用せず、学内のローカルLLMだけで回答します。",
+    title: "学外のAIには送らない",
+    body: "ChatGPT等の学外のAIサービスは使わず、学内のローカルLLMだけで回答します。",
+  },
+  {
+    icon: Send,
+    mobileIcon: Send,
+    title: "AIに送るもの・送らないもの",
+    body: "送るのは、課程・入学年度・学年・修得済みと未修得の科目名・単位数・卒業要件ごとの不足単位・あなたが入力した希望条件です。氏名・学籍番号・成績の評価・GPAは送りません。",
+  },
+  {
+    icon: History,
+    mobileIcon: History,
+    title: "送った内容は100日間記録される",
+    body: "AIへの中継を担う学内のサーバーが、送った内容とAIの回答を100日間記録します。",
   },
   {
     icon: Database,
     mobileIcon: Database,
-    title: "永続保存しない",
-    body: "サーバーにデータベース保存は行いません。処理後はメモリから即時破棄されます。",
+    title: "このサービスのサーバーには保存しない",
+    body: "このサービスのサーバーはデータベースに保存せず、成績の内容をログにも記録しません。",
   },
   {
-    icon: EyeOff,
-    mobileIcon: EyeOff,
-    title: "ログに残さない",
-    body: "成績内容をアクセスログにも記録しません。閉じれば痕跡は残りません。",
+    icon: Fingerprint,
+    mobileIcon: Fingerprint,
+    title: "個人が推定される可能性",
+    body: "氏名や学籍番号は送りませんが、課程・学年と修得済み・未修得の科目の組み合わせから、個人が推定される可能性があります。",
   },
 ];
+
+/** 学生データの経路とは別の学外通信。書影は端末から直接取得する（設計§6.4） */
+const BOOK_NOTE =
+  "講義詳細の本の表紙画像は、ブラウザが学外の書誌サービス(openBD)から直接取得します。送るのはISBNだけで、成績や閲覧中の講義は送りません。";
 
 export default function PrivacyPage() {
   return (
@@ -72,7 +96,7 @@ export default function PrivacyPage() {
 
 /**
  * モバイル（ui-design_phone.pen 07_プライバシー）。流れの図は縦に積み、
- * 4つの約束は1列のカードにする。
+ * データの扱いは1列のカードにする。
  *
  * 戻り先は行き先を決め打ちにする（`/mydata`）。`router.back()` だと、取り込みの
  * 確認ウィンドウから別タブで開いたときに戻る先が無い。
@@ -95,7 +119,7 @@ function MobilePrivacy() {
           プライバシーとデータの取り扱い
         </h1>
         <p className="w-full text-center text-[13px] leading-[1.7] text-fg-secondary">
-          あなたの成績データは学外に送信されず、ブラウザと学内サーバーの中だけで処理されます。以下は実際のデータの流れです。
+          {LEAD}
         </p>
 
         <div className="flex w-full flex-col items-center">
@@ -117,7 +141,7 @@ function MobilePrivacy() {
           ))}
         </div>
 
-        <h2 className="w-full text-base font-bold text-fg-primary">4つの約束</h2>
+        <h2 className="w-full text-base font-bold text-fg-primary">データの扱い</h2>
         {PRINCIPLES.map((p) => (
           <div
             key={p.title}
@@ -130,6 +154,11 @@ function MobilePrivacy() {
             <p className="text-xs leading-[1.6] text-fg-secondary">{p.body}</p>
           </div>
         ))}
+
+        <p className="flex w-full items-start gap-2 text-[11px] leading-[1.6] text-fg-secondary">
+          <BookOpen size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
+          {BOOK_NOTE}
+        </p>
 
         <p className="w-full text-[11px] text-fg-faint">龍谷大学 プロジェクトリサーチ 2026</p>
       </div>
@@ -149,7 +178,7 @@ function PcPrivacy() {
           プライバシーとデータの取り扱い
         </h1>
         <p className="max-w-[560px] text-center text-sm leading-6 text-fg-secondary">
-          あなたの成績データは学外に送信されず、ブラウザと学内サーバーの中だけで処理されます。以下は実際のデータの流れです。
+          {LEAD}
         </p>
       </div>
 
@@ -179,8 +208,8 @@ function PcPrivacy() {
       </div>
 
       {/* Principles */}
-      <h2 className="w-full max-w-[820px] text-base font-bold text-fg-primary">4つの約束</h2>
-      <div className="grid w-full max-w-[820px] grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <h2 className="w-full max-w-[820px] text-base font-bold text-fg-primary">データの扱い</h2>
+      <div className="grid w-full max-w-[820px] grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {PRINCIPLES.map((p) => (
           <div
             key={p.title}
@@ -194,6 +223,11 @@ function PcPrivacy() {
           </div>
         ))}
       </div>
+
+      <p className="flex w-full max-w-[820px] items-start gap-2 text-xs leading-5 text-fg-secondary">
+        <BookOpen size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+        {BOOK_NOTE}
+      </p>
 
       <p className="text-xs text-fg-faint">龍谷大学 プロジェクトリサーチ 2026</p>
     </div>

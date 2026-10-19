@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CloudOff, ExternalLink, Lock, Monitor, ShieldCheck, WifiOff, Trash2 } from "lucide-react";
+import { ExternalLink, History, Lock, Send, ShieldCheck, type LucideIcon } from "lucide-react";
 import { motion } from "motion/react";
 
 type Props = {
@@ -10,6 +10,33 @@ type Props = {
   /** モバイル（ui-design_phone.pen 01-2_Import_同意モーダル）。項目の説明文を畳んだ短い形 */
   compact?: boolean;
 };
+
+/**
+ * 確認ウィンドウに並べる3項目（要件§5.6）。PC は説明文まで、モバイルは短い説明文まで出す。
+ *
+ * **記録が残る事実を、残る範囲とともに書く。** 「消去される」「どこにも残らない」とは
+ * 書かない — AI に送った内容は学内のトークンゲートウェイに100日間記録される（要件§5.2・§5.5）。
+ */
+const ITEMS: { icon: LucideIcon; title: string; desc: string; short: string }[] = [
+  {
+    icon: Lock,
+    title: "成績表はブラウザの中で読み取ります",
+    desc: "PDFファイルはサーバーへ送られず、このサービスのサーバーに保存されることもありません。取り込んだ内容はブラウザのメモリにだけあり、リロードやタブを閉じると消えます。",
+    short: "PDFはサーバーへ送らず、このサービスのサーバーにも保存しません。",
+  },
+  {
+    icon: Send,
+    title: "AIが提案を作るとき、履修状況を学内のAIサーバーに送ります",
+    desc: "課程・学年・修得済みと未修得の科目名・単位数・不足単位を送ります。氏名・学籍番号・成績の評価・GPAは送りません。学外のAIサービスには送りません。",
+    short: "科目名・単位数・不足単位など。氏名・学籍番号・成績の評価は送りません。",
+  },
+  {
+    icon: History,
+    title: "送った内容と回答は100日間記録されます",
+    desc: "学内のAIサーバーの運用のため、送った内容とAIの回答が100日間記録されます。科目の組み合わせから個人が推定される可能性があります。",
+    short: "学内での運用のための記録です。科目の組み合わせから個人が推定され得ます。",
+  },
+];
 
 /**
  * 成績表を取り込む前の確認ウィンドウ（要件§5.6）。PC・モバイルとも、PDF を選んだあと
@@ -42,28 +69,12 @@ export default function PrivacyConsentModal({ onAccept, onCancel, compact = fals
             成績表の取り扱いについて
           </h2>
           <p className="text-[#6B7280] text-sm leading-relaxed">
-            PDFを取り込む前に、データの取り扱い方針をご確認ください。
+            PDFを取り込む前に、データの取り扱いをご確認ください。
           </p>
         </div>
 
         <div className="bg-[#F8F9FA] rounded-xl p-4 flex flex-col gap-3">
-          {[
-            {
-              icon: Lock,
-              title: "ブラウザ上のみで処理",
-              desc: "PDFファイルはサーバーへ送信されません。テキスト抽出はすべてブラウザ内で完結します。",
-            },
-            {
-              icon: WifiOff,
-              title: "外部AIサービスへの送信なし",
-              desc: "成績情報は学内サーバーのAIのみが参照し、外部のクラウドサービスには送信しません。",
-            },
-            {
-              icon: Trash2,
-              title: "ページを閉じると即時消去",
-              desc: "取り込んだデータはブラウザのメモリにのみ保持され、リロード・タブクローズで完全に消えます。",
-            },
-          ].map(({ icon: Icon, title, desc }, i) => (
+          {ITEMS.map(({ icon: Icon, title, desc }, i) => (
             <motion.div
               key={title}
               className="flex items-start gap-3"
@@ -110,11 +121,6 @@ export default function PrivacyConsentModal({ onAccept, onCancel, compact = fals
 }
 
 function CompactConsentModal({ onAccept, onCancel }: Omit<Props, "compact">) {
-  const items = [
-    { icon: Monitor, title: "ブラウザ上のみで処理" },
-    { icon: CloudOff, title: "外部AIサービスへの送信なし" },
-    { icon: Trash2, title: "ページを閉じると即時消去" },
-  ];
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center px-5">
       <motion.div
@@ -140,10 +146,13 @@ function CompactConsentModal({ onAccept, onCancel }: Omit<Props, "compact">) {
           </h2>
         </div>
 
-        {items.map(({ icon: Icon, title }) => (
-          <div key={title} className="flex items-center gap-2.5 rounded-lg bg-surface-gray px-3 py-2.5">
-            <Icon size={16} className="shrink-0 text-fg-primary" aria-hidden="true" />
-            <span className="text-[13px] font-semibold text-fg-primary">{title}</span>
+        {ITEMS.map(({ icon: Icon, title, short }) => (
+          <div key={title} className="flex items-start gap-2.5 rounded-lg bg-surface-gray px-3 py-2.5">
+            <Icon size={16} className="mt-0.5 shrink-0 text-fg-primary" aria-hidden="true" />
+            <span className="flex flex-col gap-0.5">
+              <span className="text-[13px] font-semibold leading-snug text-fg-primary">{title}</span>
+              <span className="text-[11px] leading-snug text-fg-secondary">{short}</span>
+            </span>
           </div>
         ))}
 
