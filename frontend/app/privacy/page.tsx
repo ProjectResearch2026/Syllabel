@@ -55,13 +55,13 @@ const PRINCIPLES: { icon: LucideIcon; mobileIcon: LucideIcon; title: string; bod
     icon: Send,
     mobileIcon: Send,
     title: "AIに送るもの・送らないもの",
-    body: "送るのは、課程・入学年度・学年・修得済みと未修得の科目名・単位数・卒業要件ごとの不足単位・あなたが入力した希望条件です。氏名・学籍番号・成績の評価(秀・優など)・GPAは送りません。",
+    body: "送るのは、課程・入学年度・学年・修得済みと未修得の科目名・単位数・卒業要件ごとの不足単位・あなたが入力した希望条件です。氏名・学籍番号・成績の評価・GPAは送りません。",
   },
   {
     icon: History,
     mobileIcon: History,
     title: "送った内容は100日間記録される",
-    body: "AIへの中継を担う学内のサーバーが、送った内容とAIの回答を100日間記録します。このサービスの管理外であり、こちらで記録を止めることはできません。",
+    body: "AIへの中継を担う学内のサーバーが、送った内容とAIの回答を100日間記録します。",
   },
   {
     icon: Database,
