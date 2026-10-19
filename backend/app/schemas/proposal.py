@@ -132,6 +132,16 @@ class ProposedCourse(BaseModel):
         default=None,
         description="履修区分（例: 必修・選択必修・選択）。履修要項から取得すること。",
     )
+    # 履修区分(category)がどの区分・分野についての値かを画面に示すために持つ。
+    # 値は履修要項の表記のまま(§5.1.5)。他課程から導出した科目は 専門関連科目
+    course_category: str | None = Field(
+        default=None,
+        description="区分（例: 専門基礎科目・専門応用科目・専門関連科目・教養教育科目）。",
+    )
+    subcategory: str | None = Field(
+        default=None,
+        description="教養教育科目の分野（例: 人文科学系科目）。教養教育科目以外はnull。",
+    )
     reason: str = Field(
         description="この科目を推薦する理由を1文で説明すること。学生のプロファイルや希望条件との関連を明記すること。",
     )

@@ -155,7 +155,7 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 - **表のために吹き出しを広げない。** 幅は設計(`ui-ux/ui-design_*.pen`、280〜290px)どおりに保ち、表は中で横スクロールさせる
 - Tailwind の preflight が `ul` / `ol` の記号と字下げを消すため、リストの見た目は `MarkdownText` の `components` で自分で付けている
 
-履修提案の科目スキーマは design.md §5.3 に従う(`syllabusCode` / `title` / `day` / `period` / `term` / `slots` / `credits` / `category` / `reason`)。必須は `title` と `reason` だけで、**集中講義の曜日・時限や特定できないシラバスコードは null** で来る。
+履修提案の科目スキーマは design.md §5.3 に従う(`syllabusCode` / `title` / `day` / `period` / `term` / `slots` / `credits` / `category` / `courseCategory` / `subcategory` / `reason`)。**`category` は履修区分(必修など)で、区分は `courseCategory`、教養教育科目の分野は `subcategory`(どちらも履修要項の表記)である。** 時間割のセルは区分(教養教育科目は分野)を履修区分の前に出す(design.md §8.3.4)。履修区分だけではどの枠の必修か読めない。表示名は `lib/courseLabels.ts` にあり、シラバス一覧のタグと共用する。必須は `title` と `reason` だけで、**集中講義の曜日・時限や特定できないシラバスコードは null** で来る。
 
 **`day` / `period` / `term` は1コマ目だけである。** 「後期 金4・金5」のように複数のコマを持つ科目の全コマは `slots` にある。時間割に置くときは `lib/timetable.ts` の `occupiedSlots()` を通し、`day` / `period` を直接使わない(1コマ目だけを見ていた頃は、金4・金5 の科目の金5 が空いて見えた)。`coursesToTimetable()` は複数コマの科目の**同じセル**を全部のマスに入れ、`toCourseList()` はそれを1科目1行に数える(マスごとに数えると単位が2倍になる)。**時間割表は PC・モバイルとも `coursesToSlotTable()` を使う**(design.md §8.3.4。PC は `TimetablePanel.tsx`、モバイルは `app/_components/TimetableGrid.tsx`)。1マスに複数の科目(3Q と 4Q)を持ち、クォーターの印を付け、曜日・時限の無い科目を `unscheduled` に分ける。**提案の科目は画面から落とさない** — 落とすと表の単位の和が「今期登録単位」と合わなくなる。1マス1科目の `coursesToTimetable()` はどの画面からも使っていない(以前のモバイルが使い、3Q と 4Q の科目の一方が消えていた)。シラバス一覧の曜日時限も api-clean の `slots` から `lib/schedule.ts` の `formatSlots()` で作る。
 
@@ -186,7 +186,7 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 |---|---|
 | 状態 | `修得済み` |
 | 区分 | `教養教育` / `専門基礎` / `専門応用` / `専門関連` |
-| 分野 | 教養教育科目のみ。履修要項の `subcategory` から括弧と末尾の「科目」を除いた表示名(`人文科学系` など。`SUBCATEGORY_LABEL`) |
+| 分野 | 教養教育科目のみ。履修要項の `subcategory` から括弧と末尾の「科目」を除いた表示名(`人文科学系` など。`lib/courseLabels.ts` の `SUBCATEGORY_LABEL`) |
 | 履修区分 | `必修` / `選択必修` / `選択` / `随意` |
 
 | 状況 | 出すタグ |

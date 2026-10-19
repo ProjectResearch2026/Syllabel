@@ -1381,6 +1381,8 @@ def _proposed_course(candidate: Candidate, offered: OfferedClass) -> ProposedCou
         slots=list(offered.slots),
         credits=candidate.course.credits,
         category=student_type(candidate.course),
+        course_category=candidate.course.category,
+        subcategory=candidate.course.subcategory,
         reason="",
     )
 

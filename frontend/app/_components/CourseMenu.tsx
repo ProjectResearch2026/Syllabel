@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeftRight, BookOpen, ChevronRight, Sparkles, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
-import { CELL_STYLES, type SlotEntry } from "@/lib/timetable";
+import { AREA_TAG, CELL_STYLES, type SlotEntry } from "@/lib/timetable";
 
 const MENU_WIDTH = 252;
 const MARGIN = 16;
@@ -104,8 +104,20 @@ export default function CourseMenu({
       >
         <div className="flex flex-col gap-0.5 border-b border-border-subtle px-3.5 pb-[9px] pt-[11px]">
           <span className="line-clamp-2 text-[13px] font-bold leading-snug text-fg-primary">{entry.name}</span>
+          {/* セルより広いので、教養教育科目は区分と分野を両方出す */}
+          {(entry.category || entry.requirement) && (
+            <span className="flex flex-wrap items-center gap-1 pt-0.5">
+              {[entry.category, entry.subcategory].filter(Boolean).map((label) => (
+                <span key={label} className={`rounded-sm px-1.5 py-px text-[10px] ${AREA_TAG}`}>
+                  {label}
+                </span>
+              ))}
+              {entry.requirement && (
+                <span className={`rounded-sm px-1.5 py-px text-[10px] ${style.tag}`}>{entry.requirement}</span>
+              )}
+            </span>
+          )}
           <span className="flex items-center gap-1.5 text-[11px] text-fg-muted">
-            <span className={`rounded-sm px-1.5 py-px text-[9px] ${style.tag}`}>{style.label}</span>
             {day && period != null ? `${day}曜 ${period}限` : "曜日・時限未定"}
             {entry.quarter && ` ・ ${entry.quarter}`}
             {entry.credits != null && ` ・ ${entry.credits}単位`}

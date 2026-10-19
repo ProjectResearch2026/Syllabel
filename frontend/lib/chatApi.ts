@@ -52,6 +52,13 @@ export type ProposedCourse = {
   credits: number | null;
   /** 履修区分(必修 / 選択必修 / 選択) */
   category: string | null;
+  /**
+   * 区分(`専門基礎科目` など。履修要項の表記)。`category` がどの区分についての値かを
+   * 画面に示すために持つ。旧い backend・履修要項に無い科目では無い
+   */
+  courseCategory?: string | null;
+  /** 教養教育科目の分野(`人文科学系科目` など)。教養教育科目以外は null */
+  subcategory?: string | null;
   /** この科目を勧める理由。1文 */
   reason: string;
 };

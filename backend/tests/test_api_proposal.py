@@ -46,7 +46,7 @@ PROPOSAL = {
     "summary": "卒業要件の不足枠から2科目を選んだ。先修要件を履修要項で確認すること。",
 }
 
-# 下書きから backend が組み上げる確定版。科目名・曜日・時限・学期・単位・履修区分は
+# 下書きから backend が組み上げる確定版。科目名・曜日・時限・学期・単位・履修区分・区分は
 # 履修要項と開講情報(下の SYLLABI)から補う
 EXPECTED = {
     "courses": [
@@ -60,6 +60,8 @@ EXPECTED = {
             "slots": [{"term": "通年", "day": "月", "period": 2}],
             "credits": 4.0,
             "category": "必修",
+            "courseCategory": "専門基礎科目",
+            "subcategory": None,
             "reason": "専門基礎科目の必修が未修得のため。",
         },
         {
@@ -71,6 +73,8 @@ EXPECTED = {
             "slots": [{"term": "前期", "day": "火", "period": 3}],
             "credits": 2.0,
             "category": "選択",
+            "courseCategory": "専門応用科目",
+            "subcategory": None,
             "reason": "専門応用科目の不足を埋めるため。",
         },
     ],

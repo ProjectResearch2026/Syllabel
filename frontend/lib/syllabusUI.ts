@@ -3,6 +3,14 @@ import type { Category, CourseType, CurriculaData, Subcategory } from "@/lib/syl
 import { canRegister, type CourseTarget } from "@/lib/eligibility";
 import { normalizeTitle } from "@/lib/courseTitle";
 import { PERIODS } from "@/lib/timetable";
+import {
+  CATEGORY_LABEL,
+  SUBCATEGORY_LABEL,
+  type CourseCategoryTag,
+  type SubcategoryTag,
+} from "@/lib/courseLabels";
+
+export type { CourseCategoryTag, SubcategoryTag };
 
 /** 区分の絞り込みで「絞らない」を表す値。 */
 export const ALL_CATEGORIES = "すべて";
@@ -25,26 +33,6 @@ export const CATEGORY_CHOICES = [
   "専門応用",
   "専門関連",
 ] as const;
-
-/**
- * 分野(教養教育科目の `subcategory`)の表示名。design.md §8.2.1。
- *
- * 履修要項の区分名から括弧と末尾の「科目」を除いた形にする。並びは
- * `backend/app/schemas/curriculum.py` の `Subcategory` の定義順に合わせる。
- */
-const SUBCATEGORY_LABEL = {
-  "「仏教の思想」科目": "仏教の思想",
-  必修外国語科目: "必修外国語",
-  選択外国語科目: "選択外国語",
-  人文科学系科目: "人文科学系",
-  社会科学系科目: "社会科学系",
-  自然科学系科目: "自然科学系",
-  スポーツ科学系科目: "スポーツ科学系",
-  教養教育科目特別講義: "教養教育科目特別講義",
-  "学部・センター等提供科目": "学部・センター等提供",
-} as const satisfies Record<Subcategory, string>;
-
-export type SubcategoryTag = (typeof SUBCATEGORY_LABEL)[Subcategory];
 
 /**
  * 分野の絞り込みの選択肢。区分が `教養教育` のときだけ出す(§8.2.2)。
@@ -149,10 +137,9 @@ export const useSyllabusUIStore = create<SyllabusUIStore>((set) => ({
  * |---|---|
  * | 状態 | `修得済み` |
  * | 区分 | `教養教育` / `専門基礎` / `専門応用` / `専門関連` |
- * | 分野 | 教養教育科目のみ。`SUBCATEGORY_LABEL` の表示名 |
+ * | 分野 | 教養教育科目のみ。`SUBCATEGORY_LABEL`(`lib/courseLabels.ts`)の表示名 |
  * | 履修区分 | `必修` / `選択必修` / `選択` / `随意` |
  */
-export type CourseCategoryTag = "教養教育" | "専門基礎" | "専門応用" | "専門関連";
 export type RequirementTag = "必修" | "選択必修" | "選択" | "随意";
 
 /** 履修区分または状態。絞り込みのチップが取る値でもある。 */
@@ -179,14 +166,6 @@ export const NO_TAGS: CourseTags = {
   category: null,
   subcategory: null,
   requirement: null,
-};
-
-/** 履修要項の区分名(`専門基礎科目`)をタグの表記(`専門基礎`)にする。 */
-const CATEGORY_LABEL: Record<Category, CourseCategoryTag> = {
-  教養教育科目: "教養教育",
-  専門基礎科目: "専門基礎",
-  専門応用科目: "専門応用",
-  専門関連科目: "専門関連",
 };
 
 /** タグの候補。`resolveTags()` が履修可否を掛けて最終の `CourseTags` にする。 */
