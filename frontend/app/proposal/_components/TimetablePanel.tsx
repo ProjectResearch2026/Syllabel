@@ -42,6 +42,13 @@ function enterDelay(order: number): React.CSSProperties {
   return { animationDelay: `${Math.min(order, 20) * 30}ms` };
 }
 
+/**
+ * 列の幅。ヘッダーと各限の行が同じ定義を持つので、マスの余白が違っても縦の線が揃う。
+ * flex の `flex-1` で分けていた頃は、余白(`p-1` / `p-2`)の差がそのまま列の幅の差になり、
+ * 3Q と 4Q の2科目が入った行だけ線がずれた
+ */
+const COLUMNS: React.CSSProperties = { gridTemplateColumns: `44px repeat(${DAYS.length}, minmax(0, 1fr))` };
+
 /** 選択中の枠。マスの内側に引き、隣のマスの線に隠れないようにする */
 const RING = "z-10 ring-2 ring-inset ring-accent";
 
@@ -132,7 +139,7 @@ function CourseButton({
  * 時間割カード（ui-design_pc.pen 04_履修提案 TimetableCard）。
  *
  * 高さは親いっぱいで、5つの限が**均等に伸びる**（`flex-1`）。縦スクロールは
- * 起こさない。列は限ラベル 44px ＋ 曜日6列。
+ * 起こさない。列は限ラベル 44px ＋ 曜日6列で、CSS Grid の同じ列定義(`COLUMNS`)で組む。
  *
  * **提案の科目はすべて画面に出す**（design.md §8.3）。1マスに複数の科目（3Q と 4Q）が
  * 入り得るので縦に並べ、クォーターの科目には印を付ける。曜日・時限の無い科目
@@ -181,12 +188,12 @@ export default function TimetablePanel() {
   return (
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border-primary bg-surface-primary">
       {/* 曜日ヘッダー */}
-      <div className="flex h-10 shrink-0 border-b border-border-primary bg-surface-gray">
-        <div className="w-11 shrink-0" />
+      <div className="grid h-10 shrink-0 border-b border-border-primary bg-surface-gray" style={COLUMNS}>
+        <div className="border-r border-border-primary" />
         {DAYS.map((d) => (
           <div
             key={d}
-            className="flex flex-1 items-center justify-center border-l border-border-primary"
+            className="flex items-center justify-center border-r border-border-primary last:border-r-0"
           >
             <span className="text-[13px] font-semibold text-fg-primary">{d}</span>
           </div>
@@ -194,8 +201,13 @@ export default function TimetablePanel() {
       </div>
 
       {PERIODS.map((p) => (
-        <div key={p} className="flex min-h-0 flex-1 border-b border-border-primary last:border-b-0">
-          <div className="flex w-11 shrink-0 flex-col items-center justify-center gap-0.5 border-r border-border-primary bg-cell-free">
+        <div
+          key={p}
+          // 行の高さは5限で均等に分ける。中身で伸ばさない(縦スクロールを起こさない)
+          className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] border-b border-border-primary last:border-b-0"
+          style={COLUMNS}
+        >
+          <div className="flex flex-col items-center justify-center gap-0.5 border-r border-border-primary bg-cell-free">
             <span className="text-sm font-bold leading-none text-fg-primary">{p}</span>
             <span className="text-[9px] text-fg-faint">限</span>
           </div>
@@ -204,9 +216,10 @@ export default function TimetablePanel() {
             const order = di * PERIODS.length + (p - PERIODS[0]);
             const entries = table[p]?.[d] ?? [];
             // 1科目ならマス全体を区分の色で塗り、マスごとリンクにする。
-            // 複数なら科目ごとに色の付いた枠を積み、枠ごとにリンクにする
+            // 複数なら科目ごとに色の付いた枠を積み、枠ごとにリンクにする。枠には細い線を引く
+            // (選択の色は白との差が小さく、線が無いと2科目の境目が読みにくい)
             const single = entries.length === 1 ? entries[0] : null;
-            const cellClass = `flex min-w-0 flex-1 flex-col justify-center gap-1 border-r border-border-primary last:border-r-0 ${
+            const cellClass = `flex min-w-0 flex-col justify-center gap-1 border-r border-border-primary last:border-r-0 ${
               entries.length > 1 ? "p-1" : "p-2"
             } ${single ? `${CELL_STYLES[single.type].cell} ${ENTER}` : "bg-surface-primary"}`;
             if (entries.length === 0) {
@@ -250,7 +263,7 @@ export default function TimetablePanel() {
                     period={p}
                     selected={isSelected(entry, selection)}
                     onOpen={onOpen}
-                    className={`flex min-h-0 flex-1 flex-col justify-center gap-0.5 rounded-sm px-1.5 py-1 ${
+                    className={`flex min-h-0 flex-1 flex-col justify-center gap-0.5 rounded-sm border border-border-primary px-1.5 py-1 ${
                       CELL_STYLES[entry.type].cell
                     } ${ENTER}`}
                     style={enterDelay(order)}
