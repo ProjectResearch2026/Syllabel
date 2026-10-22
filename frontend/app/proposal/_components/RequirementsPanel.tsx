@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, CircleCheck, Info } from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleCheck, Info } from "lucide-react";
 import type { RequirementsView, SlotProgress } from "@/lib/requirements";
 
 /** 0.5 単位の科目があるので、整数でなければ小数1桁で出す */
@@ -182,7 +182,11 @@ function LegendInfo({ updating, pending }: { updating: boolean; pending: boolean
   );
 }
 
-/** 充足した枠のまとめ。枠ごとのバーは出さず、名前だけを1つに畳む */
+/**
+ * 充足した枠のまとめ。枠ごとのバーは出さず、名前だけを1つに畳む。
+ * 帯では2行で切るので、押すと全部の枠を公式の区分名と単位数で開く(モバイルのチップと同じ)。
+ * ツールチップだけでは見つけにくく、指では開けなかった
+ */
 function DoneSummary({
   slots,
   updating,
@@ -192,18 +196,74 @@ function DoneSummary({
   updating: boolean;
   pending: boolean;
 }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const listId = useId();
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
   const names = slots.map((s) => shortSlotName(s.name)).join("・");
+  const toggle = () => setOpen((v) => !v);
   return (
-    <div className="flex w-[250px] shrink-0 flex-col gap-1 rounded-md bg-[#ECFDF5] px-3 py-2">
+    <div ref={ref} className="relative flex w-[250px] shrink-0 flex-col gap-1 rounded-md bg-[#ECFDF5] px-3 py-2">
       <span className="flex items-center gap-1.5 text-xs font-bold text-[#047857]">
         <CircleCheck size={14} className="shrink-0 text-done-tag" aria-hidden="true" />
         取得済み
         <LegendInfo updating={updating} pending={pending} />
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={open}
+          aria-controls={listId}
+          className="ml-auto flex items-center gap-0.5 rounded px-1 text-[11px] tabular-nums transition-colors hover:bg-[#D1FAE5]"
+        >
+          {slots.length}枠
+          {open ? <ChevronUp size={12} aria-hidden="true" /> : <ChevronDown size={12} aria-hidden="true" />}
+        </button>
       </span>
-      {/* 1行で切ると2つ目以降の枠が読めないので、2行まで折り返す */}
-      <span className="line-clamp-2 text-[10px] leading-snug text-[#047857]" title={slots.map((s) => s.name).join("\n")}>
+      {/* 1行で切ると2つ目以降の枠が読めないので、2行まで折り返す。押すと全部を開く(キーボードは上のボタンで開く) */}
+      <button
+        type="button"
+        tabIndex={-1}
+        onClick={toggle}
+        className="line-clamp-2 text-left text-[10px] leading-snug text-[#047857] hover:underline"
+      >
         {names}
-      </span>
+      </button>
+      {open && (
+        <div
+          id={listId}
+          className="absolute left-0 top-full z-30 mt-1.5 flex w-[320px] flex-col gap-2 rounded-md border border-border-primary bg-surface-primary px-3 py-2.5 shadow-md"
+        >
+          <span className="text-[11px] font-bold text-[#047857]">取得済みの枠（{slots.length}）</span>
+          <ul className="flex max-h-[60vh] flex-col gap-1.5 overflow-y-auto">
+            {slots.map((s) => (
+              <li key={s.key} className="flex items-baseline gap-2 text-[11px] leading-snug text-fg-primary">
+                <CircleCheck size={12} className="shrink-0 self-center text-done-tag" aria-hidden="true" />
+                <span className="min-w-0 flex-1">{s.name}</span>
+                <span className="shrink-0 tabular-nums text-fg-secondary">
+                  {fmt(s.earned)}
+                  <span className="text-fg-muted"> / {s.required}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
