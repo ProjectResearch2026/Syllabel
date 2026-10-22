@@ -47,6 +47,12 @@ function barWidths(slot: SlotProgress) {
 const BAR_MOTION = "transition-[width] duration-500 ease-out motion-reduce:transition-none";
 
 /**
+ * バーの地(PC・モバイル共通)。枠線を付けて、何も積まれていない枠(0 / 31)でも
+ * バーの長さ=必要単位が見えるようにする。地の色だけでは白いカードに溶けて見えなかった
+ */
+const BAR_TRACK = "flex h-2 min-w-0 flex-1 overflow-hidden rounded-full border border-fg-muted bg-surface-primary";
+
+/**
  * 足りない要件枠1つ。バーは修得済み(紺)・成績発表待ち(薄い紺)・今期の時間割で埋まる分(赤)を積む。
  * 不足の単位数は「修得済み+今期 / 必要」から読めるので行を割かず、ツールチップに出す
  */
@@ -61,7 +67,7 @@ function SlotRow({ slot }: { slot: SlotProgress }) {
       <span className="truncate text-[11px] font-semibold text-fg-primary">{shortSlotName(slot.name)}</span>
       <div className="flex items-center gap-2">
         <div
-          className="flex h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-surface-soft"
+          className={BAR_TRACK}
           role="meter"
           aria-label={slot.name}
           aria-valuemin={0}
@@ -315,7 +321,7 @@ export function MobileRequirementsStrip({ view }: { view: RequirementsView }) {
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span
-                    className="flex h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-[#E5E7EB]"
+                    className={BAR_TRACK}
                     role="meter"
                     aria-label={slot.name}
                     aria-valuemin={0}
