@@ -188,9 +188,10 @@ type TagCandidate = {
  * 検索結果に付すタグの**候補**を、履修要項（`GET /api/curricula`）と学生プロファイルを
  * 突き合わせて作る。design.md §8.2.1。
  *
- * 突合はシラバスコードによる結合を第一とする。1科目に複数のクラスが対応し得る
+ * 検索結果とはシラバスコードで結合する。1科目に複数のクラスが対応し得る
  * ため `syllabusCodes` は配列であり、そのすべてを同じ候補に対応づける。コードを
  * 持たない科目（当年度不開講・名寄せ未解決）はタグ付けの対象外となる（§5.1.4）。
+ * 修得済みかは科目名で判定する（成績表の科目はシラバスコードを持たない。§5.2.1）。
  *
  * **ここで出るのは候補であって最終のタグではない。** 履修要項は「科目」の単位で
  * 書かれており、**その学生がその開講クラスを履修できるか**を持たない。可否の判定は
@@ -206,7 +207,6 @@ type TagCandidate = {
  */
 export function buildTagMap(
   curricula: CurriculaData,
-  passedCodes: Set<string>,
   /** **正規化済み**の科目名の集合(`normalizeTitle()` を通したもの) */
   passedTitles: Set<string>,
 ): Map<string, TagCandidate> {
@@ -215,9 +215,8 @@ export function buildTagMap(
   for (const course of curricula.courses) {
     // 科目名は正規化して突き合わせる。成績表由来の表記は全角英数字や空白が
     // 混じり、完全一致では外れる(`lib/courseTitle.ts`)
-    const passedByTitle = passedTitles.has(normalizeTitle(course.title));
+    const completed = passedTitles.has(normalizeTitle(course.title));
     for (const code of course.syllabusCodes) {
-      const completed = passedByTitle || passedCodes.has(code);
       const current = map.get(code);
       if (current) {
         // 区分・分野・履修区分は先頭優先、修得済みだけは OR

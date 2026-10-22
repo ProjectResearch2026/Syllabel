@@ -32120,7 +32120,7 @@
                       "fill": "#93000A",
                       "textGrowth": "fixed-width",
                       "width": 290,
-                      "content": "成績表を読み取れませんでした。手入力でご入力ください。",
+                      "content": "成績表を読み取れませんでした。もう一度選ぶか、デモの学生で試してください。",
                       "fontFamily": "$font-sans",
                       "fontSize": 13,
                       "fontWeight": "600"
@@ -32139,7 +32139,7 @@
                       "id": "wVcww",
                       "type": "ref",
                       "ref": "Izjnx",
-                      "name": "Button/Primary 手入力で続ける",
+                      "name": "Button/Primary デモの学生で試す",
                       "width": "fill_container",
                       "padding": [
                         11,
@@ -32147,7 +32147,7 @@
                       ],
                       "descendants": {
                         "robVh": {
-                          "content": "手入力で続ける"
+                          "content": "デモの学生で試す"
                         }
                       }
                     },

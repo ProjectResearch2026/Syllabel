@@ -13,14 +13,14 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import { isUnearned, useStudentStore, type Course } from "@/lib/student";
+import { COURSE_STATUS_LABEL, isUnearned, useStudentStore, type Course } from "@/lib/student";
 import { useChatStore } from "@/lib/chat";
 import { useChatHistoryStore } from "@/lib/chatHistory";
 import { useProposalStore } from "@/lib/proposal";
 import { useSyllabusUIStore } from "@/lib/syllabusUI";
 import { demoLabel, isFreshmanDemo } from "@/lib/dummy/profiles";
 import DemoPicker from "@/app/_components/DemoPicker";
-import ManualInputForm from "@/app/_components/ManualInputForm";
+import ProfileEditForm from "@/app/_components/ProfileEditForm";
 import { useReplaceStudent } from "@/lib/replaceStudent";
 
 const GRADUATION_CREDITS = 124;
@@ -28,14 +28,13 @@ const GRADUATION_CREDITS = 124;
 export default function PcMyDataPage() {
   const router = useRouter();
   const profile = useStudentStore((s) => s.profile);
-  const setProfile = useStudentStore((s) => s.setProfile);
   const clearProfile = useStudentStore((s) => s.clearProfile);
   const clearAll = useChatStore((s) => s.clearAll);
   const clearHistory = useChatHistoryStore((s) => s.clearAll);
   // 生成済みの提案と、学生が書いた希望条件もここで消す（要件§4.8、§5.2.3）
   const clearProposal = useProposalStore((s) => s.clear);
   const resetSyllabusUI = useSyllabusUIStore((s) => s.reset);
-  // 学年・課程と取り込んだ科目の編集。モバイルのマイデータと同じフォームを開く
+  // 学年・課程と取り込んだ科目の訂正。モバイルのマイデータと同じフォームを開く(design.md §8.4)
   const [editing, setEditing] = useState(false);
 
   const openEditor = () => {
@@ -44,8 +43,11 @@ export default function PcMyDataPage() {
     window.scrollTo({ top: 0 });
   };
 
-  /** デモの学生に切り替える。前の学生の提案と会話は捨てる */
-  const handleDemoLoad = useReplaceStudent();
+  /**
+   * デモの学生に切り替える・訂正した内容を入れる。どちらも前の提案と会話は捨てる
+   * (訂正は内容が変わったときだけ呼ばれる。design.md §8.4)
+   */
+  const replaceStudent = useReplaceStudent();
 
   const handleReset = () => {
     if (confirm("取り込んだ成績・対話履歴をすべて消去しますか? この操作は取り消せません。")) {
@@ -85,11 +87,10 @@ export default function PcMyDataPage() {
       <div className="flex flex-1 flex-col items-center px-4 py-10 md:px-16">
         {/* overflow-clip は sticky を殺さない（overflow-hidden だとフォームの見出しが固定されない） */}
         <div className="w-full max-w-[720px] overflow-clip rounded-lg border border-border-primary">
-          <ManualInputForm
-            initialProfile={profile}
-            mode="edit"
-            onComplete={(updated) => {
-              setProfile(updated);
+          <ProfileEditForm
+            profile={profile}
+            onSave={(updated) => {
+              replaceStudent(updated);
               setEditing(false);
             }}
             onCancel={() => setEditing(false)}
@@ -128,7 +129,7 @@ export default function PcMyDataPage() {
           <div className="flex items-center gap-2">
             <User size={18} className="text-accent" aria-hidden="true" />
             <h2 className="text-[15px] font-bold text-fg-primary">履修プロファイル</h2>
-            <EditButton label="学年・課程を編集" onClick={openEditor} />
+            <EditButton label="学年・課程を訂正" onClick={openEditor} />
           </div>
           <div className="overflow-hidden rounded border border-border-primary">
             {profRows.map((row, i) => (
@@ -177,13 +178,13 @@ export default function PcMyDataPage() {
           </div>
         </section>
 
-        {/* 編集画面には未修得の科目も並ぶので、件数は取り込んだ全科目で出す */}
+        {/* 訂正の画面には未修得の科目も並ぶので、件数は取り込んだ全科目で出す */}
         <CourseSection
           title="修得済み科目"
           courses={passedCourses}
           action={
             <EditButton
-              label={`科目を編集（${profile.completedCourses.length}科目）`}
+              label={`科目を訂正（${profile.completedCourses.length}科目）`}
               onClick={openEditor}
             />
           }
@@ -210,7 +211,7 @@ export default function PcMyDataPage() {
           <DemoPicker
             key={profile.demo ? `${profile.demo.key.programCode}-${profile.demo.key.grade}-${profile.demo.key.term}` : "none"}
             initial={profile.demo?.key}
-            onLoad={handleDemoLoad}
+            onLoad={replaceStudent}
             submitLabel="この学生に切り替える"
           />
         </section>
@@ -279,24 +280,21 @@ function CourseSection({
               <p className="truncate text-sm font-medium text-fg-primary">{course.title}</p>
               <p className="mt-0.5 text-xs text-fg-faint">
                 {course.year}年度 {course.term}
-                {course.code ? ` · ${course.code}` : ""}
               </p>
             </div>
             <div className="flex items-center gap-3 shrink-0">
               <span className="text-xs text-fg-tertiary">{course.credits}単位</span>
-              {course.rawScore && (
-                <span
-                  className={`rounded px-1.5 py-0.5 text-center text-xs font-semibold ${
-                    unearned
-                      ? "bg-[#FEE2E2] text-[#991B1B]"
-                      : course.status === "registered"
-                        ? "bg-pending-bg text-pending-fg"
-                        : "bg-[#EFF6FF] text-fg-primary"
-                  }`}
-                >
-                  {course.rawScore}
-                </span>
-              )}
+              <span
+                className={`rounded px-1.5 py-0.5 text-center text-xs font-semibold ${
+                  unearned
+                    ? "bg-[#FEE2E2] text-[#991B1B]"
+                    : course.status === "registered"
+                      ? "bg-pending-bg text-pending-fg"
+                      : "bg-[#EFF6FF] text-fg-primary"
+                }`}
+              >
+                {COURSE_STATUS_LABEL[course.status]}
+              </span>
             </div>
           </div>
         ))}

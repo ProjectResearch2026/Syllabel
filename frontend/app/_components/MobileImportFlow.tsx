@@ -20,13 +20,12 @@ import {
   Loader2,
   CircleAlert,
 } from "lucide-react";
-import { isUnearned, useStudentStore, type StudentProfile } from "@/lib/student";
+import { COURSE_STATUS_LABEL, isUnearned, useStudentStore, type StudentProfile } from "@/lib/student";
 import { useCreditSummary } from "@/lib/creditSummary";
 import { useReplaceStudent } from "@/lib/replaceStudent";
 import { useAiStore } from "@/lib/ai";
 import { demoLabel, isFreshmanDemo } from "@/lib/dummy/profiles";
 import DemoPicker from "./DemoPicker";
-import ManualInputForm from "./ManualInputForm";
 import PrivacyConsentModal from "./PrivacyConsentModal";
 
 const STEPS = ["アップロード", "確認", "完了"] as const;
@@ -75,8 +74,7 @@ type ParseState =
   /** PDF を選んだ。解析の前に取り扱いの確認を出す（要件§5.6。ui-design_phone.pen 01-2） */
   | { type: "consent"; file: File }
   | { type: "parsing" }
-  | { type: "error"; message: string }
-  | { type: "manual" };
+  | { type: "error"; message: string };
 
 /**
  * 成績表の取り込み（モバイル。ui-design_phone.pen 01〜03、`/`）。
@@ -149,18 +147,6 @@ export default function MobileImportFlow() {
   // 1年前期のデモは入学直後で成績表が無い。「取り込み」とは言わず、新入生として始める
   const freshman = isFreshmanDemo(pending);
 
-  if (parseState.type === "manual") {
-    return (
-      <ManualInputForm
-        onComplete={(profile) => {
-          stage(profile, "手入力");
-          setParseState({ type: "idle" });
-        }}
-        onCancel={() => setParseState({ type: "idle" })}
-      />
-    );
-  }
-
   return (
     <div className="flex flex-1 flex-col bg-white">
       {/* Header */}
@@ -212,16 +198,17 @@ export default function MobileImportFlow() {
                 <div className="flex items-start gap-1.5">
                   <CircleAlert size={18} className="text-[#BA1A1A] shrink-0 mt-px" />
                   <p className="text-[13px] font-semibold text-[#93000A]">
-                    成績表を読み取れませんでした。手入力でご入力ください。
+                    成績表を読み取れませんでした。もう一度選ぶか、デモの学生で試してください。
                   </p>
                 </div>
                 <p className="text-[11px] text-[#93000A]/80">{parseState.message}</p>
                 <div className="flex flex-col gap-2">
+                  {/* 手入力のフォームは置かない(要件§4.1)。デモの学生を読み込み、マイデータで直す */}
                   <button
-                    onClick={() => setParseState({ type: "manual" })}
+                    onClick={() => setDemoOpen(true)}
                     className="h-11 rounded bg-accent text-sm font-semibold text-fg-inverse active:bg-primary-dark transition-colors"
                   >
-                    手入力で続ける
+                    デモの学生で試す
                   </button>
                   <label className="h-11 rounded border-[1.5px] border-fg-primary bg-surface-primary flex items-center justify-center cursor-pointer active:bg-surface-gray transition-colors">
                     <input type="file" accept="application/pdf" className="hidden" onChange={handleFile} />
@@ -368,8 +355,6 @@ export default function MobileImportFlow() {
             )}
             {courses.slice(0, 5).map((c, i) => {
               const fail = isUnearned(c);
-              const scoreLabel =
-                c.status === "registered" ? "登録中" : (c.rawScore ?? (fail ? "未修得" : "合格"));
               return (
                 <div
                   key={`${c.title}-${i}`}
@@ -378,11 +363,15 @@ export default function MobileImportFlow() {
                   }`}
                 >
                   <span
-                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold tabular-nums ${
-                      fail ? "bg-[#FEE2E2] text-[#991B1B]" : "bg-[#D1FAE5] text-[#065F46]"
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                      fail
+                        ? "bg-[#FEE2E2] text-[#991B1B]"
+                        : c.status === "registered"
+                          ? "bg-pending-bg text-pending-fg"
+                          : "bg-[#D1FAE5] text-[#065F46]"
                     }`}
                   >
-                    {scoreLabel}
+                    {COURSE_STATUS_LABEL[c.status]}
                   </span>
                   <span className="flex-1 text-xs font-semibold text-[#1A2B4E] truncate">{c.title}</span>
                 </div>

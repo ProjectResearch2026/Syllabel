@@ -1,7 +1,11 @@
 <!-- BEGIN:nextjs-agent-rules -->
-# This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 ---
@@ -165,7 +169,7 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 ## 課程コードの解決
 
-履修要項を引くキーは **(課程コード, 入学年度)** である(design.md §4.4.2)。`StudentProfile.program` に入るのは**課程名**なので、`GET /api/curricula` と `POST /api/proposal` を呼ぶ前に `lib/programs.ts` の `programCodeOf()` でコードに直す。入学年度は同モジュールの `resolveAdmissionYear()` で決める(成績表の入学日から読んだ `admissionYear` を優先し、無いとき=手入力だけ学年から推定する)。課程一覧の正本は `curricula/admission-<年度>/` の課程ファイルである。
+履修要項を引くキーは **(課程コード, 入学年度)** である(design.md §4.4.2)。`StudentProfile.program` に入るのは**課程名**なので、`GET /api/curricula` と `POST /api/proposal` を呼ぶ前に `lib/programs.ts` の `programCodeOf()` でコードに直す。入学年度は同モジュールの `resolveAdmissionYear()` で決める(成績表の入学日から読んだ `admissionYear` を優先し、無いとき=読み取れなかったときだけ学年から推定する)。課程一覧の正本は `curricula/admission-<年度>/` の課程ファイルである。
 
 ## プライバシー設計上の制約
 
@@ -254,7 +258,8 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 - `pdfjs-dist` でテキストレイヤーを抽出。**legacy ビルド(`pdfjs-dist/legacy/build/pdf.mjs` と同ビルドの worker)を使い、`page.getTextContent()` は使わずに `streamTextContent()` を `getReader()` で読む**(design.md §4.1.3)。通常ビルドは `Map.prototype.getOrInsertComputed` を持たないブラウザ(Chromium 141 など)で、`getTextContent()` は ReadableStream の非同期反復を持たない Safari(iPhone を含む)で、どちらも取り込みの最初に落ちる
 - 龍谷大学成績表レイアウト前提のルールベースパーサーを実装
 - 評価記号(`T`/`N`/`G`/`D`/`J`/`M`)と数値スコアを認識し合否を判定。100点満点の場合は60点以上を合格
-- 解析失敗時は手入力へのフォールバックを促すメッセージを表示
+- 解析失敗時は、もう一度選ぶか、デモの学生で試すよう案内する。**手入力のフォームは置かない**(要件§4.1。科目を一から入力させるのは現実的でなく、成績表なしで試すときはデモの学生をマイデータで直す)
+- **評価(点数・評価記号)はパーサーの中だけで使う**(合否と修得学期の判定)。`Course` に持たせず、画面にも backend にも出さない(要件§4.2、design.md §5.2.1)。画面は履修状態(合格・不合格・履修辞退・発表待ち。`COURSE_STATUS_LABEL`)を出す
 
 **取り込むのは成績表に載っている全科目であり、履修状態(`status`)を付けて渡す**(要件§4.2)。不合格・履修辞退は【再履修の対象】として履修提案に渡すため、**パーサーで落としてはならない**(設計書 §6.1)。卒業要件の単位計算に数えるのは `passed` だけで、その絞り込みは単位を数える側(`CreditBar` / 取り込み確認 / マイデータ)と backend の `requirements.py` が行う。
 
@@ -266,13 +271,23 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 **成績表からは学期の判断材料も読む**(design.md §5.2.1)。右上の**作成月日**(年はヘッダの年度から補う)と「**在籍年数 / 休学年数 / 在学年数**」を読む。**次に登録する学期(`lib/targetTerm.ts`)は作成日の月で決める**(4月 → 同年度前期、5〜9月 → 同年度後期、10〜3月 → 翌年度前期)。**在籍年数は学期の決定に使わない** — その年度を丸1年と数えるため(2024年4月入学で 2026年9月作成は 3.0)、「入学年度の前期+在籍年数×2学期」は9月作成の成績表で1学期先を指す(実際に 2026年度後期のはずが 2027年度前期になった)。**成績の有無から学期を推定してはならない** — 成績が1件も付かなかった学期があると1年前の学期を指す。**基本情報欄は見出し「入学日」からの相対位置で読む**(帳票は作成年度によって全体が縦にずれる)。
 
-**提案する学期は `lib/targetTerm.ts` の `useTargetTerm()` だけから引く。** 提案するのは取り込んだ成績表の次の学期であり、**学生には選び直させない**(画面の `app/proposal/_components/TargetTermLabel.tsx` は表示だけ)。`POST /api/proposal` の `targetTerm` と画面の表示が同じ値を見る。手入力・デモ(成績表なし)のときだけ今日の日付で決め、画面でその旨を添える。ブラウザの今日の日付から学期を作って表示してはならない(提案の対象と食い違う)。
+**提案する学期は `lib/targetTerm.ts` の `useTargetTerm()` だけから引く。** 提案するのは取り込んだ成績表の次の学期であり、**学生には選び直させない**(画面の `app/proposal/_components/TargetTermLabel.tsx` は表示だけ)。`POST /api/proposal` の `targetTerm` と画面の表示が同じ値を見る。成績表から作成日を読めなかったときだけ今日の日付で決め、画面でその旨を添える(デモは `demo.target` に固定)。ブラウザの今日の日付から学期を作って表示してはならない(提案の対象と食い違う)。
 
 ## 龍谷祭デモ向け機能
 
 - ダミー学生は `lib/dummy/profiles.json` の48件(課程6 × 提案を受ける学年4 × 提案する学期2)。**手で書き換えず** `backend/scripts/generate_dummy_profiles.py` で作り直す(履修要項と api-clean の開講実績から組み立てる。検査は `backend/tests/test_dummy_profiles.py`)。約100KBあるので、選んだときに `loadDemoProfile()` が `import()` する
 - 選ぶ部品は `app/_components/DemoPicker.tsx` ひとつで、取り込み画面(PC・モバイル)とマイデータ(PC)・設定(モバイル)で共用する。学期の初期値は `defaultDemoTerm()`(3〜8月は前期、9〜2月は後期)
 - デモの学生は `profile.demo` を持ち、**提案する学期は `demo.target` に固定する**(`lib/targetTerm.ts`。今日の日付から決めない)。`grade` は提案する学期の学年である
-- **別の学生に差し替えるときは `lib/replaceStudent.ts` の `useReplaceStudent()` を通す**(成績表の取り込み・デモの学生の切り替え)。前の学生の履修提案と会話、シラバス検索の絞り込みと検索条件(`useSyllabusUIStore` の `reset()`)を捨ててからプロファイルを入れる。`setProfile` を直接呼ぶと、前の学生の時間割が新しい学生の時間割として残る。同じ学生の学年・科目を直すだけ(マイデータの編集)は `setProfile` でよい
+- **別の学生に差し替えるときは `lib/replaceStudent.ts` の `useReplaceStudent()` を通す**(成績表の取り込み・デモの学生の切り替え)。前の学生の履修提案と会話、シラバス検索の絞り込みと検索条件(`useSyllabusUIStore` の `reset()`)を捨ててからプロファイルを入れる。`setProfile` を直接呼ぶと、前の学生の時間割が新しい学生の時間割として残る。マイデータの訂正も、内容が変わったときはこれを通す(下記)
 - 1年前期(`isFreshmanDemo()`)は成績が1件も無い。取り込み確認・完了の画面では「取り込み」と言わず「新入生として始める」とする
 - 展示用端末では「PDF取り込み」を無効化する
+
+## マイデータの訂正
+
+design.md §8.4。フォームは `app/_components/ProfileEditForm.tsx` ひとつで、PC(`PcMyDataPage.tsx`)とモバイル(`MobileSettingsPage.tsx`)が共用する。
+
+- **科目の追加は履修要項から選ぶ。** 候補は `fetchCurricula()` の `courses`(課程・入学年度はフォームで選んでいる値から決める)。科目名と単位数は候補の値で固定し、照合は `matchesTitle()`。**科目名を自由に入力させない** — 履修要項に無い科目名は卒業要件の判定で計上されない
+- **制限はそれだけにする。** 成績表から取り込んだ科目の削除・履修状態の変更、学年・課程の訂正は止めない(パーサーの誤りを直す手段)
+- **同じ科目を2件にしない。** 一覧にある科目は候補から外し、結果が変わったら既存の行の履修状態を変える
+- **保存はフォームが触らない項目(`issuedOn` / `enrollment` / `demo`)を保つ。** プロファイルを作り直さず、元のプロファイルに変更分を重ねる
+- **内容が変わったら、確認してから `useReplaceStudent()` で入れる**(提案と会話を捨てる)。何も変わっていなければ捨てずに閉じる

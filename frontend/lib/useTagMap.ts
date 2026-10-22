@@ -62,15 +62,12 @@ export function useTagMap(): TagResolver {
   const candidates = useMemo(() => {
     if (!curricula) return null;
     const completed = profile?.completedCourses ?? [];
-    const passedCodes = new Set(
-      completed.filter((c) => c.status === "passed" && c.code).map((c) => c.code as string),
-    );
     // 成績表由来の科目名は表記が揺れる(全角英数字・空白)ため正規化して持つ。
     // backend の `normalize_title()` と同じ規則(`lib/courseTitle.ts`)
     const passedTitles = new Set(
       completed.filter((c) => c.status === "passed").map((c) => normalizeTitle(c.title)),
     );
-    return buildTagMap(curricula, passedCodes, passedTitles);
+    return buildTagMap(curricula, passedTitles);
   }, [curricula, profile]);
 
   const programName = profile?.program ?? null;

@@ -11,7 +11,7 @@ import {
   Trash2,
   ChevronRight,
 } from "lucide-react";
-import { isUnearned, useStudentStore, type Course } from "@/lib/student";
+import { COURSE_STATUS_LABEL, isUnearned, useStudentStore, type Course } from "@/lib/student";
 import { useChatStore } from "@/lib/chat";
 import { useChatHistoryStore } from "@/lib/chatHistory";
 import { useProposalStore } from "@/lib/proposal";
@@ -22,7 +22,7 @@ import { resolveAdmissionYear } from "@/lib/programs";
 import { demoLabel, isFreshmanDemo } from "@/lib/dummy/profiles";
 import DemoPicker from "@/app/_components/DemoPicker";
 import { useReplaceStudent } from "@/lib/replaceStudent";
-import ManualInputForm from "@/app/_components/ManualInputForm";
+import ProfileEditForm from "@/app/_components/ProfileEditForm";
 
 /** 修得済み科目は先頭の数件だけ出し、残りは「すべて表示」で開く */
 const PREVIEW_COUNT = 4;
@@ -108,10 +108,10 @@ function NavRow({
   );
 }
 
-/** 取り込んだ科目の1行。成績の印は修得済みが紺、未修得が赤で、登録済み（未確定）は出さない */
+/** 取り込んだ科目の1行。履修状態の印は修得済みが紺、未修得が赤、登録済み（未確定）が薄い紺 */
 function CourseRow({ course, last }: { course: Course; last?: boolean }) {
   const unearned = isUnearned(course);
-  const meta = [`${course.year}年度 ${course.term}`, course.code].filter(Boolean).join(" · ");
+  const meta = `${course.year}年度 ${course.term}`;
   return (
     <div
       className={`flex items-center gap-2.5 px-5 py-2.5 ${last ? "" : "border-b border-[#F3F4F6]"}`}
@@ -124,18 +124,16 @@ function CourseRow({ course, last }: { course: Course; last?: boolean }) {
       {course.status === "registered" ? (
         // 成績発表待ち。卒業要件のバーと同じ薄い紺で示す
         <span className="flex h-[22px] shrink-0 items-center justify-center rounded bg-pending-bg px-1.5 text-[10px] font-bold text-pending-fg">
-          発表待ち
+          {COURSE_STATUS_LABEL.registered}
         </span>
       ) : (
-        course.rawScore && (
-          <span
-            className={`flex h-[22px] min-w-7 shrink-0 items-center justify-center rounded px-1 text-xs font-bold tabular-nums text-white ${
-              unearned ? "bg-[#BA1A1A]" : "bg-[#1A2B4E]"
-            }`}
-          >
-            {course.rawScore}
-          </span>
-        )
+        <span
+          className={`flex h-[22px] shrink-0 items-center justify-center rounded px-1.5 text-[10px] font-bold text-white ${
+            unearned ? "bg-[#BA1A1A]" : "bg-[#1A2B4E]"
+          }`}
+        >
+          {COURSE_STATUS_LABEL[course.status]}
+        </span>
       )}
     </div>
   );
@@ -150,7 +148,6 @@ function CourseRow({ course, last }: { course: Course; last?: boolean }) {
 export default function MobileSettingsPage() {
   const router = useRouter();
   const profile = useStudentStore((s) => s.profile);
-  const setProfile = useStudentStore((s) => s.setProfile);
   const clearProfile = useStudentStore((s) => s.clearProfile);
   const clearAll = useChatStore((s) => s.clearAll);
   const clearHistory = useChatHistoryStore((s) => s.clearAll);
@@ -159,7 +156,8 @@ export default function MobileSettingsPage() {
   const resetSyllabusUI = useSyllabusUIStore((s) => s.reset);
   const { completedCredits } = useCreditSummary();
   const graduationCredits = useGraduationCredits(profile);
-  const [editMode, setEditMode] = useState<"grade-program" | "courses" | null>(null);
+  // 学年・課程と科目は同じフォームで訂正する(design.md §8.4)
+  const [editing, setEditing] = useState(false);
   const [showAllPassed, setShowAllPassed] = useState(false);
 
   // いま読み込んでいるのがデモのプロファイルか。デモを選ぶとその内容に差し替わる
@@ -176,8 +174,11 @@ export default function MobileSettingsPage() {
     }
   };
 
-  /** デモの学生に切り替える。前の学生の提案と会話は捨てる */
-  const loadDemo = useReplaceStudent();
+  /**
+   * デモの学生に切り替える・訂正した内容を入れる。どちらも前の提案と会話は捨てる
+   * (訂正は内容が変わったときだけ呼ばれる。design.md §8.4)
+   */
+  const replaceStudent = useReplaceStudent();
 
   const courses = profile?.completedCourses ?? [];
   const passed = courses.filter((c) => c.status === "passed");
@@ -187,16 +188,15 @@ export default function MobileSettingsPage() {
   const admissionYear = resolveAdmissionYear(profile);
   const iconCls = "text-fg-primary";
 
-  if (editMode !== null) {
+  if (editing && profile) {
     return (
-      <ManualInputForm
-        initialProfile={profile ?? undefined}
-        mode="edit"
-        onComplete={(updated) => {
-          setProfile(updated);
-          setEditMode(null);
+      <ProfileEditForm
+        profile={profile}
+        onSave={(updated) => {
+          replaceStudent(updated);
+          setEditing(false);
         }}
-        onCancel={() => setEditMode(null)}
+        onCancel={() => setEditing(false)}
       />
     );
   }
@@ -309,22 +309,26 @@ export default function MobileSettingsPage() {
           </>
         )}
 
-        {/* 学生情報の編集 */}
-        <SectionLabel>学生情報の編集</SectionLabel>
+        {/* 学生情報の訂正。取り込む前は訂正するものが無い */}
+        <SectionLabel>学生情報の訂正</SectionLabel>
         <Group>
-          <NavRow
-            icon={<GraduationCap size={16} className={iconCls} />}
-            label="学年・課程"
-            value={profile ? `${profile.grade ?? "-"}回生 / ${profile.program ?? "未設定"}` : "未登録"}
-            onClick={() => setEditMode("grade-program")}
-          />
-          {/* 編集画面には未修得の科目も並ぶので、件数は取り込んだ全科目で出す */}
-          <NavRow
-            icon={<FileText size={16} className={iconCls} />}
-            label="修得科目を編集"
-            value={`${courses.length}科目`}
-            onClick={() => setEditMode("courses")}
-          />
+          {profile && (
+            <>
+              <NavRow
+                icon={<GraduationCap size={16} className={iconCls} />}
+                label="学年・課程"
+                value={`${profile.grade ?? "-"}回生 / ${profile.program ?? "未設定"}`}
+                onClick={() => setEditing(true)}
+              />
+              {/* 訂正の画面には未修得の科目も並ぶので、件数は取り込んだ全科目で出す */}
+              <NavRow
+                icon={<FileText size={16} className={iconCls} />}
+                label="科目を訂正"
+                value={`${courses.length}科目`}
+                onClick={() => setEditing(true)}
+              />
+            </>
+          )}
           <NavRow
             icon={<FileUp size={16} className={iconCls} />}
             label="PDFを再インポート"
@@ -352,7 +356,7 @@ export default function MobileSettingsPage() {
               <DemoPicker
                 key={profile?.demo ? `${profile.demo.key.programCode}-${profile.demo.key.grade}-${profile.demo.key.term}` : "none"}
                 initial={profile?.demo?.key}
-                onLoad={loadDemo}
+                onLoad={replaceStudent}
                 submitLabel="この学生に切り替える"
               />
             </div>

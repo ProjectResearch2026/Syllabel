@@ -17,7 +17,8 @@ import { useSyllabusUIStore } from "@/lib/syllabusUI";
  * 学生ごとに決まるため、前の学生のつもりで選んだ絞り込みは新しい学生には意味を持たない。
  * 残すと、ヘッダーの「シラバス」が前の学生のページ位置(`offset`)と絞り込みのまま
  * 一覧を開き、新しい学生では該当が少なく空のページが出ていた。リセット(全消去)と同じ扱い。
- * 同じ学生の学年・科目を直すだけ(マイデータの編集)は `setProfile` をそのまま使う。
+ * マイデータの訂正も、内容が変わったときはこれを通す(design.md §8.4)。学年・課程が変われば
+ * 提案の前提が、科目が変われば修得済み・再履修の判断が変わり、前の提案と会話は当てはまらない。
  */
 export function useReplaceStudent(): (profile: StudentProfile) => void {
   const setProfile = useStudentStore((s) => s.setProfile);
