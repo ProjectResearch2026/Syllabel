@@ -14,7 +14,7 @@ export type { CourseCategoryTag, SubcategoryTag };
 
 /** 区分の絞り込みで「絞らない」を表す値。 */
 export const ALL_CATEGORIES = "すべて";
-/** 履修区分・状態の絞り込みで「絞らない」を表す値。 */
+/** 履修区分の絞り込みで「絞らない」を表す値。 */
 export const ALL_TAGS = "すべて";
 /** 分野の絞り込みで「絞らない」を表す値。 */
 export const ALL_SUBCATEGORIES = "すべて";
@@ -22,10 +22,11 @@ export const ALL_SUBCATEGORIES = "すべて";
 /**
  * 絞り込みの選択肢。**PC・モバイルで同じものを使うため、ここに1つだけ置く。**
  *
- * 履修区分と状態はチップに、区分と分野はセレクトに出す(§8.2.2)。分野のセレクトは
- * 区分が `教養教育` のときだけ出す。
+ * 履修区分はチップに、区分と分野はセレクトに出す(§8.2.2)。分野のセレクトは
+ * 区分が `教養教育` のときだけ出す。修得済み(状態)はチップに置かず、
+ * 「修得済みを除く」スイッチで出し入れする(`hideCompleted`)
  */
-export const TAG_CHIPS = [ALL_TAGS, "必修", "選択必修", "選択", "随意", "修得済み"] as const;
+export const TAG_CHIPS = [ALL_TAGS, "必修", "選択必修", "選択", "随意"] as const;
 export const CATEGORY_CHOICES = [
   ALL_CATEGORIES,
   "教養教育",
@@ -72,19 +73,14 @@ export function periodChoices(current: string): number[] {
     : known;
 }
 
-/**
- * 【試作】修得済みの除き方。`switch` = A(「修得済みを除く」スイッチ。既定は OFF)、
- * `notice` = B(既定で除き、除いた件数と「表示する」を出す)。見比べたら片方に決める
- */
-export const COMPLETED_UI: "switch" | "notice" =
-  process.env.NEXT_PUBLIC_COMPLETED_UI === "switch" ? "switch" : "notice";
-const HIDE_COMPLETED_DEFAULT = COMPLETED_UI === "notice";
-
 type SyllabusUIStore = {
-  /** 修得済みの科目を一覧から除くか(`修得済み` のチップを選んでいるあいだは効かない) */
+  /**
+   * 修得済みの科目を一覧から除くか。**既定は除く**(§8.2.2)。学生が一覧で探すのは
+   * これから履修する科目であり、修得済みの一覧はマイデータで見られる
+   */
   hideCompleted: boolean;
   setHideCompleted: (hide: boolean) => void;
-  /** 履修区分または状態での絞り込み(`必修` / `選択必修` / `選択` / `随意` / `修得済み`) */
+  /** 履修区分での絞り込み(`必修` / `選択必修` / `選択` / `随意`) */
   activeTag: string;
   setActiveTag: (tag: string) => void;
   /** 区分での絞り込み(`教養教育` / `専門基礎` / `専門応用` / `専門関連`) */
@@ -118,7 +114,7 @@ type SyllabusUIStore = {
  * 他の状態と同じくメモリにだけ持ち、再読み込みで消える。
  */
 export const useSyllabusUIStore = create<SyllabusUIStore>((set) => ({
-  hideCompleted: HIDE_COMPLETED_DEFAULT,
+  hideCompleted: true,
   setHideCompleted: (hide) => set({ hideCompleted: hide }),
   activeTag: ALL_TAGS,
   setActiveTag: (tag) => set({ activeTag: tag }),
@@ -131,7 +127,7 @@ export const useSyllabusUIStore = create<SyllabusUIStore>((set) => ({
   setListQuery: (query) => set({ listQuery: query }),
   reset: () =>
     set({
-      hideCompleted: HIDE_COMPLETED_DEFAULT,
+      hideCompleted: true,
       activeTag: ALL_TAGS,
       activeCategory: ALL_CATEGORIES,
       activeSubcategory: ALL_SUBCATEGORIES,
@@ -155,9 +151,6 @@ export const useSyllabusUIStore = create<SyllabusUIStore>((set) => ({
  * | 履修区分 | `必修` / `選択必修` / `選択` / `随意` |
  */
 export type RequirementTag = "必修" | "選択必修" | "選択" | "随意";
-
-/** 履修区分または状態。絞り込みのチップが取る値でもある。 */
-export type TagType = RequirementTag | "修得済み" | null;
 
 /** 1つのシラバスコードに付すタグ一式。すべて null / false ならタグなし。 */
 export type CourseTags = {
@@ -313,21 +306,24 @@ export function hasTags(tags: CourseTags): boolean {
 /**
  * 絞り込みに一致するか。design.md §8.2.2。
  *
- * 軸どうしは AND で効く。`修得済み` は履修区分ではなく状態の軸だが、
- * 学生の探し方に沿うため同じチップの並びに置く。
+ * 軸どうしは AND で効く。修得済み(状態の軸)はチップではなくスイッチで除く。
+ * 修得済みには履修区分を出さないので、履修区分のチップを選べば修得済みは
+ * スイッチによらず外れる
  */
 export function matchesFilter(
   tags: CourseTags,
   activeTag: string,
   activeCategory: string,
   activeSubcategory: string,
+  /** 修得済みを除くか(「修得済みを除く」スイッチ) */
+  hideCompleted: boolean,
 ): boolean {
   if (activeCategory !== ALL_CATEGORIES && tags.category !== activeCategory) return false;
   if (activeSubcategory !== ALL_SUBCATEGORIES && tags.subcategory !== activeSubcategory) {
     return false;
   }
+  if (hideCompleted && tags.completed) return false;
   if (activeTag === ALL_TAGS) return true;
-  if (activeTag === "修得済み") return tags.completed;
   return tags.requirement === activeTag;
 }
 
@@ -335,14 +331,17 @@ export function matchesFilter(
  * タグでの絞り込みが効いているか。design.md §8.2.2。
  *
  * 絞り込みが効いているあいだは、件数の表示を絞り込み後のものに切り替え、
- * 絞る前の母数を併記する(`useTaggedResults()`。§6.1.4)。
+ * 絞る前の母数を併記する(`useTaggedResults()`。§6.1.4)。`hideCompleted` には
+ * 修得済みを実際に除いたか(スイッチが ON で、除いた科目があるか)を渡す
  */
 export function isFiltering(
   activeTag: string,
   activeCategory: string,
   activeSubcategory: string,
+  hideCompleted: boolean,
 ): boolean {
   return (
+    hideCompleted ||
     activeTag !== ALL_TAGS ||
     activeCategory !== ALL_CATEGORIES ||
     activeSubcategory !== ALL_SUBCATEGORIES

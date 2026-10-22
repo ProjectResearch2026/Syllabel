@@ -5,7 +5,6 @@ import {
   useSyllabusUIStore,
   matchesFilter,
   isFiltering,
-  COMPLETED_UI,
   type CourseTags,
 } from "@/lib/syllabusUI";
 import { useTagMap } from "@/lib/useTagMap";
@@ -30,12 +29,10 @@ export type TaggedResults = {
   /** 絞り込みが効いているか */
   filtering: boolean;
   /**
-   * 修得済みとして除いた件数(ほかの絞り込みには一致したもの)。除いていないときは、
-   * 一覧に含まれている修得済みの件数
+   * 修得済みとして除いた件数(ほかの絞り込みには一致したもの)。0件のときに、
+   * 修得済みを除いたせいかを見分けるのに使う
    */
-  completedCount: number;
-  /** 修得済みを除いているか(`修得済み` のチップを選んでいるあいだは false) */
-  hidingCompleted: boolean;
+  hiddenCompleted: number;
   /**
    * 実際に切り出した位置。URL の `offset` が絞り込み後の件数を超えていたときは
    * 最後のページの先頭に丸めた値になる。件数表示とページ送りはこちらを使う
@@ -86,7 +83,6 @@ export function useTaggedResults(
   const activeCategory = useSyllabusUIStore((s) => s.activeCategory);
   const activeSubcategory = useSyllabusUIStore((s) => s.activeSubcategory);
   const hideCompleted = useSyllabusUIStore((s) => s.hideCompleted);
-  const hidingCompleted = hideCompleted && activeTag !== "修得済み";
   const tagOf = useTagMap();
 
   const matching = useMemo(() => {
@@ -99,17 +95,15 @@ export function useTaggedResults(
       return { course, tags: tagOf(course.syllabus_code, target) };
     });
     return tagged.filter(({ tags }) =>
-      matchesFilter(tags, activeTag, activeCategory, activeSubcategory),
+      // 修得済みはここでは除かず、下で数えてから除く
+      matchesFilter(tags, activeTag, activeCategory, activeSubcategory, false),
     );
   }, [results, targets, faculty, tagOf, activeTag, activeCategory, activeSubcategory]);
-  const completedCount = useMemo(
-    () => (activeTag === "修得済み" ? 0 : matching.filter(({ tags }) => tags.completed).length),
-    [matching, activeTag],
-  );
   const filtered = useMemo(
-    () => (hidingCompleted ? matching.filter(({ tags }) => !tags.completed) : matching),
-    [matching, hidingCompleted],
+    () => (hideCompleted ? matching.filter(({ tags }) => !tags.completed) : matching),
+    [matching, hideCompleted],
   );
+  const hiddenCompleted = matching.length - filtered.length;
 
   const lastPageStart = Math.max(0, Math.ceil(filtered.length / limit) - 1) * limit;
   const start = Math.min(offset, lastPageStart);
@@ -138,12 +132,17 @@ export function useTaggedResults(
     visible: page.map((p) => ({ ...p, instructors: instructors[p.course.syllabus_code] ?? null })),
     matched: filtered.length,
     total: results.length,
-    // B(既定で除く)は除いた件数を別に出すので、母数の併記は明示の絞り込みだけで決める
-    filtering:
-      isFiltering(activeTag, activeCategory, activeSubcategory) ||
-      (COMPLETED_UI === "switch" && hidingCompleted),
-    completedCount,
-    hidingCompleted,
+    filtering: isFiltering(activeTag, activeCategory, activeSubcategory, hiddenCompleted > 0),
+    hiddenCompleted,
     offset: start,
   };
+}
+
+/**
+ * 一覧が0件のときの文言(PC・モバイル共用)。**修得済みを除いたせいで0件になったときは
+ * そう言う** — 修得した科目を名前で引くと、スイッチが ON のままでは何も出ない(§8.2.2)
+ */
+export function emptyMessage(filtering: boolean, hiddenCompleted: number): string {
+  if (hiddenCompleted > 0) return "修得済みの科目を除いています。スイッチを切ると表示されます";
+  return filtering ? "絞り込みに該当する科目がありません" : "該当する科目がありません";
 }

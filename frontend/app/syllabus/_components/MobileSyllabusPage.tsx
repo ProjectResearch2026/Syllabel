@@ -29,7 +29,7 @@ import {
 } from "@/lib/syllabusUI";
 import { useFilterControls } from "@/lib/useFilterControls";
 import { useSearchInput } from "@/lib/useSearchInput";
-import { useTaggedResults } from "@/lib/useTaggedResults";
+import { emptyMessage, useTaggedResults } from "@/lib/useTaggedResults";
 import { detailHref } from "@/lib/syllabusQuery";
 import { DAYS } from "@/lib/timetable";
 import CourseTags from "./CourseTags";
@@ -77,7 +77,7 @@ export default function MobileSyllabusPage({
   const conversation = useSyllabusConversation();
 
   // タグ付け・絞り込み・ページの切り出しは PC と同じものを使う(§8)
-  const { visible, matched, total, filtering, offset: start, completedCount } = useTaggedResults(
+  const { visible, matched, total, filtering, offset: start, hiddenCompleted } = useTaggedResults(
     results,
     targets,
     faculty,
@@ -337,7 +337,7 @@ export default function MobileSyllabusPage({
       <SyllabusProfileNotice />
 
       {/* Results header */}
-      {/* 幅が狭いので、修得済みの除き方は件数の下の行に置く */}
+      {/* 幅が狭いので、「修得済みを除く」は件数の下の行に置く */}
       <div className="flex flex-col items-start gap-1 px-4 pt-2.5 pb-1.5 bg-white">
         <span className="min-w-0 text-xs text-[#4B5563]">
           {/* 絞り込みは全件に効く。件数は絞り込み後のものを出す(§8) */}
@@ -349,13 +349,13 @@ export default function MobileSyllabusPage({
             <span className="ml-1.5">（「{q}」を教員名として検索）</span>
           )}
         </span>
-        <CompletedFilter completedCount={completedCount} compact />
+        <CompletedFilter compact />
       </div>
 
       {/* Course list */}
       {visible.length === 0 ? (
         <p className="px-4 py-16 text-center text-sm text-[#6B7280]">
-          {filtering ? "絞り込みに該当する科目がありません" : "該当する科目がありません"}
+          {emptyMessage(filtering, hiddenCompleted)}
         </p>
       ) : (
         <div className="flex flex-col">
