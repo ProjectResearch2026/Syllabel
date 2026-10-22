@@ -210,6 +210,9 @@ export function useRequirements(
   const slots = before.slots
     // `required: 0` の枠は受け皿を持たない通過点(§4.4.5)。画面には出さない
     .filter((s) => s.required > 0)
+    // フリーゾーンは専攻科目・教養教育科目から溢れた単位の受け皿なので最後に並べる。
+    // 判定の並び(課程ファイル→教養教育科目ファイル)のままだと専攻と教養の間に挟まる
+    .sort((a, b) => Number(a.key.startsWith("free.")) - Number(b.key.startsWith("free.")))
     .map((s) => {
       const next = afterSlots.get(s.key) ?? s;
       return {
