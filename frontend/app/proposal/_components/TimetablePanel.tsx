@@ -216,7 +216,8 @@ export default function TimetablePanel() {
             const order = di * PERIODS.length + (p - PERIODS[0]);
             const entries = table[p]?.[d] ?? [];
             // 1科目ならマス全体を区分の色で塗り、マスごとリンクにする。
-            // 複数なら科目ごとに色の付いた枠を積み、枠ごとにリンクにする
+            // 複数なら科目ごとに色の付いた枠を積み、枠ごとにリンクにする。枠には細い線を引く
+            // (選択の色は白との差が小さく、線が無いと2科目の境目が読みにくい)
             const single = entries.length === 1 ? entries[0] : null;
             const cellClass = `flex min-w-0 flex-col justify-center gap-1 border-r border-border-primary last:border-r-0 ${
               entries.length > 1 ? "p-1" : "p-2"
@@ -262,7 +263,7 @@ export default function TimetablePanel() {
                     period={p}
                     selected={isSelected(entry, selection)}
                     onOpen={onOpen}
-                    className={`flex min-h-0 flex-1 flex-col justify-center gap-0.5 rounded-sm px-1.5 py-1 ${
+                    className={`flex min-h-0 flex-1 flex-col justify-center gap-0.5 rounded-sm border border-border-primary px-1.5 py-1 ${
                       CELL_STYLES[entry.type].cell
                     } ${ENTER}`}
                     style={enterDelay(order)}

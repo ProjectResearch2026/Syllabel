@@ -239,7 +239,7 @@ export default function TimetableGrid({
                         key={`${entryKey(entry)}-${entry.quarter ?? ""}`}
                         type="button"
                         onClick={(e) => onTapCourse({ entry, day, period, rect: rectOf(e.currentTarget) })}
-                        className={`flex min-w-0 flex-1 flex-col justify-center gap-0.5 rounded-sm px-1 py-0.5 text-left ${
+                        className={`flex min-w-0 flex-1 flex-col justify-center gap-0.5 rounded-sm border border-border-primary px-1 py-0.5 text-left ${
                           CELL_STYLES[entry.type].cell
                         } ${
                           isSelected(entry) ? "ring-1 ring-accent" : ""
