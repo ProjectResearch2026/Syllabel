@@ -35,7 +35,7 @@ export default function CompletedFilter({
           aria-checked={hideCompleted}
           onClick={() => selectHideCompleted(!hideCompleted)}
           className={`relative h-5 w-9 rounded-full transition-colors ${
-            hideCompleted ? "bg-fg-primary" : "bg-border-primary"
+            hideCompleted ? "bg-accent" : "bg-border-primary"
           }`}
         >
           <span
