@@ -1752,6 +1752,19 @@ def test_instructions_forbid_credit_arithmetic_in_summary():
     assert "単位数の合計や内訳の計算を書かない" in pa._SUMMARY_INSTRUCTIONS
 
 
+def test_instructions_do_not_frame_required_courses_as_shortfall():
+    """必修の科目を「不足を埋める」科目として理由・説明文に書かせない。
+
+    必修は配当された学期に履修するものであり、説明文が「専門応用科目(必修・選択)の
+    不足分を優先的に確保し」と必修を不足の補填として語っていた。
+    """
+    assert "配当された学期に履修するものとして提案に入れる" in pa._INSTRUCTIONS
+    assert "不足を埋める・単位を確保するとは書かない" in pa._INSTRUCTIONS
+    rule = "必修の科目は配当された学期に履修するものであり、不足の確保や補填として書かない"
+    assert rule in pa._INSTRUCTIONS
+    assert rule in pa._SUMMARY_INSTRUCTIONS
+
+
 # ---------------------------------------------------------------------------
 # 9. 単位が入る要件枠(§7.2.1)
 # ---------------------------------------------------------------------------
