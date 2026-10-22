@@ -337,16 +337,17 @@ export default function MobileSyllabusPage({
       <SyllabusProfileNotice />
 
       {/* Results header */}
-      {/* 幅が狭いので、「修得済みを除く」は件数の下の行に置く */}
-      <div className="flex flex-col items-start gap-1 px-4 pt-2.5 pb-1.5 bg-white">
+      {/*
+        件数と「修得済みを除く」を1行に並べ、一覧との間に罫線を引く。幅が狭いので、
+        件数は「1,020件（1,279件中）」までに詰める(何件目かはページ送りで分かる)
+      */}
+      <div className="flex items-center justify-between gap-3 border-b border-[#E5E7EB] bg-white px-4 py-2">
         <span className="min-w-0 text-xs text-[#4B5563]">
           {/* 絞り込みは全件に効く。件数は絞り込み後のものを出す(§8) */}
-          {`${matched.toLocaleString()}件の科目`}
+          <span className="font-semibold text-[#1A2B4E]">{`${matched.toLocaleString()}件`}</span>
           {filtering && `（${total.toLocaleString()}件中）`}
-          {visible.length > 0 &&
-            `・${(start + 1).toLocaleString()}〜${(start + visible.length).toLocaleString()}件目を表示`}
           {matchedBy === "instructor" && (
-            <span className="ml-1.5">（「{q}」を教員名として検索）</span>
+            <span className="block text-[11px]">「{q}」を教員名として検索</span>
           )}
         </span>
         <CompletedFilter compact />
