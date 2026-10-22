@@ -161,8 +161,8 @@ export type CourseTags = {
   /** 分野。教養教育科目だけが持つ */
   subcategory: SubcategoryTag | null;
   /**
-   * 履修区分。**修得済みのときと専門関連科目のときは null になる**
-   * (`resolveTags()` の規則を参照)
+   * 履修区分。**専門関連科目のときは null になる**(`resolveTags()` の規則を参照)。
+   * 修得済みでも持つ
    */
   requirement: RequirementTag | null;
 };
@@ -243,23 +243,23 @@ export function buildTagMap(
  *
  * | 状況 | 出すタグ |
  * |---|---|
- * | 修得済み | `修得済み` + 区分(+ 分野) |
+ * | 修得済み × 自課程の設置科目 | `修得済み` + 区分(+ 分野)+ 履修区分 |
+ * | 修得済み × 他課程の設置科目 | `修得済み` + `専門関連` |
  * | 履修可 × 未修得 × 自課程の設置科目 | 区分(+ 分野)+ 履修区分 |
  * | 履修可 × 未修得 × 他課程の設置科目 | `専門関連` のみ |
  * | 履修不可 / 可否を判定できない | なし |
  * | 履修要項に無い | なし |
  *
  * 分野は教養教育科目だけが持つ。
- * 履修区分を出さない場合が2つある。
- *
- * - **修得済みのとき。** 履修区分は「これから履修する必要があるか」を示す情報で
- *   あり、単位を修得した科目では意味を持たない。バッジも2つに収まる
- * - **他課程の設置科目（`own` が false）のとき。** その `type` は**導出元の課程に
- *   とっての**区分であって、閲覧している学生にとっての区分ではない。
- *   例えば「アルゴリズム及び演習Ⅰ」(Y001019010) は数理・情報科学課程の専攻科目だが
- *   全6課程に開かれており、知能情報メディア課程の学生も履修できる。この学生に
- *   とっての区分は**専門関連科目**であり、`related` → `free.faculty` の要件枠に
- *   計上される（§4.4.3）。導出元での `選択必修` をそのまま出してはならない
+ * **他課程の設置科目（`own` が false）には履修区分を出さない。** 修得済みでも同じである。
+ * その `type` は**導出元の課程にとっての**区分であって、閲覧している学生にとっての
+ * 区分ではない。
+ * 例えば「アルゴリズム及び演習Ⅰ」(Y001019010) は数理・情報科学課程の専攻科目だが
+ * 全6課程に開かれており、知能情報メディア課程の学生も履修できる。この学生に
+ * とっての区分は**専門関連科目**であり、`related` → `free.faculty` の要件枠に
+ * 計上される（§4.4.3）。導出元での `選択必修` をそのまま出してはならない。
+ * 導出した科目の `category` は backend が `専門関連科目` に付け替えて返すので、
+ * 修得済みのときも区分は `専門関連` になる
  *
  * **修得済みは履修可否を問わず出す。** 単位を修得した事実であり、そのクラスを
  * これから履修できるかとは無関係である。
@@ -282,7 +282,15 @@ export function resolveTags(
   const category = CATEGORY_LABEL[candidate.category] ?? null;
   const subcategory = candidate.subcategory ? SUBCATEGORY_LABEL[candidate.subcategory] : null;
 
-  if (candidate.completed) return { completed: true, category, subcategory, requirement: null };
+  // 他課程の設置科目の type は導出元の課程にとっての区分なので、修得済みでも出さない
+  if (candidate.completed) {
+    return {
+      completed: true,
+      category,
+      subcategory,
+      requirement: candidate.own ? candidate.type : null,
+    };
+  }
   if (!target || !canRegister(target, programName)) return NO_TAGS;
   // 他課程の設置科目。この学生にとっての区分は専門関連科目であり、履修区分は持たない
   if (!candidate.own) {
@@ -306,8 +314,7 @@ export function hasTags(tags: CourseTags): boolean {
  * 絞り込みに一致するか。design.md §8.2.2。
  *
  * 軸どうしは AND で効く。修得済み(状態の軸)はチップではなくスイッチで除く。
- * 修得済みには履修区分を出さないので、履修区分のチップを選べば修得済みは
- * スイッチによらず外れる
+ * 修得済みも履修区分を持つので、スイッチが OFF なら履修区分のチップにも当たる
  */
 export function matchesFilter(
   tags: CourseTags,
