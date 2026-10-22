@@ -65,7 +65,7 @@ def test_courses_match_curriculum(data, curricula):
         assert p["program"] == curriculum.program.name
         own = {normalize_title(c.title): c for c in curriculum.own_courses}
         target = (target_year, HALF_INDEX[p["term"]])
-        for title, year, term, credits, raw in p["courses"]:
+        for title, year, term, credits, _status in p["courses"]:
             course = own.get(normalize_title(title))
             assert course is not None, f"{p['programCode']} {title} は設置科目にない"
             assert course.credits == credits, title
@@ -74,12 +74,19 @@ def test_courses_match_curriculum(data, curricula):
             assert end < target, f"{title} {year}{term} は提案する学期より前でない"
 
 
+def test_courses_carry_status_not_score(data):
+    """科目は成績の評価ではなく履修状態で持つこと(design.md §5.2.1)。"""
+    statuses = {row[4] for p in data["profiles"] for row in p["courses"]}
+    assert statuses <= {"passed", "failed", "withdrawn", "registered"}
+    assert "passed" in statuses
+
+
 def test_registration_limits(data, curricula):
     """学期ごとの登録単位が履修登録制限単位数(CAP)に収まること。通年科目は半分ずつ数える。"""
     for p in data["profiles"]:
         curriculum = curricula[(p["programCode"], p["admissionYear"])].curriculum
         per_semester: dict[int, float] = defaultdict(float)
-        for _title, year, term, credits, _raw in p["courses"]:
+        for _title, year, term, credits, _status in p["courses"]:
             base = (year - p["admissionYear"]) * 2
             if term == "通年":
                 per_semester[base + 1] += credits / 2

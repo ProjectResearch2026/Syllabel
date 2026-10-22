@@ -299,7 +299,6 @@ interface CourseEntry {
   x: number;
   title: string;
   credits: number;
-  rawScore: string;
   status: Course["status"];
   year: number;
   term: CourseTerm;
@@ -431,7 +430,6 @@ function parseSection(
         x,
         title,
         credits,
-        rawScore: registeredMark.str,
         status: "registered",
         year,
         term,
@@ -467,7 +465,7 @@ function parseSection(
         ? nearestYearTerm(yearTermMap, termScoreY, reportYear)
         : { year: reportYear, term: "前期" as CourseTerm };
 
-    entries.push({ x, title, credits, rawScore, status, year, term });
+    entries.push({ x, title, credits, status, year, term });
   }
 
   return entries;
@@ -745,6 +743,8 @@ export function parseItems(items: TextItem[]): ParseResult {
   // (§6.1 の §7.3 プロンプト整形)、ここで落とすと常に空になる。
   // 卒業要件の単位計算に数えるのは passed だけであり、その絞り込みは
   // 単位を数える側(CreditBar / 取り込み確認 / マイデータ)が行う。
+  // **評価(点数・評価記号)はここで捨てる。** 合否と修得学期を決めるのに使い終えており、
+  // 画面にも backend にも出さない(要件§4.2、design.md §5.2.1)
   const completedCourses: Course[] = allEntries
     .map((e) => ({
       title: e.title,
@@ -752,7 +752,6 @@ export function parseItems(items: TextItem[]): ParseResult {
       term: e.term,
       credits: e.credits,
       status: e.status,
-      rawScore: e.rawScore,
     }));
 
   return {

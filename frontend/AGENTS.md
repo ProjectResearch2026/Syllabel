@@ -1,7 +1,11 @@
 <!-- BEGIN:nextjs-agent-rules -->
-# This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 ---
@@ -255,7 +259,7 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 - 龍谷大学成績表レイアウト前提のルールベースパーサーを実装
 - 評価記号(`T`/`N`/`G`/`D`/`J`/`M`)と数値スコアを認識し合否を判定。100点満点の場合は60点以上を合格
 - 解析失敗時は、もう一度選ぶか、デモの学生で試すよう案内する。**手入力のフォームは置かない**(要件§4.1。科目を一から入力させるのは現実的でなく、成績表なしで試すときはデモの学生をマイデータで直す)
-- **評価(点数・評価記号)はパーサーの中だけで使う**(合否と修得学期の判定)。`Course` に持たせず、画面にも backend にも出さない(要件§4.2、design.md §5.2.1)。画面は履修状態(合格・未修得・発表待ち)を出す
+- **評価(点数・評価記号)はパーサーの中だけで使う**(合否と修得学期の判定)。`Course` に持たせず、画面にも backend にも出さない(要件§4.2、design.md §5.2.1)。画面は履修状態(合格・不合格・履修辞退・発表待ち。`COURSE_STATUS_LABEL`)を出す
 
 **取り込むのは成績表に載っている全科目であり、履修状態(`status`)を付けて渡す**(要件§4.2)。不合格・履修辞退は【再履修の対象】として履修提案に渡すため、**パーサーで落としてはならない**(設計書 §6.1)。卒業要件の単位計算に数えるのは `passed` だけで、その絞り込みは単位を数える側(`CreditBar` / 取り込み確認 / マイデータ)と backend の `requirements.py` が行う。
 

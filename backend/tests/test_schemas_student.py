@@ -15,13 +15,11 @@ def test_student_profile_camel_case():
         "program": "情報工学科",
         "completedCourses": [
             {
-                "code": "CS101",
                 "title": "プログラミング基礎",
                 "year": 2024,
                 "term": "前期",
                 "credits": 2.0,
                 "status": "passed",
-                "rawScore": "A",
             }
         ],
     }
@@ -30,29 +28,19 @@ def test_student_profile_camel_case():
     assert profile.program == "情報工学科"
     assert len(profile.completed_courses) == 1
     course = profile.completed_courses[0]
-    assert course.code == "CS101"
-    assert course.raw_score == "A"
+    assert course.title == "プログラミング基礎"
+    assert course.status == "passed"
 
 
-def test_optional_fields_omitted():
-    """code / rawScore 省略のケースが valid であること。"""
-    data = {
-        "grade": 3,
-        "program": None,
-        "completedCourses": [
-            {
-                "title": "データ構造",
-                "year": 2023,
-                "term": "後期",
-                "credits": 2.0,
-                "status": "passed",
-            }
-        ],
-    }
-    profile = StudentProfile.model_validate(data)
-    course = profile.completed_courses[0]
-    assert course.code is None
-    assert course.raw_score is None
+def test_score_is_not_kept():
+    """成績の評価(`rawScore`)は持たないこと(要件§4.2)。送られてきても捨てる。"""
+    course = Course.model_validate(
+        {"title": "x", "year": 2024, "term": "前期", "credits": 1.0, "status": "passed",
+         "rawScore": "85", "code": "Y0101"}
+    )
+    dumped = course.model_dump(by_alias=True)
+    assert "rawScore" not in dumped
+    assert "code" not in dumped
 
 
 def test_grade_null():

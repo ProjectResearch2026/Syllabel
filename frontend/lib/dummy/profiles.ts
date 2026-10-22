@@ -30,7 +30,8 @@ export type DemoKey = {
   term: HalfTerm;
 };
 
-type Row = [title: string, year: number, term: CourseTerm, credits: number, rawScore: string];
+/** 科目は成績の評価ではなく履修状態で持つ(生成スクリプトが決める。design.md §5.2.1) */
+type Row = [title: string, year: number, term: CourseTerm, credits: number, status: Course["status"]];
 
 type DemoRecord = DemoKey & {
   program: string;
@@ -39,12 +40,6 @@ type DemoRecord = DemoKey & {
 };
 
 type DemoFile = { targetYear: number; profiles: DemoRecord[] };
-
-function statusOf(rawScore: string): Course["status"] {
-  if (rawScore === "***" || rawScore === "*") return "registered";
-  if (rawScore === "J" || rawScore === "K") return "withdrawn";
-  return parseInt(rawScore, 10) >= 60 ? "passed" : "failed";
-}
 
 /** 学年・課程・学期から1件を読み込む */
 export async function loadDemoProfile(key: DemoKey): Promise<StudentProfile> {
@@ -57,13 +52,12 @@ export async function loadDemoProfile(key: DemoKey): Promise<StudentProfile> {
     grade: hit.grade,
     admissionYear: hit.admissionYear,
     program: hit.program,
-    completedCourses: hit.courses.map(([title, year, term, credits, rawScore]) => ({
+    completedCourses: hit.courses.map(([title, year, term, credits, status]) => ({
       title,
       year,
       term,
       credits,
-      status: statusOf(rawScore),
-      rawScore,
+      status,
     })),
     demo: { key, target: { year: data.targetYear, term: hit.term } },
   };

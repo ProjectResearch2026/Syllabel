@@ -19,6 +19,9 @@
   その年度のデータで引けない科目は、引ける年度の開講学期で代用する。
   どの年度でも引けない選択科目は選ばない
 
+科目は成績の評価ではなく履修状態(`passed` / `failed` / `withdrawn` / `registered`)で
+書き出す(design.md §5.2.1)。点数は生成の中で合否を決めるのにだけ使う。
+
 乱数の種は (課程コード, 学年, 学期) から決めるので、何度実行しても同じ結果になる。
 学生データは合成であり、実在の成績ではない。"""
 
@@ -183,6 +186,15 @@ class Student:
         return str(self.rng.randint(35, 58))
 
 
+def status_of(raw: str) -> str:
+    """生成の中で付けた成績(点数 / `J` / `***`)を履修状態に直す。"""
+    if raw == "***":
+        return "registered"
+    if raw == "J":
+        return "withdrawn"
+    return "passed" if int(raw) >= 60 else "failed"
+
+
 def must_register(course: MergedCourse) -> bool:
     """配当された学期に必ず履修する科目。必修と、履修要項が「必ず履修登録」と定める科目。"""
     return course.type == "必修" or "必ず履修登録" in (course.notes or "")
@@ -311,7 +323,8 @@ def generate(code: str, grade: int, half: str, offered) -> dict:
             student.records[key] = record
 
     rows = sorted(
-        ([r.course.title, r.year, r.term, r.course.credits, r.raw] for r in student.records.values()),
+        ([r.course.title, r.year, r.term, r.course.credits, status_of(r.raw)]
+         for r in student.records.values()),
         key=lambda row: (row[1], {"前期": 0, "後期": 1, "通年": 2}[row[2]]),
     )
     passed = student.passed()
@@ -336,7 +349,7 @@ def main() -> None:
             for half in HALVES:
                 profile = generate(code, grade, half, offered)
                 earned = profile.pop("_earned")
-                fails = sum(1 for r in profile["courses"] if r[4].isdigit() and int(r[4]) < 60)
+                fails = sum(1 for r in profile["courses"] if r[4] == "failed")
                 print(
                     f"{code} {grade}年{half}: {len(profile['courses'])}科目 "
                     f"卒業要件算入 {earned}単位 不合格 {fails}",

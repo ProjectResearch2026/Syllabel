@@ -74,7 +74,8 @@ export function isSameProgram(
  *
  * PDF 取り込みではパーサーが入学日欄から直接読んだ `StudentProfile.admissionYear`
  * を使う。プロファイルに `admissionYear` がある場合は必ずそちらを優先すること。
- * この関数は手入力フォームおよびフォールバック用途に限定する。
+ * この関数は、マイデータで学年を訂正したときと、入学年度を読み取れなかったときの
+ * フォールバックに限定する。
  */
 export function getAdmissionYear(grade: number): number {
   const now = new Date();

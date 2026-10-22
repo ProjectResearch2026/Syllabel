@@ -133,7 +133,7 @@ export default function PcImportPage() {
       if (profile.completedCourses.length === 0 && warnings.length > 0) {
         setImportState({
           type: "error",
-          message: "成績表を読み取れませんでした。手入力でご入力ください。",
+          message: "成績表を読み取れませんでした。もう一度選ぶか、デモの学生で試してください。",
         });
         return;
       }
@@ -143,7 +143,7 @@ export default function PcImportPage() {
     } catch {
       setImportState({
         type: "error",
-        message: "PDFの読み取りに失敗しました。手入力に切り替えてください。",
+        message: "PDFの読み取りに失敗しました。もう一度選ぶか、デモの学生で試してください。",
       });
     }
   };
@@ -293,12 +293,22 @@ export default function PcImportPage() {
                 <div className="flex h-40 flex-col items-center justify-center gap-3 rounded border border-[#FCA5A5] bg-[#FFF8F8] px-6 text-center motion-safe:animate-fade-in">
                   <AlertCircle size={28} className="text-[#EF4444]" aria-hidden="true" />
                   <p className="text-sm font-medium text-[#EF4444]">{importState.message}</p>
-                  <button
-                    onClick={handleRetry}
-                    className="text-xs text-fg-primary underline underline-offset-2"
-                  >
-                    もう一度選択する
-                  </button>
+                  {/* 手入力のフォームは置かない(要件§4.1)。デモの学生を読み込み、マイデータで直す */}
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={handleRetry}
+                      className="text-xs text-fg-primary underline underline-offset-2"
+                    >
+                      もう一度選択する
+                    </button>
+                    <button
+                      onClick={() => setDemoOpen(true)}
+                      aria-haspopup="dialog"
+                      className="text-xs text-fg-primary underline underline-offset-2"
+                    >
+                      デモの学生で試す
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div
