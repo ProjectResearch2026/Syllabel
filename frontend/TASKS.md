@@ -37,8 +37,9 @@
 - [x] プライバシーポリシーページ
 - [x] **PDF解析実装（モバイル）** — `app/_components/MobileImportFlow.tsx`（`/`。旧 `app/import/_components/` から移動）
   - `parseGradeReport` 呼び出し・ローディング/エラー状態・確認画面・デモモードドロップダウンすべて実装済み
-- [x] **手入力フォールバックUI** — `app/_components/ManualInputForm.tsx`
-  - PDF解析失敗時の「手入力で続ける」導線、学年・課程・既修得科目の入力フォーム、`MobileSettingsPage` 編集機能
+- [x] **マイデータの訂正（設計書 v0.9.86 / §8.4）** — `app/_components/ProfileEditForm.tsx`（旧 `ManualInputForm.tsx`。手入力は廃止）
+  - 学年・課程の訂正、科目の履修状態の変更・削除、履修要項の科目からの追加。PC(`PcMyDataPage`)・モバイル(`MobileSettingsPage`)で共用
+  - PDF解析失敗時は「もう一度選ぶ」か「デモの学生で試す」へ案内する
 - [x] **デモモードスイッチャー（PC・モバイル取り込みフロー）**
   - `PcImportPage.tsx` / `MobileImportFlow.tsx` でプロファイル選択UIを実装済み。store への反映も完了
 - [x] **エラー・ローディング状態（シラバス検索・詳細）**

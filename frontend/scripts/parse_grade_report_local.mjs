@@ -70,6 +70,6 @@ for (const path of paths) {
   if (warnings.length) console.log(`warnings: ${JSON.stringify(warnings)}`);
   for (const c of profile.completedCourses) {
     const mark = c.status === "passed" ? "修得  " : "未修得";
-    console.log(`  ${mark} ${c.year}${c.term} ${c.credits}単位 [${c.rawScore}] ${c.title}`);
+    console.log(`  ${mark} ${c.year}${c.term} ${c.credits}単位 [${c.status}] ${c.title}`);
   }
 }
