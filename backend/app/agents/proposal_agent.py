@@ -208,7 +208,7 @@ _INSTRUCTIONS = (
     "あれば触れる。【先修条件】で満たしているとされた条件について、不確かな書き方をしない。"
     "必修の科目は配当された学期に履修するものであり、不足の確保や補填として書かない。\n"
     "10. summary に単位数の合計や内訳の計算を書かない。単位数はシステムが計算して"
-    "画面に表示する。"
+    "画面に表示する。reason と summary で単位数に触れるときは、単位数は整数で書き、「2.0単位」のように小数で書かない。"
 )
 
 
@@ -259,7 +259,8 @@ _SUMMARY_INSTRUCTIONS = (
     "必修の科目は配当された学期に履修するものであり、不足の確保や補填として書かない。\n"
     "3. 元の説明文の方針や注意点のうち、確定した時間割と矛盾しないものは生かす。\n"
     "4. 科目を入れ替えた・外したといった作成の経緯には触れない。\n"
-    "5. 単位数の合計や内訳の計算を書かない。単位数はシステムが計算して画面に表示する。\n"
+    "5. 単位数の合計や内訳の計算を書かない。単位数はシステムが計算して画面に表示する。"
+    "単位数に触れるときは、単位数は整数で書き、「2.0単位」のように小数で書かない。\n"
     "6. 説明文の本文だけを出力する。見出しや前置きを付けない。"
 )
 
@@ -399,7 +400,7 @@ def slot_destinations(
         gained = [
             (slot.name, slot.earned - before[slot.key])
             for slot in after.slots
-            if slot.earned - before[slot.key] > 1e-9
+            if slot.earned > before[slot.key]
         ]
         if not gained:
             destinations[key] = "なし(受け入れる枠はすでに満たしている)"
@@ -437,11 +438,11 @@ def placed_slots(
         for slot in judge(curriculum, completed, track=track).slots
         for a in slot.courses
     }
-    shares: dict[str, list[tuple[str, float]]] = {}
+    shares: dict[str, list[tuple[str, int]]] = {}
     for slot in judge(curriculum, [*completed, *added], track=track).slots:
         for assigned in slot.courses:
             key = normalize_title(assigned.title)
-            if key in wanted and (slot.key, key) not in before and assigned.credits > 1e-9:
+            if key in wanted and (slot.key, key) not in before and assigned.credits > 0:
                 shares.setdefault(key, []).append((slot.name, assigned.credits))
     placed: dict[str, str] = {}
     for key in wanted:
@@ -1053,7 +1054,11 @@ def _oneline(text: str) -> str:
 
 
 def _credits(value: float) -> str:
-    """単位数を書く。0.5 刻みで現れ得るが、整数は `2.0` ではなく `2` と書く。"""
+    """単位数を書く。単位は整数であり、`2.0` ではなく `2` と書く。
+
+    単位数は backend の全体で `int` で持つが、モデルに渡す文字列はここを通して
+    小数で書かないことを保証する(モデルは見た表記をそのまま写す)。
+    """
     return str(int(value)) if float(value).is_integer() else str(value)
 
 
@@ -1094,7 +1099,7 @@ def semester_cap(
     return max(caps) if caps else None
 
 
-def registered_credits_in(completed: Sequence[StudentCourse], target: TargetTerm) -> float:
+def registered_credits_in(completed: Sequence[StudentCourse], target: TargetTerm) -> int:
     """対象学期に登録済みの科目の単位の合計。CAP から差し引く(§5.2.1)。"""
     return sum(
         c.credits
@@ -1109,12 +1114,12 @@ def registered_credits_in(completed: Sequence[StudentCourse], target: TargetTerm
 class CreditBudget:
     """対象学期に登録できる単位。`cap` から `registered` を引いたものが `remaining`。"""
 
-    cap: float
-    registered: float
+    cap: int
+    registered: int
 
     @property
-    def remaining(self) -> float:
-        return max(0.0, self.cap - self.registered)
+    def remaining(self) -> int:
+        return max(0, self.cap - self.registered)
 
 
 def _format_registration_limits(
@@ -1465,7 +1470,7 @@ async def build_proposal_context(
         CreditBudget(
             cap=cap,
             registered=(
-                registered_credits_in(profile.completed_courses, target) if target else 0.0
+                registered_credits_in(profile.completed_courses, target) if target else 0
             ),
         )
         if cap is not None
@@ -1552,7 +1557,7 @@ def assemble_courses(
     # 一度見たコード。同じ並びを繰り返し書く暴走(2026-09-23 の実機)で、外した
     # 科目の注記が繰り返されないよう、2回目以降は採否にかかわらず黙って飛ばす
     seen: set[str] = set()
-    total = 0.0
+    total = 0
     remaining = context.budget.remaining if context.budget else None
     for code, reason in drafts:
         base = context.classes.get(code)

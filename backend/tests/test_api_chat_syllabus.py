@@ -140,6 +140,7 @@ def test_build_prompt_excludes_completed_courses():
         "推測であることを明示",  # 対応案2
         "必修",  # 対応案3
         "複数のクラス",  # 対応案4
+        "「2.0単位」のように小数で書かない",  # 単位数を整数で書かせる
     ],
 )
 def test_syllabus_prompt_states_grounding_rules(rule: str):

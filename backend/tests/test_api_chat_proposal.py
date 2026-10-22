@@ -182,6 +182,23 @@ def test_chat_proposal_injects_proposal_in_camel_case(spy_stream):
     assert payload["courses"][0]["syllabusCode"] == "B12345"
 
 
+def test_chat_proposal_injects_credits_as_integers(spy_stream):
+    """`2.0` で送られた単位数も整数で渡す。モデルが「2.0単位」と写さないため。"""
+    proposal = {
+        **PROPOSAL,
+        "courses": [{**c, "credits": 2.0} for c in PROPOSAL["courses"]],
+        "totalCredits": 4.0,
+    }
+    agent = build_chat_agent()
+    with agent.override(model=_stub_model()):
+        _post([{"role": "user", "content": "合計単位は?"}], proposal=proposal)
+
+    body = spy_stream["instructions"].split("【現在の提案】\n", 1)[1]
+    assert '"credits":2,' in body
+    assert '"totalCredits":4,' in body
+    assert ".0" not in body
+
+
 def test_chat_proposal_prompt_reaches_model(spy_stream):
     """役割定義が instructions として毎リクエスト渡ること。"""
     agent = build_chat_agent()
@@ -198,6 +215,7 @@ def test_chat_proposal_prompt_reaches_model(spy_stream):
         "ツールが返した内容だけを根拠にする",  # シラバス事項の捏造を禁じる
         "自分で計算・推定しない",  # 単位数・曜日・時限の数え直しを禁じる
         "提案の再生成",  # 時間割を書き換えたかのような回答を禁じる
+        "「2.0単位」のように小数で書かない",  # 単位数を整数で書かせる
     ],
 )
 def test_proposal_prompt_states_grounding_rules(rule: str):

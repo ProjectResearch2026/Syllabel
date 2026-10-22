@@ -371,7 +371,7 @@ type Course = {
   title: string          // 科目名
   year: number           // 履修年度
   term: "前期" | "後期" | "通年" | "1Q" | "2Q" | "3Q" | "4Q" | "サ集"
-  credits: number
+  credits: number        // 単位数。整数(backend は int で受け、小数は 422)
   status: "passed" | "failed" | "withdrawn" | "registered"
 }
 
@@ -473,7 +473,7 @@ class ProposedCourse:
     period: int | None           # 1コマ目の時限(1〜5)
     term: str | None             # 1コマ目の開講学期(前期 / 後期 / 通年 / 1Q など)
     slots: list[CourseSlot]      # 開講コマのすべて(原文の順)。集中講義は空
-    credits: float | None
+    credits: int | None
     category: str | None         # 履修区分(必修 / 選択必修 / 選択)
     course_category: str | None  # 区分(専門基礎科目 / 専門応用科目 / 専門関連科目 / 教養教育科目)
     subcategory: str | None      # 分野(人文科学系科目 など)。教養教育科目のみ
@@ -481,7 +481,7 @@ class ProposedCourse:
 
 class TimetableProposal:
     courses: list[ProposedCourse]
-    total_credits: float | None
+    total_credits: int | None
     summary: str                 # 提案全体の方針と履修上の注意点(§7.2.1 規則9)
 ```
 
@@ -490,5 +490,5 @@ class TimetableProposal:
 - **`day` / `period` / `term` は1コマ目であり、全コマは `slots` に持つ。** 1つのクラスが複数のコマを持つ(「後期　金4・金5」「3Q　金3、4Q　金3」)。1コマ目だけで時間割を組むと、2コマ目に別の科目を重ねてしまう。`slots` は api-clean 0.3.0 の `slots`(§6.2)から採る。`slots` を返さない api-clean から作った科目と `slots` を持たない提案は、`day` / `period` / `term` の1コマを占めるとみなす(`occupied_slots()`)
 - **`TimetableProposal` はコマの重複を検証で拒否する。** 各科目の**すべてのコマどうし**を比べ、曜日・時限が同じで**開講期間(占めるクォーター)が重なる**コマを持つ科目を2つ以上含む提案は検証に落ちる(1つの科目のコマどうしは比べない)。履修提案では backend が組み上げの段階で重なる科目を外すので、この検証に落ちることはない(§7.2.2)。提案チャット(§7.3)が受け取る提案の検査にも使う。前期は 1Q・2Q、後期は 3Q・4Q、通年は全クォーターを占めるので、前期と 1Q、通年と後期は文字列が違っても重複である(文字列の一致では判定しない)。クォーターが分からない学期(集中など)どうしは文字列が同じときだけ重複とみなす。曜日または時限が null の科目はこの検査の対象外とする
 - **履修区分(`category`)には、それがどの区分・分野についての値かを添える(`course_category` / `subcategory`)。** 卒業要件の枠は (区分 × 履修区分)、教養教育科目はさらに分野で決まる(§5.1.5)ため、`必修` だけではどの枠の必修かが読めない。値は履修要項の表記のまま(§5.1.5 の `category` / `subcategory`)とし、backend が候補一覧から補う(モデルには書かせない)。他課程から導出した科目は `専門関連科目` で、その `category` は学生にとっての値(`選択`)である(§7.2.2)。旧い提案・履修要項に無い科目では null
-- **単位数は `float` とする。** 0.5 単位の科目が存在するため(§5.1.5 の `credits`、§5.2.1 の `Course.credits` と揃える)
+- **単位数は整数(`int`)とする。** 龍谷大学の単位に小数は無い(§5.1.5 の `credits`、§5.2.1 の `Course.credits` と揃える)。backend は学生プロファイルの `Course.credits`・要件充足判定(§4.4.5)・`POST /api/requirements` のレスポンスまで単位数を整数で持つ。`float` で持つと JSON に `2.0` と出て、提案チャット(§7.3)が【現在の提案】の JSON から「2.0単位」と写すため、モデルが見る値を整数に揃える。小数の単位数(`2.5`)を送ると検証で 422 になる
 

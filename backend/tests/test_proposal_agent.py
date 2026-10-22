@@ -1752,6 +1752,12 @@ def test_instructions_forbid_credit_arithmetic_in_summary():
     assert "単位数の合計や内訳の計算を書かない" in pa._SUMMARY_INSTRUCTIONS
 
 
+def test_instructions_require_integer_credits():
+    """理由・説明文で単位数を「2.0単位」と小数で書かせない。"""
+    assert "「2.0単位」のように小数で書かない" in pa._INSTRUCTIONS
+    assert "「2.0単位」のように小数で書かない" in pa._SUMMARY_INSTRUCTIONS
+
+
 def test_instructions_do_not_frame_required_courses_as_shortfall():
     """必修の科目を「不足を埋める」科目として理由・説明文に書かせない。
 

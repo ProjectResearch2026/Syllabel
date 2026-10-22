@@ -124,7 +124,7 @@ class ProposedCourse(BaseModel):
             "集中講義など曜日・時限の無い科目は空。"
         ),
     )
-    credits: float | None = Field(
+    credits: int | None = Field(
         default=None,
         description="単位数。履修要項に記載がない場合はnullにすること。単位計算に使用するため正確に転記すること。",
     )
@@ -176,7 +176,7 @@ class TimetableProposal(BaseModel):
     courses: list[ProposedCourse] = Field(
         description="提案する科目のリスト。同一の曜日・時限・学期に複数の科目を割り当ててはならない。",
     )
-    total_credits: float | None = Field(
+    total_credits: int | None = Field(
         default=None,
         description="提案科目の合計単位数。creditsがnullの科目が含まれる場合はnullにすること。",
     )

@@ -259,7 +259,7 @@ class AssignedCourseOut(_CamelModel):
     """要件枠に計上した科目1件。カスケードで分かれた分は枠ごとに現れる。"""
 
     title: str
-    credits: float
+    credits: int
 
 
 class SlotStatusOut(_CamelModel):
@@ -272,8 +272,8 @@ class SlotStatusOut(_CamelModel):
     key: str
     name: str
     required: int
-    earned: float
-    shortfall: float
+    earned: int
+    shortfall: int
     notes: str | None = None
     courses: list[AssignedCourseOut]
 
@@ -285,15 +285,15 @@ class TrackConstraintStatusOut(_CamelModel):
     track_group: str
     pool: int
     required: int
-    earned: float
-    shortfall: float
+    earned: int
+    shortfall: int
 
 
 class UncountedCourseOut(_CamelModel):
     """卒業要件単位に算入しなかった科目(またはその一部)と理由。"""
 
     title: str
-    credits: float
+    credits: int
     reason: UncountedReason
 
 
@@ -310,8 +310,8 @@ class RequirementsResponse(_CamelModel):
     program_code: str
     admission_year: int
     total_credits: int
-    earned_credits: float
-    remaining_credits: float
+    earned_credits: int
+    remaining_credits: int
     satisfied: bool
     slots: list[SlotStatusOut]
     track: str | None = None

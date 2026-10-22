@@ -586,12 +586,24 @@ def test_result_is_independent_of_input_order():
     }
 
 
-def test_half_credit_courses():
-    """0.5 刻みの単位数でも浮動小数の誤差を出さない。"""
-    completed = [_passed("英語総合1", 0.5), _passed("英語総合2", 0.5)]
-    result = judge(_merged(), completed)
-    assert _slot(result, "liberal.language.required").earned == 1.0
-    assert _slot(result, "liberal.language.required").shortfall == 1.0
+def test_credits_are_integers():
+    """単位数は整数で持つ。龍谷大学の単位に小数は無い。
+
+    `2.0` で送られても整数に揃え、結果の単位数も `int` で返す(`float` だと JSON に
+    `2.0` と出て、モデルが「2.0単位」と写す)。
+    """
+    result = judge(_merged(), [_passed("英語総合1", 2.0)])
+    slot = _slot(result, "liberal.language.required")
+    assert type(slot.earned) is int and type(slot.shortfall) is int
+    assert all(type(c.credits) is int for c in slot.courses)
+    assert type(result.earned_credits) is int
+    assert type(result.remaining_credits) is int
+
+
+def test_fractional_credits_are_rejected():
+    """小数の単位数は受け付けない。"""
+    with pytest.raises(ValueError):
+        _passed("英語総合1", 0.5)
 
 
 # --- 参照の検査 ---
