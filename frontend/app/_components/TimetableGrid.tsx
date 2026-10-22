@@ -7,6 +7,7 @@ import {
   DAYS,
   PERIODS,
   areaLabel,
+  type Day,
   type SlotEntry,
   type SlotTable,
 } from "@/lib/timetable";
@@ -27,6 +28,24 @@ export const MIN_ROW_HEIGHT = 52;
 const TWO_LINE_NAME_HEIGHT = 68;
 /** 画面に余りがあるときに伸ばす上限。科目名が長くても3行で収まる */
 export const MAX_ROW_HEIGHT = 96;
+
+/**
+ * 列の幅。ヘッダーと各限の行が同じ定義を持つので、マスの余白が違っても縦の線が揃う
+ * (flex の `flex-1` では余白の差が列の幅の差になる。PC の `TimetablePanel` と同じ)
+ */
+function columnsOf(days: readonly string[]): React.CSSProperties {
+  return { gridTemplateColumns: `28px repeat(${days.length}, minmax(0, 1fr))` };
+}
+
+/**
+ * 表に出す曜日。土曜は科目が入ったときだけ出す — 提案に土曜の科目はほとんど入らず、
+ * 画面の狭いモバイルでは空の列が平日の列を細くして科目名が読みにくくなる。
+ * 科目が入れば出すので、提案の科目は画面から落ちない
+ */
+function visibleDays(table: SlotTable): readonly Day[] {
+  const hasSaturday = PERIODS.some((period) => (table[period]?.["土"]?.length ?? 0) > 0);
+  return hasSaturday ? DAYS : DAYS.filter((day) => day !== "土");
+}
 
 /** 選択中の科目。複数コマの科目はどのマスで選んでも同じ科目として光らせる */
 export type SelectedCourse = { day: string; period: number; key: string };
@@ -70,9 +89,11 @@ function Tags({ entry }: { entry: SlotEntry }) {
  * 時間割グリッド（モバイル。ui-design_phone.pen 04 TimetableWrapper / AI STEP1〜3）。
  *
  * **PC と同じく `coursesToSlotTable()` の形を描く**（design.md §8.3.4）。1マスに複数の
- * 科目（3Q と 4Q）を縦に積み、クォーターの科目には印を付ける。曜日・時限の無い科目は
+ * 科目（3Q と 4Q）を科目ごとの色の枠にして縦に積み、クォーターの科目には印を付ける。曜日・時限の無い科目は
  * 表の下の「曜日・時限未定」に並べる。以前のモバイルは1マス1科目で、後から来た科目に
  * 上書きされて提案の科目が画面から消えていた。
+ *
+ * 土曜の列は土曜に科目が入ったときだけ出す（`visibleDays()`）。
  *
  * 操作は2つ。
  *  - 科目をタップ → 選択。Ask Bar の文脈がその科目に絞られる（STEP2）。
@@ -144,18 +165,20 @@ export default function TimetableGrid({
   );
 
   const isSelected = (entry: SlotEntry) => selected?.key === entryKey(entry);
+  const days = visibleDays(table);
+  const columns = columnsOf(days);
   const nameClamp =
     (rowHeight ?? DEFAULT_ROW_HEIGHT) >= TWO_LINE_NAME_HEIGHT ? "line-clamp-2" : "line-clamp-1";
 
   return (
     <div className="flex select-none flex-col bg-surface-primary">
       {/* 曜日ヘッダー */}
-      <div className="flex h-8 border-b border-border-primary bg-surface-gray">
-        <div className="w-7 shrink-0 border-r border-border-primary" />
-        {DAYS.map((day) => (
+      <div className="grid h-8 border-b border-border-primary bg-surface-gray" style={columns}>
+        <div className="border-r border-border-primary" />
+        {days.map((day) => (
           <div
             key={day}
-            className="flex flex-1 items-center justify-center border-r border-border-primary last:border-r-0"
+            className="flex items-center justify-center border-r border-border-primary last:border-r-0"
           >
             <span className="text-[13px] font-semibold text-fg-primary">{day}</span>
           </div>
@@ -165,16 +188,16 @@ export default function TimetableGrid({
       {PERIODS.map((period) => (
         <div
           key={period}
-          className="flex border-b border-border-primary"
+          className="grid border-b border-border-primary"
           // 下限で、3Q と 4Q の2科目が入ったマスのように収まらない行だけは伸ばす(重ねない)
-          style={{ minHeight: rowHeight ?? DEFAULT_ROW_HEIGHT }}
+          style={{ ...columns, minHeight: rowHeight ?? DEFAULT_ROW_HEIGHT }}
         >
-          <div className="flex w-7 shrink-0 flex-col items-center justify-center border-r border-border-primary bg-cell-free">
+          <div className="flex flex-col items-center justify-center border-r border-border-primary bg-cell-free">
             <span className="tabular-nums text-[13px] font-bold leading-none text-fg-primary">{period}</span>
             <span className="text-[9px] text-fg-secondary">限</span>
           </div>
 
-          {DAYS.map((day) => {
+          {days.map((day) => {
             const entries = table[period]?.[day] ?? [];
             const first = entries[0];
             const multi = entries.length > 1;
@@ -202,9 +225,11 @@ export default function TimetableGrid({
                 onClick={(e) => {
                   if (first && !multi) onTapCourse({ entry: first, day, period, rect: rectOf(e.currentTarget) });
                 }}
-                className={`relative flex min-w-0 flex-1 flex-col justify-center border-r border-border-primary last:border-r-0 ${
-                  multi ? "gap-1 p-1" : "gap-0.5 px-1 py-1.5"
-                } ${first ? CELL_STYLES[first.type].cell : "bg-surface-primary"} ${
+                // 複数ならマスは白のままにし、科目ごとに区分の色の枠を積む(PC と同じ)。
+                // マスごと塗ると2科目が1つの色に溶け、科目が2つあると読めない
+                className={`relative flex min-w-0 flex-col justify-center border-r border-border-primary last:border-r-0 ${
+                  multi ? "gap-1 px-0.5 py-1" : "gap-0.5 px-1 py-1.5"
+                } ${first && !multi ? CELL_STYLES[first.type].cell : "bg-surface-primary"} ${
                   loading ? "animate-pulse" : ""
                 } ${ringed ? "z-10 rounded-lg ring-2 ring-accent" : ""}`}
               >
@@ -214,7 +239,9 @@ export default function TimetableGrid({
                         key={`${entryKey(entry)}-${entry.quarter ?? ""}`}
                         type="button"
                         onClick={(e) => onTapCourse({ entry, day, period, rect: rectOf(e.currentTarget) })}
-                        className={`flex min-w-0 flex-col gap-0.5 rounded-sm text-left ${
+                        className={`flex min-w-0 flex-1 flex-col justify-center gap-0.5 rounded-sm border border-border-primary px-1 py-0.5 text-left ${
+                          CELL_STYLES[entry.type].cell
+                        } ${
                           isSelected(entry) ? "ring-1 ring-accent" : ""
                         }`}
                       >

@@ -159,13 +159,13 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 - **表のために吹き出しを広げない。** 幅は設計(`ui-ux/ui-design_*.pen`、280〜290px)どおりに保ち、表は中で横スクロールさせる
 - Tailwind の preflight が `ul` / `ol` の記号と字下げを消すため、リストの見た目は `MarkdownText` の `components` で自分で付けている
 
-履修提案の科目スキーマは design.md §5.3 に従う(`syllabusCode` / `title` / `day` / `period` / `term` / `slots` / `credits` / `category` / `courseCategory` / `subcategory` / `reason`)。**`category` は履修区分(必修など)で、区分は `courseCategory`、教養教育科目の分野は `subcategory`(どちらも履修要項の表記)である。** 時間割のセルは区分(教養教育科目は分野)を履修区分の前に出す(design.md §8.3.4)。履修区分だけではどの枠の必修か読めない。表示名は `lib/courseLabels.ts` にあり、シラバス一覧のタグと共用する。必須は `title` と `reason` だけで、**集中講義の曜日・時限や特定できないシラバスコードは null** で来る。
+履修提案の科目スキーマは design.md §5.3 に従う(`syllabusCode` / `title` / `day` / `period` / `term` / `slots` / `credits` / `category` / `courseCategory` / `subcategory` / `reason`)。**`category` は履修区分(必修など)で、区分は `courseCategory`、教養教育科目の分野は `subcategory`(どちらも履修要項の表記)である。** 時間割のセルは区分(教養教育科目は分野)を履修区分の前に出す(design.md §8.3.4)。専門関連科目には履修区分を出さない(常に選択で、シラバス一覧のタグとそろえる。`lib/timetable.ts` の `requirementOf()`)。履修区分だけではどの枠の必修か読めない。表示名は `lib/courseLabels.ts` にあり、シラバス一覧のタグと共用する。必須は `title` と `reason` だけで、**集中講義の曜日・時限や特定できないシラバスコードは null** で来る。
 
 **`day` / `period` / `term` は1コマ目だけである。** 「後期 金4・金5」のように複数のコマを持つ科目の全コマは `slots` にある。時間割に置くときは `lib/timetable.ts` の `occupiedSlots()` を通し、`day` / `period` を直接使わない(1コマ目だけを見ていた頃は、金4・金5 の科目の金5 が空いて見えた)。`coursesToTimetable()` は複数コマの科目の**同じセル**を全部のマスに入れ、`toCourseList()` はそれを1科目1行に数える(マスごとに数えると単位が2倍になる)。**時間割表は PC・モバイルとも `coursesToSlotTable()` を使う**(design.md §8.3.4。PC は `TimetablePanel.tsx`、モバイルは `app/_components/TimetableGrid.tsx`)。1マスに複数の科目(3Q と 4Q)を持ち、クォーターの印を付け、曜日・時限の無い科目を `unscheduled` に分ける。**提案の科目は画面から落とさない** — 落とすと表の単位の和が「今期登録単位」と合わなくなる。1マス1科目の `coursesToTimetable()` はどの画面からも使っていない(以前のモバイルが使い、3Q と 4Q の科目の一方が消えていた)。シラバス一覧の曜日時限も api-clean の `slots` から `lib/schedule.ts` の `formatSlots()` で作る。
 
 ## 卒業要件枠の内訳
 
-履修提案の画面はヘッダーカードの直下の帯(PC)・単位バーと提案する学期の下(モバイル。`MobileRequirementsStrip`)に要件枠ごとの充足状況を出す(design.md §8.3.5、`app/proposal/_components/RequirementsPanel.tsx`)。**充足した枠(修得済みの単位だけで充足した枠。見込みでは決めない — `SlotProgress.earnedShortfall`)は1つのまとめに畳み、足りない枠だけを1行に並べ、入りきらない分は横にスクロールさせる(折り返さない。PC はスクロールバーを隠し、端のぼかしと矢印ボタンで続きを示し、凡例は ⓘ に畳む。モバイルは指で送るので矢印を置かない。モバイルは時間割を大きく見せるため帯を横1列に詰め、充足した枠は件数のチップにして押すと名前が開く)。** 取得済み・今期登録・卒業残りの単位数は PC のヘッダー(`components/Header.tsx`)とモバイルの時間割の単位バーにある。**ヘッダーと帯の値は `lib/creditSummary.tsx` の `useCreditSummary()` から採る**(`CreditSummaryProvider` がルートのレイアウトで判定を1回だけ引く。各所で `useRequirements()` を呼ばない)。**数字は `lib/requirements.ts` の `useRequirements()` から採り、画面で足し算しない。** 枠への割り当て・溢れ・算入上限は backend の `requirements.py` が判定する(同じ枠の科目を不足より多く取った分は下流の枠に回る)。今期の時間割(提案の `courses`)の分は、それを修得したとみなして2回目を引いた差で出す。**登録済み(`registered`)の科目は今期の時間割に入れない**(成績表に `***` で載るのは終わった学期の成績発表待ちの科目で、提案する学期の科目ではない)。その単位は `SlotProgress.pending` として薄い紺(`bg-pending`)で別に積み、不足と卒業残りには含めない。提案の store の `courses` に追従するので、時間割を変える経路を足すときは store を書き換えればよい。`profile.program` は課程**コード**で送る(`fetchRequirements()` が差し替える)。
+履修提案の画面はヘッダーカードの直下の帯(PC)・単位バーと提案する学期の下(モバイル。`MobileRequirementsStrip`)に要件枠ごとの充足状況を出す(design.md §8.3.5、`app/proposal/_components/RequirementsPanel.tsx`)。**充足した枠(修得済みの単位だけで充足した枠。見込みでは決めない — `SlotProgress.earnedShortfall`)は1つのまとめに畳み、足りない枠だけを1行に並べ、入りきらない分は横にスクロールさせる(折り返さない。PC はスクロールバーを隠し、端のぼかしと矢印ボタンで続きを示し、凡例は ⓘ に畳む。取得済みのまとめは2行で切り、枠の数のボタンを押すと全部の枠を公式の区分名と単位数で一覧に開く。モバイルは指で送るので矢印を置かない。モバイルは時間割を大きく見せるため帯を横1列に詰め、充足した枠は件数のチップにして押すと名前が開く)。** 取得済み・今期登録・卒業残りの単位数は PC のヘッダー(`components/Header.tsx`)とモバイルの時間割の単位バーにある。**ヘッダーと帯の値は `lib/creditSummary.tsx` の `useCreditSummary()` から採る**(`CreditSummaryProvider` がルートのレイアウトで判定を1回だけ引く。各所で `useRequirements()` を呼ばない)。**数字は `lib/requirements.ts` の `useRequirements()` から採り、画面で足し算しない。** 枠への割り当て・溢れ・算入上限は backend の `requirements.py` が判定する(同じ枠の科目を不足より多く取った分は下流の枠に回る)。今期の時間割(提案の `courses`)の分は、それを修得したとみなして2回目を引いた差で出す。**登録済み(`registered`)の科目は今期の時間割に入れない**(成績表に `***` で載るのは終わった学期の成績発表待ちの科目で、提案する学期の科目ではない)。その単位は `SlotProgress.pending` として薄い紺(`bg-pending`)で別に積み、不足と卒業残りには含めない。提案の store の `courses` に追従するので、時間割を変える経路を足すときは store を書き換えればよい。`profile.program` は課程**コード**で送る(`fetchRequirements()` が差し替える)。
 
 ## 課程コードの解決
 
@@ -195,7 +195,8 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 | 状況 | 出すタグ |
 |---|---|
-| 修得済み(履修可否を問わない) | `修得済み` + 区分(+ 分野) |
+| 修得済み(履修可否を問わない)× 自課程の設置科目 | `修得済み` + 区分(+ 分野)+ 履修区分 |
+| 修得済み(履修可否を問わない)× 他課程の設置科目 | `修得済み` + `専門関連` |
 | 履修可 × 未修得 × 自課程の設置科目 | 区分(+ 分野)+ 履修区分 |
 | 履修可 × 未修得 × 他課程の設置科目 | `専門関連` のみ |
 | 履修不可 / 可否を判定できない / 履修要項に無い | なし |

@@ -183,7 +183,7 @@ export type SlotEntry = {
   name: string;
   /** セルの色。履修区分が分からない科目は選択の色で描く */
   type: CourseType;
-  /** 履修区分(`必修` など)。分からない科目は無く、バッジを出さない */
+  /** 履修区分(`必修` など)。分からない科目と専門関連科目は無く、バッジを出さない */
   requirement?: string;
   /** 区分の表示名(`専門応用` など)。履修区分がどの区分の値かを示す */
   category?: string;
@@ -197,6 +197,16 @@ export type SlotEntry = {
    */
   quarter?: string;
 };
+
+/**
+ * セルに出す履修区分。専門関連科目には出さない — 学生にとっては常に選択であり、
+ * 区分の `専門関連` だけで読める。シラバス一覧のタグも他課程の設置科目には
+ * `専門関連` だけを出す(design.md §8.2.1)
+ */
+function requirementOf(course: { category: string | null; courseCategory?: string | null }): string | undefined {
+  if (course.courseCategory === "専門関連科目") return undefined;
+  return course.category ?? undefined;
+}
 
 /** 履修要項の表記を表示名にする。知らない値・無い値は undefined */
 function labelOf(labels: Record<string, string>, value: string | null | undefined): string | undefined {
@@ -267,7 +277,7 @@ export function coursesToSlotTable(
     const base = {
       name: course.title,
       type: categoryToCourseType(course.category),
-      requirement: course.category ?? undefined,
+      requirement: requirementOf(course),
       category: labelOf(CATEGORY_LABEL, course.courseCategory),
       subcategory: labelOf(SUBCATEGORY_LABEL, course.subcategory),
       code: course.syllabusCode ?? undefined,
