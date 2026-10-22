@@ -28,6 +28,12 @@ const TWO_LINE_NAME_HEIGHT = 68;
 /** 画面に余りがあるときに伸ばす上限。科目名が長くても3行で収まる */
 export const MAX_ROW_HEIGHT = 96;
 
+/**
+ * 列の幅。ヘッダーと各限の行が同じ定義を持つので、マスの余白が違っても縦の線が揃う
+ * (flex の `flex-1` では余白の差が列の幅の差になる。PC の `TimetablePanel` と同じ)
+ */
+const COLUMNS: React.CSSProperties = { gridTemplateColumns: `28px repeat(${DAYS.length}, minmax(0, 1fr))` };
+
 /** 選択中の科目。複数コマの科目はどのマスで選んでも同じ科目として光らせる */
 export type SelectedCourse = { day: string; period: number; key: string };
 
@@ -150,12 +156,12 @@ export default function TimetableGrid({
   return (
     <div className="flex select-none flex-col bg-surface-primary">
       {/* 曜日ヘッダー */}
-      <div className="flex h-8 border-b border-border-primary bg-surface-gray">
-        <div className="w-7 shrink-0 border-r border-border-primary" />
+      <div className="grid h-8 border-b border-border-primary bg-surface-gray" style={COLUMNS}>
+        <div className="border-r border-border-primary" />
         {DAYS.map((day) => (
           <div
             key={day}
-            className="flex flex-1 items-center justify-center border-r border-border-primary last:border-r-0"
+            className="flex items-center justify-center border-r border-border-primary last:border-r-0"
           >
             <span className="text-[13px] font-semibold text-fg-primary">{day}</span>
           </div>
@@ -165,11 +171,11 @@ export default function TimetableGrid({
       {PERIODS.map((period) => (
         <div
           key={period}
-          className="flex border-b border-border-primary"
+          className="grid border-b border-border-primary"
           // 下限で、3Q と 4Q の2科目が入ったマスのように収まらない行だけは伸ばす(重ねない)
-          style={{ minHeight: rowHeight ?? DEFAULT_ROW_HEIGHT }}
+          style={{ ...COLUMNS, minHeight: rowHeight ?? DEFAULT_ROW_HEIGHT }}
         >
-          <div className="flex w-7 shrink-0 flex-col items-center justify-center border-r border-border-primary bg-cell-free">
+          <div className="flex flex-col items-center justify-center border-r border-border-primary bg-cell-free">
             <span className="tabular-nums text-[13px] font-bold leading-none text-fg-primary">{period}</span>
             <span className="text-[9px] text-fg-secondary">限</span>
           </div>
@@ -202,7 +208,7 @@ export default function TimetableGrid({
                 onClick={(e) => {
                   if (first && !multi) onTapCourse({ entry: first, day, period, rect: rectOf(e.currentTarget) });
                 }}
-                className={`relative flex min-w-0 flex-1 flex-col justify-center border-r border-border-primary last:border-r-0 ${
+                className={`relative flex min-w-0 flex-col justify-center border-r border-border-primary last:border-r-0 ${
                   multi ? "gap-1 p-1" : "gap-0.5 px-1 py-1.5"
                 } ${first ? CELL_STYLES[first.type].cell : "bg-surface-primary"} ${
                   loading ? "animate-pulse" : ""
