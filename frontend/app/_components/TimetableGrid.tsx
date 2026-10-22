@@ -1,7 +1,15 @@
 "use client";
 
 import { useCallback, useRef } from "react";
-import { CELL_STYLES, DAYS, PERIODS, type SlotEntry, type SlotTable } from "@/lib/timetable";
+import {
+  AREA_TAG,
+  CELL_STYLES,
+  DAYS,
+  PERIODS,
+  areaLabel,
+  type SlotEntry,
+  type SlotTable,
+} from "@/lib/timetable";
 import type { SlotTarget } from "./SlotPopover";
 import type { CourseTarget } from "./CourseMenu";
 
@@ -9,8 +17,14 @@ const LONG_PRESS_MS = 450;
 const MOVE_TOLERANCE = 10;
 /** 1コマの高さ(px)。画面に収めるときは呼び出し側が `rowHeight` で詰める */
 export const DEFAULT_ROW_HEIGHT = 72;
-/** 詰めても下回らない高さ。科目名2行と区分のバッジが収まる */
+/** 詰めても下回らない高さ。科目名1行と区分・履修区分のバッジ(2段)が収まる */
 export const MIN_ROW_HEIGHT = 52;
+/**
+ * 科目名を2行まで出せる高さ。これより低いときは科目名を1行に詰める — バッジは区分と
+ * 履修区分の2段になり(セルの幅に横並びでは収まらない)、2行の科目名と合わせると溢れて
+ * 科目名にバッジが重なる
+ */
+const TWO_LINE_NAME_HEIGHT = 68;
 /** 画面に余りがあるときに伸ばす上限。科目名が長くても3行で収まる */
 export const MAX_ROW_HEIGHT = 96;
 
@@ -27,12 +41,22 @@ function rectOf(el: Element): CourseTarget["rect"] {
   return { top: r.top, left: r.left, width: r.width, height: r.height };
 }
 
-/** 履修区分のタグとクォーターの印（ui-design_phone.pen Tags / Quarter） */
+/**
+ * 区分(教養教育科目は分野)・履修区分のタグとクォーターの印（ui-design_phone.pen Tags / Quarter）。
+ * 区分を先に置き、どの枠の必修かを読めるようにする(design.md §8.3.4)
+ */
 function Tags({ entry }: { entry: SlotEntry }) {
-  const style = CELL_STYLES[entry.type];
+  const area = areaLabel(entry);
   return (
     <span className="flex flex-wrap items-center gap-0.5">
-      <span className={`rounded-sm px-1 py-px text-[8px] leading-tight ${style.tag}`}>{style.label}</span>
+      {area && (
+        <span className={`rounded-sm px-[3px] text-[8px] leading-tight ${AREA_TAG}`}>{area}</span>
+      )}
+      {entry.requirement && (
+        <span className={`rounded-sm px-1 py-px text-[8px] leading-tight ${CELL_STYLES[entry.type].tag}`}>
+          {entry.requirement}
+        </span>
+      )}
       {entry.quarter && (
         <span className="rounded-sm border border-fg-primary bg-surface-primary px-[3px] text-[8px] font-semibold leading-tight text-fg-primary">
           {entry.quarter}
@@ -120,6 +144,8 @@ export default function TimetableGrid({
   );
 
   const isSelected = (entry: SlotEntry) => selected?.key === entryKey(entry);
+  const nameClamp =
+    (rowHeight ?? DEFAULT_ROW_HEIGHT) >= TWO_LINE_NAME_HEIGHT ? "line-clamp-2" : "line-clamp-1";
 
   return (
     <div className="flex select-none flex-col bg-surface-primary">
@@ -140,7 +166,8 @@ export default function TimetableGrid({
         <div
           key={period}
           className="flex border-b border-border-primary"
-          style={{ height: rowHeight ?? DEFAULT_ROW_HEIGHT }}
+          // 下限で、3Q と 4Q の2科目が入ったマスのように収まらない行だけは伸ばす(重ねない)
+          style={{ minHeight: rowHeight ?? DEFAULT_ROW_HEIGHT }}
         >
           <div className="flex w-7 shrink-0 flex-col items-center justify-center border-r border-border-primary bg-cell-free">
             <span className="tabular-nums text-[13px] font-bold leading-none text-fg-primary">{period}</span>
@@ -199,7 +226,7 @@ export default function TimetableGrid({
                     ))
                   : first && (
                       <>
-                        <span className="line-clamp-2 text-[10px] font-semibold leading-tight text-fg-primary">
+                        <span className={`${nameClamp} text-[10px] font-semibold leading-tight text-fg-primary`}>
                           {first.name}
                         </span>
                         <Tags entry={first} />

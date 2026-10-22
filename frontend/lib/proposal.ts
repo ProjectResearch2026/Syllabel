@@ -2,6 +2,8 @@ import { create } from "zustand";
 import type { ProposedCourse } from "@/lib/chatApi";
 import type { SyllabusDetail } from "@/lib/syllabus-api";
 import { DAYS } from "@/lib/timetable";
+import { categoryOf, subcategoryOf } from "@/lib/courseLabels";
+import type { CourseTags } from "@/lib/syllabusUI";
 
 /**
  * 履修提案の受信状態（design.md §5.2.3）。
@@ -30,15 +32,18 @@ export function courseKey(course: { syllabusCode: string | null; title: string }
 export const MANUAL_REASON = "学生が自分で時間割に登録した科目";
 
 /**
- * シラバス(講義詳細)から時間割の科目を作る。`category` は学生の課程での履修区分
- * (`必修` など。タグが出ない科目は null)で、時間割のセルの色に使う
+ * シラバス(講義詳細)から時間割の科目を作る。`tags` はその科目のタグ(§8.2.1)で、
+ * 区分・分野・履修区分を履修要項の表記に戻して載せる。タグが出ない科目はどれも null
  */
 export type SyllabusForTimetable = Pick<
   SyllabusDetail,
   "syllabus_code" | "course_title" | "slots" | "day_of_week" | "period" | "term_name" | "credits"
 >;
 
-export function courseFromSyllabus(syllabus: SyllabusForTimetable, category: string | null): ProposedCourse {
+export function courseFromSyllabus(
+  syllabus: SyllabusForTimetable,
+  tags: Pick<CourseTags, "category" | "subcategory" | "requirement">,
+): ProposedCourse {
   const slots = (syllabus.slots ?? []).flatMap((s) =>
     (DAYS as readonly string[]).includes(s.day)
       ? [{ term: s.term, day: s.day as NonNullable<ProposedCourse["day"]>, period: s.period }]
@@ -56,7 +61,9 @@ export function courseFromSyllabus(syllabus: SyllabusForTimetable, category: str
     term: first?.term ?? (syllabus.term_name || null),
     slots,
     credits: syllabus.credits,
-    category,
+    category: tags.requirement,
+    courseCategory: categoryOf(tags.category),
+    subcategory: subcategoryOf(tags.subcategory),
     reason: MANUAL_REASON,
   };
 }

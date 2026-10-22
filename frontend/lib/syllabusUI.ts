@@ -3,10 +3,18 @@ import type { Category, CourseType, CurriculaData, Subcategory } from "@/lib/syl
 import { canRegister, type CourseTarget } from "@/lib/eligibility";
 import { normalizeTitle } from "@/lib/courseTitle";
 import { PERIODS } from "@/lib/timetable";
+import {
+  CATEGORY_LABEL,
+  SUBCATEGORY_LABEL,
+  type CourseCategoryTag,
+  type SubcategoryTag,
+} from "@/lib/courseLabels";
+
+export type { CourseCategoryTag, SubcategoryTag };
 
 /** 区分の絞り込みで「絞らない」を表す値。 */
 export const ALL_CATEGORIES = "すべて";
-/** 履修区分・状態の絞り込みで「絞らない」を表す値。 */
+/** 履修区分の絞り込みで「絞らない」を表す値。 */
 export const ALL_TAGS = "すべて";
 /** 分野の絞り込みで「絞らない」を表す値。 */
 export const ALL_SUBCATEGORIES = "すべて";
@@ -14,10 +22,11 @@ export const ALL_SUBCATEGORIES = "すべて";
 /**
  * 絞り込みの選択肢。**PC・モバイルで同じものを使うため、ここに1つだけ置く。**
  *
- * 履修区分と状態はチップに、区分と分野はセレクトに出す(§8.2.2)。分野のセレクトは
- * 区分が `教養教育` のときだけ出す。
+ * 履修区分はチップに、区分と分野はセレクトに出す(§8.2.2)。分野のセレクトは
+ * 区分が `教養教育` のときだけ出す。修得済み(状態)はチップに置かず、
+ * 「修得済みを除く」スイッチで出し入れする(`hideCompleted`)
  */
-export const TAG_CHIPS = [ALL_TAGS, "必修", "選択必修", "選択", "随意", "修得済み"] as const;
+export const TAG_CHIPS = [ALL_TAGS, "必修", "選択必修", "選択", "随意"] as const;
 export const CATEGORY_CHOICES = [
   ALL_CATEGORIES,
   "教養教育",
@@ -25,26 +34,6 @@ export const CATEGORY_CHOICES = [
   "専門応用",
   "専門関連",
 ] as const;
-
-/**
- * 分野(教養教育科目の `subcategory`)の表示名。design.md §8.2.1。
- *
- * 履修要項の区分名から括弧と末尾の「科目」を除いた形にする。並びは
- * `backend/app/schemas/curriculum.py` の `Subcategory` の定義順に合わせる。
- */
-const SUBCATEGORY_LABEL = {
-  "「仏教の思想」科目": "仏教の思想",
-  必修外国語科目: "必修外国語",
-  選択外国語科目: "選択外国語",
-  人文科学系科目: "人文科学系",
-  社会科学系科目: "社会科学系",
-  自然科学系科目: "自然科学系",
-  スポーツ科学系科目: "スポーツ科学系",
-  教養教育科目特別講義: "教養教育科目特別講義",
-  "学部・センター等提供科目": "学部・センター等提供",
-} as const satisfies Record<Subcategory, string>;
-
-export type SubcategoryTag = (typeof SUBCATEGORY_LABEL)[Subcategory];
 
 /**
  * 分野の絞り込みの選択肢。区分が `教養教育` のときだけ出す(§8.2.2)。
@@ -85,7 +74,13 @@ export function periodChoices(current: string): number[] {
 }
 
 type SyllabusUIStore = {
-  /** 履修区分または状態での絞り込み(`必修` / `選択必修` / `選択` / `随意` / `修得済み`) */
+  /**
+   * 修得済みの科目を一覧から除くか。**既定は除く**(§8.2.2)。学生が一覧で探すのは
+   * これから履修する科目であり、修得済みの一覧はマイデータで見られる
+   */
+  hideCompleted: boolean;
+  setHideCompleted: (hide: boolean) => void;
+  /** 履修区分での絞り込み(`必修` / `選択必修` / `選択` / `随意`) */
   activeTag: string;
   setActiveTag: (tag: string) => void;
   /** 区分での絞り込み(`教養教育` / `専門基礎` / `専門応用` / `専門関連`) */
@@ -119,6 +114,8 @@ type SyllabusUIStore = {
  * 他の状態と同じくメモリにだけ持ち、再読み込みで消える。
  */
 export const useSyllabusUIStore = create<SyllabusUIStore>((set) => ({
+  hideCompleted: true,
+  setHideCompleted: (hide) => set({ hideCompleted: hide }),
   activeTag: ALL_TAGS,
   setActiveTag: (tag) => set({ activeTag: tag }),
   activeCategory: ALL_CATEGORIES,
@@ -130,6 +127,7 @@ export const useSyllabusUIStore = create<SyllabusUIStore>((set) => ({
   setListQuery: (query) => set({ listQuery: query }),
   reset: () =>
     set({
+      hideCompleted: true,
       activeTag: ALL_TAGS,
       activeCategory: ALL_CATEGORIES,
       activeSubcategory: ALL_SUBCATEGORIES,
@@ -149,14 +147,10 @@ export const useSyllabusUIStore = create<SyllabusUIStore>((set) => ({
  * |---|---|
  * | 状態 | `修得済み` |
  * | 区分 | `教養教育` / `専門基礎` / `専門応用` / `専門関連` |
- * | 分野 | 教養教育科目のみ。`SUBCATEGORY_LABEL` の表示名 |
+ * | 分野 | 教養教育科目のみ。`SUBCATEGORY_LABEL`(`lib/courseLabels.ts`)の表示名 |
  * | 履修区分 | `必修` / `選択必修` / `選択` / `随意` |
  */
-export type CourseCategoryTag = "教養教育" | "専門基礎" | "専門応用" | "専門関連";
 export type RequirementTag = "必修" | "選択必修" | "選択" | "随意";
-
-/** 履修区分または状態。絞り込みのチップが取る値でもある。 */
-export type TagType = RequirementTag | "修得済み" | null;
 
 /** 1つのシラバスコードに付すタグ一式。すべて null / false ならタグなし。 */
 export type CourseTags = {
@@ -179,14 +173,6 @@ export const NO_TAGS: CourseTags = {
   category: null,
   subcategory: null,
   requirement: null,
-};
-
-/** 履修要項の区分名(`専門基礎科目`)をタグの表記(`専門基礎`)にする。 */
-const CATEGORY_LABEL: Record<Category, CourseCategoryTag> = {
-  教養教育科目: "教養教育",
-  専門基礎科目: "専門基礎",
-  専門応用科目: "専門応用",
-  専門関連科目: "専門関連",
 };
 
 /** タグの候補。`resolveTags()` が履修可否を掛けて最終の `CourseTags` にする。 */
@@ -320,21 +306,24 @@ export function hasTags(tags: CourseTags): boolean {
 /**
  * 絞り込みに一致するか。design.md §8.2.2。
  *
- * 軸どうしは AND で効く。`修得済み` は履修区分ではなく状態の軸だが、
- * 学生の探し方に沿うため同じチップの並びに置く。
+ * 軸どうしは AND で効く。修得済み(状態の軸)はチップではなくスイッチで除く。
+ * 修得済みには履修区分を出さないので、履修区分のチップを選べば修得済みは
+ * スイッチによらず外れる
  */
 export function matchesFilter(
   tags: CourseTags,
   activeTag: string,
   activeCategory: string,
   activeSubcategory: string,
+  /** 修得済みを除くか(「修得済みを除く」スイッチ) */
+  hideCompleted: boolean,
 ): boolean {
   if (activeCategory !== ALL_CATEGORIES && tags.category !== activeCategory) return false;
   if (activeSubcategory !== ALL_SUBCATEGORIES && tags.subcategory !== activeSubcategory) {
     return false;
   }
+  if (hideCompleted && tags.completed) return false;
   if (activeTag === ALL_TAGS) return true;
-  if (activeTag === "修得済み") return tags.completed;
   return tags.requirement === activeTag;
 }
 
@@ -342,14 +331,17 @@ export function matchesFilter(
  * タグでの絞り込みが効いているか。design.md §8.2.2。
  *
  * 絞り込みが効いているあいだは、件数の表示を絞り込み後のものに切り替え、
- * 絞る前の母数を併記する(`useTaggedResults()`。§6.1.4)。
+ * 絞る前の母数を併記する(`useTaggedResults()`。§6.1.4)。`hideCompleted` には
+ * 修得済みを実際に除いたか(スイッチが ON で、除いた科目があるか)を渡す
  */
 export function isFiltering(
   activeTag: string,
   activeCategory: string,
   activeSubcategory: string,
+  hideCompleted: boolean,
 ): boolean {
   return (
+    hideCompleted ||
     activeTag !== ALL_TAGS ||
     activeCategory !== ALL_CATEGORIES ||
     activeSubcategory !== ALL_SUBCATEGORIES

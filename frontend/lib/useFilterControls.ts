@@ -27,6 +27,8 @@ export function useFilterControls() {
   const setActiveCategory = useSyllabusUIStore((s) => s.setActiveCategory);
   const activeSubcategory = useSyllabusUIStore((s) => s.activeSubcategory);
   const setActiveSubcategory = useSyllabusUIStore((s) => s.setActiveSubcategory);
+  const hideCompleted = useSyllabusUIStore((s) => s.hideCompleted);
+  const setHideCompleted = useSyllabusUIStore((s) => s.setHideCompleted);
 
   const resetOffset = useCallback(() => {
     if (!searchParams.get("offset")) return;
@@ -60,7 +62,17 @@ export function useFilterControls() {
     [setActiveSubcategory, resetOffset],
   );
 
+  const selectHideCompleted = useCallback(
+    (hide: boolean) => {
+      setHideCompleted(hide);
+      resetOffset();
+    },
+    [setHideCompleted, resetOffset],
+  );
+
   return {
+    hideCompleted,
+    selectHideCompleted,
     activeTag,
     activeCategory,
     activeSubcategory,

@@ -1,9 +1,10 @@
 "use client";
 
+import CompletedFilter from "./CompletedFilter";
 import { useSearchParams } from "next/navigation";
 import type { MatchedBy, SyllabusListItem } from "@/lib/syllabus-api";
 import { detailHref } from "@/lib/syllabusQuery";
-import { useTaggedResults } from "@/lib/useTaggedResults";
+import { emptyMessage, useTaggedResults } from "@/lib/useTaggedResults";
 import CourseCard from "./CourseCard";
 import SyllabusPagination from "./SyllabusPagination";
 
@@ -38,7 +39,7 @@ export default function SyllabusResults({
 }) {
   // 詳細へ移っても絞り込みを失わないよう、いまのクエリをリンクに畳む
   const searchParams = useSearchParams();
-  const { visible, matched, total, filtering, offset: start } = useTaggedResults(
+  const { visible, matched, total, filtering, offset: start, hiddenCompleted } = useTaggedResults(
     results,
     targets,
     faculty,
@@ -73,11 +74,12 @@ export default function SyllabusResults({
             </span>
           )}
         </h1>
+        <CompletedFilter />
       </div>
 
       {visible.length === 0 ? (
         <p className="py-16 text-center text-sm text-fg-tertiary">
-          {filtering ? "絞り込みに該当する科目がありません" : "該当する科目がありません"}
+          {emptyMessage(filtering, hiddenCompleted)}
         </p>
       ) : (
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">

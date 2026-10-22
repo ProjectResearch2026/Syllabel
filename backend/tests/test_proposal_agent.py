@@ -1526,8 +1526,25 @@ def test_related_course_is_elective_for_the_student():
     candidate = Candidate(course=course, codes=("Y000000005",), classes=(_offered("Y000000005"),), matched=1)
 
     assert pa.student_type(course) == "選択"
-    assert pa._proposed_course(candidate, candidate.classes[0]).category == "選択"
+    proposed = pa._proposed_course(candidate, candidate.classes[0])
+    assert proposed.category == "選択"
+    assert proposed.course_category == "専門関連科目"
+    assert proposed.subcategory is None
     assert f"{course.title} | 専門関連科目 | 選択 |" in "\n".join(pa._format_candidates([candidate]))
+
+
+def test_proposed_course_carries_category_and_subcategory():
+    """履修区分がどの区分・分野の値かを示すため、区分と分野を提案の科目に載せる。"""
+    loaded = _loaded()
+    liberal = next(c for c in loaded.curriculum.courses if c.category == "教養教育科目")
+    candidate = Candidate(course=liberal, codes=("Y000000006",), classes=(_offered("Y000000006"),), matched=1)
+
+    proposed = pa._proposed_course(candidate, candidate.classes[0])
+    assert proposed.course_category == "教養教育科目"
+    assert proposed.subcategory == liberal.subcategory
+    dumped = proposed.model_dump(by_alias=True)
+    assert dumped["courseCategory"] == "教養教育科目"
+    assert dumped["subcategory"] == liberal.subcategory
 
 
 # ---------------------------------------------------------------------------

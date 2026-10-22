@@ -44,7 +44,7 @@ export default function AddToTimetableButton({
   const { target: term } = useTargetTerm();
   const tags = useTagMap()(syllabus.syllabus_code, target);
 
-  const course = courseFromSyllabus(syllabus, tags.requirement);
+  const course = courseFromSyllabus(syllabus, tags);
   const key = courseKey(course);
   const inTimetable = courses.some((c) => courseKey(c) === key);
 

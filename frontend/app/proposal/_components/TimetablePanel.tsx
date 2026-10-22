@@ -3,7 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { DAYS, PERIODS, CELL_STYLES, coursesToSlotTable, type SlotEntry } from "@/lib/timetable";
+import {
+  AREA_TAG,
+  DAYS,
+  PERIODS,
+  CELL_STYLES,
+  areaLabel,
+  coursesToSlotTable,
+  type SlotEntry,
+} from "@/lib/timetable";
 import { useProposalStore } from "@/lib/proposal";
 import { useTimetableEditing } from "@/lib/useTimetableEditing";
 import { courseContext, slotContext, useAiStore, type AiContext } from "@/lib/ai";
@@ -37,16 +45,35 @@ function enterDelay(order: number): React.CSSProperties {
 /** 選択中の枠。マスの内側に引き、隣のマスの線に隠れないようにする */
 const RING = "z-10 ring-2 ring-inset ring-accent";
 
-/** 科目名と、履修区分・クォーターの印 */
+/**
+ * 区分(教養教育科目は分野)と履修区分のバッジ。履修区分は区分の内訳なので、
+ * 「専門応用 › 必修」のように区分を先に置き、どの枠の必修かを読めるようにする(§8.3.4)
+ */
+function AreaTags({ entry }: { entry: SlotEntry }) {
+  const area = areaLabel(entry);
+  return (
+    <>
+      {area && (
+        <span className={`rounded-sm px-1 py-px text-[9px] leading-tight ${AREA_TAG}`}>{area}</span>
+      )}
+      {entry.requirement && (
+        <span className={`rounded-sm px-1.5 py-0.5 text-[9px] leading-tight ${CELL_STYLES[entry.type].tag}`}>
+          {entry.requirement}
+        </span>
+      )}
+    </>
+  );
+}
+
+/** 科目名と、区分・履修区分・クォーターの印 */
 function EntryBody({ entry, clamp }: { entry: SlotEntry; clamp: string }) {
-  const style = CELL_STYLES[entry.type];
   return (
     <>
       <span className={`${clamp} text-[11px] font-semibold leading-[14px] text-fg-primary`}>
         {entry.name}
       </span>
       <span className="flex flex-wrap items-center gap-1">
-        <span className={`rounded-sm px-1.5 py-0.5 text-[9px] ${style.tag}`}>{style.label}</span>
+        <AreaTags entry={entry} />
         {entry.quarter && (
           <span className="rounded-sm border border-border-primary bg-surface-primary px-1 py-0.5 text-[9px] font-semibold leading-none text-fg-secondary">
             {entry.quarter}
@@ -252,9 +279,7 @@ export default function TimetablePanel() {
                 className={`flex items-center gap-1.5 rounded-sm px-2 py-1 ${CELL_STYLES[entry.type].cell} ${ENTER}`}
               >
                 <span className="text-[11px] font-semibold text-fg-primary">{entry.name}</span>
-                <span className={`rounded-sm px-1.5 py-0.5 text-[9px] ${CELL_STYLES[entry.type].tag}`}>
-                  {CELL_STYLES[entry.type].label}
-                </span>
+                <AreaTags entry={entry} />
                 {entry.quarter && (
                   <span className="text-[9px] font-semibold text-fg-secondary">{entry.quarter}</span>
                 )}

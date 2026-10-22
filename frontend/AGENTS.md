@@ -155,7 +155,7 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 - **表のために吹き出しを広げない。** 幅は設計(`ui-ux/ui-design_*.pen`、280〜290px)どおりに保ち、表は中で横スクロールさせる
 - Tailwind の preflight が `ul` / `ol` の記号と字下げを消すため、リストの見た目は `MarkdownText` の `components` で自分で付けている
 
-履修提案の科目スキーマは design.md §5.3 に従う(`syllabusCode` / `title` / `day` / `period` / `term` / `slots` / `credits` / `category` / `reason`)。必須は `title` と `reason` だけで、**集中講義の曜日・時限や特定できないシラバスコードは null** で来る。
+履修提案の科目スキーマは design.md §5.3 に従う(`syllabusCode` / `title` / `day` / `period` / `term` / `slots` / `credits` / `category` / `courseCategory` / `subcategory` / `reason`)。**`category` は履修区分(必修など)で、区分は `courseCategory`、教養教育科目の分野は `subcategory`(どちらも履修要項の表記)である。** 時間割のセルは区分(教養教育科目は分野)を履修区分の前に出す(design.md §8.3.4)。履修区分だけではどの枠の必修か読めない。表示名は `lib/courseLabels.ts` にあり、シラバス一覧のタグと共用する。必須は `title` と `reason` だけで、**集中講義の曜日・時限や特定できないシラバスコードは null** で来る。
 
 **`day` / `period` / `term` は1コマ目だけである。** 「後期 金4・金5」のように複数のコマを持つ科目の全コマは `slots` にある。時間割に置くときは `lib/timetable.ts` の `occupiedSlots()` を通し、`day` / `period` を直接使わない(1コマ目だけを見ていた頃は、金4・金5 の科目の金5 が空いて見えた)。`coursesToTimetable()` は複数コマの科目の**同じセル**を全部のマスに入れ、`toCourseList()` はそれを1科目1行に数える(マスごとに数えると単位が2倍になる)。**時間割表は PC・モバイルとも `coursesToSlotTable()` を使う**(design.md §8.3.4。PC は `TimetablePanel.tsx`、モバイルは `app/_components/TimetableGrid.tsx`)。1マスに複数の科目(3Q と 4Q)を持ち、クォーターの印を付け、曜日・時限の無い科目を `unscheduled` に分ける。**提案の科目は画面から落とさない** — 落とすと表の単位の和が「今期登録単位」と合わなくなる。1マス1科目の `coursesToTimetable()` はどの画面からも使っていない(以前のモバイルが使い、3Q と 4Q の科目の一方が消えていた)。シラバス一覧の曜日時限も api-clean の `slots` から `lib/schedule.ts` の `formatSlots()` で作る。
 
@@ -186,7 +186,7 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 |---|---|
 | 状態 | `修得済み` |
 | 区分 | `教養教育` / `専門基礎` / `専門応用` / `専門関連` |
-| 分野 | 教養教育科目のみ。履修要項の `subcategory` から括弧と末尾の「科目」を除いた表示名(`人文科学系` など。`SUBCATEGORY_LABEL`) |
+| 分野 | 教養教育科目のみ。履修要項の `subcategory` から括弧と末尾の「科目」を除いた表示名(`人文科学系` など。`lib/courseLabels.ts` の `SUBCATEGORY_LABEL`) |
 | 履修区分 | `必修` / `選択必修` / `選択` / `随意` |
 
 | 状況 | 出すタグ |
@@ -198,7 +198,7 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 **バッジの配色と並びは `app/syllabus/_components/CourseTags.tsx` に1つだけ置く**(一覧PC・一覧モバイル・詳細で共用)。並びは 状態 → 区分 → 分野 → 履修区分。**色は履修区分にだけ使う**(区分・分野に色を割ると履修区分と競合する)。
 
-**絞り込みの選択肢は `lib/syllabusUI.ts` の `TAG_CHIPS` / `CATEGORY_CHOICES` / `SUBCATEGORY_CHOICES`。** チップは履修区分と状態、セレクトは区分と分野。**分野のセレクトは区分が `教養教育` のときだけ出し、区分を変えたら分野は `すべて` に戻す**(ストアの `setActiveCategory()` が戻す)。**URL のクエリには持たない**(履修要項との突合から決まる値であり、api-clean に投げる検索条件ではない)。
+**絞り込みの選択肢は `lib/syllabusUI.ts` の `TAG_CHIPS` / `CATEGORY_CHOICES` / `SUBCATEGORY_CHOICES`。** チップは履修区分、セレクトは区分と分野。**修得済みはチップに置かず、「修得済みを除く」スイッチ(`CompletedFilter.tsx`。既定 ON、ON は赤)で出し入れする**(修得済みだけを見たいときはマイデータで見られる。チップとスイッチで同じ軸を操作すると矛盾した組み合わせが選べる)。修得済みを除いたせいで0件のときは `emptyMessage()` がそう言う。**分野のセレクトは区分が `教養教育` のときだけ出し、区分を変えたら分野は `すべて` に戻す**(ストアの `setActiveCategory()` が戻す)。**URL のクエリには持たない**(履修要項との突合から決まる値であり、api-clean に投げる検索条件ではない)。
 
 **曜日・時限(`day` / `period`)はこれと違って URL のクエリに持つ**(api-clean に投げる検索条件である)。時限のセレクトの選択肢は `periodChoices()`(時間割表と同じ 1〜5。範囲外の値が URL に付いていたときだけ足す)。**時間割の空きコマの「この時間に入る科目を探す」はこの2つを付けて一覧を開く**ので、セレクトを落とすと絞り込みが見えないまま効く状態になる。
 

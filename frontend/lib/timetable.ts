@@ -1,3 +1,5 @@
+import { CATEGORY_LABEL, SUBCATEGORY_LABEL } from "@/lib/courseLabels";
+
 export const DAYS = ["月", "火", "水", "木", "金", "土"] as const;
 export const PERIODS = [1, 2, 3, 4, 5] as const;
 
@@ -71,6 +73,12 @@ export const CELL_STYLES: Record<CourseType, {
     label: "既修得",
   },
 };
+
+/**
+ * 時間割の科目の区分・分野のバッジ(`areaLabel()`)。シラバス一覧の区分・分野のタグ
+ * (`CourseTags.tsx`)と同じ落ち着いた配色にし、色は履修区分のバッジにだけ使う
+ */
+export const AREA_TAG = "border border-tag-category-border bg-tag-category-bg text-tag-category-fg";
 
 /**
  * 時間割を曜日順（曜日 → 限）のフラットな配列にする。登録予定の科目リスト用。
@@ -173,7 +181,14 @@ export function coursesToTimetable(
 /** PC の時間割表の1マスに置く科目1件。1マスに複数入り得る(`coursesToSlotTable()`) */
 export type SlotEntry = {
   name: string;
+  /** セルの色。履修区分が分からない科目は選択の色で描く */
   type: CourseType;
+  /** 履修区分(`必修` など)。分からない科目は無く、バッジを出さない */
+  requirement?: string;
+  /** 区分の表示名(`専門応用` など)。履修区分がどの区分の値かを示す */
+  category?: string;
+  /** 分野の表示名(`人文科学系` など)。教養教育科目だけが持つ */
+  subcategory?: string;
   code?: string;
   credits?: number;
   /**
@@ -182,6 +197,21 @@ export type SlotEntry = {
    */
   quarter?: string;
 };
+
+/** 履修要項の表記を表示名にする。知らない値・無い値は undefined */
+function labelOf(labels: Record<string, string>, value: string | null | undefined): string | undefined {
+  return value ? labels[value] : undefined;
+}
+
+/**
+ * 履修区分(`必修` など)がどの枠についての値かを示す名前(design.md §8.3.4)。
+ * 教養教育科目は分野(`人文科学系`)で、それ以外は区分(`専門応用`)で示す — 教養教育科目の
+ * 必修・選択必修は分野ごとに決まり(「仏教の思想」の必修、人文科学系の選択必修)、
+ * `教養教育` だけでは枠が読めない。分からない科目は undefined
+ */
+export function areaLabel(entry: Pick<SlotEntry, "category" | "subcategory">): string | undefined {
+  return entry.subcategory ?? entry.category;
+}
 
 /** 期(period) → 曜日 → そのマスの科目(クォーター順) */
 export type SlotTable = Record<number, Record<string, SlotEntry[]>>;
@@ -225,6 +255,8 @@ export function coursesToSlotTable(
     term: string | null;
     slots?: { term: string | null; day: string; period: number }[];
     category: string | null;
+    courseCategory?: string | null;
+    subcategory?: string | null;
     syllabusCode: string | null;
     credits: number | null;
   }[],
@@ -235,6 +267,9 @@ export function coursesToSlotTable(
     const base = {
       name: course.title,
       type: categoryToCourseType(course.category),
+      requirement: course.category ?? undefined,
+      category: labelOf(CATEGORY_LABEL, course.courseCategory),
+      subcategory: labelOf(SUBCATEGORY_LABEL, course.subcategory),
       code: course.syllabusCode ?? undefined,
       credits: course.credits ?? undefined,
     };

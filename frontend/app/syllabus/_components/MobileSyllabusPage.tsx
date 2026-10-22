@@ -29,10 +29,11 @@ import {
 } from "@/lib/syllabusUI";
 import { useFilterControls } from "@/lib/useFilterControls";
 import { useSearchInput } from "@/lib/useSearchInput";
-import { useTaggedResults } from "@/lib/useTaggedResults";
+import { emptyMessage, useTaggedResults } from "@/lib/useTaggedResults";
 import { detailHref } from "@/lib/syllabusQuery";
 import { DAYS } from "@/lib/timetable";
 import CourseTags from "./CourseTags";
+import CompletedFilter from "./CompletedFilter";
 import SyllabusProfileNotice, { CategoryFilterHint } from "./SyllabusProfileNotice";
 
 type Props = {
@@ -76,7 +77,7 @@ export default function MobileSyllabusPage({
   const conversation = useSyllabusConversation();
 
   // タグ付け・絞り込み・ページの切り出しは PC と同じものを使う(§8)
-  const { visible, matched, total, filtering, offset: start } = useTaggedResults(
+  const { visible, matched, total, filtering, offset: start, hiddenCompleted } = useTaggedResults(
     results,
     targets,
     faculty,
@@ -336,23 +337,26 @@ export default function MobileSyllabusPage({
       <SyllabusProfileNotice />
 
       {/* Results header */}
-      <div className="flex items-center justify-between gap-2 px-4 pt-2.5 pb-1.5 bg-white">
+      {/*
+        件数と「修得済みを除く」を1行に並べ、一覧との間に罫線を引く。幅が狭いので、
+        件数は「1,020件（1,279件中）」までに詰める(何件目かはページ送りで分かる)
+      */}
+      <div className="flex items-center justify-between gap-3 border-b border-[#E5E7EB] bg-white px-4 py-2">
         <span className="min-w-0 text-xs text-[#4B5563]">
           {/* 絞り込みは全件に効く。件数は絞り込み後のものを出す(§8) */}
-          {`${matched.toLocaleString()}件の科目`}
+          <span className="font-semibold text-[#1A2B4E]">{`${matched.toLocaleString()}件`}</span>
           {filtering && `（${total.toLocaleString()}件中）`}
-          {visible.length > 0 &&
-            `・${(start + 1).toLocaleString()}〜${(start + visible.length).toLocaleString()}件目を表示`}
           {matchedBy === "instructor" && (
-            <span className="ml-1.5">（「{q}」を教員名として検索）</span>
+            <span className="block text-[11px]">「{q}」を教員名として検索</span>
           )}
         </span>
+        <CompletedFilter compact />
       </div>
 
       {/* Course list */}
       {visible.length === 0 ? (
         <p className="px-4 py-16 text-center text-sm text-[#6B7280]">
-          {filtering ? "絞り込みに該当する科目がありません" : "該当する科目がありません"}
+          {emptyMessage(filtering, hiddenCompleted)}
         </p>
       ) : (
         <div className="flex flex-col">
