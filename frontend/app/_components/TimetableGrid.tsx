@@ -89,7 +89,7 @@ function Tags({ entry }: { entry: SlotEntry }) {
  * 時間割グリッド（モバイル。ui-design_phone.pen 04 TimetableWrapper / AI STEP1〜3）。
  *
  * **PC と同じく `coursesToSlotTable()` の形を描く**（design.md §8.3.4）。1マスに複数の
- * 科目（3Q と 4Q）を縦に積み、クォーターの科目には印を付ける。曜日・時限の無い科目は
+ * 科目（3Q と 4Q）を科目ごとの色の枠にして縦に積み、クォーターの科目には印を付ける。曜日・時限の無い科目は
  * 表の下の「曜日・時限未定」に並べる。以前のモバイルは1マス1科目で、後から来た科目に
  * 上書きされて提案の科目が画面から消えていた。
  *
@@ -225,9 +225,11 @@ export default function TimetableGrid({
                 onClick={(e) => {
                   if (first && !multi) onTapCourse({ entry: first, day, period, rect: rectOf(e.currentTarget) });
                 }}
+                // 複数ならマスは白のままにし、科目ごとに区分の色の枠を積む(PC と同じ)。
+                // マスごと塗ると2科目が1つの色に溶け、科目が2つあると読めない
                 className={`relative flex min-w-0 flex-col justify-center border-r border-border-primary last:border-r-0 ${
-                  multi ? "gap-1 p-1" : "gap-0.5 px-1 py-1.5"
-                } ${first ? CELL_STYLES[first.type].cell : "bg-surface-primary"} ${
+                  multi ? "gap-1 px-0.5 py-1" : "gap-0.5 px-1 py-1.5"
+                } ${first && !multi ? CELL_STYLES[first.type].cell : "bg-surface-primary"} ${
                   loading ? "animate-pulse" : ""
                 } ${ringed ? "z-10 rounded-lg ring-2 ring-accent" : ""}`}
               >
@@ -237,7 +239,9 @@ export default function TimetableGrid({
                         key={`${entryKey(entry)}-${entry.quarter ?? ""}`}
                         type="button"
                         onClick={(e) => onTapCourse({ entry, day, period, rect: rectOf(e.currentTarget) })}
-                        className={`flex min-w-0 flex-col gap-0.5 rounded-sm text-left ${
+                        className={`flex min-w-0 flex-1 flex-col justify-center gap-0.5 rounded-sm px-1 py-0.5 text-left ${
+                          CELL_STYLES[entry.type].cell
+                        } ${
                           isSelected(entry) ? "ring-1 ring-accent" : ""
                         }`}
                       >
