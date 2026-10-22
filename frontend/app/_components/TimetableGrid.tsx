@@ -7,6 +7,7 @@ import {
   DAYS,
   PERIODS,
   areaLabel,
+  type Day,
   type SlotEntry,
   type SlotTable,
 } from "@/lib/timetable";
@@ -32,7 +33,19 @@ export const MAX_ROW_HEIGHT = 96;
  * 列の幅。ヘッダーと各限の行が同じ定義を持つので、マスの余白が違っても縦の線が揃う
  * (flex の `flex-1` では余白の差が列の幅の差になる。PC の `TimetablePanel` と同じ)
  */
-const COLUMNS: React.CSSProperties = { gridTemplateColumns: `28px repeat(${DAYS.length}, minmax(0, 1fr))` };
+function columnsOf(days: readonly string[]): React.CSSProperties {
+  return { gridTemplateColumns: `28px repeat(${days.length}, minmax(0, 1fr))` };
+}
+
+/**
+ * 表に出す曜日。土曜は科目が入ったときだけ出す — 提案に土曜の科目はほとんど入らず、
+ * 画面の狭いモバイルでは空の列が平日の列を細くして科目名が読みにくくなる。
+ * 科目が入れば出すので、提案の科目は画面から落ちない
+ */
+function visibleDays(table: SlotTable): readonly Day[] {
+  const hasSaturday = PERIODS.some((period) => (table[period]?.["土"]?.length ?? 0) > 0);
+  return hasSaturday ? DAYS : DAYS.filter((day) => day !== "土");
+}
 
 /** 選択中の科目。複数コマの科目はどのマスで選んでも同じ科目として光らせる */
 export type SelectedCourse = { day: string; period: number; key: string };
@@ -79,6 +92,8 @@ function Tags({ entry }: { entry: SlotEntry }) {
  * 科目（3Q と 4Q）を縦に積み、クォーターの科目には印を付ける。曜日・時限の無い科目は
  * 表の下の「曜日・時限未定」に並べる。以前のモバイルは1マス1科目で、後から来た科目に
  * 上書きされて提案の科目が画面から消えていた。
+ *
+ * 土曜の列は土曜に科目が入ったときだけ出す（`visibleDays()`）。
  *
  * 操作は2つ。
  *  - 科目をタップ → 選択。Ask Bar の文脈がその科目に絞られる（STEP2）。
@@ -150,15 +165,17 @@ export default function TimetableGrid({
   );
 
   const isSelected = (entry: SlotEntry) => selected?.key === entryKey(entry);
+  const days = visibleDays(table);
+  const columns = columnsOf(days);
   const nameClamp =
     (rowHeight ?? DEFAULT_ROW_HEIGHT) >= TWO_LINE_NAME_HEIGHT ? "line-clamp-2" : "line-clamp-1";
 
   return (
     <div className="flex select-none flex-col bg-surface-primary">
       {/* 曜日ヘッダー */}
-      <div className="grid h-8 border-b border-border-primary bg-surface-gray" style={COLUMNS}>
+      <div className="grid h-8 border-b border-border-primary bg-surface-gray" style={columns}>
         <div className="border-r border-border-primary" />
-        {DAYS.map((day) => (
+        {days.map((day) => (
           <div
             key={day}
             className="flex items-center justify-center border-r border-border-primary last:border-r-0"
@@ -173,14 +190,14 @@ export default function TimetableGrid({
           key={period}
           className="grid border-b border-border-primary"
           // 下限で、3Q と 4Q の2科目が入ったマスのように収まらない行だけは伸ばす(重ねない)
-          style={{ ...COLUMNS, minHeight: rowHeight ?? DEFAULT_ROW_HEIGHT }}
+          style={{ ...columns, minHeight: rowHeight ?? DEFAULT_ROW_HEIGHT }}
         >
           <div className="flex flex-col items-center justify-center border-r border-border-primary bg-cell-free">
             <span className="tabular-nums text-[13px] font-bold leading-none text-fg-primary">{period}</span>
             <span className="text-[9px] text-fg-secondary">限</span>
           </div>
 
-          {DAYS.map((day) => {
+          {days.map((day) => {
             const entries = table[period]?.[day] ?? [];
             const first = entries[0];
             const multi = entries.length > 1;
