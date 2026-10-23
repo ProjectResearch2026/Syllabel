@@ -22,7 +22,6 @@ export const LIST_QUERY_KEYS = [
   "period",
   "grade",
   "offset",
-  "filters",
 ] as const;
 
 /** 既知のキーだけを通して畳み直す。URL 由来の値をそのまま信用しないため。 */
@@ -89,13 +88,12 @@ export function backLink(params: {
  * (`useTargetTerm()` の前期・後期)で絞った一覧にする。開講期の「前期」は 1Q・2Q も
  * 含む(`searchCourses()`)ので、前期の時間割に入る科目だけが並ぶ。空きコマに科目を
  * 入れるときと、科目を別の科目に変更するときに使う。コマの無い科目(集中講義など)
- * からは学期だけで絞った一覧を開く。`openFilters` は絞り込みパネルを開いた状態で始める
+ * からは学期だけで絞った一覧を開く
  */
 export function slotSearchHref(
   day: string | null | undefined,
   period: number | null | undefined,
   term: string,
-  options: { openFilters?: boolean } = {},
 ): string {
   const params = new URLSearchParams();
   if (day && period != null) {
@@ -103,6 +101,5 @@ export function slotSearchHref(
     params.set("period", String(period));
   }
   params.set("term", term);
-  if (options.openFilters) params.set("filters", "open");
   return `/syllabus?${params.toString()}`;
 }

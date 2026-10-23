@@ -181,9 +181,9 @@ export default function TimetablePanel() {
 
   // 時間割の学期で絞る。前期の時間割から後期の科目を探させない
   const { target: targetTerm } = useTargetTerm();
-  const goSyllabus = (target: SlotTarget, openFilters: boolean) => {
+  const goSyllabus = (target: SlotTarget) => {
     setSlotTarget(null);
-    router.push(slotSearchHref(target.day, target.period, targetTerm.term, { openFilters }));
+    router.push(slotSearchHref(target.day, target.period, targetTerm.term));
   };
 
   const slotSelected = (day: string, period: number) =>
@@ -354,8 +354,7 @@ export default function TimetablePanel() {
           variant="pc"
           target={slotTarget}
           onClose={() => setSlotTarget(null)}
-          onSearch={() => goSyllabus(slotTarget, false)}
-          onFilter={() => goSyllabus(slotTarget, true)}
+          onSearch={() => goSyllabus(slotTarget)}
           onAskAi={() => {
             setSelection(slotContext(slotTarget.day, slotTarget.period));
             setSlotTarget(null);

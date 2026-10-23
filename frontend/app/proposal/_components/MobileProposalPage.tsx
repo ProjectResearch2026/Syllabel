@@ -179,9 +179,9 @@ export default function MobileProposalPage() {
 
   // 時間割の学期で絞る。前期の時間割から後期の科目を探させない
   const { target: targetTerm } = useTargetTerm();
-  const goSyllabus = (target: SlotTarget, openFilters: boolean) => {
+  const goSyllabus = (target: SlotTarget) => {
     setSlotTarget(null);
-    router.push(slotSearchHref(target.day, target.period, targetTerm.term, { openFilters }));
+    router.push(slotSearchHref(target.day, target.period, targetTerm.term));
   };
 
   if (!profile) {
@@ -283,8 +283,7 @@ export default function MobileProposalPage() {
         <SlotPopover
           target={slotTarget}
           onClose={() => setSlotTarget(null)}
-          onSearch={() => goSyllabus(slotTarget, false)}
-          onFilter={() => goSyllabus(slotTarget, true)}
+          onSearch={() => goSyllabus(slotTarget)}
           onAskAi={() => {
             const context = slotContext(slotTarget.day, slotTarget.period);
             setSelected(null);
