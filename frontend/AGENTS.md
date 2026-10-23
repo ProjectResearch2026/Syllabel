@@ -141,10 +141,10 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 | 用途 | イベント |
 |---|---|
-| 共通 | `{"delta": "..."}` / `{"thinking": "..."}` / `{"activity": {"id", "tool", "label", "args", "found"?, "titles"?, "failed"?}}` / `{"error": "..."}` / `{"done": true}` |
+| 共通 | `{"delta": "..."}` / `{"thinking": "..."}` / `{"activity": {"id", "tool", "label", "args", "found"?, "titles"?, "failed"?, "freeDays"?, "otherFreeDays"?, "unmet"?}}` / `{"error": "..."}` / `{"done": true}` |
 | 時間割のアシスタント(`/api/timetable/assistant`)だけ | `{"build": {...}}` / `{"step": {...}}` / `{"timetable": {...}}` / `{"conditions": {...}}` |
 
-`thinking` と `activity` は吹き出しの本文の上に出す(`components/ai/AgentTrace.tsx`。design.md §8.3.7)。思考とツールの呼び出しは吹き出しの `trace` に届いた順に積み、1行ずつ畳んで出す(押すと開く。Claude Code の出し方にならう)。`activity` は同じ呼び出しの書きかけの引数が同じ `id` で流れ直し(シラバス検索は終わったときに当たった科目数 `found` を添えてもう一度流れる。引数を書き終えたときは引数のシラバスコード → 科目名の `titles` も添えて届く。時間割の組み立ては終わったときに、入れる・外すのうちできなかったもの(引数の値 → 理由)の `failed` を添えてもう一度流れ、その科目の行を「時間割に入れられませんでした: …」に書き換える。**科目名は `titles` から引き、時間割の科目だけから引かない** — 時間割に入らなかった科目がコードのまま出ていた)、`lib/chat.ts` の `upsertTool()` で1つの行を書き換える。SSE の本文・思考・進み具合を吹き出しに流し込むのは `replyStream()` に任せる。
+`thinking` と `activity` は吹き出しの本文の上に出す(`components/ai/AgentTrace.tsx`。design.md §8.3.7)。思考とツールの呼び出しは吹き出しの `trace` に届いた順に積み、1行ずつ畳んで出す(押すと開く。Claude Code の出し方にならう)。`activity` は同じ呼び出しの書きかけの引数が同じ `id` で流れ直し(シラバス検索は終わったときに当たった科目数 `found` を添えてもう一度流れる。引数を書き終えたときは引数のシラバスコード → 科目名の `titles` も添えて届く。時間割の組み立ては終わったときに、組み立ての結果を添えてもう一度流れる — 入れる・外すのうちできなかったもの(引数の値 → 理由)の `failed` はその科目の行を「時間割に入れられませんでした: …」に、選んだ全休の曜日 `freeDays`(と代わりに空けられた平日 `otherFreeDays`)は「全休にする日数」の行を「全休にしました: 木曜(…)」に書き換え、満たせなかった条件 `unmet` は「満たせませんでした: …」の行を足す。**開いた行には頼んだ条件の言い直しではなく、組み立てが何をしたかを出す**。**科目名は `titles` から引き、時間割の科目だけから引かない** — 時間割に入らなかった科目がコードのまま出ていた)、`lib/chat.ts` の `upsertTool()` で1つの行を書き換える。SSE の本文・思考・進み具合を吹き出しに流し込むのは `replyStream()` に任せる。
 
 **`step` は届いた順に1手ずつ、150ms 空けて時間割に描く**(`lib/timetableBuild.ts` の `buildPlayer`)。組み立ては数秒で終わり手順はほぼ一度に届くので、そのまま当てると何が起きたか見えない。**backend は待たない。** 最後の `timetable` で表を確定させる。組み立てが始まったのに `timetable` が届かなかったら(失敗・中断)、始める前の時間割へ戻す。
 

@@ -19,8 +19,10 @@ import { useScrollToBottom } from "@/lib/useScrollToBottom";
  * - **ツールの呼び出し**も1行で、呼んでいるあいだは backend が決めた文言(「シラバスを
  *   検索しています」)、終わったら「〜しました」にし、モデルが書いた引数を短く添える。押すと
  *   引数を「時間割から外す: 水環境科学, 経済学のすすめ」のように1行ずつの文で開く(引数名や
- *   remove のような値をそのまま出さない)。入れる・外すができなかった科目は、組み立てが
- *   終わったときに「時間割に入れられませんでした: 科目(理由)」に書き換える
+ *   remove のような値をそのまま出さない)。時間割の組み立ては、終わったときに頼んだ条件を
+ *   結果に書き換える — 入れる・外すができなかった科目は「時間割に入れられませんでした:
+ *   科目(理由)」、全休の日数は選んだ曜日(「全休にしました: 木曜」)にし、満たせなかった
+ *   条件を足す
  *
  * 思考も引数もモデルの出力であり、学生のブラウザにだけ流れる（サーバには残さない）。
  */
@@ -193,17 +195,19 @@ function lastLine(text: string): string {
   return lines[lines.length - 1] ?? "";
 }
 
-/** 開いたときに並べる行。引数を「見出し: 値」の文にし、学生に関係の無い引数は出さない */
-function argLines(
-  { tool, args, found, failed }: AgentActivity,
-  titleOf: (code: string) => string,
-): string[] {
+/**
+ * 開いたときに並べる行。引数を「見出し: 値」の文にし、学生に関係の無い引数は出さない。
+ * 時間割の組み立ては、組み終えたところで頼んだ条件を結果に書き換える(選んだ全休の曜日・
+ * 満たせなかった条件・入れられなかった科目)。開いて知りたいのは何をしたかである
+ */
+function argLines(activity: AgentActivity, titleOf: (code: string) => string): string[] {
+  const { tool, args, found, unmet } = activity;
   const lines: string[] = [];
   for (const [key, value] of Object.entries(args)) {
     if (value === null || value === undefined || value === "") continue;
     const line =
       tool === "build_timetable"
-        ? buildLine(key, value, titleOf, failed ?? {})
+        ? buildLine(key, value, titleOf, activity)
         : tool === "get_course"
           ? courseLine(key, value, titleOf)
           : searchLine(key, value, args);
@@ -213,6 +217,9 @@ function argLines(
   // 今の時間割を直すだけで、入れる・外す科目も条件も無い呼び出しは、何をしたかの1行を出す
   if (tool === "build_timetable" && lines.length === 0 && args.mode === "adjust") {
     lines.push("今の時間割を見直す");
+  }
+  for (const { condition, detail } of unmet ?? []) {
+    lines.push(`満たせませんでした: ${condition}（${detail}）`);
   }
   // 検索は最後に当たった科目数を添える(backend が検索を終えたときに届く)
   if (tool === "search_courses" && found !== undefined) {
@@ -264,13 +271,23 @@ function periodText(v: string): string {
   return /^\d限$/.test(v) ? `毎日${v}` : v;
 }
 
+/** 組み立てが選んだ全休の曜日の行。組み終える前と、選べなかったとき(満たせなかった条件の行が伝える)は出さない */
+function freeDayLine({ freeDays, otherFreeDays }: AgentActivity): string | null {
+  if (!freeDays?.length) return null;
+  const others = otherFreeDays?.length
+    ? `（代わりに${otherFreeDays.map((d) => `${d}曜`).join("・")}も空けられます）`
+    : "";
+  return `全休にしました: ${joined(freeDays, (d) => `${d}曜`)}${others}`;
+}
+
 function buildLine(
   key: string,
   value: unknown,
   titleOf: (code: string) => string,
-  failed: Record<string, string>,
+  activity: AgentActivity,
 ): string | string[] | null {
   const off = cleared(value);
+  const failed = activity.failed ?? {};
   switch (key) {
     case "mode":
       // 今の時間割を直す(adjust)・外すだけ(remove)は、入れる・外す科目の行で足りる
@@ -280,7 +297,8 @@ function buildLine(
     case "free_days":
       return off ? "全休の曜日の指定をやめる" : `全休にする曜日: ${joined(value, (d) => `${d}曜`)}`;
     case "free_day_count":
-      return off ? "全休の希望をやめる" : `全休にする日数: ${value}日`;
+      // 頼んだ日数ではなく、組み立てが選んだ曜日を出す
+      return off ? "全休の希望をやめる" : freeDayLine(activity);
     case "avoid_periods":
       return off ? "避ける時限の指定をやめる" : `避ける時限: ${joined(value, periodText)}`;
     case "max_days":
@@ -380,7 +398,10 @@ const SCOPE_LABEL: Record<string, string> = {
 };
 
 /** モデルが書いた引数を短く読める形にする。分からない引数は値だけを並べる */
-function describeArgs({ tool, args }: AgentActivity, titleOf: (code: string) => string): string {
+function describeArgs(
+  { tool, args, freeDays }: AgentActivity,
+  titleOf: (code: string) => string,
+): string {
   const parts: string[] = [];
   const text = (v: unknown) =>
     Array.isArray(v) ? v.map(String).join("・") : typeof v === "object" ? "" : String(v);
@@ -391,7 +412,7 @@ function describeArgs({ tool, args }: AgentActivity, titleOf: (code: string) => 
     if (value === null || value === undefined || value === "") continue;
     if (Array.isArray(value) && value.length === 0) continue;
     if (tool === "build_timetable") {
-      const label = buildArg(key, value, text, titles);
+      const label = buildArg(key, value, text, titles, freeDays);
       if (label) parts.push(label);
       continue;
     }
@@ -411,6 +432,7 @@ function buildArg(
   value: unknown,
   text: (v: unknown) => string,
   titles: (v: unknown) => string,
+  freeDays: string[] | undefined,
 ): string | null {
   switch (key) {
     case "mode":
@@ -420,7 +442,9 @@ function buildArg(
     case "free_days":
       return `全休 ${text(value)}`;
     case "free_day_count":
-      return Number(value) > 0 ? `全休${value}日` : null;
+      // 組み終えたら選んだ曜日に書き換える
+      if (!(Number(value) > 0)) return null;
+      return freeDays?.length ? `全休 ${text(freeDays)}` : `全休${value}日`;
     case "avoid_periods":
       return `避ける ${text(value)}`;
     case "max_days":

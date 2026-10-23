@@ -199,14 +199,9 @@ export default function TimetablePanel() {
         {DAYS.map((d) => (
           <div
             key={d}
-            className="flex items-center justify-center gap-1 border-r border-border-primary last:border-r-0"
+            className="flex items-center justify-center border-r border-border-primary last:border-r-0"
           >
             <span className="text-[13px] font-semibold text-fg-primary">{d}</span>
-            {freeDays.includes(d) && (
-              <span className="rounded-full bg-surface-soft px-1.5 text-[9px] font-semibold text-fg-tertiary motion-safe:animate-fade-in">
-                全休
-              </span>
-            )}
           </div>
         ))}
       </div>
