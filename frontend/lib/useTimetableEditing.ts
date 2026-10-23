@@ -19,11 +19,12 @@ function keyOf(target: CourseTarget): string {
  *   シラバス一覧を開く。講義詳細の「この科目に変更」で入れ替わる
  *   (`AddToTimetableButton`)
  *
- * 提案の生成中はメニューを開かせない(`editable`)。届く snapshot に上書きされる。
+ * 組み立ての途中とアシスタントの応答中はメニューを開かせない(`editable`)。届く時間割に
+ * 上書きされる。
  */
 export function useTimetableEditing() {
   const router = useRouter();
-  const editable = useProposalStore((s) => s.status !== "loading");
+  const editable = useProposalStore((s) => s.status !== "loading" && !s.busy);
   const removeCourse = useProposalStore((s) => s.removeCourse);
   const startReplace = useProposalStore((s) => s.startReplace);
   const cancelReplace = useProposalStore((s) => s.cancelReplace);

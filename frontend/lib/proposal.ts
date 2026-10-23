@@ -1,22 +1,28 @@
 import { create } from "zustand";
-import type { ProposedCourse } from "@/lib/chatApi";
+import type {
+  BuiltTimetable,
+  ProposedCourse,
+  TimetableConditions,
+  TimetableReport,
+  TimetableStep,
+} from "@/lib/chatApi";
 import type { SyllabusDetail } from "@/lib/syllabus-api";
 import { DAYS } from "@/lib/timetable";
 import { categoryOf, subcategoryOf } from "@/lib/courseLabels";
 import type { CourseTags } from "@/lib/syllabusUI";
 
 /**
- * 履修提案の受信状態（design.md §5.2.3）。
+ * 時間割の状態（design.md §5.2.3）。
  *
- * 4値は「提案を持っているか」と「生成中か」を表す。`/proposal` の入力欄の宛先
- * （§8.3.1）と画面の出し分け（§8.3.2）がこの値だけで決まるため、意味を固定する。
- *
- * - `idle`    — **まだ投げていない。** 画面に到達した直後と、再提案で提案を捨てた直後
- * - `loading` — `POST /api/proposal` の応答を受信中。`courses` に入るのは `snapshot`
- *               （§6.1.1）であり確定していない
- * - `done`    — `result` を受け取った、または学生が自分で科目を登録した。
+ * - `idle`    — **まだ時間割が無い。** 画面に到達した直後
+ * - `loading` — 時間割を組んでいる。組み立ての手順（`step`。§6.1.1）を1手ずつ描いている
+ *               あいだも含む。`courses` は組み上がる途中であり確定していない
+ * - `done`    — 組み上がった、または学生が自分で科目を登録した。
  *               **時間割を持っている状態はこれだけである**
- * - `error`   — 生成に失敗した、または前提（課程コード・入学年度・学年）が揃わず投げられない
+ * - `error`   — 組み立てに失敗した
+ *
+ * アシスタントが応答しているか（`busy`）はこれと別に持つ。質問に答えているだけのときも
+ * 時間割の編集を止める — 応答の途中で組み直しが届くと、編集が上書きされるためである。
  */
 export type ProposalStatus = "idle" | "loading" | "done" | "error";
 
@@ -28,7 +34,10 @@ export function courseKey(course: { syllabusCode: string | null; title: string }
   return course.syllabusCode ?? course.title;
 }
 
-/** 学生が自分で登録した科目に付ける理由。提案チャットにもこのまま渡る */
+/**
+ * 学生が自分で登録した科目に付ける理由。アシスタントにもこのまま渡る。組み立てが
+ * 学生の科目を見分けるのは理由の文言ではなく `source: "student"` である
+ */
 export const MANUAL_REASON = "学生が自分で時間割に登録した科目";
 
 /**
@@ -65,6 +74,7 @@ export function courseFromSyllabus(
     courseCategory: categoryOf(tags.category),
     subcategory: subcategoryOf(tags.subcategory),
     reason: MANUAL_REASON,
+    source: "student",
   };
 }
 
@@ -81,48 +91,95 @@ function sumCredits(courses: ProposedCourse[]): number {
   return courses.reduce((sum, c) => sum + (c.credits ?? 0), 0);
 }
 
+/** 組み立ての1手を時間割に当てる。`free_day` は空けた曜日を、ほかは科目の出し入れを返す */
+function applyStep(courses: ProposedCourse[], step: TimetableStep): ProposedCourse[] {
+  const course = step.course;
+  if (!course) return courses;
+  const key = courseKey(course);
+  if (step.kind === "remove") return courses.filter((c) => courseKey(c) !== key);
+  if (courses.some((c) => courseKey(c) === key)) return courses;
+  return [...courses, course];
+}
+
+/** 組み立ての1手を、時間割の上に出す一言にする（§8.3.7） */
+export function stepLabel(step: TimetableStep): string | null {
+  const title = step.course?.title;
+  switch (step.kind) {
+    case "keep":
+      return title ? `${title}を残す` : null;
+    case "remove":
+      return title ? `${title}を外す${step.note ? `（${step.note}）` : ""}` : null;
+    case "required":
+      return title ? `${step.note === "再履修" ? "再履修" : "必修"}: ${title}` : null;
+    case "include":
+      return title ? `${title}を入れる` : null;
+    case "free_day":
+      return step.day ? `${step.day}曜を全休にする` : null;
+    case "fill":
+      if (!title) return null;
+      if (!step.slot) return `${title}を足す`;
+      return `${step.slot}を埋める: ${title}${
+        step.shortfallAfter != null ? `（残り${step.shortfallAfter}単位）` : ""
+      }`;
+    case "unmet":
+      return step.condition ? `満たせない条件: ${step.condition}` : null;
+  }
+}
+
 type ProposalStore = {
   status: ProposalStatus;
   courses: ProposedCourse[];
   totalCredits: number;
+  /** 直近の組み立てについて backend が作った説明（「希望条件なしで提案する」の吹き出し） */
   message: string;
   /**
-   * 直前に送った希望条件（§6.1）。再提案では提案チャットの履歴を退避する
-   * （§8.3.3）ため、**退避してもなお「前回この条件で頼んだ」ことを示せるのは
-   * ここだけ**である。
+   * 時間割の形についての条件（§6.1）。アシスタントの `conditions` イベントと
+   * `/api/timetable/build` の応答で差し替え、次のリクエストに載せる
    */
-  preferences: string;
+  conditions: TimetableConditions;
+  /** 時間割についての事実（§6.1）。満たせなかった条件・確かめることを表の上に出す */
+  report: TimetableReport | null;
+  /**
+   * 学生が手で時間割を直し、`report` が今の時間割のものでなくなった。時間割の画面が
+   * `/api/timetable/check` で引き直す（講義詳細から登録したときは、戻ってきたときに引く）
+   */
+  reportStale: boolean;
+  /** 組み立ての途中に表の上に出す一言（「専門応用科目(選択)を埋める: …」） */
+  stepLabel: string | null;
+  /** 組み立ての途中で全休にした曜日。組み上がると `conditions.freeDays` に移る */
+  stepFreeDays: string[];
+  /** アシスタントが応答している。時間割の編集を止める */
+  busy: boolean;
   /** 「別の科目に変更」の途中。シラバスで選んだ科目がこの科目と入れ替わる */
   replacing: ReplaceTarget | null;
 
-  setStatus: (status: ProposalStatus) => void;
+  setBusy: (busy: boolean) => void;
   /**
-   * 提案の生成を始める。**前の提案はここで捨てる**（§8.3.3）。`snapshot` は
-   * 組み立て途中の部分的な提案であり、前の提案を残したまま重ねると時間割の
-   * 各コマが前後の提案の混成になって読めない。
+   * 組み立てを始める。**前の時間割はまだ残す** — `/api/timetable/build` の応答を
+   * 待つあいだに表が空になると、失敗したときに元へ戻せない。手順を描き始めるときに
+   * `startSteps()` で空にする
    */
-  begin: (preferences: string) => void;
-  /**
-   * 組み立て途中の提案（`snapshot`）を反映する。status は "loading" のまま据え置き、
-   * 時間割表だけを逐次描画させる（design.md §6.1.1 / §7.2）。
-   */
-  setSnapshot: (courses: ProposedCourse[], totalCredits: number, message: string) => void;
-  setResult: (courses: ProposedCourse[], totalCredits: number, message: string) => void;
-  /**
-   * 再提案のために提案だけを捨てる（§8.3.3）。**`preferences` は残す** —
-   * 次の案内に前回の条件を示し、学生が差分だけ書き足せるようにするためである。
-   */
-  discard: () => void;
-  /** リセット（要件§4.8）。学生が書いた希望条件を含め、すべて初期値へ戻す */
+  beginBuild: () => void;
+  /** 手順を描き始める。表を空にし、手順で1科目ずつ入れていく */
+  startSteps: () => void;
+  /** 組み立ての1手を描く（§8.3.7） */
+  playStep: (step: TimetableStep) => void;
+  /** 組み上がった時間割で確定する。手順で描いた途中の表はこれで置き換わる */
+  finishBuild: (built: BuiltTimetable, message?: string) => void;
+  /** 組み立てを取りやめる。始める前の時間割へ戻す */
+  cancelBuild: (previous: Pick<ProposalStore, "status" | "courses" | "totalCredits">) => void;
+  setConditions: (conditions: TimetableConditions) => void;
+  setReport: (report: TimetableReport) => void;
+  /** リセット（要件§4.8）。すべて初期値へ戻す */
   clear: () => void;
 
   /**
-   * 学生が時間割を直接編集する。**提案の生成中は受け付けない** — 届く snapshot に
-   * 上書きされて編集が消えるためである。提案の前(`idle`)や失敗後(`error`)に
-   * 登録したときは、その時間割を持った状態(`done`)にする。
+   * 学生が時間割を直接編集する。**組み立ての途中とアシスタントの応答中は受け付けない**
+   * — 届く時間割に上書きされて編集が消えるためである。時間割が無いとき（`idle`）や
+   * 失敗後（`error`）に登録したときは、その時間割を持った状態（`done`）にする。
    *
-   * 単位の和(`totalCredits`)は編集のたびに科目から数え直す。卒業要件の見込みは
-   * `courses` に追従するので、ここを書き換えれば画面の数字もついてくる(§8.3.5)。
+   * 単位の和（`totalCredits`）は編集のたびに科目から数え直す。卒業要件の見込みは
+   * `courses` に追従するので、ここを書き換えれば画面の数字もついてくる（§8.3.5）。
    */
   addCourse: (course: ProposedCourse) => void;
   removeCourse: (key: string) => void;
@@ -137,42 +194,78 @@ const EMPTY = {
   courses: [] as ProposedCourse[],
   totalCredits: 0,
   message: "",
-  preferences: "",
+  conditions: {} as TimetableConditions,
+  report: null as TimetableReport | null,
+  reportStale: false,
+  stepLabel: null as string | null,
+  stepFreeDays: [] as string[],
+  busy: false,
   replacing: null as ReplaceTarget | null,
 };
 
-/** 編集後の時間割。編集で時間割を持った状態になる */
+/** 編集後の時間割。編集で時間割を持った状態になり、レポートは引き直しになる */
 function edited(courses: ProposedCourse[]) {
-  return { status: "done" as ProposalStatus, courses, totalCredits: sumCredits(courses) };
+  return {
+    status: "done" as ProposalStatus,
+    courses,
+    totalCredits: sumCredits(courses),
+    reportStale: true,
+  };
+}
+
+/** 編集を受け付けない状態 */
+function locked(s: Pick<ProposalStore, "status" | "busy">): boolean {
+  return s.status === "loading" || s.busy;
 }
 
 export const useProposalStore = create<ProposalStore>((set) => ({
   ...EMPTY,
 
-  setStatus: (status) => set({ status }),
-  begin: (preferences) =>
-    set({ status: "loading", preferences, courses: [], totalCredits: 0, message: "", replacing: null }),
-  setSnapshot: (courses, totalCredits, message) => set({ courses, totalCredits, message }),
-  setResult: (courses, totalCredits, message) =>
-    set({ status: "done", courses, totalCredits, message }),
-  discard: () => set({ status: "idle", courses: [], totalCredits: 0, message: "", replacing: null }),
+  setBusy: (busy) => set({ busy }),
+  beginBuild: () =>
+    set({ status: "loading", stepLabel: "時間割を組んでいます", stepFreeDays: [], replacing: null }),
+  startSteps: () => set({ courses: [], totalCredits: 0 }),
+  playStep: (step) =>
+    set((s) => {
+      const courses = applyStep(s.courses, step);
+      return {
+        courses,
+        totalCredits: sumCredits(courses),
+        stepLabel: stepLabel(step) ?? s.stepLabel,
+        stepFreeDays:
+          step.kind === "free_day" && step.day ? [...s.stepFreeDays, step.day] : s.stepFreeDays,
+      };
+    }),
+  finishBuild: (built, message) =>
+    set((s) => ({
+      status: "done",
+      courses: built.courses,
+      totalCredits: built.totalCredits,
+      report: built.report,
+      reportStale: false,
+      message: message ?? s.message,
+      stepLabel: null,
+    })),
+  cancelBuild: (previous) => set({ ...previous, stepLabel: null, stepFreeDays: [] }),
+  setConditions: (conditions) => set({ conditions, stepFreeDays: [] }),
+  setReport: (report) => set({ report, reportStale: false }),
   clear: () => set({ ...EMPTY }),
 
   addCourse: (course) =>
     set((s) => {
-      if (s.status === "loading") return {};
+      if (locked(s)) return {};
       const key = courseKey(course);
       if (s.courses.some((c) => courseKey(c) === key)) return {};
       return edited([...s.courses, course]);
     }),
   removeCourse: (key) =>
     set((s) => {
-      if (s.status === "loading") return {};
+      if (locked(s)) return {};
       return edited(s.courses.filter((c) => courseKey(c) !== key));
     }),
   replaceCourse: (key, course) =>
     set((s) => {
-      if (s.status === "loading") return {};
+      if (locked(s)) return {};
       const nextKey = courseKey(course);
       // 元の科目の位置に入れる。入れ替え先がすでに時間割にあれば二重に持たない
       const courses = s.courses.flatMap((c) => {
@@ -186,3 +279,10 @@ export const useProposalStore = create<ProposalStore>((set) => ({
   startReplace: (target) => set({ replacing: target }),
   cancelReplace: () => set({ replacing: null }),
 }));
+
+/** 表で薄くする曜日（全休）。組み立ての途中は手順で空けた曜日も足す */
+export function useFreeDays(): string[] {
+  const freeDays = useProposalStore((s) => s.conditions.freeDays);
+  const stepFreeDays = useProposalStore((s) => s.stepFreeDays);
+  return [...new Set([...(freeDays ?? []), ...stepFreeDays])];
+}

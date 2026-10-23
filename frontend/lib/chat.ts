@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { ProposedCourse } from "@/lib/chatApi";
+import type { AgentActivity, AgentStreamHandlers, ProposedCourse } from "@/lib/chatApi";
 
 export type ChatMessage = {
   id: string;
@@ -12,8 +12,59 @@ export type ChatMessage = {
    * AIシートの提案カード（ui-design_phone.pen STEP5 ProposalCard）として描画される。
    */
   proposals?: ProposedCourse[];
+  /**
+   * モデルの思考(SSE の `thinking`。design.md §6.1.1)。本文が届く前は吹き出しの中に
+   * 小さく流し、本文が始まったら1行に畳む。思考が出ないモデル・設定では無い
+   */
+  thinking?: string;
+  /** ツールの進み具合(SSE の `activity`)。呼び出しごとに1件で、届いた順 */
+  activities?: AgentActivity[];
   streaming?: boolean;
 };
+
+/**
+ * 進み具合を1件足す。同じ呼び出し(`id`)の書きかけの引数は、前のものを置き換える
+ * (書いているあいだ引数が伸びていくのを1つのチップで見せる)
+ */
+export function upsertActivity(
+  activities: AgentActivity[] | undefined,
+  activity: AgentActivity,
+): AgentActivity[] {
+  const list = activities ?? [];
+  const at = list.findIndex((a) => a.id === activity.id);
+  if (at < 0) return [...list, activity];
+  return list.map((a, i) => (i === at ? activity : a));
+}
+
+/**
+ * 吹き出し1件に SSE の本文・思考・進み具合を流し込む口を作る。`patch` はその吹き出しを
+ * 書き換える関数。`content()` は届いた本文の全体(空なら何も届かなかった)
+ */
+export function replyStream(patch: (update: Partial<ChatMessage>) => void): {
+  handlers: AgentStreamHandlers;
+  content: () => string;
+} {
+  let content = "";
+  let thinking = "";
+  let activities: AgentActivity[] = [];
+  return {
+    handlers: {
+      onDelta: (delta) => {
+        content += delta;
+        patch({ content });
+      },
+      onThinking: (delta) => {
+        thinking += delta;
+        patch({ thinking });
+      },
+      onActivity: (activity) => {
+        activities = upsertActivity(activities, activity);
+        patch({ activities });
+      },
+    },
+    content: () => content,
+  };
+}
 
 type ChatStore = {
   /**

@@ -74,9 +74,11 @@ def _partial_args(text: str) -> dict | None:
     return value if isinstance(value, dict) else None
 
 
-def _activity(tool: str, args: dict | None) -> dict:
+def _activity(call_id: str, tool: str, args: dict | None) -> dict:
+    """ツールの進み具合。`id` は呼び出しごとの値で、書きかけの引数を流し直すたびに同じ値になる。"""
     return {
         "activity": {
+            "id": call_id,
             "tool": tool,
             "label": TOOL_LABELS.get(tool, "調べています"),
             "args": args or {},
@@ -103,8 +105,8 @@ async def stream_agent(
     """
     pending = outbox if outbox is not None else []
     started = False
-    # パートの番号 → (ツール名, 書きかけの引数, 最後に流した引数)
-    tools: dict[int, tuple[str, str, dict | None]] = {}
+    # パートの番号 → (呼び出しの id, ツール名, 書きかけの引数, 最後に流した引数)
+    tools: dict[int, tuple[str, str, str, dict | None]] = {}
 
     def flush() -> list[str]:
         lines = [format_sse(event) for event in pending]
@@ -123,8 +125,8 @@ async def stream_agent(
                     elif isinstance(part, ToolCallPart):
                         raw = part.args if isinstance(part.args, str) else ""
                         args = part.args if isinstance(part.args, dict) else _partial_args(raw)
-                        tools[event.index] = (part.tool_name, raw, args)
-                        yield format_sse(_activity(part.tool_name, args))
+                        tools[event.index] = (part.tool_call_id, part.tool_name, raw, args)
+                        yield format_sse(_activity(part.tool_call_id, part.tool_name, args))
                     elif isinstance(part, TextPart):
                         text = part.content if started else part.content.lstrip()
                         if text:
@@ -141,19 +143,22 @@ async def stream_agent(
                             started = True
                             yield format_sse({"delta": text})
                     elif isinstance(delta, ToolCallPartDelta) and event.index in tools:
-                        name, raw, last = tools[event.index]
+                        call_id, name, raw, last = tools[event.index]
                         if isinstance(delta.args_delta, str):
                             raw += delta.args_delta
                         name = name or (delta.tool_name_delta or "")
                         args = _partial_args(raw)
                         if args is not None and args != last:
-                            tools[event.index] = (name, raw, args)
-                            yield format_sse(_activity(name, args))
+                            tools[event.index] = (call_id, name, raw, args)
+                            yield format_sse(_activity(call_id, name, args))
                         else:
-                            tools[event.index] = (name, raw, last)
+                            tools[event.index] = (call_id, name, raw, last)
                     continue
                 if isinstance(event, FunctionToolCallEvent):
-                    yield format_sse(_activity(event.part.tool_name, event.part.args_as_dict()))
+                    part = event.part
+                    yield format_sse(
+                        _activity(part.tool_call_id, part.tool_name, part.args_as_dict())
+                    )
                     continue
                 if isinstance(event, FunctionToolResultEvent):
                     for line in flush():

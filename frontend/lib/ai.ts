@@ -127,7 +127,9 @@ export type AiConversation = {
   messages: ChatMessage[];
   /** 送信中。入力を止め、末尾の吹き出しに指標を出す */
   streaming: boolean;
-  /** 本文が1文字も届いていないあいだの文言（§4.1.4）。既定は「考えています…」 */
+  /**
+   * 本文・思考・進み具合が1つも届いていないあいだの文言（§4.1.4）。既定は「考えています…」
+   */
   thinkingLabel?: string;
   placeholder: string;
   /** 送信中ではないが入力を受け付けられない（提案の前提が揃っていないなど。§8.3.2） */
@@ -142,15 +144,10 @@ export type AiConversation = {
   /** モバイルの全画面シートにだけ出す定型の質問（ui-design_phone.pen STEP5 QuickChips） */
   sheetQuickAsks?: string[];
   /**
-   * 文章を送るのではなく、その場で何かを起こすボタン（提案の開始・再提案など。§8.3）。
+   * 文章を送るのではなく、その場で何かを起こすボタン（希望条件なしの提案など。§8.3）。
    * `dismissesSheet` は押すとモバイルのシートを閉じる（結果が背後の画面に出るもの）
    */
   actions?: { label: string; onClick: () => void; dismissesSheet?: boolean }[];
-  /**
-   * 送るとモバイルのシートを閉じて背後の画面を見せる。提案前の時間割がこれにあたる —
-   * 送った本文は希望条件になり、提案は時間割表に逐次描かれる（design.md §8.3.1）
-   */
-  sendDismissesSheet?: boolean;
   /** ボトムドックの Ask Bar に出す一言。既定は `DEFAULT_ASK_LABEL` */
   askLabel?: string;
   /**

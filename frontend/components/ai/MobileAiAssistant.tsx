@@ -261,7 +261,7 @@ function AiSheet({ conversation, base }: { conversation: AiConversation; base: A
                 : { ...dismissing, quickAsks: conversation.sheetQuickAsks ?? [] }
             }
             onAsk={(q) => conversation.send(q, context)}
-            // 折り返して並べる。横スクロールにすると、末尾の「条件を変えて提案し直す」が
+            // 折り返して並べる。横スクロールにすると、末尾の操作のボタンが
             // 画面の外に切れ、押せることに気づけない
             className="shrink-0 flex-wrap px-4 py-2"
           />
@@ -272,9 +272,9 @@ function AiSheet({ conversation, base }: { conversation: AiConversation; base: A
           conversation={{ ...conversation, note: full || !showSuggestions ? conversation.note : undefined }}
           placeholder={sheetInputPlaceholder(context, conversation.placeholder)}
           onSend={(text) => {
-            // 提案の開始はシートを閉じて時間割を見せる。質問は全画面に上げる（STEP4 → STEP5）
-            if (conversation.sendDismissesSheet) close();
-            else if (!full) expand();
+            // 全画面に上げて答えを読ませる（STEP4 → STEP5）。時間割を組み始めたら、
+            // 会話の側がシートを閉じて時間割を見せる（design.md §8.3.7）
+            if (!full) expand();
             conversation.send(text, context);
           }}
         />

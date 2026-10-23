@@ -258,7 +258,7 @@ export default function PcImportPage() {
                   安心のプライバシー設計
                 </h2>
                 <p className="w-80 text-center text-sm leading-6 text-fg-secondary">
-                  成績表はブラウザの中で読み取り、PDFはサーバーへ送りません。AIが提案を作るときは、履修状況を学内のAIサーバーにだけ送ります。送った内容は学内で100日間記録されます。
+                  成績表はブラウザの中で読み取り、PDFはサーバーへ送りません。AIに時間割を組ませるときと質問するときは、履修状況を学内のAIサーバーにだけ送ります。送った内容は学内で100日間記録されます。
                 </p>
               </div>
             </div>

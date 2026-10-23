@@ -7,7 +7,8 @@ import { useRouter } from "next/navigation";
 import { FileUp } from "lucide-react";
 import logoMark from "@/public/logo.svg";
 import { useStudentStore } from "@/lib/student";
-import { useProposalStore } from "@/lib/proposal";
+import { useFreeDays, useProposalStore } from "@/lib/proposal";
+import TimetableNotices, { BuildStepLabel } from "./TimetableNotices";
 import { useCreditSummary } from "@/lib/creditSummary";
 import { coursesToSlotTable } from "@/lib/timetable";
 import { useTimetableEditing } from "@/lib/useTimetableEditing";
@@ -156,10 +157,11 @@ export default function MobileProposalPage() {
   const [slotTarget, setSlotTarget] = useState<SlotTarget | null>(null);
   const editing = useTimetableEditing();
 
-  // 生成中に届く snapshot も描く（逐次描画。design.md §6.1.1 / §7.2）
+  // 組み立ての途中の表も描く（手順を1手ずつ。design.md §8.3.7）
   const { table, unscheduled } = coursesToSlotTable(courses);
   const isIdle = status === "idle";
   const isLoading = status === "loading";
+  const freeDays = useFreeDays();
 
   // 科目を押すと選択し（Ask Bar の文脈になる）、その場のメニューを開く。
   // シラバスを開く・別の科目に変更・時間割から外す はメニューから選ぶ
@@ -216,13 +218,15 @@ export default function MobileProposalPage() {
       {/* 提案する学期(lib/targetTerm.ts)。成績表の次の学期に固定で、表示だけする */}
       <TargetTermLabel variant="mobile" />
       <MobileRequirementsStrip view={requirements} />
+      {/* 満たせなかった条件・確かめること(レポート)。表の上に置く */}
+      <TimetableNotices className="border-b border-border-primary px-3 py-2" />
 
       <div ref={gridRef} className="relative">
         <TimetableGrid
           rowHeight={rowHeight}
           table={table}
           unscheduled={unscheduled}
-          loading={isLoading}
+          freeDays={freeDays}
           selected={selected}
           onTapCourse={onTapCourse}
           onTapEmpty={() => {
@@ -232,26 +236,20 @@ export default function MobileProposalPage() {
           onLongPressEmpty={setSlotTarget}
         />
 
-        {/* まだ投げていないこと（§5.2.3 の `idle`）を示す。空の表だけでは、提案が
+        {/* まだ時間割が無いこと（§5.2.3 の `idle`）を示す。空の表だけでは、組み
             終わって何も無いのか、これからなのかが区別できない（§8.3.2） */}
         {isIdle && (
           <div className="pointer-events-none absolute inset-0 grid place-items-center bg-surface-primary/80">
             <p className="max-w-[240px] text-center text-xs leading-5 text-fg-tertiary">
-              下のAI履修アシスタントに希望条件を送ると、ここに時間割が出ます。
+              下のAI履修アシスタントに希望を送ると、ここに時間割が組み上がります。
               空きコマを長押しして、シラバスから自分で登録することもできます。
             </p>
           </div>
         )}
+        {/* 組み立ての途中は、いま何をしているかを表の下に出す（§8.3.7） */}
         {isLoading && (
-          <div className="pointer-events-none absolute inset-0 grid place-items-center">
-            <span className="flex items-center gap-2 rounded-full border border-border-primary bg-surface-primary px-3.5 py-2 shadow-askbar">
-              <span className="flex gap-[3px]" aria-hidden="true">
-                <span className="size-1.5 animate-bounce rounded-full bg-accent" />
-                <span className="size-1.5 animate-bounce rounded-full bg-accent [animation-delay:150ms]" />
-                <span className="size-1.5 animate-bounce rounded-full bg-accent/40 [animation-delay:300ms]" />
-              </span>
-              <span className="text-[11px] text-fg-secondary">提案を作っています（1〜2分）</span>
-            </span>
+          <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
+            <BuildStepLabel />
           </div>
         )}
       </div>

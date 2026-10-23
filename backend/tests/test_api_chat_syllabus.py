@@ -178,6 +178,7 @@ def test_streams_thinking_activity_and_text():
     assert kinds[0] == "thinking"
     activity = [e["activity"] for e in events if "activity" in e]
     assert activity[-1] == {
+        "id": activity[0]["id"],
         "tool": "search_courses",
         "label": "シラバスを検索しています",
         "args": {"keyword": "符号"},

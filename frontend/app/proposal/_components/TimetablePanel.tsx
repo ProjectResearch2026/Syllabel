@@ -12,7 +12,8 @@ import {
   coursesToSlotTable,
   type SlotEntry,
 } from "@/lib/timetable";
-import { useProposalStore } from "@/lib/proposal";
+import { useFreeDays, useProposalStore } from "@/lib/proposal";
+import TimetableNotices, { BuildStepLabel } from "./TimetableNotices";
 import { useTimetableEditing } from "@/lib/useTimetableEditing";
 import { courseContext, slotContext, useAiStore, type AiContext } from "@/lib/ai";
 import CourseMenu, { type CourseTarget } from "@/app/_components/CourseMenu";
@@ -35,7 +36,8 @@ function isSelected(entry: SlotEntry, selection: AiContext | null): boolean {
 /**
  * 科目が入るときの動き。マスの位置(曜日・時限の順)で少しずつずらし、表が
  * 組み上がっていくように見せる。CSS の動きはマウント時に1回だけなので、
- * 同じ科目が残っているマスは流れ直さない
+ * 同じ科目が残っているマスは流れ直さない。組み立ての手順を描いているあいだは
+ * ずらさない(手順の間隔がそのまま入る順になる。§8.3.7)
  */
 const ENTER = "motion-safe:animate-pop-in";
 function enterDelay(order: number): React.CSSProperties {
@@ -157,12 +159,14 @@ export default function TimetablePanel() {
   const selection = useAiStore((s) => s.selection);
   const setSelection = useAiStore((s) => s.setSelection);
   const [slotTarget, setSlotTarget] = useState<SlotTarget | null>(null);
-  // 生成中に届く snapshot も描く（逐次描画。design.md §6.1.1 / §7.2）
+  // 組み立ての途中の表も描く（手順を1手ずつ。design.md §8.3.7）
   const { table, unscheduled } = coursesToSlotTable(courses);
   const isLoading = status === "loading";
-  // まだ投げていない（§5.2.3 の `idle`）。空の表だけを出すと、提案が終わって
+  // まだ時間割が無い（§5.2.3 の `idle`）。空の表だけを出すと、組み終わって
   // 何も無いのか、これからなのかが区別できない（§8.3.2）
   const isIdle = status === "idle";
+  // 全休の曜日は列を薄くする（組み立ての途中に空けた曜日も含む）
+  const freeDays = useFreeDays();
   const editing = useTimetableEditing();
   const onOpen = editing.editable ? editing.open : null;
 
@@ -187,15 +191,22 @@ export default function TimetablePanel() {
 
   return (
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border-primary bg-surface-primary">
+      {/* 満たせなかった条件・確かめること(レポート)。表の上に置く */}
+      <TimetableNotices className="shrink-0 border-b border-border-primary px-3 py-2" />
       {/* 曜日ヘッダー */}
       <div className="grid h-10 shrink-0 border-b border-border-primary bg-surface-gray" style={COLUMNS}>
         <div className="border-r border-border-primary" />
         {DAYS.map((d) => (
           <div
             key={d}
-            className="flex items-center justify-center border-r border-border-primary last:border-r-0"
+            className="flex items-center justify-center gap-1 border-r border-border-primary last:border-r-0"
           >
             <span className="text-[13px] font-semibold text-fg-primary">{d}</span>
+            {freeDays.includes(d) && (
+              <span className="rounded-full bg-surface-soft px-1.5 text-[9px] font-semibold text-fg-tertiary motion-safe:animate-fade-in">
+                全休
+              </span>
+            )}
           </div>
         ))}
       </div>
@@ -233,7 +244,7 @@ export default function TimetablePanel() {
                   aria-label={`${d}曜${p}限の空きコマ`}
                   className={`${cellClass} transition-colors hover:bg-surface-gray focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent ${
                     slotSelected(d, p) ? RING : ""
-                  }`}
+                  } ${freeDays.includes(d) ? "bg-surface-soft!" : ""}`}
                 />
               );
             }
@@ -247,7 +258,7 @@ export default function TimetablePanel() {
                   selected={isSelected(single, selection)}
                   onOpen={onOpen}
                   className={cellClass}
-                  style={enterDelay(order)}
+                  style={isLoading ? undefined : enterDelay(order)}
                 >
                   <EntryBody entry={single} clamp="line-clamp-3" />
                 </CourseButton>
@@ -266,7 +277,7 @@ export default function TimetablePanel() {
                     className={`flex min-h-0 flex-1 flex-col justify-center gap-0.5 rounded-sm border border-border-primary px-1.5 py-1 ${
                       CELL_STYLES[entry.type].cell
                     } ${ENTER}`}
-                    style={enterDelay(order)}
+                    style={isLoading ? undefined : enterDelay(order)}
                   >
                     <EntryBody entry={entry} clamp="line-clamp-2" />
                   </CourseButton>
@@ -302,14 +313,11 @@ export default function TimetablePanel() {
         </div>
       )}
 
-      {/* 生成中は表の上を光が流れる。1分強待つ場面なので、止まっていないことを示す
-          (§7.2)。マスごとの点滅にしないのは、届いた科目が現れる動きと重なるため */}
+      {/* 組み立ての途中は、いま何をしているかを表の下に出す（§8.3.7）。
+          マスごとの点滅にしないのは、届いた科目が現れる動きと重なるため */}
       {isLoading && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 overflow-hidden motion-reduce:hidden"
-        >
-          <div className="h-full w-full bg-linear-to-r from-transparent via-white/60 to-transparent motion-safe:animate-shimmer" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
+          <BuildStepLabel />
         </div>
       )}
 
@@ -323,7 +331,7 @@ export default function TimetablePanel() {
             className="pointer-events-none absolute inset-0 grid place-items-center bg-surface-primary/80"
           >
             <p className="max-w-[260px] text-center text-[13px] leading-5 text-fg-tertiary">
-              右のAI履修アシスタントに希望条件を送ると、ここに時間割が出ます。
+              右のAI履修アシスタントに希望を送ると、ここに時間割が組み上がります。
               空きコマを押して、シラバスから自分で登録することもできます。
             </p>
           </motion.div>

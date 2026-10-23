@@ -3,21 +3,36 @@ import type { ChatMessage } from "@/lib/chat";
 import { apiBase } from "@/lib/api_base";
 
 /**
- * SSE を返す backend エンドポイントのクライアント。design.md §6.1 / §6.1.1。
+ * SSE と JSON を返す backend エンドポイントのクライアント。design.md §6.1 / §6.1.1。
  *
- * 書式は `data: <JSON>` の1行1イベントで、イベントの種類は用途で2系統に分かれる。
+ * SSE の書式は `data: <JSON>` の1行1イベントで、イベントの種類は次のとおり。
  *
- * - チャット系(`/api/chat/*`): `{"delta": "..."}` / `{"error": "..."}` / `{"done": true}`
- * - 履修提案(`/api/proposal`): `{"snapshot": {...}}` / `{"result": {...}}` に加えて
- *   チャット系と同じ `error` / `done`
+ * - 共通: `{"delta": "..."}`(本文)/ `{"thinking": "..."}`(モデルの思考)/
+ *   `{"activity": {...}}`(ツールの進み具合)/ `{"error": "..."}` / `{"done": true}`
+ * - 時間割のアシスタント(`/api/timetable/assistant`)だけ: `{"build": {...}}`(組み立ての
+ *   開始)/ `{"step": {...}}`(組み立ての1手)/ `{"timetable": {...}}`(組み上がった時間割)/
+ *   `{"conditions": {...}}`(条件の差し替え)
  *
  * リクエストには学生プロファイルと対話履歴を毎回含める(サーバ側で永続化しないため)。
  */
 
+/** 提案する学期(次に登録する学期。`lib/targetTerm.ts`)。`grade` はその学期の学年 */
+export type TargetTermBody = { year: number; term: "前期" | "後期"; grade: 1 | 2 | 3 | 4 };
+
+/**
+ * シラバスチャットのリクエスト。`backend/app/schemas/chat.py` の `ChatRequest`。
+ *
+ * 課程コード・入学年度・対象学期は、揃えば送る。backend はそれで学生の文脈を作り、
+ * 検索結果にその学生にとっての区分・入る要件枠・履修できるかを付け、プロンプトに
+ * 卒業要件の充足状況を入れる(§7.4.1)。揃わなければ送らない(学年と課程だけで答える)
+ */
 type ChatRequest = {
   profile: StudentProfile | null;
   history: Pick<ChatMessage, "role" | "content">[];
   message: string;
+  programCode?: string;
+  admissionYear?: number;
+  targetTerm?: TargetTermBody;
 };
 
 /** 開講コマ1つ。design.md §5.3(`backend/app/schemas/proposal.py` の `CourseSlot`) */
@@ -61,33 +76,93 @@ export type ProposedCourse = {
   subcategory?: string | null;
   /** この科目を勧める理由。1文 */
   reason: string;
+  /**
+   * 誰が時間割に入れた科目か。組み立て(`/api/timetable/build`)は学生が自分で入れた科目
+   * (`student`)を外さない。無ければ `assistant` とみなす
+   */
+  source?: "assistant" | "student";
 };
 
-/** 時間割提案全体。design.md §5.3。 */
-export type TimetableProposal = {
+/** 避ける時限。`day` が null ならどの曜日でも(「1限は避けたい」) */
+export type PeriodRule = { day: "月" | "火" | "水" | "木" | "金" | "土" | null; period: number };
+
+/**
+ * 時間割の形についての条件。`backend/app/timetable/conditions.py` の `Conditions`。
+ * frontend はアシスタントから届いた値(`conditions` イベント)をそのまま持ち、次の
+ * リクエストに載せる。中身を画面で組み立てることはしない(条件は会話で変える)
+ */
+export type TimetableConditions = {
+  scope?: "必修のみ" | "不足を埋める" | "広く";
+  freeDays?: string[];
+  freeDayCount?: number;
+  avoidPeriods?: PeriodRule[];
+  maxDays?: number | null;
+  maxPeriodsPerDay?: number;
+  targetCredits?: number | null;
+  include?: string[];
+  exclude?: string[];
+};
+
+/** 時間割についての事実。`backend/app/timetable/report.py` の `Report`。値は backend が計算する */
+export type TimetableReport = {
+  days: Record<string, string[]>;
+  freeDays: string[];
+  otherFreeDayOptions: string[];
+  unscheduled: string[];
+  conditions: { condition: string; status: "met" | "unmet"; detail: string }[];
+  requirements: { slot: string; before: number; after: number; required: number }[];
+  remainingShortfall: { slot: string; shortfall: number; reason: string | null }[];
+  credits: { total: number; limit: number | null; cap: number | null; registered: number };
+  retakes: string[];
+  needsConfirmation: string[];
+};
+
+/** 組み立ての1手。`backend/app/timetable/report.py` の `Step` */
+export type TimetableStep = {
+  kind: "keep" | "remove" | "required" | "include" | "free_day" | "fill" | "unmet";
+  course: ProposedCourse | null;
+  day: string | null;
+  others: string[];
+  slot: string | null;
+  shortfallAfter: number | null;
+  note: string | null;
+  condition: string | null;
+  detail: string | null;
+};
+
+/** ツールの進み具合。`id` は呼び出しごとの値で、書きかけの引数が届くたびに同じ id で流れ直す */
+export type AgentActivity = {
+  id: string;
+  tool: string;
+  /** backend が決めた固定の文言(「シラバスを検索しています」など) */
+  label: string;
+  /** モデルが書いた引数。書きかけの間も届く */
+  args: Record<string, unknown>;
+};
+
+/** 組み上がった時間割(`timetable` イベント)と `/api/timetable/build` の応答の共通部分 */
+export type BuiltTimetable = {
   courses: ProposedCourse[];
-  totalCredits: number | null;
-  summary: string;
+  totalCredits: number;
+  report: TimetableReport;
 };
 
 /**
- * `POST /api/proposal` のリクエスト。`backend/app/api/proposal.py` の `ProposalRequest`。
+ * 時間割の文脈(§6.1)。`/api/timetable/*` の3本が同じものを受ける。
+ * `backend/app/api/timetable.py` の `TimetableContextRequest`。
  *
  * 課程コードと入学年度を `studentProfile` とは別に送る。履修要項を引くキーは
  * (課程コード, 入学年度)だが、`StudentProfile.program` に入るのは課程名であり
  * 識別子に使えず、入学年度はプロファイルに無いためである(§4.4.2、`lib/programs.ts`)。
  */
-type ProposalRequest = {
+export type TimetableContext = {
   studentProfile: StudentProfile;
   programCode: string;
   admissionYear: number;
-  /** 希望条件。自由記述 */
-  preferences?: string | null;
-  /**
-   * 提案する学期(次に登録する学期。`lib/targetTerm.ts`)。`grade` はその学期の
-   * 学年で、backend は配当年次の絞り込みと CAP の該当セメスターにこれを使う
-   */
-  targetTerm: { year: number; term: "前期" | "後期"; grade: 1 | 2 | 3 | 4 };
+  targetTerm: TargetTermBody;
+  /** 今の時間割。学生が自分で入れた科目は `source: "student"` */
+  timetable: ProposedCourse[];
+  conditions: TimetableConditions;
 };
 
 type SseEvent = Record<string, unknown>;
@@ -139,16 +214,32 @@ async function readSSE(
   }
 }
 
+/** SSE の本文以外のイベントを受け取る口。どれも省略できる */
+export type AgentStreamHandlers = {
+  onDelta?: (delta: string) => void;
+  onThinking?: (thinking: string) => void;
+  onActivity?: (activity: AgentActivity) => void;
+};
+
+/** 時間割のアシスタントだけが流すイベントの口 */
+export type TimetableStreamHandlers = AgentStreamHandlers & {
+  /** 組み立てが始まった。続いて `onStep` が手順の数だけ、最後に `onTimetable` が来る */
+  onBuild?: (build: { mode: "rebuild" | "adjust" }) => void;
+  onStep?: (step: TimetableStep) => void;
+  onTimetable?: (timetable: BuiltTimetable) => void;
+  onConditions?: (conditions: TimetableConditions) => void;
+};
+
 /**
- * チャット系SSEの共通処理(§6.1.1)。`delta` を連結して全文を返す。
+ * SSE の共通処理(§6.1.1)。`delta` を連結して全文を返し、ほかのイベントは口に渡す。
  *
  * `error` は表示用の文言だけを載せたイベントで、SSE を開いた後の失敗を伝える
  * (状態コードでは返せないため)。呼び出し側が catch できるよう例外にする。
  */
-async function streamChat(
+async function streamAgent(
   path: string,
   body: unknown,
-  onDelta: (delta: string) => void,
+  handlers: TimetableStreamHandlers,
   signal?: AbortSignal,
 ): Promise<string> {
   let full = "";
@@ -160,7 +251,19 @@ async function streamChat(
     (event) => {
       if (typeof event.delta === "string") {
         full += event.delta;
-        onDelta(event.delta);
+        handlers.onDelta?.(event.delta);
+      } else if (typeof event.thinking === "string") {
+        handlers.onThinking?.(event.thinking);
+      } else if (isObject(event.activity)) {
+        handlers.onActivity?.(event.activity as AgentActivity);
+      } else if (isObject(event.build)) {
+        handlers.onBuild?.(event.build as { mode: "rebuild" | "adjust" });
+      } else if (isObject(event.step)) {
+        handlers.onStep?.(event.step as TimetableStep);
+      } else if (isObject(event.timetable)) {
+        handlers.onTimetable?.(event.timetable as BuiltTimetable);
+      } else if (isObject(event.conditions)) {
+        handlers.onConditions?.(event.conditions as TimetableConditions);
       } else if (typeof event.error === "string") {
         failure.message = event.error;
       }
@@ -172,80 +275,83 @@ async function streamChat(
   return full;
 }
 
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 /** `POST /api/chat/syllabus/{code}`(講義単位チャット)のSSEを受信する。 */
 export function streamCourseChat(
   code: string,
   body: ChatRequest,
-  onDelta: (delta: string) => void,
+  handlers: AgentStreamHandlers,
   signal?: AbortSignal,
 ): Promise<string> {
-  return streamChat(`/chat/syllabus/${encodeURIComponent(code)}`, body, onDelta, signal);
+  return streamAgent(`/chat/syllabus/${encodeURIComponent(code)}`, body, handlers, signal);
 }
 
 /** `POST /api/chat/syllabus`(シラバス全体チャット)のSSEを受信する。 */
 export function streamSyllabusChat(
   body: ChatRequest,
-  onDelta: (delta: string) => void,
+  handlers: AgentStreamHandlers,
   signal?: AbortSignal,
 ): Promise<string> {
-  return streamChat("/chat/syllabus", body, onDelta, signal);
+  return streamAgent("/chat/syllabus", body, handlers, signal);
 }
 
 /**
- * `POST /api/chat/proposal` のリクエスト。`backend/app/schemas/chat.py` の
- * `ProposalChatRequest`。
+ * `POST /api/timetable/assistant`(時間割の画面の会話のすべて。§7.2)のSSEを受信する。
  *
- * **シラバスチャット(`ChatRequest`)と形が違う。** 質問と履歴を分けず、対話全体を
- * `messages` の1本で受け、末尾(role: user)が今回の質問、それより前が履歴である
- * (§6.1)。`proposal` は必須で、無ければ 422 になる — **提案を持っていない状態で
- * この口は成立しない**ため、提案前の入力は `POST /api/proposal` へ向ける(§8.3.1)。
+ * 質問だけの発話にも、時間割を組み直す発話にも、同じ口で答える。対話全体を
+ * `messages` の1本で送り、末尾(role: user)が今回の発話である。時間割が空でも成立する。
  */
-type ProposalChatRequest = {
-  studentProfile: StudentProfile | null;
-  proposal: TimetableProposal;
-  messages: Pick<ChatMessage, "role" | "content">[];
+export function streamTimetableAssistant(
+  body: TimetableContext & { messages: Pick<ChatMessage, "role" | "content">[] },
+  handlers: TimetableStreamHandlers,
+  signal?: AbortSignal,
+): Promise<string> {
+  return streamAgent("/timetable/assistant", body, handlers, signal);
+}
+
+async function postJson<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  const res = await fetch(`${apiBase()}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal,
+  });
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return (await res.json()) as T;
+}
+
+/** `/api/timetable/build` の応答 */
+export type BuildResponse = {
+  timetable: ProposedCourse[];
+  totalCredits: number;
+  report: TimetableReport;
+  /** 組み立てで実際に使った条件(全休の曜日を backend が選んだときはその曜日が入る) */
+  conditions: TimetableConditions;
+  steps: TimetableStep[];
+  /** レポートから backend が作った決まった説明(「希望条件なしで提案する」の吹き出し) */
+  message: string;
 };
 
-/** `POST /api/chat/proposal`(履修提案チャット)のSSEを受信する(§7.3)。 */
-export function streamProposalChat(
-  body: ProposalChatRequest,
-  onDelta: (delta: string) => void,
+/**
+ * `POST /api/timetable/build`。条件から時間割を組み立てる(§7.2)。モデルを呼ばないので
+ * 数秒で返る。`rebuild` は学生が入れた科目だけを残して組み直し、`adjust` は今の時間割を
+ * 残して条件に反する分を直す
+ */
+export function buildTimetable(
+  body: TimetableContext & { mode?: "rebuild" | "adjust" },
   signal?: AbortSignal,
-): Promise<string> {
-  return streamChat("/chat/proposal", body, onDelta, signal);
+): Promise<BuildResponse> {
+  return postJson("/timetable/build", body, signal);
 }
 
-/**
- * `POST /api/proposal`(履修提案の生成)のSSEを受信する(§6.1.1)。
- *
- * `snapshot` は組み立て途中の提案で生成中に何度も流れ、`onSnapshot` に渡す
- * (時間割表を逐次描画するため。§7.2)。`result` は検証を通った確定版で1度だけ
- * 流れ、これを戻り値にする。両者はキーの構成が同じで、`snapshot` では未到達の
- * フィールドが null になるだけである。
- */
-export async function streamProposal(
-  body: ProposalRequest,
-  onSnapshot: (proposal: TimetableProposal) => void,
+/** `POST /api/timetable/check`。与えた時間割のレポート(学生が手で直した後の事実) */
+export async function checkTimetable(
+  body: TimetableContext,
   signal?: AbortSignal,
-): Promise<TimetableProposal> {
-  const state: { result?: TimetableProposal; error?: string } = {};
-
-  await readSSE(
-    `${apiBase()}/proposal`,
-    body,
-    (event) => {
-      if (event.snapshot && typeof event.snapshot === "object") {
-        onSnapshot(event.snapshot as TimetableProposal);
-      } else if (event.result && typeof event.result === "object") {
-        state.result = event.result as TimetableProposal;
-      } else if (typeof event.error === "string") {
-        state.error = event.error;
-      }
-    },
-    signal,
-  );
-
-  if (state.error) throw new Error(state.error);
-  if (!state.result) throw new Error("提案が完成しませんでした");
-  return state.result;
+): Promise<TimetableReport> {
+  const res = await postJson<{ report: TimetableReport }>("/timetable/check", body, signal);
+  return res.report;
 }

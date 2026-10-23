@@ -26,7 +26,7 @@ const ITEMS: { icon: LucideIcon; title: string; desc: string; short: string }[] 
   },
   {
     icon: Send,
-    title: "AIが提案を作るとき、履修状況を学内のAIサーバーに送ります",
+    title: "AIに時間割を組ませるときと質問するとき、履修状況を学内のAIサーバーに送ります",
     desc: "課程・学年・修得済みと未修得の科目名・単位数・不足単位を送ります。氏名・学籍番号・成績の評価・GPAは送りません。学外のAIサービスには送りません。",
     short: "科目名・単位数・不足単位など。氏名・学籍番号・成績の評価は送りません。",
   },

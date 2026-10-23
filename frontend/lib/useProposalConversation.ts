@@ -1,36 +1,39 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { streamProposal, streamProposalChat } from "@/lib/chatApi";
-import { useChatStore, type ChatMessage } from "@/lib/chat";
+import {
+  buildTimetable,
+  checkTimetable,
+  streamTimetableAssistant,
+  type TimetableContext,
+  type TimetableReport,
+} from "@/lib/chatApi";
+import { replyStream, useChatStore, type ChatMessage } from "@/lib/chat";
 import { useChatHistory } from "@/lib/chatHistory";
-import { programCodeOf, resolveAdmissionYear } from "@/lib/programs";
 import { useProposalStore } from "@/lib/proposal";
-import { useTargetTerm } from "@/lib/targetTerm";
-import { useStudentStore } from "@/lib/student";
+import { useStudentContext } from "@/lib/studentContext";
+import { buildPlayer } from "@/lib/timetableBuild";
 import {
   TIMETABLE_QUICK_ASKS,
   timetableSuggestions,
+  useAiStore,
   type AiContext,
   type AiConversation,
 } from "@/lib/ai";
 
 /**
- * 履修提案画面（`/proposal`）の対話。design.md §8.3。
+ * 時間割の画面（`/proposal`）の対話。design.md §8.3。
  *
- * **提案は学生の指示で始める。画面に到達しただけでは `POST /api/proposal` を
- * 撃たない**（§8.3）。提案は1回に1分強かかり（§7.2）、その1本は希望条件
- * （`preferences`）を含めて投げるものだからである。
+ * **入力欄の宛先は1つである**（§8.3.1）。何を書いても `POST /api/timetable/assistant` に
+ * 送り、組み直すか・質問に答えるかはアシスタントが決める。「何ができる?」のような
+ * 発話にも答えられる。時間割と条件は frontend が持ち、毎回送る（サーバは状態を
+ * 持たない。要件§5.2）。
  *
- * **1つの入力欄が、提案の有無によって2つの口に向かう**（§8.3.1）。
+ * **画面に到達しただけでは組み立てない**（§8.3）。学生が希望を書くか、「希望条件なしで
+ * 提案する」を押したときに始める。後者はアシスタントを通さず `POST /api/timetable/build`
+ * を直接引く（モデルを待たないので数秒で返る）。
  *
- * | 送信時の状態 | 宛先 |
- * |---|---|
- * | 提案を持っていない（`idle` / `error`） | `POST /api/proposal`（本文がそのまま `preferences`） |
- * | 提案を持っている（`done`） | `POST /api/chat/proposal` |
- *
- * 分岐を「何通目か」ではなく提案の有無に置くのは、後者が `proposal` を必須とし
- * 無ければ 422 を返す（§6.1）ためである。
+ * 組み立ての手順（`step`）は `lib/timetableBuild.ts` が間を空けて時間割に描く（§8.3.7）。
  *
  * **PC のパネル（`ChatPanel`）とモバイルの AI シート（`MobileProposalPage` の
  * `MobileAiAssistant`）の双方がこれを使う**（`useProposalAssistant()`）。
@@ -45,52 +48,36 @@ const SCOPE = "proposal" as const;
 /** 案内の吹き出し。1通目に固定で置くため id を固定する */
 const INTRO_ID = "proposal-intro";
 
-/** 提案の生成中に出す吹き出し。完了時に summary へ差し替える */
-const GENERATING_ID = "proposal-generating";
+/** 送った直後、応答が届くまでの文言（§4.1.4） */
+export const ASSISTANT_THINKING_LABEL = "読んでいます…";
+
+/** 「希望条件なしで提案する」で組み立てを待つあいだの文言。モデルを呼ばないので短い */
+export const BUILD_THINKING_LABEL = "時間割を組んでいます…";
 
 /**
- * 希望条件が空のまま提案が返ったときの1通目。backend の summary が空になることは
- * 通常ないが、空文字を吹き出しに置くと生成中のキャレットだけが残るため備える。
- */
-const FALLBACK_SUMMARY =
-  "卒業要件から逆算し、今期の履修を提案しました。ご質問があればお気軽にどうぞ。";
-
-/**
- * 提案の生成中に出す文言（§4.1.4）。実測は1回 70〜80 秒前後（§7.2。2026-09-23）で、
- * 学年・課程によって前後するため幅を持たせる
- */
-export const PROPOSAL_THINKING_LABEL = "提案を作っています。1〜2分ほどかかります";
-
-/**
- * 希望条件の入力欄に添える断り書き（§9.1）。取り込み時の確認ウィンドウが同意を
+ * 入力欄に添える断り書き（§9.1）。取り込み時の確認ウィンドウが同意を
  * 得ているのは成績表についてであり、**学生がその場で自由に書く文章までは覆わない。**
  */
 export const PREFERENCES_NOTE =
   "入力した内容は学内のAIサーバへ送られ、100日間記録されます。";
 
 /**
- * 何を書けばよいかが分かるように例を添える（§8.3.2）。モバイルはハーフシートに
+ * 何ができるかが分かるように例を添える（§8.3.2）。モバイルはハーフシートに
  * 入力欄・断り書きと並べて出すので、そこに収まる長さに保つ
  */
 const INTRO_TEXT = [
-  "どんな履修にしたいか教えてください。希望に沿って時間割を提案します。",
+  "時間割について話しかけてください。希望に沿って時間割を組み、科目や卒業要件についての質問にも答えます。",
   "",
   "例:",
-  "- 午前中の科目を多めにしたい",
-  "- 必修だけ知りたい",
-  "- 週に1日は空けたい",
+  "- 週に1日は全休にしたい",
+  "- 必修だけ入れて",
+  "- 金曜の5限は避けたい",
   "",
-  "特に無ければ「希望条件なしで提案する」を押してください。",
+  "特に希望が無ければ「希望条件なしで提案する」を押してください。",
 ].join("\n");
 
-/** 再提案の案内。前回の条件を示し、差分だけ書き足せるようにする（§8.3.3） */
-function restartText(previous: string): string {
-  if (!previous) return INTRO_TEXT;
-  return [
-    `前回は「${previous}」という希望で提案しました。`,
-    "条件を書き直してください。変えたいところだけで構いません。",
-  ].join("\n");
-}
+/** 会話をやり直したときの1通目。時間割はそのまま残る */
+const CONTINUE_TEXT = "時間割はそのままです。続けて希望や質問を書いてください。";
 
 let seq = 0;
 function nextId(prefix: string): string {
@@ -108,21 +95,14 @@ function assistant(id: string, content: string, streaming = false): ChatMessage 
 }
 
 /**
- * 生成・受信の途中で会話を退避するとき、本文の無い吹き出しを中断の旨に置き換える
+ * 受信の途中で会話を退避するとき、本文の無い吹き出しを中断の旨に置き換える
  * （§4.1.4）。`archive()` は `streaming` を下ろして保存するため、そのままでは
  * 戻したときに指標も本文も無い空の吹き出しになる。
  */
 function settle(messages: ChatMessage[]): ChatMessage[] {
   return messages.map((m) =>
     m.streaming && !m.content
-      ? {
-          ...m,
-          streaming: false,
-          content:
-            m.id === GENERATING_ID
-              ? "提案の作成を中断しました。"
-              : "応答の途中で会話を切り替えました。",
-        }
+      ? { ...m, streaming: false, content: "応答の途中で会話を切り替えました。" }
       : m,
   );
 }
@@ -134,154 +114,92 @@ function patchMessage(id: string, patch: Partial<ChatMessage>): void {
   }));
 }
 
+/** 学生が手で直した時間割のレポートを引き直すまでの間（続けて直すあいだは引かない） */
+const CHECK_DEBOUNCE_MS = 500;
+
+/**
+ * レポートの引き直しは画面に1本だけ。PC のパネルとモバイルのシートが同時に mount され、
+ * 両方の effect がここを呼ぶので、後から来た方が前の予約を取り消す
+ */
+let checkTimer: ReturnType<typeof setTimeout> | null = null;
+let checkAbort: AbortController | null = null;
+
+function scheduleCheck(body: TimetableContext, onReport: (report: TimetableReport) => void): void {
+  if (checkTimer !== null) clearTimeout(checkTimer);
+  checkAbort?.abort();
+  const ctrl = new AbortController();
+  checkAbort = ctrl;
+  checkTimer = setTimeout(() => {
+    checkTimer = null;
+    checkTimetable(body, ctrl.signal)
+      .then((report) => {
+        // 待つあいだに時間割が組み直されていたら当てない
+        if (useProposalStore.getState().courses === body.timetable) onReport(report);
+      })
+      .catch(() => {}); // 出せなくても時間割は使える
+  }, CHECK_DEBOUNCE_MS);
+}
+
 export type ProposalConversation = {
   messages: ChatMessage[];
-  /** 送信中（提案の生成中、または提案チャットの受信中）。入力欄を止める */
+  /** 送信中（アシスタントの応答中、または組み立て中）。入力欄を止める */
   streaming: boolean;
-  /**
-   * 提案そのものを生成中（`POST /api/proposal`）。チャットの受信中とは分ける —
-   * こちらは1分強かかる（§7.2）ため、生成中の文言に所要時間を添える（§4.1.4）。
-   */
-  generating: boolean;
-  /** 提案を持っている。入力欄の宛先がこれで決まる（§8.3.1） */
-  holdsProposal: boolean;
-  /** 提案を作れるか。前提が揃わないときは `blockedReason` に理由が入る */
+  /** 「希望条件なしで提案する」で組み立てを待っている（モデルを呼ばない） */
+  building: boolean;
+  /** 時間割を持っている */
+  hasTimetable: boolean;
+  /** 時間割を組めるか。前提が揃わないときは `blockedReason` に理由が入る */
   canStart: boolean;
-  /** 提案を作れない理由。作れるときは null */
+  /** 組めない理由。組めるときは null */
   blockedReason: string | null;
   send: (text: string) => void;
-  /** 希望条件なしで提案を始める（§6.1 の「未指定のときは『特になし』」） */
+  /** 希望条件なしで組み立てる（`/api/timetable/build`） */
   startWithoutPreferences: () => void;
-  /** 条件を変えて提案し直す（§8.3.3） */
-  restart: () => void;
-  /** 提案は残したまま、質問のやりとりだけをやり直す */
+  /** 時間割は残したまま、会話だけをやり直す */
   newChat: () => void;
   history: ReturnType<typeof useChatHistory>["entries"];
   selectHistory: (id: string) => void;
 };
 
 export function useProposalConversation(): ProposalConversation {
-  const profile = useStudentStore((s) => s.profile);
-  const { status, courses, totalCredits, message: summary, preferences } = useProposalStore();
-  const { begin, setSnapshot, setResult, setStatus, discard } = useProposalStore();
+  const { profile, context, blockedReason } = useStudentContext();
+  const { status, courses, conditions, reportStale, busy } = useProposalStore();
+  const { setBusy, setConditions, setReport } = useProposalStore();
   const messages = useChatStore((s) => s.proposalMessages);
   const setMessages = useChatStore((s) => s.setProposalMessages);
   const { entries, archive, restore } = useChatHistory(SCOPE);
   const abortRef = useRef<AbortController | null>(null);
-  // 提案する学期(成績表の次の学期)。画面の表示(`TargetTermLabel`)と同じ値を使う
-  const { target, grade: targetGrade } = useTargetTerm();
-
-  // 履修要項を引くキーは (課程コード, 入学年度)。プロファイルの `program` は課程名
-  // なのでコードに解決する（§4.4.2）。学年でガードするのは、backend の配当年次
-  // フィルタが `course.grade <= profile.grade` で絞る（§7.2.1）ため grade を必須と
-  // しているからである。**投げても 404 になるものは投げる前に画面で示す**（§8.3.2）。
-  const programCode = programCodeOf(profile?.program);
-  const admissionYear = resolveAdmissionYear(profile);
-  const blockedReason = !profile
-    ? "成績表がまだ取り込まれていません。ヘッダーの「マイデータ」から取り込むと、履修提案を作れます。"
-    : profile.grade == null
-      ? "学年が取り込めていません。ヘッダーの「マイデータ」から学年を入力すると、履修提案を作れます。"
-      : !programCode
-        ? `課程「${profile.program ?? "未設定"}」に対応する履修要項がありません。ヘッダーの「マイデータ」から課程を選び直してください。`
-        : admissionYear == null
-          ? "入学年度が分かりません。ヘッダーの「マイデータ」から入学年度を入力してください。"
-          : null;
   const canStart = blockedReason === null;
 
-  const holdsProposal = status === "done";
-  const generating = status === "loading";
-  const streaming = generating || messages.some((m) => m.streaming);
+  const hasTimetable = status === "done";
+  // アシスタントを通さない組み立て(「希望条件なしで提案する」)。アシスタントが組み直す
+  // ときは `busy` が立っている
+  const building = status === "loading" && !busy;
+  const streaming = busy || status === "loading" || messages.some((m) => m.streaming);
 
-  // 1通目の案内（§8.3.2）。提案後の summary と同じ系統の assistant メッセージで
-  // あり、別扱いにする理由が無いので `proposalMessages` に置く。
+  // 1通目の案内（§8.3.2）
   useEffect(() => {
     if (messages.length > 0) return;
-    setMessages([assistant(INTRO_ID, blockedReason ?? restartText(preferences))]);
-  }, [messages.length, blockedReason, preferences, setMessages]);
+    setMessages([assistant(INTRO_ID, blockedReason ?? INTRO_TEXT)]);
+  }, [messages.length, blockedReason, setMessages]);
 
-  /** 提案の生成（§7.2）。`wishes` が空文字なら希望条件なしで投げる */
-  const start = useCallback(
-    (wishes: string) => {
-      if (!profile || !programCode || admissionYear == null || targetGrade == null || streaming)
-        return;
+  // 学生が手で直した時間割のレポートを引き直す（モデルは呼ばない）。アシスタントは
+  // リクエストのたびに backend が計算し直すので、ここで引くのは画面に出すためである
+  useEffect(() => {
+    if (!reportStale || status !== "done" || !profile || !context) return;
+    scheduleCheck({ studentProfile: profile, ...context, timetable: courses, conditions }, setReport);
+  }, [reportStale, status, profile, context, courses, conditions, setReport]);
 
-      const trimmed = wishes.trim();
-      const next = [...messages];
-      // 学生が書いた条件は会話に残す。空のときは送っていないので残さない
-      if (trimmed) {
-        next.push({ id: nextId("u"), role: "user", content: trimmed, time: hhmm() });
-      }
-      next.push(assistant(GENERATING_ID, "", true));
-      setMessages(next);
-      begin(trimmed);
+  const send = useCallback(
+    (raw: string) => {
+      const text = raw.trim();
+      if (!text || streaming || !profile || !context) return;
 
-      const ctrl = new AbortController();
-      abortRef.current = ctrl;
-
-      streamProposal(
-        {
-          studentProfile: profile,
-          programCode,
-          admissionYear,
-          preferences: trimmed || null,
-          targetTerm: { ...target, grade: targetGrade },
-        },
-        // 組み立て途中の提案。時間割表を逐次描画するために反映する（§6.1.1 / §7.2）
-        (snapshot) =>
-          setSnapshot(
-            snapshot.courses ?? [],
-            snapshot.totalCredits ?? 0,
-            snapshot.summary ?? "",
-          ),
-        ctrl.signal,
-      )
-        .then((result) => {
-          setResult(result.courses, result.totalCredits ?? 0, result.summary);
-          patchMessage(GENERATING_ID, {
-            content: result.summary || FALLBACK_SUMMARY,
-            streaming: false,
-          });
-        })
-        .catch((err) => {
-          if ((err as Error).name === "AbortError") {
-            // 会話を切り替えて生成を捨てた（§8.3.3）。`loading` のまま残すと
-            // `generating` が真のままになり、入力欄も開始の導線も戻らない
-            discard();
-            return;
-          }
-          setStatus("error");
-          patchMessage(GENERATING_ID, {
-            content: "提案を作れませんでした。もう一度お試しください。",
-            streaming: false,
-          });
-        });
-    },
-    [
-      profile,
-      programCode,
-      admissionYear,
-      target,
-      targetGrade,
-      streaming,
-      messages,
-      setMessages,
-      begin,
-      setSnapshot,
-      setResult,
-      setStatus,
-      discard,
-    ],
-  );
-
-  /** 提案についての質問（§7.3）。提案を持っているときだけ成立する */
-  const ask = useCallback(
-    (text: string) => {
       const assistantId = nextId("a");
       const history = messages
         .filter((m) => !m.streaming)
         .map((m) => ({ role: m.role, content: m.content }));
       const time = hhmm();
-
       setMessages([
         ...messages,
         { id: nextId("u"), role: "user", content: text, time },
@@ -290,19 +208,33 @@ export function useProposalConversation(): ProposalConversation {
 
       const ctrl = new AbortController();
       abortRef.current = ctrl;
-
-      let accumulated = "";
+      setBusy(true);
+      const reply = replyStream((update) => patchMessage(assistantId, update));
       let failed = false;
-      streamProposalChat(
+      let built: Promise<void> | null = null;
+
+      streamTimetableAssistant(
         {
           studentProfile: profile,
-          proposal: { courses, totalCredits, summary },
-          // 対話全体を1本で送る。末尾が今回の質問（§6.1）
+          ...context,
+          timetable: courses,
+          conditions,
+          // 対話全体を1本で送る。末尾が今回の発話（§6.1）
           messages: [...history, { role: "user", content: text }],
         },
-        (delta) => {
-          accumulated += delta;
-          patchMessage(assistantId, { content: accumulated });
+        {
+          ...reply.handlers,
+          onBuild: () => {
+            buildPlayer.begin();
+            // モバイルはシートを閉じて、時間割が組み上がっていくところを見せる（§8.3.7）。
+            // 説明はシートを開き直すと読める
+            useAiStore.getState().close();
+          },
+          onStep: (step) => buildPlayer.step(step),
+          onTimetable: (timetable) => {
+            built = buildPlayer.finish(timetable);
+          },
+          onConditions: setConditions,
         },
         ctrl.signal,
       )
@@ -311,49 +243,68 @@ export function useProposalConversation(): ProposalConversation {
           failed = true;
           patchMessage(assistantId, { content: "申し訳ありません。応答の取得に失敗しました。" });
         })
-        .finally(() =>
+        .finally(() => {
+          // 組み立てが始まったのに時間割が届かなかった（失敗・中断）。元の時間割へ戻す
+          if (!built && buildPlayer.pending) buildPlayer.cancel();
+          setBusy(false);
           patchMessage(assistantId, {
             streaming: false,
             // delta も error も来ずに終わると本文が空のまま残る（§4.1.4）。
             // 失敗の文言は catch が入れているので上書きしない
-            ...(accumulated || failed ? {} : { content: "応答を受け取れませんでした。" }),
-          }),
-        );
+            ...(reply.content() || failed ? {} : { content: "応答を受け取れませんでした。" }),
+          });
+          if (abortRef.current === ctrl) abortRef.current = null;
+        });
     },
-    [messages, setMessages, profile, courses, totalCredits, summary],
+    [streaming, profile, context, messages, setMessages, setBusy, courses, conditions, setConditions],
   );
-
-  const send = useCallback(
-    (raw: string) => {
-      const text = raw.trim();
-      if (!text || streaming) return;
-      // 宛先は提案の有無で決まる（§8.3.1）
-      if (holdsProposal) ask(text);
-      else start(text);
-    },
-    [streaming, holdsProposal, ask, start],
-  );
-
-  const startWithoutPreferences = useCallback(() => start(""), [start]);
 
   /**
-   * 条件を変えて提案し直す（§8.3.3）。提案を捨て、提案チャットの履歴を退避する
-   * — 前の提案についての問答を残したまま新しい提案を渡すと、**モデルは既に
-   * 存在しない提案を根拠に答える**（§6.1 は対話全体を1本で受ける）。
+   * 希望条件なしで組み立てる。アシスタントを通さないので、吹き出しには backend が
+   * レポートから作った決まった説明を出す
    */
-  const restart = useCallback(() => {
-    abortRef.current?.abort();
-    archive(SCOPE, settle(messages));
-    discard();
-    setMessages([assistant(INTRO_ID, restartText(preferences))]);
-  }, [archive, messages, discard, setMessages, preferences]);
+  const startWithoutPreferences = useCallback(() => {
+    if (streaming || !profile || !context) return;
+    const id = nextId("b");
+    setMessages([...messages, assistant(id, "", true)]);
+    buildPlayer.begin();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
 
-  /** 提案はそのままに、質問のやりとりだけをやり直す */
+    buildTimetable(
+      { studentProfile: profile, ...context, timetable: courses, conditions: {}, mode: "rebuild" },
+      ctrl.signal,
+    )
+      .then(async (result) => {
+        setConditions(result.conditions);
+        result.steps.forEach((step) => buildPlayer.step(step));
+        await buildPlayer.finish(
+          { courses: result.timetable, totalCredits: result.totalCredits, report: result.report },
+          result.message,
+        );
+        patchMessage(id, { content: result.message, streaming: false });
+      })
+      .catch((err) => {
+        buildPlayer.cancel();
+        patchMessage(id, {
+          streaming: false,
+          content:
+            (err as Error).name === "AbortError"
+              ? "時間割の組み立てを中断しました。"
+              : "時間割を組めませんでした。もう一度お試しください。",
+        });
+      })
+      .finally(() => {
+        if (abortRef.current === ctrl) abortRef.current = null;
+      });
+  }, [streaming, profile, context, messages, setMessages, courses, setConditions]);
+
+  /** 時間割はそのままに、会話だけをやり直す */
   const newChat = useCallback(() => {
     abortRef.current?.abort();
     archive(SCOPE, settle(messages));
-    setMessages([assistant(INTRO_ID, summary || FALLBACK_SUMMARY)]);
-  }, [archive, messages, setMessages, summary]);
+    setMessages([assistant(INTRO_ID, hasTimetable ? CONTINUE_TEXT : INTRO_TEXT)]);
+  }, [archive, messages, setMessages, hasTimetable]);
 
   const selectHistory = useCallback(
     (id: string) => {
@@ -369,13 +320,12 @@ export function useProposalConversation(): ProposalConversation {
   return {
     messages,
     streaming,
-    generating,
-    holdsProposal,
+    building,
+    hasTimetable,
     canStart,
     blockedReason,
     send,
     startWithoutPreferences,
-    restart,
     newChat,
     history: entries,
     selectHistory,
@@ -385,27 +335,27 @@ export function useProposalConversation(): ProposalConversation {
 /**
  * 時間割（`/proposal`）の AI 会話を、PC のパネルとモバイルのシートが共有する形にする。
  *
- * 提案を持っていないあいだ、入力欄は希望条件の受け口である（§8.3.1）。モバイルでは
- * このとき**ハーフシートのサジェストを出さない**（`suggestionsFor` が null）。
- * サジェストの質問は提案チャットに向けたもので、提案前に送ると希望条件として
- * 提案が1本焼かれてしまう。代わりにハーフシートに案内と入力欄を出し、送ったら
- * シートを閉じて、時間割が埋まっていくところを見せる。
+ * 時間割が無いあいだ、モバイルでは**ハーフシートのサジェストを出さない**
+ * （`suggestionsFor` が null）。サジェストは今の時間割についての質問で、表が空では
+ * 答えようがない。代わりにハーフシートに案内と入力欄を出す。送っただけではシートを
+ * 閉じず（質問への答えはシートで読む）、組み立てが始まったときに閉じて、時間割が
+ * 埋まっていくところを見せる（`onBuild`）。
  */
 export function useProposalAssistant(): AiConversation {
   const conversation = useProposalConversation();
   const {
     messages,
     streaming,
-    generating,
-    holdsProposal,
+    building,
+    hasTimetable,
     canStart,
     send,
     startWithoutPreferences,
-    restart,
     newChat,
     history,
     selectHistory,
   } = conversation;
+  const loading = useProposalStore((s) => s.status === "loading");
 
   const sendWithContext = useCallback(
     (text: string, context?: AiContext) => {
@@ -425,24 +375,25 @@ export function useProposalAssistant(): AiConversation {
       title: "AI履修アシスタント",
       messages,
       streaming,
-      // 提案の生成は時間がかかる（§7.2）ので、待たせる長さを先に伝える（§4.1.4）
-      thinkingLabel: generating ? PROPOSAL_THINKING_LABEL : undefined,
-      // 提案前は質問ではなく希望条件を受ける（§8.3.1）。生成中は押すと進み具合が見える
-      askLabel: generating
-        ? "提案を作っています…"
-        : !holdsProposal && canStart
-          ? "AIに希望を伝えて提案を受ける"
-          : undefined,
-      sendDismissesSheet: !holdsProposal,
-      hideBaseContext: !holdsProposal,
-      placeholder: holdsProposal ? "提案について質問する…" : "希望条件を入力（例: 午前中を多めに）",
+      thinkingLabel: building ? BUILD_THINKING_LABEL : ASSISTANT_THINKING_LABEL,
+      askLabel: loading
+        ? "時間割を組んでいます…"
+        : streaming
+          ? "AIが答えています…"
+          : !hasTimetable && canStart
+            ? "AIに希望を伝えて提案を受ける"
+            : undefined,
+      hideBaseContext: !hasTimetable,
+      placeholder: hasTimetable
+        ? "時間割について話しかける…"
+        : "希望や質問を入力（例: 週に1日は全休にしたい）",
       inputDisabled: !canStart,
       send: sendWithContext,
-      sheetQuickAsks: holdsProposal ? TIMETABLE_QUICK_ASKS : undefined,
-      actions: !canStart
-        ? []
-        : holdsProposal
-          ? [{ label: "条件を変えて提案し直す", onClick: restart }]
+      sheetQuickAsks: hasTimetable ? TIMETABLE_QUICK_ASKS : undefined,
+      // 時間割があるときは条件を会話で変えれば組み直されるので、作り直しのボタンは置かない
+      actions:
+        !canStart || hasTimetable
+          ? []
           : [
               {
                 label: "希望条件なしで提案する",
@@ -454,17 +405,17 @@ export function useProposalAssistant(): AiConversation {
       note: canStart ? PREFERENCES_NOTE : undefined,
       history,
       onSelectHistory: selectHistory,
-      onNewChat: holdsProposal ? newChat : undefined,
-      suggestionsFor: holdsProposal ? timetableSuggestions : undefined,
+      onNewChat: canStart ? newChat : undefined,
+      suggestionsFor: hasTimetable ? timetableSuggestions : undefined,
     }),
     [
       messages,
       streaming,
-      generating,
-      holdsProposal,
+      building,
+      loading,
+      hasTimetable,
       canStart,
       sendWithContext,
-      restart,
       startWithoutPreferences,
       history,
       selectHistory,

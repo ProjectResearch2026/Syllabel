@@ -104,7 +104,7 @@ function Tags({ entry }: { entry: SlotEntry }) {
 export default function TimetableGrid({
   table,
   unscheduled,
-  loading,
+  freeDays = [],
   selected,
   onTapCourse,
   onTapEmpty,
@@ -113,7 +113,8 @@ export default function TimetableGrid({
 }: {
   table: SlotTable;
   unscheduled: SlotEntry[];
-  loading?: boolean;
+  /** 全休の曜日。列を薄くし、見出しに印を付ける（design.md §8.3.7） */
+  freeDays?: string[];
   selected: SelectedCourse | null;
   onTapCourse: (target: CourseTarget) => void;
   /** 空きコマを軽く押した。選択を外す */
@@ -178,9 +179,12 @@ export default function TimetableGrid({
         {days.map((day) => (
           <div
             key={day}
-            className="flex items-center justify-center border-r border-border-primary last:border-r-0"
+            className="flex items-center justify-center gap-0.5 border-r border-border-primary last:border-r-0"
           >
             <span className="text-[13px] font-semibold text-fg-primary">{day}</span>
+            {freeDays.includes(day) && (
+              <span className="text-[8px] font-semibold text-fg-tertiary motion-safe:animate-fade-in">全休</span>
+            )}
           </div>
         ))}
       </div>
@@ -205,7 +209,9 @@ export default function TimetableGrid({
 
             return (
               <div
-                key={day}
+                // 科目が入れ替わったマスだけを作り直し、現れる動きを流す(組み立ての手順を
+                // 1手ずつ描くとき。§8.3.7)
+                key={`${day}:${entries.map(entryKey).join("|")}`}
                 onContextMenu={(e) => e.preventDefault()}
                 onPointerDown={(e) => {
                   // 長押しメニューは空きコマだけ（STEP3）
@@ -229,8 +235,12 @@ export default function TimetableGrid({
                 // マスごと塗ると2科目が1つの色に溶け、科目が2つあると読めない
                 className={`relative flex min-w-0 flex-col justify-center border-r border-border-primary last:border-r-0 ${
                   multi ? "gap-1 px-0.5 py-1" : "gap-0.5 px-1 py-1.5"
-                } ${first && !multi ? CELL_STYLES[first.type].cell : "bg-surface-primary"} ${
-                  loading ? "animate-pulse" : ""
+                } ${
+                  first && !multi
+                    ? `${CELL_STYLES[first.type].cell} motion-safe:animate-pop-in`
+                    : freeDays.includes(day)
+                      ? "bg-surface-soft"
+                      : "bg-surface-primary"
                 } ${ringed ? "z-10 rounded-lg ring-2 ring-accent" : ""}`}
               >
                 {multi

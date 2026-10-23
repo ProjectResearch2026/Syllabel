@@ -34,7 +34,7 @@ const LEAD =
 const FLOW: { icon: LucideIcon; title: string; sub: string }[] = [
   { icon: FileText, title: "成績PDFを選択", sub: "あなたの端末" },
   { icon: Cpu, title: "ブラウザ内で解析", sub: "PDFは端末から出ない" },
-  { icon: Server, title: "学内のAIで提案", sub: "履修状況を学内へ送る" },
+  { icon: Server, title: "学内のAIで提案・回答", sub: "履修状況を学内へ送る" },
   { icon: History, title: "送った内容を記録", sub: "学内のサーバーに100日間" },
 ];
 
@@ -55,7 +55,7 @@ const PRINCIPLES: { icon: LucideIcon; mobileIcon: LucideIcon; title: string; bod
     icon: Send,
     mobileIcon: Send,
     title: "AIに送るもの・送らないもの",
-    body: "送るのは、課程・入学年度・学年・修得済みと未修得の科目名・単位数・卒業要件ごとの不足単位・あなたが入力した希望条件です。氏名・学籍番号・成績の評価・GPAは送りません。",
+    body: "時間割の提案とAIへの質問のときに、課程・入学年度・学年・修得済みと未修得の科目名・単位数・卒業要件ごとの不足単位・今の時間割・あなたが入力した文章を送ります。氏名・学籍番号・成績の評価・GPAは送りません。",
   },
   {
     icon: History,

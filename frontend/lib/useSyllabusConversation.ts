@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useMemo, useRef } from "react";
-import { useChatStore, type ChatMessage } from "@/lib/chat";
+import { replyStream, useChatStore, type ChatMessage } from "@/lib/chat";
 import { useChatHistory } from "@/lib/chatHistory";
-import { useStudentStore } from "@/lib/student";
+import { useStudentContext } from "@/lib/studentContext";
 import { streamSyllabusChat } from "@/lib/chatApi";
 import { questionSuggestions, type AiConversation } from "@/lib/ai";
 
@@ -14,12 +14,15 @@ import { questionSuggestions, type AiConversation } from "@/lib/ai";
  * （`syllabusMessages`。§5.2.2）を読み書きする。** 両者は同時に mount されるため、
  * 送信中かどうかは各自の state ではなく吹き出しの `streaming` から導く。
  */
-const QUICK_ASKS = ["1年次でも取れる科目は？", "抽選のある科目を教えて"];
+// 講義の内容(概要・到達目標・授業計画)まで探せる(design.md §7.4.1 規則7)。学生の文脈が
+// あれば区分と要件枠でも答えられる(規則5)
+const QUICK_ASKS = ["AIに関係する科目は？", "人文科学系で取れる科目は？"];
 
 const INITIAL: ChatMessage = {
   id: "syllabus-init",
   role: "assistant",
-  content: "条件を言葉で伝えてください。学部・曜日・区分から候補を絞り込みます。",
+  content:
+    "探したい科目を言葉で伝えてください。興味のあるテーマ・曜日・区分から、講義の内容まで調べて候補を挙げます。",
   time: "",
 };
 
@@ -33,7 +36,9 @@ let seq = 0;
 export function useSyllabusConversation(): AiConversation {
   const syllabusMessages = useChatStore((s) => s.syllabusMessages);
   const setSyllabusMessages = useChatStore((s) => s.setSyllabusMessages);
-  const profile = useStudentStore((s) => s.profile);
+  // 揃えば課程コード・入学年度・対象学期も送り、その学生にとっての区分や要件の
+  // 充足状況で答えさせる(design.md §7.4.1)。揃わなければ学年と課程だけで答える
+  const { profile, context } = useStudentContext();
   const { entries, archive, restore } = useChatHistory("syllabus");
   const abortRef = useRef<AbortController | null>(null);
 
@@ -71,18 +76,15 @@ export function useSyllabusConversation(): AiConversation {
 
       const ctrl = new AbortController();
       abortRef.current = ctrl;
-      let accumulated = "";
+      const reply = replyStream(patch);
       let failed = false;
       try {
         // シラバス全体への質問なので、講義単位(§7.5)ではなく全体の口(§7.4)を叩く。
         // 以前は講義単位の口に "__syllabus__" という架空のコードを渡しており、
         // backend が実在確認(`get_syllabus`)で 404 を返すため常に失敗していた。
         await streamSyllabusChat(
-          { profile, history, message: text },
-          (delta) => {
-            accumulated += delta;
-            patch({ content: accumulated });
-          },
+          { profile, history, message: text, ...context },
+          reply.handlers,
           ctrl.signal,
         );
       } catch (err) {
@@ -94,12 +96,12 @@ export function useSyllabusConversation(): AiConversation {
         // delta も error も来ずに終わると本文が空のまま残る（§4.1.4）
         patch({
           streaming: false,
-          ...(accumulated || failed ? {} : { content: "応答を受け取れませんでした。" }),
+          ...(reply.content() || failed ? {} : { content: "応答を受け取れませんでした。" }),
         });
         if (abortRef.current === ctrl) abortRef.current = null;
       }
     },
-    [messages, streaming, setSyllabusMessages, profile],
+    [messages, streaming, setSyllabusMessages, profile, context],
   );
 
   const onSelectHistory = useCallback(

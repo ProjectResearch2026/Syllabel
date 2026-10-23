@@ -176,6 +176,8 @@ def test_assistant_streams_thinking_activity_steps_timetable_and_text():
     activities = [e["activity"] for e in events if "activity" in e]
     assert activities[0]["label"] == "時間割を組んでいます"
     assert activities[-1]["args"] == {"free_day_count": 1}
+    # 同じ呼び出しの書きかけは同じ id で流れ直す
+    assert len({a["id"] for a in activities}) == 1
     # 組み立ての手順 → 時間割 → 条件 → 本文 → 終端の順
     assert kinds.index("build") < kinds.index("step") < kinds.index("timetable")
     assert kinds.index("timetable") < kinds.index("conditions") < kinds.index("delta")
