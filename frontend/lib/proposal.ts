@@ -158,11 +158,15 @@ type ProposalStore = {
   /**
    * 組み立てを始める。**前の時間割はまだ残す** — `/api/timetable/build` の応答を
    * 待つあいだに表が空になると、失敗したときに元へ戻せない。手順を描き始めるときに
-   * `startSteps()` で空にする
+   * `startSteps()` で残す科目だけにする
    */
   beginBuild: () => void;
-  /** 手順を描き始める。表を空にし、手順で1科目ずつ入れていく */
-  startSteps: () => void;
+  /**
+   * 手順を描き始める。表を `kept`(先頭の「残す」手の科目)だけにし、以後の手順で
+   * 1科目ずつ出し入れする。**残す科目は前の表の科目と並びのまま置く** — 表を空にして
+   * 入れ直すと、組み直しのたびに時間割が一度消えて見える(`lib/timetableBuild.ts`)
+   */
+  startSteps: (kept: ProposedCourse[]) => void;
   /** 組み立ての1手を描く（§8.3.7） */
   playStep: (step: TimetableStep) => void;
   /** 組み上がった時間割で確定する。手順で描いた途中の表はこれで置き換わる */
@@ -224,7 +228,14 @@ export const useProposalStore = create<ProposalStore>((set) => ({
   setBusy: (busy) => set({ busy }),
   beginBuild: () =>
     set({ status: "loading", stepLabel: "時間割を組んでいます", replacing: null }),
-  startSteps: () => set({ courses: [], totalCredits: 0 }),
+  startSteps: (kept) =>
+    set((s) => {
+      const keys = new Set(kept.map(courseKey));
+      const held = s.courses.filter((c) => keys.has(courseKey(c)));
+      const heldKeys = new Set(held.map(courseKey));
+      const courses = [...held, ...kept.filter((c) => !heldKeys.has(courseKey(c)))];
+      return { courses, totalCredits: sumCredits(courses) };
+    }),
   playStep: (step) =>
     set((s) => {
       const courses = applyStep(s.courses, step);

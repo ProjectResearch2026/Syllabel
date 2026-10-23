@@ -8,8 +8,8 @@
  *   抽選かオープンかは履修できるかどうかそのものなので、これだけは目立たせる
  * - **ラベル付きの注記**: `【対象】T:情報メディア学科、Y:知能情報メディア課程` の形。
  *   `【種目】`・`【配当年次】`・`【注意】` なども同じ形で入っている
- * - **履修要項の記号**: `Y4000` と `◎`(840件)のような科目区分コードと必修記号。
- *   学生には意味が読み取れないが、**こちらで解釈すると誤りうる**ので原文のまま出す
+ * - **履修要項の記号**: `Y4000` と `◎`(840件)や `2-1 英語必修 2019年度～` のような
+ *   科目区分コードと必修記号。**画面には出さない**(`pruneNote()`)
  */
 
 export type ParsedNote = {
@@ -56,22 +56,28 @@ export function registrationFlags(parsed: ParsedNote): string[] {
   return parsed.flags.filter((flag) => flag.includes("登録"));
 }
 
+/** 備考カードに出す分。履修要項の記号(`lines`)は持たない */
+export type NoteBody = Omit<ParsedNote, "lines">;
+
 /**
- * 備考カードに残す分だけにする。**画面の他の場所に出したものは引く。**
+ * 備考カードに残す分だけにする。**画面の他の場所に出したものと、学生が読めないものは引く。**
  *
  * - 登録方法は見出しのタグに出しているので落とす
  * - `【対象】` は基本情報の対象課程と重なる分を落とす(`lib/courseTarget.ts`)
+ * - **履修要項の記号(`lines`)は落とす。** どの学部・入学年度の履修要項の区分かが
+ *   書かれておらず(`2-1 英語必修 2019年度～` は閲覧している学生の課程の区分とは
+ *   限らない)、学生には意味が読み取れない。その学生にとっての区分は履修要項と
+ *   突き合わせた見出しのタグ(「あなたの課程では」)が示している。以前は
+ *   「履修要項の記載」として原文のまま出しており、備考カードの中身の大半がこれだった
  *
  * @returns 残りが無ければ null(カードごと出さない)
  */
-export function pruneNote(parsed: ParsedNote, shownTargets: string[]): ParsedNote | null {
+export function pruneNote(parsed: ParsedNote, shownTargets: string[]): NoteBody | null {
   const flags = parsed.flags.filter((flag) => !flag.includes("登録"));
   const entries = parsed.entries.flatMap((entry) => {
     if (entry.label !== "対象") return [entry];
     const extra = extraTargets(entry.value, shownTargets);
     return extra ? [{ label: entry.label, value: extra }] : [];
   });
-  const pruned: ParsedNote = { flags, entries, lines: parsed.lines };
-  const empty = flags.length === 0 && entries.length === 0 && parsed.lines.length === 0;
-  return empty ? null : pruned;
+  return flags.length === 0 && entries.length === 0 ? null : { flags, entries };
 }

@@ -125,45 +125,59 @@ export default async function SyllabusDetailPage({
       id: "overview",
       label: "概要",
       panel: (
-        <div className="flex flex-col gap-3 md:gap-6 md:rounded-xl md:border md:border-border-primary md:bg-surface-primary md:p-7">
-          {syllabus.summary && (
-            <OverviewSection icon={BookOpen} title="授業概要">
-              <RichText>{syllabus.summary}</RichText>
-            </OverviewSection>
-          )}
-
-          {goals.length > 0 && (
-            <OverviewSection icon={Target} title="到達目標">
-              {goals.length === 1 ? (
-                <RichText>{goals[0]}</RichText>
-              ) : (
-                <ul className="flex flex-col gap-2">
-                  {goals.map((goal) => (
-                    <li key={goal} className="flex items-start gap-2.5">
-                      <span
-                        className="mt-[9px] size-[5px] shrink-0 rounded-full bg-fg-icon"
-                        aria-hidden="true"
-                      />
-                      <span className="min-w-0 flex-1">{goal}</span>
-                    </li>
-                  ))}
-                </ul>
+        /*
+          広い画面は2列に分ける。左は長い読み物(授業概要・授業方法)、右は短い
+          箇条書き(到達目標・授業外学習)。1列に積むと、本文は読める幅(RichText の
+          44em)で止まるのに到達目標はカードの端まで伸び、授業方法と授業外学習を
+          横に並べると高さが揃わず、右端と下端がばらばらになっていた。
+          狭い画面では列の包みを `contents` で外し、`order` で 概要 → 目標 → 方法 →
+          授業外学習 の順に1列に積む
+        */
+        <div className="flex flex-col gap-3 md:gap-6 md:rounded-xl md:border md:border-border-primary md:bg-surface-primary md:p-7 xl:flex-row xl:gap-10">
+          {(syllabus.summary || syllabus.methods) && (
+            <div className="contents xl:flex xl:min-w-0 xl:flex-[3] xl:flex-col xl:gap-6">
+              {syllabus.summary && (
+                <div className="order-1 xl:order-none">
+                  <OverviewSection icon={BookOpen} title="授業概要">
+                    <RichText>{syllabus.summary}</RichText>
+                  </OverviewSection>
+                </div>
               )}
-            </OverviewSection>
-          )}
-
-          {/* 授業方法と授業外学習は短い。横に並べて縦の伸びを抑える */}
-          {(syllabus.methods || syllabus.outside_study) && (
-            <div className="flex flex-col gap-3 md:gap-6 lg:flex-row lg:gap-8">
               {syllabus.methods && (
-                <div className="min-w-0 flex-1">
+                <div className="order-3 xl:order-none">
                   <OverviewSection icon={Presentation} title="授業方法">
                     <RichText>{syllabus.methods}</RichText>
                   </OverviewSection>
                 </div>
               )}
+            </div>
+          )}
+
+          {(goals.length > 0 || syllabus.outside_study) && (
+            <div className="contents xl:flex xl:min-w-0 xl:flex-[2] xl:flex-col xl:gap-6 xl:border-l xl:border-card-divider xl:pl-10">
+              {goals.length > 0 && (
+                <div className="order-2 xl:order-none">
+                  <OverviewSection icon={Target} title="到達目標">
+                    {goals.length === 1 ? (
+                      <RichText>{goals[0]}</RichText>
+                    ) : (
+                      <ul className="flex flex-col gap-2">
+                        {goals.map((goal) => (
+                          <li key={goal} className="flex items-start gap-2.5">
+                            <span
+                              className="mt-[9px] size-[5px] shrink-0 rounded-full bg-fg-icon"
+                              aria-hidden="true"
+                            />
+                            <span className="min-w-0 flex-1">{goal}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </OverviewSection>
+                </div>
+              )}
               {syllabus.outside_study && (
-                <div className="min-w-0 flex-1">
+                <div className="order-4 xl:order-none">
                   <OverviewSection icon={Clock3} title="授業外学習">
                     <RichText>{syllabus.outside_study}</RichText>
                   </OverviewSection>
