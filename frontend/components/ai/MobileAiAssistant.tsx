@@ -247,7 +247,8 @@ function AiSheet({ conversation, base }: { conversation: AiConversation; base: A
             messages={conversation.messages}
             thinkingLabel={conversation.thinkingLabel}
             showDate={full}
-            className="px-4 pb-2.5 pt-3.5"
+            // 左の余白は右より詰める。AI の吹き出しが左に寄り、画面の真ん中に浮いて見えない
+            className="pb-2.5 pl-2.5 pr-4 pt-3.5"
           >
             {/* 会話を出しているときは、クイックチップと提案の開始・再提案を出す
                 （STEP5。ハーフは時間割のクイックチップだけ。ほかの画面はサジェストが担う）。
