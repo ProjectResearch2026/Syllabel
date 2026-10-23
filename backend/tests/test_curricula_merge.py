@@ -145,11 +145,11 @@ def test_course_not_available_to_program_is_excluded(cohort):
     liberal, programs = _cohort(cohort)
     excluded = [c for c in liberal.courses if c.not_available_to_programs]
     if liberal.liberal_arts_version == "2026":
-        # 履修不可が学部単位になり、【先端理工学部履修不可】の科目は転記しない(§5.1.3)
+        # 履修不可が学部単位になり、【先端理工学部履修不可】の科目は載せない(§5.1.3)
         assert not excluded
         return
 
-    # 0件のまま以降のループが素通りしないことの番兵。転記漏れを検出する
+    # 0件のまま以降のループが素通りしないことの番兵。データの漏れを検出する
     assert excluded, f"{cohort} に not_available_to_programs を持つ科目がない"
     merged = _merge_cohort(cohort)
     for course in excluded:
@@ -379,7 +379,7 @@ def test_duplicate_derived_course_title_is_kept(synthetic):
 
 
 def test_merge_error_names_the_program(synthetic):
-    """例外メッセージにどの課程・入学年度かが出ること(転記ミスの特定のため)。"""
+    """例外メッセージにどの課程・入学年度かが出ること(データの誤りの特定のため)。"""
     program, liberal = synthetic
     mismatched = deepcopy(program)
     mismatched.graduation.total_credits = 11

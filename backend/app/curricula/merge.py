@@ -168,7 +168,7 @@ def merge(
         courses=courses,
     )
     # 先修要件の科目名は、当該課程に取り込まなかった教養教育科目(履修不可の科目)も
-    # 指し得る。転記ミスの検出が目的なので、同じ年度のファイルに在る全科目名と照らす
+    # 指し得る。データの誤りの検出が目的なので、同じ年度のファイルに在る全科目名と照らす
     known_titles = [
         c.title for c in [*program.courses, *liberal.courses, *(c for o in others for c in o.courses)]
     ]
@@ -257,7 +257,7 @@ def _check_prerequisite_titles(merged: MergedCurriculum, known_titles: Sequence[
     """先修要件に書いた科目名が、同じ年度の履修要項の科目一覧に存在すること(§4.4.3)。
 
     判定は科目名で修得科目と突き合わせるため、表記の違う科目名は黙って「未修得」と
-    判定されてしまう。転記ミスをロード時に止める。表記の揺れ(全角・半角、空白)は
+    判定されてしまう。科目名の誤りをロード時に止める。表記の揺れ(全角・半角、空白)は
     判定と同じ規則(`normalize_title()`)で吸収する。
     """
     titles = {normalize_title(t) for t in known_titles}

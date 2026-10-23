@@ -21,7 +21,7 @@ logging.basicConfig(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 履修要項データは起動時に1度だけ読み、以降はメモリ上のものを参照する(design.md §4.4.3)。
-    # 転記ミスを早期に検出するため、不正なデータは例外を送出して起動を中止させる
+    # データの誤りを早期に検出するため、不正なデータは例外を送出して起動を中止させる
     get_curricula()
     yield
 

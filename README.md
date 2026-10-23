@@ -41,7 +41,7 @@
 ```
 backend/              FastAPI + PydanticAI。API・エージェント・履修要項データ層
 frontend/             Next.js(App Router)。画面と PDF 解析
-curricula/            履修要項(入学年度 × 課程)の YAML。手動転記
+curricula/            履修要項(入学年度 × 課程)の YAML
 offerings/            開講年度ごとの「科目名 → シラバスコード」
 docs/                 要件定義書・設計書・各種ルール
 ui-ux/                画面デザイン
@@ -66,7 +66,7 @@ python -m pytest                   # ユニットテスト。vllm・api-clean �
 uvicorn app.main:app --reload      # 開発サーバ(http://localhost:8000)
 ```
 
-起動時にリポジトリ直下の `curricula/` と `offerings/` を読み、スキーマと整合性を検査する。転記ミスがあれば**起動に失敗する**(設計§4.4.3)。設定は環境変数か `backend/.env` で与える(既定値は `app/settings.py`)。
+起動時にリポジトリ直下の `curricula/` と `offerings/` を読み、スキーマと整合性を検査する。データに誤りがあれば**起動に失敗する**(設計§4.4.3)。設定は環境変数か `backend/.env` で与える(既定値は `app/settings.py`)。
 
 | 環境変数 | 既定 | 用途 |
 |---|---|---|
@@ -170,7 +170,7 @@ podman exec -it syllabel-backend python -m scripts.smoke_api_clean
 | backend / 時間割 | `POST /api/timetable/build`(組み立て。モデルを呼ばない)・`/check`(レポート)・`/assistant`(会話。SSE)実装済み。組み立ては実データ(ダミー学生48人)で確認済み。アシスタントの実機での確認は未実施(設計§13) |
 | frontend | 全画面を実装済み。backend との接続は設計§6.1 の宛先・SSE 書式・スキーマに準拠(`lib/api_base.ts` / `lib/chatApi.ts` / `lib/syllabus-api.ts`) |
 | 履修要項データ | 2023〜2026年度入学の6課程 + 教養教育科目を作成済み |
-| 開講年度データ | 2026年度分を作成済み(api-clean のシラバスと突き合わせて手で作成) |
+| 開講年度データ | 2026年度分を作成済み。同名科目や専攻科目の改訂など例外的な対処が要る箇所があるため、生成スクリプトでは作っていない |
 | インフラ | frontend は学外から HTTPS で到達できる。**`/syllabel/api/*` も公開 URL で疎通済み**(学生ブラウザ → 入口 Caddy → gateway → backend → トークンゲートウェイ → api-clean。設計§3.4.4)。frontend コンテナには `BACKEND_ORIGIN` を環境ファイルで渡す(設計§3.2.1)。CI は未整備 |
 
 ## 開発ルール
@@ -179,8 +179,6 @@ podman exec -it syllabel-backend python -m scripts.smoke_api_clean
 - **コミットメッセージ**: [docs/format/commit_rule.md](docs/format/commit_rule.md)
 - **命名規則**: [docs/format/naming_rule.md](docs/format/naming_rule.md)
 - **設計書に従う**: 実装の前に該当する節を読む。設計と食い違う実装を入れる場合は、設計書側も同じ PR で更新する(§番号とファイルの対応は [docs/design.md](docs/design.md) の 0.3)
-- **`curricula/` の変更は PR でアドバイザー教員の承認が要る**(要件§8、設計§4.4.4)。履修要項の転記物であり、内容の正確性は監修で担保するため。確定後は誤記の修正を除いて編集しない
-- **`offerings/` はアドバイザー教員のレビュー対象外**(履修要項の転記物ではなく、開発チームが api-clean のシラバスと突き合わせて作成した名寄せ結果)
 
 ## ドキュメント
 
