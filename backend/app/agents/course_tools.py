@@ -30,7 +30,7 @@ from pydantic import Field
 from pydantic_ai import RunContext
 
 from app.agents.title_search import matches_title
-from app.agents.tools import get_healthz, get_syllabus, search_syllabi_by_instructor
+from app.agents.tools import get_syllabus, search_syllabi_by_instructor
 from app.curricula.merge import MergedCourse
 from app.curricula.requirements import judge, normalize_title
 from app.schemas.student import Course as StudentCourse
@@ -97,11 +97,10 @@ SUBCATEGORY_LABEL = {
     "学部・センター等提供科目": "学部・センター等提供",
 }
 
-# 本文の検索(`text`)が入った api-clean の版
-TEXT_SEARCH_VERSION = (0, 4, 0)
-# 版の確認を置いておく秒数。api-clean の差し替えは稀だが、反映後に気づけるよう短めにする
-_VERSION_TTL = 300.0
-_version_cache: tuple[bool, float] | None = None
+# api-clean が本文の検索(`text`)を持たないと分かってから、確かめ直すまでの秒数。
+# api-clean の差し替えは稀だが、反映後に気づけるよう短めにする
+_TEXT_RETRY_SECONDS = 300.0
+_text_unsupported_until = 0.0
 
 # 1科目の返り値に載せるクラスの数(同名の別クラス)
 _MAX_CLASSES = 3
@@ -110,33 +109,10 @@ _MAX_SECTION_CHARS = 1200
 DEFAULT_SECTIONS: tuple[SectionArg, ...] = ("概要", "到達目標", "成績評価")
 
 
-def _version_tuple(text: str) -> tuple[int, ...]:
-    return tuple(int(x) for x in re.findall(r"\d+", text)[:3])
-
-
-async def api_clean_supports_text() -> bool:
-    """api-clean が本文の検索(`text`)を持つか。`/healthz` の版で判定する(§6.2)。
-
-    古い api-clean は未知の `text` を黙って無視して全件を返すため、版を確かめずに送ると
-    「内容に合う科目」として全件を見せてしまう。確かめられなければ持たないとみなす。
-    """
-    global _version_cache
-    now = time.monotonic()
-    if _version_cache is not None and _version_cache[1] > now:
-        return _version_cache[0]
-    try:
-        version = (await get_healthz()).get("version")
-        supported = isinstance(version, str) and _version_tuple(version) >= TEXT_SEARCH_VERSION
-    except Exception:  # noqa: BLE001 - 版が分からなければ持たないとみなす
-        supported = False
-    _version_cache = (supported, now + _VERSION_TTL)
-    return supported
-
-
-def clear_version_cache() -> None:
-    """版の確認の置き場を空にする(テスト用)。"""
-    global _version_cache
-    _version_cache = None
+def clear_text_support_cache() -> None:
+    """本文の検索を持たないという記憶を消す(テスト用)。"""
+    global _text_unsupported_until
+    _text_unsupported_until = 0.0
 
 
 # --- 注記 ---
@@ -214,10 +190,22 @@ def annotate(
 
 
 async def _topic_matches(topic: str, year: int, faculty: str) -> dict[str, list[str]] | None:
-    """本文の検索。シラバスコード → 当たった項目。api-clean が持たなければ None。"""
-    if not await api_clean_supports_text():
+    """本文の検索。シラバスコード → 当たった項目。api-clean が持たなければ None。
+
+    **持つかどうかは返った行で見分ける**(§6.2)。0.4.0 以降は `text` を渡すと各行に
+    `text_matched` を付け、古い api-clean は未知の `text` を黙って無視して `text_matched` の
+    無い全件を返す。見分けずに使うと、全件を「内容に合う科目」として見せてしまう。
+    `/healthz` の版では判定しない — トークンゲートウェイ経由の `/healthz` は
+    `{"status": "ok"}` だけを返し、版が見えない。持たないと分かったら、しばらく送らない。
+    """
+    global _text_unsupported_until
+    if time.monotonic() < _text_unsupported_until:
         return None
     rows = await fetch_rows(year=year, text=topic, faculty=faculty)
+    if any("text_matched" not in row for row in rows):
+        _text_unsupported_until = time.monotonic() + _TEXT_RETRY_SECONDS
+        logger.warning("api-clean が本文の検索(text)に対応していません")
+        return None
     return {
         str(row.get("syllabus_code")): list(row.get("text_matched") or [])
         for row in rows

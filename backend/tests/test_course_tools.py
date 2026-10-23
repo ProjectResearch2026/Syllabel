@@ -11,8 +11,7 @@ import pytest
 
 from app.agents import course_tools
 from app.agents.course_tools import (
-    api_clean_supports_text,
-    clear_version_cache,
+    clear_text_support_cache,
     get_course,
     grading_text,
     search_courses,
@@ -27,9 +26,9 @@ def curricula(monkeypatch):
     monkeypatch.setattr(
         context_module, "get_curricula", lambda: {("01", fx.ADMISSION_YEAR): fx.loaded()}
     )
-    clear_version_cache()
+    clear_text_support_cache()
     yield
-    clear_version_cache()
+    clear_text_support_cache()
 
 
 async def _ctx(*courses, grade=1):
@@ -37,15 +36,6 @@ async def _ctx(*courses, grade=1):
         fx.profile(*courses, grade=grade), "01", fx.ADMISSION_YEAR, fx.target(grade=grade),
         catalog=fx.catalog(),
     )
-
-
-def _version(monkeypatch, version: str | None):
-    async def fake_healthz():
-        if version is None:
-            raise httpx.ConnectError("down")
-        return {"status": "ok", "version": version}
-
-    monkeypatch.setattr(course_tools, "get_healthz", fake_healthz)
 
 
 def _text_rows(monkeypatch, rows: list[dict], calls: list[dict]):
@@ -107,7 +97,6 @@ async def test_search_reports_how_to_widen_when_nothing_matches():
 
 @pytest.mark.asyncio
 async def test_topic_search_uses_api_clean_text_and_returns_matched_fields(monkeypatch):
-    _version(monkeypatch, "0.4.0")
     calls: list[dict] = []
     _text_rows(
         monkeypatch,
@@ -125,32 +114,32 @@ async def test_topic_search_uses_api_clean_text_and_returns_matched_fields(monke
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("version", ["0.3.0", None])
-async def test_topic_search_refuses_old_api_clean(monkeypatch, version):
-    """古い api-clean は未知の text を黙って無視して全件を返す。送らずに断る。"""
-    _version(monkeypatch, version)
+async def test_topic_search_refuses_old_api_clean(monkeypatch):
+    """古い api-clean は未知の text を黙って無視し、text_matched の無い全件を返す。
+
+    全件を「内容に合う科目」として見せずに断り、しばらくは送らない。
+    """
     calls: list[dict] = []
-    _text_rows(monkeypatch, [], calls)
+    _text_rows(monkeypatch, [{"syllabus_code": "Y000000006"}], calls)
+    ctx = await _ctx()
 
-    result = await search_courses(await _ctx(), topic="誤り訂正")
+    first = await search_courses(ctx, topic="誤り訂正")
+    second = await search_courses(ctx, topic="符号")
 
-    assert "error" in result
-    assert calls == []
+    assert "error" in first and "error" in second
+    assert len(calls) == 1
 
 
 @pytest.mark.asyncio
-async def test_version_check_is_cached(monkeypatch):
-    seen: list[int] = []
+async def test_topic_search_with_no_hits_is_not_an_error(monkeypatch):
+    """0件は対応していない印ではない。本当に当たらなかった。"""
+    calls: list[dict] = []
+    _text_rows(monkeypatch, [], calls)
 
-    async def fake_healthz():
-        seen.append(1)
-        return {"status": "ok", "version": "0.4.1"}
+    result = await search_courses(await _ctx(), topic="量子重力")
 
-    monkeypatch.setattr(course_tools, "get_healthz", fake_healthz)
-
-    assert await api_clean_supports_text() is True
-    assert await api_clean_supports_text() is True
-    assert len(seen) == 1
+    assert result["total"] == 0
+    assert "error" not in result
 
 
 @pytest.mark.asyncio
@@ -164,8 +153,6 @@ async def test_search_without_student_ignores_student_filters():
 
 @pytest.mark.asyncio
 async def test_search_returns_error_instead_of_raising(monkeypatch):
-    _version(monkeypatch, "0.4.0")
-
     async def boom(**kwargs):
         raise httpx.ConnectError("down")
 

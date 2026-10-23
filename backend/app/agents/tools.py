@@ -48,8 +48,9 @@ async def search_syllabi(
     Args:
         q: キーワード検索(科目名だけに当たる)
         text: 講義の本文の検索(科目名・サブタイトル・講義概要・到達目標・授業計画)。
-            空白で区切った語は AND。api-clean 0.4.0 以降(`api_clean_version()`)。
-            古い api-clean は未知の条件を黙って無視して全件を返すので、版を確かめてから送る
+            空白で区切った語は AND。api-clean 0.4.0 以降。古い api-clean は未知の条件を
+            黙って無視して全件を返すので、各行に `text_matched` があるかで見分ける
+            (`course_tools._topic_matches()`)
         faculty: 学部
         program: 課程
         campus: キャンパス
@@ -153,17 +154,6 @@ async def get_syllabus(code: str) -> dict:
         api-clean の /syllabi/{code} レスポンス(dict)をそのまま返す。
     """
     resp = await _get_client().get(f"/syllabi/{code}")
-    resp.raise_for_status()
-    return resp.json()
-
-
-async def get_healthz() -> dict:
-    """api-clean の死活と版を返す。design.md §6.2 GET /healthz。
-
-    0.4.0 以降は `{"status": "ok", "version": "0.4.0"}` を返す。トークンゲートウェイは
-    `/healthz` を通す(`/` の目次は通さない)ため、版を知る口はここだけである。
-    """
-    resp = await _get_client().get("/healthz")
     resp.raise_for_status()
     return resp.json()
 
