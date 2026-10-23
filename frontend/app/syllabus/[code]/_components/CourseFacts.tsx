@@ -56,15 +56,21 @@ export default function CourseFacts({ syllabus }: { syllabus: SyllabusDetail }) 
   return (
     /*
      * モバイルは枠付きの2列の表(ui-design_phone.pen 06 CourseFacts)。
-     * 最後の行の下線は `-mb-px` で枠線に重ねて消す
+     * 最後の行の下線は `-mb-px` で枠線に重ねて消す。
+     *
+     * PC は1行に詰め、**幅は中身に合わせる。** 等分にすると `2単位` の欄が
+     * 対象課程と同じ幅を取り、長い対象課程だけが3行に折れていた。余りは
+     * 最後の対象に回す
      */
-    <dl className="grid grid-cols-2 overflow-hidden rounded-lg border border-border-primary md:flex md:flex-wrap md:gap-x-5 md:gap-y-4 md:overflow-visible md:rounded-none md:border-0 md:border-t md:border-card-divider md:pt-4">
+    <dl className="grid grid-cols-2 overflow-hidden rounded-lg border border-border-primary md:flex md:flex-wrap md:gap-x-10 md:gap-y-4 md:overflow-visible md:rounded-none md:border-0 md:border-t md:border-card-divider md:pt-4">
       {facts
         .filter((fact) => fact.value)
         .map((fact) => (
           <div
             key={fact.label}
-            className="-mb-px flex min-w-0 flex-col gap-0.5 border-b border-border-primary px-3 py-2 odd:border-r md:mb-0 md:min-w-[140px] md:flex-1 md:gap-1 md:border-0 md:p-0"
+            // `odd:border-r` は `md:border-0` より詳細度が高く、PC でも1・3・5番目の
+            // 右に縦線が残っていた。PC では `md:odd:border-r-0` で明示して消す
+            className="-mb-px flex min-w-0 flex-col gap-0.5 border-b border-border-primary px-3 py-2 odd:border-r md:mb-0 md:flex-none md:gap-1 md:border-0 md:p-0 md:odd:border-r-0 md:last:min-w-[240px] md:last:flex-1"
           >
             <dt className="flex items-center gap-1.5 text-[10px] text-fg-secondary md:text-[11px] md:font-semibold md:tracking-[0.3px] md:text-fg-muted">
               <fact.icon size={13} className="hidden shrink-0 text-fg-icon md:block" aria-hidden="true" />
