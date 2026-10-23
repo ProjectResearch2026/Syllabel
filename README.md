@@ -73,7 +73,8 @@ uvicorn app.main:app --reload      # 開発サーバ(http://localhost:8000)
 | `VLLM_BASE_URL` | `http://vllm:8000/v1` | LLM(OpenAI 互換)の宛先。トークンゲートウェイ経由の場合はその URL(設計§3.4.3) |
 | `LLM_MODEL_ID` | `qwen3.8-27b-fp8` | 接続先が返すモデル ID と一致させる(不一致で 404) |
 | `LLM_REASONING_EFFORT` | `low` | 会話の思考の長さ(`xhigh` / `medium` / `low`)。設計§6.3.1 の実測で `xhigh` は応答が分単位で伸びたため `low` を既定とする |
-| `LLM_API_KEY` | `EMPTY` | ゲートウェイが要求するトークン。`Authorization: Bearer <値>` として送られる(設計§6.3)。認証なしの vllm を直接叩くときは既定のまま |
+| `LLM_API_KEY` | `EMPTY` | ゲートウェイが要求するトークン。`Authorization: Bearer <値>` として送られる(設計§6.3)。**複数発行したときはカンマ区切りで並べる**(`tok1,tok2`)。ゲートウェイは1トークンで生成を1本しか通さないため、並べた本数だけ同時に生成でき、すべて生成中なら backend が空くまで待たせる(設計§3.4.3)。認証なしの vllm を直接叩くときは既定のまま |
+| `LLM_WAIT_SECONDS` | `120` | トークンがすべて生成中のとき、空くのを待つ上限(秒)。過ぎたら「混み合っています」と返す |
 | `API_CLEAN_BASE_URL` | `http://api-clean:5000` | 既存シラバス API の宛先。トークンゲートウェイ経由の場合はその URL(設計§3.4.4) |
 | `API_CLEAN_API_KEY` | (空) | ゲートウェイが要求するトークン。`Authorization: Bearer <値>` として送られる(設計§6.2)。認証なしの api-clean を直接叩くときは空のまま(ヘッダを付けない) |
 | `CURRICULA_DIR` / `OFFERINGS_DIR` | `../curricula` / `../offerings` | 履修要項データの場所 |

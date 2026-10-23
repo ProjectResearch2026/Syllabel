@@ -14,9 +14,14 @@ class Settings(BaseSettings):
     vllm_base_url: str = "http://vllm:8000/v1"
     llm_model_id: str = "qwen3.8-27b-fp8"
     # ゲートウェイが要求するトークン。Authorization: Bearer <値> として送られる(§6.3)。
+    # ゲートウェイは同一トークンで生成を1本しか通さない(§3.4.3)ため、複数発行したときは
+    # カンマ区切りで並べる(`tok1,tok2`)。本数だけ同時に生成できる(`app/agents/__init__.py`)。
     # 既定の "EMPTY" は認証なしの vllm を直接叩く開発環境向けのダミー値
     # (OpenAI クライアントは非空の api_key を要求するため空にはできない)
     llm_api_key: str = "EMPTY"
+    # トークンがすべて生成中のとき、空くのを待つ上限(秒)。過ぎたら「混み合っています」で返す。
+    # 時間割のアシスタントの1回の応答は1〜2分かかる(§6.3.1)
+    llm_wait_seconds: float = 120.0
     # Qwen3.8 のチャットテンプレートの `reasoning_effort`(§6.3.1)。会話(時間割のアシスタント・
     # シラバスチャット)のリクエストに `chat_template_kwargs` として載せる。既定の low は実機の
     # 比較(2026-10-23)による: テンプレートの既定 xhigh では思考が1回に数十秒〜5分かかり、
@@ -48,6 +53,12 @@ class Settings(BaseSettings):
     # 学生データを含まない公開の値で、時間割の組み立てと検索のたびに api-clean を
     # ページ送りで引き直さないために持つ
     catalog_ttl_seconds: float = 1800.0
+
+    @property
+    def llm_api_keys(self) -> list[str]:
+        """`llm_api_key` をカンマで分けたトークンの並び。空なら既定のダミー値 "EMPTY" だけ。"""
+        keys = [key.strip() for key in self.llm_api_key.split(",") if key.strip()]
+        return keys or ["EMPTY"]
 
 
 @lru_cache
