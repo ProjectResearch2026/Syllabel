@@ -182,7 +182,7 @@ function lastLine(text: string): string {
 }
 
 /** 開いたときに並べる行。引数を「見出し: 値」の文にし、学生に関係の無い引数は出さない */
-function argLines({ tool, args }: AgentActivity, titleOf: (code: string) => string): string[] {
+function argLines({ tool, args, found }: AgentActivity, titleOf: (code: string) => string): string[] {
   const lines: string[] = [];
   for (const [key, value] of Object.entries(args)) {
     if (value === null || value === undefined || value === "") continue;
@@ -193,6 +193,10 @@ function argLines({ tool, args }: AgentActivity, titleOf: (code: string) => stri
           ? courseLine(key, value, titleOf)
           : searchLine(key, value, args);
     if (line) lines.push(line);
+  }
+  // 検索は最後に当たった科目数を添える(backend が検索を終えたときに届く)
+  if (tool === "search_courses" && found !== undefined) {
+    lines.push(found > 0 ? `${found}件見つかりました` : "見つかりませんでした");
   }
   return lines;
 }
@@ -267,10 +271,8 @@ function searchLine(key: string, value: unknown, args: Record<string, unknown>):
   switch (key) {
     case "keyword":
       return `科目名: ${value}`;
-    case "topic": {
-      const text = String(value);
-      return /[、,]/.test(text) ? `内容: ${text}（どれかを含む）` : `内容: ${text}`;
-    }
+    case "topic":
+      return `内容: ${value}`;
     case "instructor":
       return `教員: ${value}`;
     case "day":

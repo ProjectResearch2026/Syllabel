@@ -6,6 +6,7 @@
 |---|---|
 | `{"thinking": "..."}` | モデルの思考の断片。vLLM の reasoning パーサが本文と分けて返したときだけ |
 | `{"activity": {"tool", "label", "args"}}` | ツールを呼び始めた・引数を書いている。`label` は backend が決めた固定文言で、モデルには書かせない。`args` はモデルが書いた引数(書きかけの間も流す) |
+| `{"activity": {..., "found"}}` | シラバス検索が終わったときに、同じ `id` で当たった科目数(`found`)を添えて流し直す |
 | ツールが積んだイベント | ツールの実行が終わったときに、ツールが `outbox` に積んだもの(時間割の `step` / `timetable` / `conditions`)を流す |
 | `{"error": "..."}` / `{"done": true}` | 失敗と終端。終端はエラー時も必ず流れる |
 
@@ -35,6 +36,7 @@ from pydantic_ai.messages import (
     ThinkingPartDelta,
     ToolCallPart,
     ToolCallPartDelta,
+    ToolReturnPart,
     UserPromptPart,
 )
 from pydantic_core import from_json
@@ -74,16 +76,29 @@ def _partial_args(text: str) -> dict | None:
     return value if isinstance(value, dict) else None
 
 
-def _activity(call_id: str, tool: str, args: dict | None) -> dict:
-    """ツールの進み具合。`id` は呼び出しごとの値で、書きかけの引数を流し直すたびに同じ値になる。"""
+def _activity(call_id: str, tool: str, args: dict | None, **result) -> dict:
+    """ツールの進み具合。`id` は呼び出しごとの値で、書きかけの引数を流し直すたびに同じ値になる。
+
+    `result` はツールが終わったときに添える結果の要約(シラバス検索の `found`)。
+    """
     return {
         "activity": {
             "id": call_id,
             "tool": tool,
             "label": TOOL_LABELS.get(tool, "調べています"),
             "args": args or {},
+            **result,
         }
     }
+
+
+def _result_summary(tool: str, content: object) -> dict:
+    """ツールの結果のうち画面に出すもの。シラバス検索は当たった科目数だけ(科目の中身は流さない)。"""
+    if tool == "search_courses" and isinstance(content, dict):
+        total = content.get("total")
+        if isinstance(total, int):
+            return {"found": total}
+    return {}
 
 
 async def stream_agent(
@@ -107,6 +122,8 @@ async def stream_agent(
     started = False
     # パートの番号 → (呼び出しの id, ツール名, 書きかけの引数, 最後に流した引数)
     tools: dict[int, tuple[str, str, str, dict | None]] = {}
+    # 呼び出しの id → (ツール名, 引数)。結果を添えて流し直すときに使う
+    called: dict[str, tuple[str, dict]] = {}
 
     def flush() -> list[str]:
         lines = [format_sse(event) for event in pending]
@@ -156,11 +173,18 @@ async def stream_agent(
                     continue
                 if isinstance(event, FunctionToolCallEvent):
                     part = event.part
+                    called[part.tool_call_id] = (part.tool_name, part.args_as_dict())
                     yield format_sse(
                         _activity(part.tool_call_id, part.tool_name, part.args_as_dict())
                     )
                     continue
                 if isinstance(event, FunctionToolResultEvent):
+                    result = event.part
+                    if isinstance(result, ToolReturnPart) and result.tool_call_id in called:
+                        name, args = called[result.tool_call_id]
+                        summary = _result_summary(name, result.content)
+                        if summary:
+                            yield format_sse(_activity(result.tool_call_id, name, args, **summary))
                     for line in flush():
                         yield line
         for line in flush():

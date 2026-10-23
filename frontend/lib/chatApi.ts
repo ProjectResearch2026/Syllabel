@@ -138,6 +138,8 @@ export type AgentActivity = {
   label: string;
   /** モデルが書いた引数。書きかけの間も届く */
   args: Record<string, unknown>;
+  /** シラバス検索が当たった科目数。検索が終わったときに同じ `id` で届く */
+  found?: number;
 };
 
 /** 組み立ての起点(§7.2)。`backend/app/timetable/builder.py` の `Mode` */
