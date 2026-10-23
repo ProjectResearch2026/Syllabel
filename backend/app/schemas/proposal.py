@@ -145,6 +145,9 @@ class ProposedCourse(BaseModel):
     reason: str = Field(
         description="この科目を推薦する理由を1文で説明すること。学生のプロファイルや希望条件との関連を明記すること。",
     )
+    # 誰が時間割に入れた科目か。組み立て(`app/timetable/builder.py`)は学生が自分で
+    # 入れた科目(`student`)を外さない。理由の文言(`reason`)では見分けない
+    source: Literal["assistant", "student"] = "assistant"
 
     def occupied_slots(self) -> list[CourseSlot]:
         """その科目が占めるコマ。

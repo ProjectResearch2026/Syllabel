@@ -36,6 +36,12 @@ class Settings(BaseSettings):
     offerings_dir: Path = Path("../offerings")
     # backend が参照する開講年度。過去年度は読まない(§4.4.3 / §4.4.4)
     offering_year: int = 2026
+    # 本サービスの対象学部(要件§2.1)。シラバスの検索ツールはこの学部の科目だけを返す
+    target_faculty: str = "先端理工学部"
+    # 開講年度ぶんの開講情報・対象課程の置き場(`app/timetable/offerings.py`)の有効期間(秒)。
+    # 学生データを含まない公開の値で、時間割の組み立てと検索のたびに api-clean を
+    # ページ送りで引き直さないために持つ
+    catalog_ttl_seconds: float = 1800.0
 
 
 @lru_cache

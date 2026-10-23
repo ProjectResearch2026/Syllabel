@@ -20,7 +20,7 @@
 含めない。本モジュールは学生データをログに出さない(§4.2.3)。
 """
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -385,6 +385,79 @@ def _downstream(slots: dict[str, RequirementSlot], key: str) -> set[str]:
     return reached
 
 
+def _entry_slot(
+    curriculum: MergedCurriculum,
+    course: CurriculumCourse,
+    order: dict[str, int],
+    downstream: dict[str, set[str]],
+) -> RequirementSlot | None:
+    """科目の単位を最初に計上する要件枠。受け入れる枠が無ければ None。
+
+    受け入れる枠のうち**最も条件の多いもの**とし、同数のときは他の候補を下流に持つ枠
+    (カスケードの上流)を先にする(`_assign()` の規則)。
+    """
+    candidates = [
+        slot for slot in curriculum.requirement_slots if accepts_course(slot.accepts, course)
+    ]
+    if not candidates:
+        return None
+    keys = {c.key for c in candidates}
+    return min(
+        candidates,
+        key=lambda s: (-_specificity(s.accepts), -len(downstream[s.key] & keys), order[s.key]),
+    )
+
+
+def entry_slot_keys(curriculum: MergedCurriculum) -> "EntrySlots":
+    """科目 → 単位を最初に計上する要件枠の key を引く関数と、溢れの段を返す。
+
+    履修提案の組み立て(`app/timetable/builder.py`)が、科目を1つ足したときに単位が
+    どの枠に入るかを判定し直さずに見積もるのに使う。起点の決め方は `judge()` と
+    同じ関数(`_entry_slot()`)であり、規則を二重に持たない。
+    """
+    slots = curriculum.slots_by_key
+    order = {slot.key: i for i, slot in enumerate(curriculum.requirement_slots)}
+    downstream = {
+        slot.key: _downstream(slots, slot.key) for slot in curriculum.requirement_slots
+    }
+
+    def entry(course: CurriculumCourse) -> str | None:
+        slot = _entry_slot(curriculum, course, order, downstream)
+        return slot.key if slot is not None else None
+
+    return EntrySlots(entry=entry, levels=_overflow_levels(curriculum))
+
+
+@dataclass(frozen=True)
+class EntrySlots:
+    """`entry_slot_keys()` の戻り値。
+
+    `levels` は要件枠の溢れの段で、どこからも溢れを受けない枠が 0、溢れを受ける枠は
+    送り元の段の最大 + 1 である(受け皿ほど大きい)。
+    """
+
+    entry: Callable[[CurriculumCourse], str | None]
+    levels: dict[str, int]
+
+
+def _overflow_levels(curriculum: MergedCurriculum) -> dict[str, int]:
+    """要件枠ごとの溢れの段。循環はマージ時に検査済み(§4.4.3)。"""
+    sources: dict[str, list[str]] = {slot.key: [] for slot in curriculum.requirement_slots}
+    for slot in curriculum.requirement_slots:
+        if slot.overflow_to is not None and slot.overflow_to in sources:
+            sources[slot.overflow_to].append(slot.key)
+    levels: dict[str, int] = {}
+
+    def level(key: str) -> int:
+        if key not in levels:
+            levels[key] = 1 + max((level(s) for s in sources[key]), default=-1)
+        return levels[key]
+
+    for key in sources:
+        level(key)
+    return levels
+
+
 def _assign(
     curriculum: MergedCurriculum,
     slots: dict[str, RequirementSlot],
@@ -434,12 +507,8 @@ def _assign(
                 )
         if unit.credits <= 0:
             continue
-        candidates = [
-            slot
-            for slot in curriculum.requirement_slots
-            if accepts_course(slot.accepts, unit.course)
-        ]
-        if not candidates:
+        entry = _entry_slot(curriculum, unit.course, order, downstream)
+        if entry is None:
             uncounted.append(
                 UncountedCourse(
                     title=unit.title,
@@ -448,14 +517,6 @@ def _assign(
                 )
             )
             continue
-        entry = min(
-            candidates,
-            key=lambda s: (
-                -_specificity(s.accepts),
-                -len(downstream[s.key] & {c.key for c in candidates}),
-                order[s.key],
-            ),
-        )
         left = cascade(entry.key, unit.title, unit.credits)
         if left > 0:
             uncounted.append(
