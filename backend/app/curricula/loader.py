@@ -7,12 +7,11 @@ backend 起動時に1度だけ実行し、課程ごとのマージ済み履修�
 
 **起動失敗にする条件**: YAML のパース失敗 / スキーマの `ValidationError` /
 本モジュールの構造検査違反 / `CurriculumMergeError` / 課程ファイル0件。
-転記ミスを早期に検出するためであり、いずれも人手で直せる誤りである(§4.4.3)。
+データの誤りを早期に検出するためであり、いずれも人手で直せる誤りである(§4.4.3)。
 
 **起動失敗にしない条件**: `offerings` の `unresolved` が非空であること。
-`offerings` は api-clean から機械生成する値であり、上流の科目名変更ひとつで
-稼働中のサービスが起動不能になる事態は避ける。警告ログにとどめ、検出は
-PR 時の CI(§12.2)でマージをブロックする形で行う(§4.4.3)。
+`offerings` は api-clean のシラバスと突き合わせて作る値であり、上流の科目名変更
+ひとつで稼働中のサービスが起動不能になる事態は避ける。警告ログにとどめる(§4.4.3)。
 """
 
 import logging
@@ -217,7 +216,7 @@ def _load_offerings(settings: Settings, admission_year: int) -> dict[str, Offeri
             )
         offerings[offering.program_code] = offering
         if offering.unresolved:
-            # 起動は継続する。検出は CI の責務(§4.4.3 / §12.2)
+            # 起動は継続し、警告ログにとどめる(§4.4.3)
             logger.warning(
                 "シラバスコード未解決の科目があります: %s(%d件: %s)",
                 path,

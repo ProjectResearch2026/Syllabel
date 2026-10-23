@@ -459,7 +459,7 @@ def test_slot_without_name_fails(tmp_path):
 def test_unresolved_prerequisite_title_fails(tmp_path, rule):
     """先修要件の科目名が科目一覧に無ければ起動失敗にすること(§4.4.3)。
 
-    判定は科目名で修得科目と突き合わせるため、転記ミスは黙って「未修得」になる。
+    判定は科目名で修得科目と突き合わせるため、科目名の誤りは黙って「未修得」になる。
     """
     from app.curricula.merge import CurriculumMergeError
 

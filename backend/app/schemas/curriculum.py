@@ -16,7 +16,7 @@
 YAML は snake_case のまま扱う(alias は付けない。例外は Python の予約語と
 衝突する `min_credits[].from` だけ)。camelCase への変換は
 API のレスポンスモデル側の責務である(§6.1)。全モデルで `extra="forbid"` とし、
-転記時の typo キーを黙って捨てずに検出する。
+YAML の typo キーを黙って捨てずに検出する。
 """
 
 from collections import Counter
@@ -74,7 +74,7 @@ _LIBERAL_SLOT_PREFIX = "liberal."
 class _YamlModel(BaseModel):
     """`curricula/` の YAML に対応するモデルの基底。
 
-    未知のキーを拒否して転記ミスを検出する。alias は付けず snake_case のまま扱う。
+    未知のキーを拒否してデータの誤りを検出する。alias は付けず snake_case のまま扱う。
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -163,7 +163,7 @@ class TrackConstraint(_YamlModel):
     `slot` はどの要件枠の中での話かを、`track_group` はどの科目群かを指し、
     `pool` はその科目群に設置されている単位数(別表の母数)、`min` はコース
     選択者が最低限修得すべき単位数を表す。`pool` は原理的には `courses` から
-    算出できるが、別表と設置科目一覧の齟齬を検出するため別表の値を転記する。
+    算出できるが、別表と設置科目一覧の齟齬を検出するため別表の値を持つ。
     """
 
     slot: str = Field(min_length=1)

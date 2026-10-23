@@ -92,7 +92,7 @@ def test_program_file_content():
     assert slots["basic.elective"].credits == 0
     assert slots["basic.elective"].overflow_to == "free.faculty"
 
-    # tracks は「コース毎の履修要件」別表の1セルをそのまま転記する(§5.1.5)
+    # tracks は「コース毎の履修要件」別表の1セルをそのまま持つ(§5.1.5)
     assert curriculum.tracks is not None
     tracks = {track.key: track for track in curriculum.tracks}
     assert [(c.slot, c.track_group, c.pool, c.min) for c in tracks["math"].constraints] == [
@@ -280,7 +280,7 @@ def test_minimal_documents_validate():
     LiberalArtsCurriculum.model_validate(_minimal_liberal_arts())
 
 
-# --- extra="forbid"(転記時の typo キー検出) ---
+# --- extra="forbid"(typo キー検出) ---
 
 
 @pytest.mark.parametrize(
@@ -535,7 +535,7 @@ def test_program_file_rejects_liberal_arts_courses():
 
 
 def test_program_file_rejects_transcribed_related_courses():
-    """`専門関連科目` は転記せず他課程ファイルから導出する(§5.1.5)。"""
+    """`専門関連科目` は YAML に書かず他課程ファイルから導出する(§5.1.5)。"""
     data = _minimal_curriculum(courses=[_minimal_course(category="専門関連科目")])
     with pytest.raises(ValidationError, match="専攻科目"):
         Curriculum.model_validate(data)

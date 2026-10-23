@@ -19,7 +19,7 @@
 admission_year: 2025                # このファイルが属するコホート。ディレクトリ名と一致させる
 liberal_arts_version: "until-2025"  # 履修要項の版(先端理工学部【〜2025年度入学】)
 applies_to: ["先端理工学部"]
-duplicate_of: "admission-2024/00-liberal-arts.yaml"   # 内容が同一のため複製(design §4.4.2・§12.2 でハッシュ一致を検査)
+duplicate_of: "admission-2024/00-liberal-arts.yaml"   # 内容が同一のため複製(design §4.4.2)
 
 # 教養教育科目の卒業要件枠(合計28単位)。accepts の記法は §5.1.5
 requirement_slots:

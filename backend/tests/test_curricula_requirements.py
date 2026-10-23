@@ -687,7 +687,7 @@ def test_real_curriculum_assigns_every_own_course(cohort, code):
 def test_real_curriculum_required_courses_fill_required_slots(cohort, code):
     """実データで必修科目だけを修得したとき、必修枠が過不足なく埋まる。
 
-    必修の設置単位が必修枠の単位数を満たすこと(=履修要項の転記と要件枠の整合)を
+    必修の設置単位が必修枠の単位数を満たすこと(=履修要項データと要件枠の整合)を
     判定の側から確かめる。
     """
     merged = _real_cohort(cohort)[code]

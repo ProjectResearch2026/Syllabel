@@ -2,8 +2,7 @@
 
 実データ(`offerings/`)が `model_validate` を通ることと、`resolved` /
 `not_offered` / `unresolved` の3分割の前提が型で守られることを確かめる。
-`curricula/` の科目名集合との突合はファイル単体では成立しないため扱わない
-(§4.4.3 / §12.2)。
+`curricula/` の科目名集合との突合はファイル単体では成立しないため扱わない。
 """
 
 from pathlib import Path

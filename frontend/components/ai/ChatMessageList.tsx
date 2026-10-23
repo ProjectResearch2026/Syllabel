@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { ArrowLeftRight, RotateCw } from "lucide-react";
+import { RotateCw } from "lucide-react";
 import { regenerateFrom, STOPPED_TEXT, type ChatMessage } from "@/lib/chat";
 import { useScrollToBottom } from "@/lib/useScrollToBottom";
 import MarkdownText from "./MarkdownText";
@@ -131,16 +131,6 @@ const AssistantBubble = memo(function AssistantBubble({
       {msg.stopped && msg.content !== STOPPED_TEXT && (
         <p className="text-[11px] text-fg-muted">応答を止めました</p>
       )}
-      {/* 差し替え案（Chat/SuggestCard）。AIが返したときだけ出る */}
-      {msg.items?.map((item) => (
-        <p
-          key={item.name}
-          className="flex items-center gap-2 rounded-md bg-accent-light p-3 text-xs font-semibold text-accent"
-        >
-          <ArrowLeftRight size={16} className="shrink-0" aria-hidden="true" />
-          {item.name}
-        </p>
-      ))}
     </div>
   );
   if (!onRegenerate) return bubble;

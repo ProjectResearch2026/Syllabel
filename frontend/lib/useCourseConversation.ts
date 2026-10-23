@@ -11,7 +11,7 @@ import {
 import { useChatHistory } from "@/lib/chatHistory";
 import { useStudentContext } from "@/lib/studentContext";
 import { streamCourseChat } from "@/lib/chatApi";
-import { questionSuggestions, type AiConversation } from "@/lib/ai";
+import { CHAT_LOG_NOTE, questionSuggestions, type AiConversation } from "@/lib/ai";
 
 /**
  * 講義単位の質問（`/syllabus/[code]`。design.md §7.5）。
@@ -160,6 +160,8 @@ export function useCourseConversation({
         abortRef.current.abort();
       },
       quickAsks: questions,
+      // 入力した文章が記録されることを、書く場所の傍らで示す（§9.1）
+      note: CHAT_LOG_NOTE,
       history: entries,
       onSelectHistory: (id) => {
         const restored = restore(scope, id);
