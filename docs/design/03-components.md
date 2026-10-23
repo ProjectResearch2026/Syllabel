@@ -162,9 +162,9 @@ vLLM を Docker で DGX Spark 上に起動し、OpenAI 互換 API(`/v1/chat/comp
 
 **イメージとモデル**
 
-- **イメージはタグを固定する**(`vllm/vllm-openai:v0.27.1`)。`latest` は pull のたびに実体が黙って変わり、起動オプションの互換性や性能の見積もりと対応しなくなる。同じ GPU を使う qwen-ocr もタグを固定しており(§3.2.3)、運用を揃える
+- **イメージはタグを固定する**(`vllm/vllm-openai:v0.27.1`)。`latest` は pull のたびに実体が黙って変わり、起動オプションの互換性や性能の見積もりと対応しなくなる
 - **モデルは事前に取得し、読み取り専用で bind mount する。** `hf download Qwen/Qwen3.8-27B-FP8 --revision <commit SHA> --local-dir ...` でリビジョンを固定して `/srv/qwen3.8/models/Qwen3.8-27B-FP8` に置き、`/models:ro` として渡す(`--model /models`)。起動のたびに HF から取得しないことで再現性を保つ。現在のリビジョンは `017b9c7af6b5689d5dd426a76e0bc077eb5ca20a`
-- **旧モデル(`/srv/qwen3.6/models/Qwen3.6-27B-FP8`)は消さずに残す。** bind mount 元とモデル名を戻すだけで切り戻せる
+- **旧モデル(Qwen3.6-27B-FP8)は消さずに残す。** bind mount 元とモデル名を戻すだけで切り戻せる
 - Qwen3.8-27B-FP8 は Qwen3.6-27B-FP8 と `config.json` が同一(`transformers_version` を除く)で、違いは重みだけである。起動オプションはモデルの差し替えで変えない
 
 **起動オプション**
@@ -177,7 +177,7 @@ vLLM を Docker で DGX Spark 上に起動し、OpenAI 互換 API(`/v1/chat/comp
 | `--reasoning-parser` | `qwen3` | 思考モデルのため必須。無いと思考トークンが本文に混ざり、PydanticAI のツール呼び出しの解釈が壊れる。**思考を出させるかどうかはサーバ側で固定せず**、リクエストごとに `chat_template_kwargs.enable_thinking` で決める(§6.3.1) |
 | `--enable-auto-tool-choice` / `--tool-call-parser` | `qwen3_coder` | 公式モデルカードの指定。`hermes` はこのモデルの出力書式と合わず、ツール呼び出しがエラーにならずに**黙って無視される**。`qwen3_xml` への変更は、ツール呼び出しが `tool_calls` として返ることを確かめてから判断する(§13) |
 | `--max-model-len` | `131072` | 既定の 262,144 ではメモリが足りない。公式は思考能力の維持のため 128K 以上を推奨する |
-| `--gpu-memory-utilization` | `0.4` | 121GiB のユニファイドメモリを qwen-ocr と分け合う(§3.2.3)。この値で KV cache は約68,000トークン(`--max-model-len` に対して同時実行約2倍)を見込む |
+| `--gpu-memory-utilization` | `0.4` | 121GiB のユニファイドメモリを本プロジェクト外の推論サーバと分け合う(§3.2.3)。この値で KV cache は約68,000トークン(`--max-model-len` に対して同時実行約2倍)を見込む |
 | tensor parallel | 使わない(1) | DGX Spark は単GPUである |
 
 - **DeepGemm の自動無効化を上書きしない。** Blackwell(GB10)では vLLM が精度劣化を理由に DeepGemm を無効にして CUTLASS へ退避する(起動ログに `Auto-disabled DeepGemm ...` が出る)。`VLLM_USE_DEEP_GEMM` で戻さない
