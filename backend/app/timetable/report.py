@@ -508,3 +508,29 @@ def report_lines(report: Report) -> list[str]:
         lines.append("確かめること:")
         lines.extend(f"- {item}" for item in report.needs_confirmation)
     return lines
+
+
+def summarize_report(report: Report, course_count: int) -> str:
+    """レポートから、モデルを通さずに学生へ見せる説明を作る(「希望条件なしで提案する」)。
+
+    書くのはレポートにある事実だけで、推測や評価を足さない。
+    """
+    credits = report.credits
+    limit = f"(登録できる単位は{credits.limit}単位)" if credits.limit is not None else ""
+    lines = [f"時間割を組みました。{course_count}科目・{credits.total}単位です{limit}。", ""]
+    if report.free_days:
+        lines.append(f"- 授業の無い平日: {'・'.join(report.free_days)}")
+    else:
+        lines.append("- 授業の無い平日はありません")
+    unmet = [c for c in report.conditions if c.status == "unmet"]
+    for status in unmet:
+        lines.append(f"- 満たせなかった条件: {status.condition}({status.detail})")
+    for short in report.remaining_shortfall:
+        reason = f"。{short.reason}" if short.reason else ""
+        lines.append(f"- この時間割を修得しても {short.slot} が{short.shortfall}単位不足{reason}")
+    if report.retakes:
+        lines.append(f"- 再履修の科目: {'、'.join(report.retakes)}")
+    for item in report.needs_confirmation:
+        lines.append(f"- 確かめること: {item}")
+    lines += ["", "条件(全休・避けたい時限・入れたい科目など)があれば、書いてください。組み直します。"]
+    return "\n".join(lines)

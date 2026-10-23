@@ -23,9 +23,11 @@ import logging
 import re
 import time
 from collections.abc import Sequence
-from typing import Literal
+from typing import Annotated, Literal
 
 import httpx
+from pydantic import Field
+from pydantic_ai import RunContext
 
 from app.agents.title_search import matches_title
 from app.agents.tools import get_healthz, get_syllabus, search_syllabi_by_instructor
@@ -583,3 +585,84 @@ async def get_course(
     result.update(annotate(ctx, code, str(detail.get("course_title") or "")))
     result["sections"] = format_sections(detail, sections or DEFAULT_SECTIONS)
     return result
+
+
+# --- エージェントへの登録 ---
+
+
+def register_course_tools(agent) -> None:
+    """`search_courses` / `get_course` をエージェントのツールにする。
+
+    エージェントの依存(`deps`)は `student` 属性(`StudentContext` か None)を持つこと。
+    ツールの説明文(docstring)と引数の型がそのままモデルへの説明になる。
+    """
+    @agent.tool(name="search_courses")
+    async def search_courses_tool(
+        ctx: RunContext,
+        keyword: str | None = None,
+        topic: str | None = None,
+        instructor: str | None = None,
+        day: DayArg | None = None,
+        period: Annotated[int, Field(ge=1, le=7)] | None = None,
+        term: TermArg | None = None,
+        category: CategoryArg | None = None,
+        subcategory: SubcategoryArg | None = None,
+        course_type: CourseTypeArg | None = None,
+        only_registrable: bool = True,
+        include_taken: bool = False,
+        limit: Annotated[int, Field(ge=1, le=20)] = 10,
+    ) -> dict:
+        """先端理工学部の今年度のシラバスから科目を探す。条件はすべて AND。
+
+        Args:
+            keyword: 科目名の一部(例: 「線形代数」)。全角・半角やⅠと1の違いは吸収する。
+            topic: 講義の内容に含まれる語(例: 「機械学習」「プログラミング」)。講義概要・
+                到達目標・授業計画を探す。空白で区切ると AND。興味から探すときに使う。
+            instructor: 担当教員の名前(姓だけでもよい)。
+            day: 曜日。
+            period: 時限(1〜7)。
+            term: 履修登録する学期。1Q・2Q は前期、3Q・4Q は後期に含む。
+            category: 区分。
+            subcategory: 教養教育科目の分野。
+            course_type: 学生にとっての履修区分。
+            only_registrable: 学生が履修登録できるクラスだけにする。
+            include_taken: 修得済みの科目も含める。
+            limit: 返す科目の数(1〜20)。
+
+        Returns:
+            total(当たった科目数)・courses(code・title・when(学期と曜日時限)・credits・
+            type(区分 › 履修区分)・fillsSlot(修得したら単位が入る要件枠)・status・
+            matchedIn(topic が当たった項目))。0件なら hint にどの条件を外せば何科目かを書く。
+        """
+        return await search_courses(
+            ctx.deps.student,
+            keyword=keyword,
+            topic=topic,
+            instructor=instructor,
+            day=day,
+            period=period,
+            term=term,
+            category=category,
+            subcategory=subcategory,
+            course_type=course_type,
+            only_registrable=only_registrable,
+            include_taken=include_taken,
+            limit=limit,
+        )
+
+    @agent.tool(name="get_course")
+    async def get_course_tool(
+        ctx: RunContext,
+        code: str,
+        sections: list[SectionArg] | None = None,
+    ) -> dict:
+        """1科目のシラバスを読む。頼んだ節だけを返す。
+
+        Args:
+            code: シラバスコード(search_courses の code。例: G260620069)。
+            sections: 読む節。省略すると 概要・到達目標・成績評価。
+
+        Returns:
+            title・when・credits・type・fillsSlot と、sections(節の名前 → 本文)。
+        """
+        return await get_course(ctx.deps.student, code, sections or DEFAULT_SECTIONS)

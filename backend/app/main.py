@@ -8,6 +8,7 @@ from app.api.chat_syllabus import router as chat_syllabus_router
 from app.api.curricula import router as curricula_router
 from app.api.proposal import router as proposal_router
 from app.api.syllabus import router as syllabus_router
+from app.api.timetable import router as timetable_router
 from app.curricula.loader import get_curricula
 
 
@@ -34,6 +35,7 @@ app.include_router(chat_syllabus_router)
 app.include_router(chat_proposal_router)
 app.include_router(curricula_router)
 app.include_router(proposal_router)
+app.include_router(timetable_router)
 
 # 公開経路から backend へ届くのは `/syllabel/api/*` だけで、gateway が `/syllabel`
 # を剥がすため `/api/healthz` として到達する(§3.2.1、§3.5.1)。`/healthz` は
