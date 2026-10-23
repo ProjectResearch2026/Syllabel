@@ -413,14 +413,17 @@ type ChatMessage = {
   role: "user" | "assistant"
   content: string
   time: string
+  items?: { name: string; note: string }[]   // 差し替え案。吹き出しの下に出す(`ChatMessageList.tsx`)
   trace?: TraceItem[]            // 思考とツールの呼び出しを届いた順に(§6.1.1、§8.3.7)
+  streaming?: boolean            // SSE 受信中(§6.1.1)
+  changedTimetable?: boolean     // この答えの途中で時間割か条件が変わった。立っていれば再生成しない(§4.1.5)
+  stopped?: boolean              // 学生が停止ボタンで受信を止めた(§4.1.5)
+}
 
 // 思考はツールの呼び出しを挟むたびに別の項目になる。endedAt が無いあいだは続いている
 type TraceItem =
   | { kind: "thinking"; text: string; startedAt: number; endedAt?: number }
   | { kind: "tool"; activity: AgentActivity; startedAt: number; endedAt?: number }
-  streaming?: boolean            // SSE 受信中(§6.1.1)
-}
 
 type ChatState = {
   assistantMessages: ChatMessage[]      // 未使用(どの画面も読み書きしない)

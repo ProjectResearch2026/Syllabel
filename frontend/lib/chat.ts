@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { AgentActivity, AgentStreamHandlers, ProposedCourse } from "@/lib/chatApi";
+import type { AgentActivity, AgentStreamHandlers } from "@/lib/chatApi";
 
 export type ChatMessage = {
   id: string;
@@ -7,11 +7,6 @@ export type ChatMessage = {
   content: string;
   time: string;
   items?: { name: string; note: string }[];
-  /**
-   * AIが返した候補科目。SSEに courses が含まれるときだけ入り、
-   * AIシートの提案カード（ui-design_phone.pen STEP5 ProposalCard）として描画される。
-   */
-  proposals?: ProposedCourse[];
   /**
    * AI が考えている様子(思考とツールの呼び出し。design.md §8.3.7)。届いた順に並べ、
    * 吹き出しの本文の上に1行ずつ出す。思考の出ないモデル・設定では無い
