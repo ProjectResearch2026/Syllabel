@@ -223,6 +223,12 @@ function doneLabel(activity: AgentActivity): string {
   }
 }
 
+const MODE_LABEL: Record<string, string> = {
+  rebuild: "組み直す",
+  adjust: "今の時間割を直す",
+  remove: "外すだけ",
+};
+
 const SCOPE_LABEL: Record<string, string> = {
   必修のみ: "必修だけ",
   不足を埋める: "不足を埋める",
@@ -255,7 +261,7 @@ function describeArgs({ tool, args }: AgentActivity): string {
 function buildArg(key: string, value: unknown, text: (v: unknown) => string): string | null {
   switch (key) {
     case "mode":
-      return value === "adjust" ? "今の時間割を直す" : "組み直す";
+      return MODE_LABEL[String(value)] ?? "組み直す";
     case "scope":
       return SCOPE_LABEL[String(value)] ?? text(value);
     case "free_days":

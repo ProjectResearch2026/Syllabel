@@ -62,7 +62,7 @@ class TimetableContextRequest(_CamelModel):
 
 
 class BuildRequest(TimetableContextRequest):
-    mode: Literal["rebuild", "adjust"] = "rebuild"
+    mode: Literal["rebuild", "adjust", "remove"] = "rebuild"
 
 
 class AssistantRequest(TimetableContextRequest):

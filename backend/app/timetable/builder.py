@@ -6,8 +6,9 @@
 ## 手順
 
 1. **残す科目を置く。** `rebuild` は学生が自分で入れた科目(`source: "student"`)だけ、
-   `adjust` は今の時間割の全科目を残す。`adjust` では、外してよい科目(必修・学生が
-   入れた科目・入れたい科目以外)のうち、全休の曜日・避ける時限に反するものを外す
+   `adjust` と `remove` は今の時間割の全科目を残す。`adjust` と `remove` では、外して
+   よい科目(必修・学生が入れた科目・入れたい科目以外)のうち、全休の曜日・避ける時限に
+   反するものを外す
 2. **必修を置く。** 対象学期に履修できる必修は、不合格・履修辞退の再履修を含めて
    必ず置く。条件に合うクラスを選び、どのクラスも合わなければ条件を破って置く
    (破ったことはレポートに出る)。必修どうしが重なったときはどちらも置かず、
@@ -28,6 +29,10 @@
    6. ここまでで決まらなければ無作為(シラバスコードや配当年次のような、学生に
       とって意味の無い順では決めない)
 6. `scope` が `広く` なら、不足が無くなった後も上限まで科目を足す
+
+`remove` は外すだけで、手順5・6を飛ばす(「〜を外して」とだけ言われたとき。代わりを
+探すかは学生が決める)。埋めれば減る不足は、埋めていないことをレポートの残る不足の理由に
+書く。
 
 単位が要件枠のどこに入るかは、要件充足判定(§4.4.5)と同じ規則で決める。1件置く
 ごとに判定し直し、候補の見積もりには判定と同じ起点の枠(`entry_slot_keys()`)から
@@ -58,7 +63,10 @@ from app.timetable.report import (
     NO_CANDIDATE,
 )
 
-Mode = Literal["rebuild", "adjust"]
+Mode = Literal["rebuild", "adjust", "remove"]
+
+# 残る不足の理由(`remove`)。外すだけで、空いた分を埋めていない
+UNFILLED = "外すだけの指示のため、代わりの科目を入れていない(代わりを探せば埋められる)"
 
 # 同じ枠の候補どうしで、履修区分の重さ。小さいほど先に置く
 _WEIGHT = {"選択必修": 0, "選択": 1}
@@ -313,14 +321,14 @@ def _keep(plan: _Plan, current: Sequence[ProposedCourse], mode: Mode, exclude: _
         if key in seen:
             continue
         if exclude.matches(course):
-            if mode == "adjust" and plan.record:
+            if mode != "rebuild" and plan.record:
                 plan.steps.append(Step(kind="remove", course=course, note="入れない科目"))
             continue
         if mode == "rebuild" and course.source != "student":
             continue
         seen.add(key)
         plan.add(course, Step(kind="keep", course=course))
-    if mode != "adjust":
+    if mode == "rebuild":
         return
     # 全休の曜日(指定されたもの)と避ける時限に反する、外してよい科目を外す
     for course in list(plan.courses):
@@ -577,7 +585,7 @@ def _choose_free_days(
     conditions = plan.conditions
     fixed = list(dict.fromkeys(conditions.free_days))
     plan.blocked_days = set(fixed)
-    if mode == "adjust":
+    if mode != "rebuild":
         for day in fixed:
             plan.clear_day(day)
     seed = rng.random()
@@ -600,9 +608,9 @@ def _choose_free_days(
             for day in combo:
                 trial.clear_day(day)
             trial_rng = random.Random(seed)
-            if mode == "adjust":
+            if mode != "rebuild":
                 _enforce_caps(trial, trial_rng)
-            if conditions.scope != "必修のみ":
+            if _fills(mode, conditions):
                 _fill(trial, estimator, trial_rng, exclude)
             scored.append(
                 ((_remaining_shortfall(trial, estimator), trial.removed, rng.random()), combo)
@@ -616,6 +624,33 @@ def _choose_free_days(
             plan.steps.append(Step(kind="free_day", day=day, others=others))
         plan.clear_day(day)
     return seed
+
+
+def _fills(mode: Mode, conditions: Conditions) -> bool:
+    """不足を埋めるか(手順5・6)。"""
+    return mode != "remove" and conditions.scope != "必修のみ"
+
+
+def _unfilled_reasons(
+    plan: _Plan,
+    estimator: _Estimator,
+    rng: random.Random,
+    exclude: _Exclude,
+    reasons: dict[str, str],
+) -> None:
+    """外すだけ(`remove`)で残った不足のうち、埋めれば減る枠の理由を書き換える。
+
+    埋めても減らない枠は、組み立てたときと同じ理由のままにする。
+    """
+    if plan.conditions.scope == "必修のみ":
+        return
+    _, shortfall = estimator.state(plan.courses)
+    trial = plan.copy()
+    _fill(trial, estimator, rng, exclude)
+    _, filled = estimator.state(trial.courses)
+    for key, short in shortfall.items():
+        if filled[key] < short:
+            reasons[key] = UNFILLED
 
 
 def _shortfall_reasons(
@@ -669,8 +704,8 @@ def build_timetable(
     """条件から時間割を組み立てる(§7.2)。手順はモジュールの説明を参照。
 
     Args:
-        current: 今の時間割。`rebuild` は学生が入れた科目だけを残し、`adjust` は全科目を
-            起点にする。
+        current: 今の時間割。`rebuild` は学生が入れた科目だけを残し、`adjust` と `remove` は
+            全科目を起点にする。`remove` は不足を埋めない。
         rng: 同点の候補を選ぶ乱数。テストでは種を固定して渡す。
     """
     rng = rng or random.Random()
@@ -691,17 +726,20 @@ def build_timetable(
     _place_includes(plan, rng)
     seed = _choose_free_days(plan, estimator, rng, exclude, mode)
     fill_rng = random.Random(seed)
-    if mode == "adjust":
+    if mode != "rebuild":
         _enforce_caps(plan, fill_rng)
-    if conditions.scope != "必修のみ":
+    if _fills(mode, conditions):
         _fill(plan, estimator, fill_rng, exclude)
+    reasons = _shortfall_reasons(plan, estimator, exclude)
+    if mode == "remove":
+        _unfilled_reasons(plan, estimator, fill_rng, exclude, reasons)
 
     report = make_report(
         ctx,
         plan.courses,
         conditions,
         include_failures=plan.include_failures,
-        shortfall_reasons=_shortfall_reasons(plan, estimator, exclude),
+        shortfall_reasons=reasons,
         confirmations=plan.confirmations,
     )
     steps = list(plan.steps)
