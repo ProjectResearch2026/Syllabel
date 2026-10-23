@@ -8,7 +8,7 @@ import { FileUp } from "lucide-react";
 import logoMark from "@/public/logo.svg";
 import { useStudentStore } from "@/lib/student";
 import { useFreeDays, useProposalStore } from "@/lib/proposal";
-import TimetableNotices, { BuildStepLabel } from "./TimetableNotices";
+import { BuildStepLabel } from "./BuildStepLabel";
 import { useCreditSummary } from "@/lib/creditSummary";
 import { coursesToSlotTable } from "@/lib/timetable";
 import { useTimetableEditing } from "@/lib/useTimetableEditing";
@@ -220,8 +220,6 @@ export default function MobileProposalPage() {
       {/* 提案する学期(lib/targetTerm.ts)。成績表の次の学期に固定で、表示だけする */}
       <TargetTermLabel variant="mobile" />
       <MobileRequirementsStrip view={requirements} />
-      {/* 確かめること(レポート)。表の上に置く */}
-      <TimetableNotices className="border-b border-border-primary px-3 py-2" />
 
       <div ref={gridRef} className="relative">
         <TimetableGrid

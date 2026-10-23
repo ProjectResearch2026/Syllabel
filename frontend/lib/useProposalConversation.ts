@@ -184,7 +184,7 @@ export function useProposalConversation(): ProposalConversation {
   }, [messages.length, blockedReason, setMessages]);
 
   // 学生が手で直した時間割のレポートを引き直す（モデルは呼ばない）。アシスタントは
-  // リクエストのたびに backend が計算し直すので、ここで引くのは画面に出すためである
+  // リクエストのたびに backend が計算し直す。レポートは今は画面に出していない（§8.3.7）
   useEffect(() => {
     if (!reportStale || status !== "done" || !profile || !context) return;
     scheduleCheck({ studentProfile: profile, ...context, timetable: courses, conditions }, setReport);
