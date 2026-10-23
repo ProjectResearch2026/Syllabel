@@ -450,7 +450,6 @@ type ProposalState = {
   report: TimetableReport | null  // 時間割についての事実(§7.2.3)
   reportStale: boolean            // 手で直して report が古くなった(§8.3.6)
   stepLabel: string | null        // 組み立ての途中に表の下に出す今の1手(§8.3.7)
-  stepFreeDays: string[]          // 組み立ての途中で全休にした曜日
   busy: boolean                   // アシスタントが応答している
   replacing: ReplaceTarget | null // 「別の科目に変更」の途中(§8.3.6)
 }

@@ -12,7 +12,12 @@
  * タブバーの「シラバス」をそこへ向ける。
  */
 
-/** 一覧の絞り込みを表すクエリキー。`back` で往復させる対象でもある。 */
+import { DAYS } from "@/lib/timetable";
+
+/** 一覧の1ページの件数。表示だけの都合であり、取得は全件行う(§6.2)。`offset` はこの倍数 */
+export const LIST_PAGE_SIZE = 30;
+
+/** 一覧の絞り込みを表すクエリキー。`back` で往復させる対象でもある。並びは URL の並び */
 export const LIST_QUERY_KEYS = [
   "q",
   "program",
@@ -22,17 +27,73 @@ export const LIST_QUERY_KEYS = [
   "period",
   "grade",
   "offset",
-  "filters",
 ] as const;
 
-/** 既知のキーだけを通して畳み直す。URL 由来の値をそのまま信用しないため。 */
-export function pickListParams(source: URLSearchParams): URLSearchParams {
-  const picked = new URLSearchParams();
+/** 課程・キャンパス・開講期として受ける値(`GET /api/masters` の名前) */
+export type ListChoices = { program: string[]; campus: string[]; term: string[] };
+
+/** 開講期の表記を寄せる(`１Ｑ` と `1Q`)。URL の値をマスタの表記に直すのに使う */
+function termKey(term: string): string {
+  return term.normalize("NFKC").replace(/\s/g, "");
+}
+
+/** `min`〜`max` の整数の表記(`03` や `3.0` ではなく `3`)のときだけ返す */
+function intText(value: string, min: number, max: number): string | null {
+  if (!/^\d+$/.test(value)) return null;
+  const n = Number(value);
+  return n >= min && n <= max ? String(n) : null;
+}
+
+/**
+ * 一覧のクエリを決まった形に直す。**一覧の URL はこの形だけにする**(design.md §8)。
+ *
+ * - 知らないキー・空の値・同じキーの2つ目以降を落とし、キーは `LIST_QUERY_KEYS` の順に並べる
+ * - 値は画面で選べるものだけを通す。曜日は `DAYS`、時限は 1〜7・対象年次は 1〜4 の整数
+ *   (api-clean の値域。外れると 422 で一覧が落ちる)、`offset` はページの先頭(`LIST_PAGE_SIZE`
+ *   の倍数)に切り下げて 0 なら落とす。検索語は前後の空白を除く
+ * - `choices` を渡したときは、課程・キャンパス・開講期をマスタにある名前に限る(開講期は
+ *   全角・半角を寄せてマスタの表記にする)
+ *
+ * `page.tsx` はこの形の値で検索し、`SyllabusQueryMemory` はアドレスバーをこの形に書き換える。
+ * 末尾の `&` のように、サーバに届く前に消える崩れはブラウザでしか直せない。
+ */
+export function canonicalListParams(source: URLSearchParams, choices?: ListChoices): URLSearchParams {
+  const out = new URLSearchParams();
   for (const key of LIST_QUERY_KEYS) {
-    const value = source.get(key);
-    if (value) picked.set(key, value);
+    const raw = source.get(key)?.trim();
+    if (!raw) continue;
+    let value: string | null = raw;
+    switch (key) {
+      case "program":
+      case "campus":
+        value = !choices || choices[key].includes(raw) ? raw : null;
+        break;
+      case "term":
+        value = choices ? (choices.term.find((t) => termKey(t) === termKey(raw)) ?? null) : raw;
+        break;
+      case "day":
+        value = (DAYS as readonly string[]).includes(raw) ? raw : null;
+        break;
+      case "period":
+        value = intText(raw, 1, 7);
+        break;
+      case "grade":
+        value = intText(raw, 1, 4);
+        break;
+      case "offset": {
+        const n = Number(intText(raw, 0, Number.MAX_SAFE_INTEGER) ?? 0);
+        value = n >= LIST_PAGE_SIZE ? String(n - (n % LIST_PAGE_SIZE)) : null;
+        break;
+      }
+    }
+    if (value) out.set(key, value);
   }
-  return picked;
+  return out;
+}
+
+/** 既知のキーと値だけを通して畳み直す。URL 由来の値をそのまま信用しないため。 */
+export function pickListParams(source: URLSearchParams): URLSearchParams {
+  return canonicalListParams(source);
 }
 
 /** 検索結果のカードから詳細画面へのリンク。現在の絞り込みを `back` に畳む。 */
@@ -89,13 +150,12 @@ export function backLink(params: {
  * (`useTargetTerm()` の前期・後期)で絞った一覧にする。開講期の「前期」は 1Q・2Q も
  * 含む(`searchCourses()`)ので、前期の時間割に入る科目だけが並ぶ。空きコマに科目を
  * 入れるときと、科目を別の科目に変更するときに使う。コマの無い科目(集中講義など)
- * からは学期だけで絞った一覧を開く。`openFilters` は絞り込みパネルを開いた状態で始める
+ * からは学期だけで絞った一覧を開く
  */
 export function slotSearchHref(
   day: string | null | undefined,
   period: number | null | undefined,
   term: string,
-  options: { openFilters?: boolean } = {},
 ): string {
   const params = new URLSearchParams();
   if (day && period != null) {
@@ -103,6 +163,5 @@ export function slotSearchHref(
     params.set("period", String(period));
   }
   params.set("term", term);
-  if (options.openFilters) params.set("filters", "open");
   return `/syllabus?${params.toString()}`;
 }

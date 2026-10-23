@@ -144,6 +144,8 @@ export type AgentActivity = {
   titles?: Record<string, string>;
   /** 時間割の組み立てで、頼まれた入れる・外すのうちできなかったもの(引数の値 → 理由) */
   failed?: Record<string, string>;
+  /** 時間割の組み立てで全休にした曜日(指定された曜日と、日数だけ頼まれて選んだ曜日) */
+  freeDays?: string[];
 };
 
 /** 組み立ての起点(§7.2)。`backend/app/timetable/builder.py` の `Mode` */

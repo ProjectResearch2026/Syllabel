@@ -71,8 +71,7 @@ export default function MobileSyllabusPage({
     selectCategory: setActiveCategory,
     selectSubcategory: setActiveSubcategory,
   } = useFilterControls();
-  // 空きコマのメニューの「シラバスで絞り込む」から来たときは開いた状態で始める
-  const [filterOpen, setFilterOpen] = useState(searchParams.get("filters") === "open");
+  const [filterOpen, setFilterOpen] = useState(false);
   // AI は PC の右パネルと同じ会話（シラバス全体への質問。§7.4）
   const conversation = useSyllabusConversation();
 

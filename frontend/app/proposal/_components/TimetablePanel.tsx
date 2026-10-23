@@ -12,7 +12,7 @@ import {
   coursesToSlotTable,
   type SlotEntry,
 } from "@/lib/timetable";
-import { useFreeDays, useProposalStore } from "@/lib/proposal";
+import { useProposalStore } from "@/lib/proposal";
 import { BuildStepLabel } from "./BuildStepLabel";
 import { useTimetableEditing } from "@/lib/useTimetableEditing";
 import { useTargetTerm } from "@/lib/targetTerm";
@@ -167,8 +167,6 @@ export default function TimetablePanel() {
   // まだ時間割が無い（§5.2.3 の `idle`）。空の表だけを出すと、組み終わって
   // 何も無いのか、これからなのかが区別できない（§8.3.2）
   const isIdle = status === "idle";
-  // 全休の曜日は列を薄くする（組み立ての途中に空けた曜日も含む）
-  const freeDays = useFreeDays();
   const editing = useTimetableEditing();
   const onOpen = editing.editable ? editing.open : null;
 
@@ -183,9 +181,9 @@ export default function TimetablePanel() {
 
   // 時間割の学期で絞る。前期の時間割から後期の科目を探させない
   const { target: targetTerm } = useTargetTerm();
-  const goSyllabus = (target: SlotTarget, openFilters: boolean) => {
+  const goSyllabus = (target: SlotTarget) => {
     setSlotTarget(null);
-    router.push(slotSearchHref(target.day, target.period, targetTerm.term, { openFilters }));
+    router.push(slotSearchHref(target.day, target.period, targetTerm.term));
   };
 
   const slotSelected = (day: string, period: number) =>
@@ -199,14 +197,9 @@ export default function TimetablePanel() {
         {DAYS.map((d) => (
           <div
             key={d}
-            className="flex items-center justify-center gap-1 border-r border-border-primary last:border-r-0"
+            className="flex items-center justify-center border-r border-border-primary last:border-r-0"
           >
             <span className="text-[13px] font-semibold text-fg-primary">{d}</span>
-            {freeDays.includes(d) && (
-              <span className="rounded-full bg-surface-soft px-1.5 text-[9px] font-semibold text-fg-tertiary motion-safe:animate-fade-in">
-                全休
-              </span>
-            )}
           </div>
         ))}
       </div>
@@ -244,7 +237,7 @@ export default function TimetablePanel() {
                   aria-label={`${d}曜${p}限の空きコマ`}
                   className={`${cellClass} transition-colors hover:bg-surface-gray focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent ${
                     slotSelected(d, p) ? RING : ""
-                  } ${freeDays.includes(d) ? "bg-surface-soft!" : ""}`}
+                  }`}
                 />
               );
             }
@@ -361,8 +354,7 @@ export default function TimetablePanel() {
           variant="pc"
           target={slotTarget}
           onClose={() => setSlotTarget(null)}
-          onSearch={() => goSyllabus(slotTarget, false)}
-          onFilter={() => goSyllabus(slotTarget, true)}
+          onSearch={() => goSyllabus(slotTarget)}
           onAskAi={() => {
             setSelection(slotContext(slotTarget.day, slotTarget.period));
             setSlotTarget(null);

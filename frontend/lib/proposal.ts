@@ -91,7 +91,7 @@ function sumCredits(courses: ProposedCourse[]): number {
   return courses.reduce((sum, c) => sum + (c.credits ?? 0), 0);
 }
 
-/** 組み立ての1手を時間割に当てる。`free_day` は空けた曜日を、ほかは科目の出し入れを返す */
+/** 組み立ての1手を時間割に当てる。科目の出し入れだけで、`free_day` などの科目の無い手は表を変えない */
 function applyStep(courses: ProposedCourse[], step: TimetableStep): ProposedCourse[] {
   const course = step.course;
   if (!course) return courses;
@@ -149,8 +149,6 @@ type ProposalStore = {
   reportStale: boolean;
   /** 組み立ての途中に表の上に出す一言（「専門応用科目(選択)を埋める: …」） */
   stepLabel: string | null;
-  /** 組み立ての途中で全休にした曜日。組み上がると `conditions.freeDays` に移る */
-  stepFreeDays: string[];
   /** アシスタントが応答している。時間割の編集を止める */
   busy: boolean;
   /** 「別の科目に変更」の途中。シラバスで選んだ科目がこの科目と入れ替わる */
@@ -201,7 +199,6 @@ const EMPTY = {
   report: null as TimetableReport | null,
   reportStale: false,
   stepLabel: null as string | null,
-  stepFreeDays: [] as string[],
   busy: false,
   replacing: null as ReplaceTarget | null,
 };
@@ -226,7 +223,7 @@ export const useProposalStore = create<ProposalStore>((set) => ({
 
   setBusy: (busy) => set({ busy }),
   beginBuild: () =>
-    set({ status: "loading", stepLabel: "時間割を組んでいます", stepFreeDays: [], replacing: null }),
+    set({ status: "loading", stepLabel: "時間割を組んでいます", replacing: null }),
   startSteps: () => set({ courses: [], totalCredits: 0 }),
   playStep: (step) =>
     set((s) => {
@@ -235,8 +232,6 @@ export const useProposalStore = create<ProposalStore>((set) => ({
         courses,
         totalCredits: sumCredits(courses),
         stepLabel: stepLabel(step) ?? s.stepLabel,
-        stepFreeDays:
-          step.kind === "free_day" && step.day ? [...s.stepFreeDays, step.day] : s.stepFreeDays,
       };
     }),
   finishBuild: (built, message) =>
@@ -249,8 +244,8 @@ export const useProposalStore = create<ProposalStore>((set) => ({
       message: message ?? s.message,
       stepLabel: null,
     })),
-  cancelBuild: (previous) => set({ ...previous, stepLabel: null, stepFreeDays: [] }),
-  setConditions: (conditions) => set({ conditions, stepFreeDays: [] }),
+  cancelBuild: (previous) => set({ ...previous, stepLabel: null }),
+  setConditions: (conditions) => set({ conditions }),
   setReport: (report) => set({ report, reportStale: false }),
   clear: () => set({ ...EMPTY }),
 
@@ -282,10 +277,3 @@ export const useProposalStore = create<ProposalStore>((set) => ({
   startReplace: (target) => set({ replacing: target }),
   cancelReplace: () => set({ replacing: null }),
 }));
-
-/** 表で薄くする曜日（全休）。組み立ての途中は手順で空けた曜日も足す */
-export function useFreeDays(): string[] {
-  const freeDays = useProposalStore((s) => s.conditions.freeDays);
-  const stepFreeDays = useProposalStore((s) => s.stepFreeDays);
-  return [...new Set([...(freeDays ?? []), ...stepFreeDays])];
-}

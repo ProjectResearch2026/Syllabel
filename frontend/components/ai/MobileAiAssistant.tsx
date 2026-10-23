@@ -153,7 +153,7 @@ function AiSheet({ conversation, base }: { conversation: AiConversation; base: A
   const asked = conversation.messages.some((m) => m.role === "user");
   const showSuggestions =
     !full && !asked && suggestions !== null && (scoped || conversation.messages.length <= 1);
-  // 提案前の時間割は表が空で、「この時間割について」と出しても指すものが無い
+  // 提案前の時間割は表が空で、「時間割について」と出しても指すものが無い
   const showContext = scoped || !conversation.hideBaseContext;
 
   // 送った結果が背後の画面に出るもの（提案の開始）は、シートを閉じてそれを見せる。

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { BookOpen, ChevronRight, Search, Sparkles, Timer } from "lucide-react";
+import { ChevronRight, Search, Sparkles, Timer } from "lucide-react";
 import { motion } from "motion/react";
 import { useAnchoredMenu } from "./useAnchoredMenu";
 
@@ -19,21 +19,19 @@ export type SlotTarget = {
  * 空きコマのその場メニュー（ui-design_phone.pen STEP3）。PC・モバイルとも空きコマを
  * 押したときに出す（科目の `CourseMenu` と同じ）。
  *
- * 「探す」「絞り込む」と並べて AI を置くことで、AI が特別扱いにならないようにしている。
+ * 「この時間に入る科目を探す」と並べて AI を置くことで、AI が特別扱いにならないようにしている。
  * 押したセルだけがスクリムの上に残り、何を対象にした操作かが見て分かる。
  */
 export default function SlotPopover({
   target,
   onClose,
   onSearch,
-  onFilter,
   onAskAi,
   variant = "mobile",
 }: {
   target: SlotTarget;
   onClose: () => void;
   onSearch: () => void;
-  onFilter: () => void;
   onAskAi: () => void;
   /** PC は右のAIパネルに文脈を渡す。モバイルはシートを開く */
   variant?: "mobile" | "pc";
@@ -116,16 +114,6 @@ export default function SlotPopover({
         >
           <Search size={16} className="shrink-0 text-fg-secondary" />
           <span className="text-[13px] text-fg-primary">この時間に入る科目を探す</span>
-        </button>
-
-        <button
-          type="button"
-          role="menuitem"
-          onClick={onFilter}
-          className={item}
-        >
-          <BookOpen size={16} className="shrink-0 text-fg-secondary" />
-          <span className="text-[13px] text-fg-primary">シラバスで絞り込む</span>
         </button>
 
         <button

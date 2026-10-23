@@ -21,7 +21,7 @@ from app.agents import build_model, chat_model_settings
 from app.agents.course_tools import register_course_tools
 from app.curricula.requirements import normalize_title
 from app.schemas.proposal import ProposedCourse
-from app.timetable.builder import build_timetable, check_timetable
+from app.timetable.builder import BuildResult, build_timetable, check_timetable
 from app.timetable.conditions import Conditions, Scope, Weekday, parse_period_rule
 from app.timetable.context import StudentContext
 from app.timetable.facts import (
@@ -80,7 +80,7 @@ class AssistantDeps:
     `timetable` と `conditions` は frontend から受け取った今の時間割と条件で、
     `build_timetable` が組み直すたびに置き換える。`outbox` はツールが SSE に流したい
     イベント(手順・時間割・条件)を積む。`activity_results` は呼び出しの id → その呼び出しの
-    ツールの行に添える結果(入れる・外すに失敗した科目。`failed`)。
+    ツールの行に添える結果(`build_outcome()`)。
     """
 
     student: StudentContext
@@ -133,6 +133,22 @@ def _merge_conditions(
 
 def _matches(course: ProposedCourse, wanted: str) -> bool:
     return course.syllabus_code == wanted or normalize_title(course.title) == normalize_title(wanted)
+
+
+def build_outcome(result: BuildResult, failed: dict[str, str]) -> dict:
+    """組み立てのツールの行に添える結果。行を開いたときに、頼んだ条件ではなく組み立てが
+    何をしたかを見せるためのもの。
+
+    - `freeDays` — 組み立てで全休にした曜日(指定された曜日と、日数だけ頼まれて選んだ曜日。
+      手順4)
+    - `failed` — 頼まれた入れる・外すのうちできなかったもの(`build_failures()`)
+    """
+    outcome: dict = {}
+    if result.conditions.free_days:
+        outcome["freeDays"] = list(result.conditions.free_days)
+    if failed:
+        outcome["failed"] = failed
+    return outcome
 
 
 def build_failures(
@@ -241,8 +257,7 @@ def build_timetable_assistant() -> Agent[AssistantDeps, str]:
             exclude=exclude or [],
             include_failures=result.include_failures,
         )
-        if failed:
-            deps.activity_results[ctx.tool_call_id] = {"failed": failed}
+        deps.activity_results[ctx.tool_call_id] = build_outcome(result, failed)
         deps.timetable = result.courses
         deps.conditions = result.conditions
         deps.last_report = result.report

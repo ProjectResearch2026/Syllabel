@@ -30,8 +30,6 @@ export default function ChatPanel() {
         base: TIMETABLE_CONTEXT,
         selection,
         onClear: () => setSelection(null),
-        // 提案前は入力欄が希望条件の受け口なので、絞り方は案内しない
-        hint: conversation.suggestionsFor ? "科目・空きコマを押すと絞れます" : undefined,
       }}
     />
   );

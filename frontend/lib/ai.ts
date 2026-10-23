@@ -29,7 +29,7 @@ export type AiContext = {
   slot?: { day: string; period: number };
 };
 
-export const TIMETABLE_CONTEXT: AiContext = { kind: "timetable", label: "この時間割" };
+export const TIMETABLE_CONTEXT: AiContext = { kind: "timetable", label: "時間割" };
 export const SYLLABUS_CONTEXT: AiContext = { kind: "syllabus", label: "この検索結果" };
 
 export function slotContext(day: string, period: number): AiContext {

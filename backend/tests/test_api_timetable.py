@@ -186,6 +186,9 @@ def test_assistant_streams_thinking_activity_steps_timetable_and_text():
     assert timetable["report"]["freeDays"]
     conditions = next(e["conditions"] for e in events if "conditions" in e)
     assert conditions["freeDayCount"] == 1 and len(conditions["freeDays"]) == 1
+    # ツールの行には、頼んだ日数ではなく組み立てで全休にした曜日を添える
+    assert activities[-1]["freeDays"] == conditions["freeDays"]
+    assert "failed" not in activities[-1]
     assert "".join(e["delta"] for e in events if "delta" in e) == "全休を1日作りました。"
     # プロンプトには事実の節が入り、ツールの結果にはレポートが返る
     assert "【卒業要件の充足状況】" in record[0]

@@ -141,10 +141,10 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 | 用途 | イベント |
 |---|---|
-| 共通 | `{"delta": "..."}` / `{"thinking": "..."}` / `{"activity": {"id", "tool", "label", "args", "found"?, "titles"?, "failed"?}}` / `{"error": "..."}` / `{"done": true}` |
+| 共通 | `{"delta": "..."}` / `{"thinking": "..."}` / `{"activity": {"id", "tool", "label", "args", "found"?, "titles"?, "failed"?, "freeDays"?}}` / `{"error": "..."}` / `{"done": true}` |
 | 時間割のアシスタント(`/api/timetable/assistant`)だけ | `{"build": {...}}` / `{"step": {...}}` / `{"timetable": {...}}` / `{"conditions": {...}}` |
 
-`thinking` と `activity` は吹き出しの本文の上に出す(`components/ai/AgentTrace.tsx`。design.md §8.3.7)。思考とツールの呼び出しは吹き出しの `trace` に届いた順に積み、1行ずつ畳んで出す(押すと開く。Claude Code の出し方にならう)。`activity` は同じ呼び出しの書きかけの引数が同じ `id` で流れ直し(シラバス検索は終わったときに当たった科目数 `found` を添えてもう一度流れる。引数を書き終えたときは引数のシラバスコード → 科目名の `titles` も添えて届く。時間割の組み立ては終わったときに、入れる・外すのうちできなかったもの(引数の値 → 理由)の `failed` を添えてもう一度流れ、その科目の行を「時間割に入れられませんでした: …」に書き換える。**科目名は `titles` から引き、時間割の科目だけから引かない** — 時間割に入らなかった科目がコードのまま出ていた)、`lib/chat.ts` の `upsertTool()` で1つの行を書き換える。SSE の本文・思考・進み具合を吹き出しに流し込むのは `replyStream()` に任せる。
+`thinking` と `activity` は吹き出しの本文の上に出す(`components/ai/AgentTrace.tsx`。design.md §8.3.7)。思考とツールの呼び出しは吹き出しの `trace` に届いた順に積み、1行ずつ畳んで出す(押すと開く。Claude Code の出し方にならう)。`activity` は同じ呼び出しの書きかけの引数が同じ `id` で流れ直し(シラバス検索は終わったときに当たった科目数 `found` を添えてもう一度流れる。引数を書き終えたときは引数のシラバスコード → 科目名の `titles` も添えて届く。時間割の組み立ては終わったときに、組み立ての結果を添えてもう一度流れる — 入れる・外すのうちできなかったもの(引数の値 → 理由)の `failed` はその科目の行を「時間割に入れられませんでした: …」に、全休にした曜日 `freeDays` は全休の行を「全休にする曜日: 木, 金」に書き換え(頼んだ日数は出さない)。**開いた行には頼んだ条件の言い直しではなく、組み立てが何をしたかを出す**。**科目名は `titles` から引き、時間割の科目だけから引かない** — 時間割に入らなかった科目がコードのまま出ていた)、`lib/chat.ts` の `upsertTool()` で1つの行を書き換える。SSE の本文・思考・進み具合を吹き出しに流し込むのは `replyStream()` に任せる。
 
 **`step` は届いた順に1手ずつ、150ms 空けて時間割に描く**(`lib/timetableBuild.ts` の `buildPlayer`)。組み立ては数秒で終わり手順はほぼ一度に届くので、そのまま当てると何が起きたか見えない。**backend は待たない。** 最後の `timetable` で表を確定させる。組み立てが始まったのに `timetable` が届かなかったら(失敗・中断)、始める前の時間割へ戻す。
 
@@ -216,7 +216,7 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 **対象年次(`grade`)も URL のクエリに持つ。** 選択肢は `GRADE_CHOICES`(1〜4)。`page.tsx` は `period` / `grade` を api-clean の値域(1〜7 / 1〜4)の整数のときだけ検索条件にする(値域外を渡すと 422 で一覧が落ちる)。
 
-**検索条件(キーワード・開講期など)は URL のクエリが正本。** ヘッダー・タブバーの「シラバス」は素の `/syllabus` ではなく `listHref(listQuery)` に向ける。`listQuery` は一覧を開いているあいだ `SyllabusQueryMemory` が URL から書き写す(design.md §8)。直書きの `/syllabus` に戻すと、時間割などを経由しただけで検索語が消える。
+**検索条件(キーワード・開講期など)は URL のクエリが正本。** **一覧の URL は `lib/syllabusQuery.ts` の `canonicalListParams()` の形だけにする**(知らないキー・空の値・重複・選べない値を落とし、キーの順をそろえる)。`page.tsx` はこの形の値で検索し、アドレスバーが違えば `SyllabusQueryMemory` が `history.replaceState()` で書き換える(`?q=音響&` の末尾の `&` は Next.js がサーバに渡す前に消すので、サーバのリダイレクトでは直せない)。 ヘッダー・タブバーの「シラバス」は素の `/syllabus` ではなく `listHref(listQuery)` に向ける。`listQuery` は一覧を開いているあいだ `SyllabusQueryMemory` が URL から書き写す(design.md §8)。直書きの `/syllabus` に戻すと、時間割などを経由しただけで検索語が消える。
 
 1. `GET /api/syllabi` の検索結果
 2. `GET /api/curricula/{program}/{year}` の履修要項データ
