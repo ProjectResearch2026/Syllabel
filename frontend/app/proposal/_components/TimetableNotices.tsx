@@ -1,10 +1,13 @@
 "use client";
 
-import { CircleAlert, Info } from "lucide-react";
+import { Info } from "lucide-react";
 import { useProposalStore } from "@/lib/proposal";
 
 /**
- * 時間割の上に出す、満たせなかった条件と確かめること（design.md §8.3.7）。
+ * 時間割の上に出す、確かめること（design.md §8.3.7。必修どうしの重なり・集中講義の日程など）。
+ *
+ * **満たせなかった条件は出さない。** アシスタントが説明で必ず書く（§7.3.1 規則4）ので、
+ * 表の上にも出すと同じことが二度並ぶ。
  *
  * 値は backend のレポート（`report`。§6.1）のまま出し、画面で判定しない。組み立ての
  * 途中・時間割が無いあいだは出さない。学生が手で直した後は `/api/timetable/check` で
@@ -15,20 +18,11 @@ export default function TimetableNotices({ className = "" }: { className?: strin
   const report = useProposalStore((s) => s.report);
   if (status !== "done" || !report) return null;
 
-  const unmet = report.conditions.filter((c) => c.status === "unmet");
   const confirm = report.needsConfirmation;
-  if (unmet.length === 0 && confirm.length === 0) return null;
+  if (confirm.length === 0) return null;
 
   return (
     <ul className={`flex flex-col gap-1 text-[11px] leading-4 ${className}`}>
-      {unmet.map((c) => (
-        <li key={`u-${c.condition}`} className="flex items-start gap-1.5 text-tag-required-fg">
-          <CircleAlert size={13} className="mt-px shrink-0" aria-hidden="true" />
-          <span>
-            <span className="font-semibold">{c.condition}</span>: {c.detail}
-          </span>
-        </li>
-      ))}
       {confirm.map((text) => (
         <li key={`c-${text}`} className="flex items-start gap-1.5 text-fg-secondary">
           <Info size={13} className="mt-px shrink-0" aria-hidden="true" />

@@ -193,7 +193,7 @@ export default function TimetablePanel() {
 
   return (
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border-primary bg-surface-primary">
-      {/* 満たせなかった条件・確かめること(レポート)。表の上に置く */}
+      {/* 確かめること(レポート)。表の上に置く */}
       <TimetableNotices className="shrink-0 border-b border-border-primary px-3 py-2" />
       {/* 曜日ヘッダー */}
       <div className="grid h-10 shrink-0 border-b border-border-primary bg-surface-gray" style={COLUMNS}>
