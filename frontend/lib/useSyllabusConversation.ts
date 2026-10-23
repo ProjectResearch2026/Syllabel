@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useMemo, useRef } from "react";
-import { regenerateFrom, replyStream, useChatStore, type ChatMessage } from "@/lib/chat";
+import {
+  regenerateFrom,
+  replyStream,
+  stoppedPatch,
+  useChatStore,
+  type ChatMessage,
+} from "@/lib/chat";
 import { useChatHistory } from "@/lib/chatHistory";
 import { useStudentContext } from "@/lib/studentContext";
 import { streamSyllabusChat } from "@/lib/chatApi";
@@ -41,6 +47,8 @@ export function useSyllabusConversation(): AiConversation {
   const { profile, context } = useStudentContext();
   const { entries, archive, restore } = useChatHistory("syllabus");
   const abortRef = useRef<AbortController | null>(null);
+  // 停止ボタンで止めた（会話の切り替えで中断したのと分ける）
+  const stoppedRef = useRef(false);
 
   const messages = useMemo(
     () => (syllabusMessages.length > 0 ? syllabusMessages : [INITIAL]),
@@ -77,6 +85,7 @@ export function useSyllabusConversation(): AiConversation {
 
       const ctrl = new AbortController();
       abortRef.current = ctrl;
+      stoppedRef.current = false;
       const reply = replyStream(patch);
       let failed = false;
       try {
@@ -99,7 +108,11 @@ export function useSyllabusConversation(): AiConversation {
         // delta も error も来ずに終わると本文が空のまま残る（§4.1.4）
         patch({
           streaming: false,
-          ...(reply.content() || failed ? {} : { content: "応答を受け取れませんでした。" }),
+          ...(stoppedRef.current
+            ? stoppedPatch(reply.content())
+            : reply.content() || failed
+              ? {}
+              : { content: "応答を受け取れませんでした。" }),
         });
         if (abortRef.current === ctrl) abortRef.current = null;
       }
@@ -135,6 +148,11 @@ export function useSyllabusConversation(): AiConversation {
       regenerate: () => {
         const target = regenerateFrom(messages);
         if (target) void send(target.text, target.prior);
+      },
+      stop: () => {
+        if (!abortRef.current) return;
+        stoppedRef.current = true;
+        abortRef.current.abort();
       },
       quickAsks: QUICK_ASKS,
       history: entries,

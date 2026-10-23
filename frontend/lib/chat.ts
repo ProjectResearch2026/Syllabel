@@ -24,7 +24,23 @@ export type ChatMessage = {
    * 正しく答えられない（`regenerateFrom()`）
    */
   changedTimetable?: boolean;
+  /**
+   * 学生が停止ボタンで受信を止めた。届いていた本文と思考はそのまま残し、本文の後ろに
+   * 「応答を止めました」と添える。本文が1文字も届いていなければ本文をその文言にする
+   */
+  stopped?: boolean;
 };
+
+/** 停止ボタンで止めた答えに、本文が1文字も届いていなかったときの本文 */
+export const STOPPED_TEXT = "応答を止めました。";
+
+/**
+ * 停止ボタンで止めた答えの書き換え。届いていた本文は残す(空のままにすると、次の
+ * リクエストの履歴に空の答えが載る)
+ */
+export function stoppedPatch(content: string): Partial<ChatMessage> {
+  return content ? { stopped: true } : { stopped: true, content: STOPPED_TEXT };
+}
 
 /**
  * AI が考えている様子の1項目。思考はツールの呼び出しを挟むたびに別の項目になる

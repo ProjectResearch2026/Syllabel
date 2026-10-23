@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import { ArrowLeftRight, RotateCw } from "lucide-react";
-import { regenerateFrom, type ChatMessage } from "@/lib/chat";
+import { regenerateFrom, STOPPED_TEXT, type ChatMessage } from "@/lib/chat";
 import { useScrollToBottom } from "@/lib/useScrollToBottom";
 import MarkdownText from "./MarkdownText";
 import ThinkingIndicator from "./ThinkingIndicator";
@@ -126,6 +126,10 @@ const AssistantBubble = memo(function AssistantBubble({
         >
           {msg.content}
         </MarkdownText>
+      )}
+      {/* 停止ボタンで止めた答え。本文が届いていなければ本文がその文言になっている */}
+      {msg.stopped && msg.content !== STOPPED_TEXT && (
+        <p className="text-[11px] text-fg-muted">応答を止めました</p>
       )}
       {/* 差し替え案（Chat/SuggestCard）。AIが返したときだけ出る */}
       {msg.items?.map((item) => (

@@ -154,6 +154,12 @@ export type AiConversation = {
    * 無ければ再生成のボタンを出さない
    */
   regenerate?: () => void;
+  /**
+   * 受信中の答えを止める（Claude の停止ボタンと同じ）。送信中は入力欄の送信ボタンが
+   * 停止ボタンに変わる。止めた答えは、時間割を変えていなければ `regenerate` で作り直せる。
+   * 無ければ停止ボタンを出さない
+   */
+  stop?: () => void;
   /** 定型の質問 */
   quickAsks?: string[];
   /** モバイルの全画面シートにだけ出す定型の質問（ui-design_phone.pen STEP5 QuickChips） */

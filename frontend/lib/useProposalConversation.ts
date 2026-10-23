@@ -8,7 +8,13 @@ import {
   type TimetableContext,
   type TimetableReport,
 } from "@/lib/chatApi";
-import { regenerateFrom, replyStream, useChatStore, type ChatMessage } from "@/lib/chat";
+import {
+  regenerateFrom,
+  replyStream,
+  stoppedPatch,
+  useChatStore,
+  type ChatMessage,
+} from "@/lib/chat";
 import { useChatHistory } from "@/lib/chatHistory";
 import { useProposalStore } from "@/lib/proposal";
 import { useStudentContext } from "@/lib/studentContext";
@@ -155,6 +161,8 @@ export type ProposalConversation = {
   send: (text: string) => void;
   /** 末尾の答えを作り直す（`AiConversation.regenerate`） */
   regenerate: () => void;
+  /** 受信中の答えを止める（`AiConversation.stop`） */
+  stop: () => void;
   /** 希望条件なしで組み立てる（`/api/timetable/build`） */
   startWithoutPreferences: () => void;
   /** 時間割は残したまま、会話だけをやり直す */
@@ -171,6 +179,8 @@ export function useProposalConversation(): ProposalConversation {
   const setMessages = useChatStore((s) => s.setProposalMessages);
   const { entries, archive, restore } = useChatHistory(SCOPE);
   const abortRef = useRef<AbortController | null>(null);
+  // 停止ボタンで止めた（会話の切り替えで中断したのと分ける）
+  const stoppedRef = useRef(false);
   const canStart = blockedReason === null;
 
   const hasTimetable = status === "done";
@@ -211,6 +221,7 @@ export function useProposalConversation(): ProposalConversation {
 
       const ctrl = new AbortController();
       abortRef.current = ctrl;
+      stoppedRef.current = false;
       setBusy(true);
       const reply = replyStream((update) => patchMessage(assistantId, update));
       let failed = false;
@@ -264,7 +275,11 @@ export function useProposalConversation(): ProposalConversation {
             streaming: false,
             // delta も error も来ずに終わると本文が空のまま残る（§4.1.4）。
             // 失敗の文言は catch が入れているので上書きしない
-            ...(reply.content() || failed ? {} : { content: "応答を受け取れませんでした。" }),
+            ...(stoppedRef.current
+              ? stoppedPatch(reply.content())
+              : reply.content() || failed
+                ? {}
+                : { content: "応答を受け取れませんでした。" }),
           });
           if (abortRef.current === ctrl) abortRef.current = null;
         });
@@ -319,6 +334,13 @@ export function useProposalConversation(): ProposalConversation {
     setMessages([assistant(INTRO_ID, hasTimetable ? CONTINUE_TEXT : INTRO_TEXT)]);
   }, [archive, messages, setMessages, hasTimetable]);
 
+  /** 受信中の答え（「希望条件なしで提案する」の組み立てを含む）を止める */
+  const stop = useCallback(() => {
+    if (!abortRef.current) return;
+    stoppedRef.current = true;
+    abortRef.current.abort();
+  }, []);
+
   const regenerate = useCallback(() => {
     const target = regenerateFrom(messages);
     if (target) send(target.text, target.prior);
@@ -344,6 +366,7 @@ export function useProposalConversation(): ProposalConversation {
     blockedReason,
     send,
     regenerate,
+    stop,
     startWithoutPreferences,
     newChat,
     history: entries,
@@ -370,6 +393,7 @@ export function useProposalAssistant(): AiConversation {
     canStart,
     send,
     regenerate,
+    stop,
     startWithoutPreferences,
     newChat,
     history,
@@ -410,6 +434,7 @@ export function useProposalAssistant(): AiConversation {
       inputDisabled: !canStart,
       send: sendWithContext,
       regenerate: canStart ? regenerate : undefined,
+      stop,
       sheetQuickAsks: hasTimetable ? TIMETABLE_QUICK_ASKS : undefined,
       // 時間割があるときは条件を会話で変えれば組み直されるので、作り直しのボタンは置かない
       actions:
@@ -438,6 +463,7 @@ export function useProposalAssistant(): AiConversation {
       canStart,
       sendWithContext,
       regenerate,
+      stop,
       startWithoutPreferences,
       history,
       selectHistory,
