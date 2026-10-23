@@ -20,6 +20,7 @@ import { useProposalStore } from "@/lib/proposal";
 import { useStudentContext } from "@/lib/studentContext";
 import { buildPlayer } from "@/lib/timetableBuild";
 import {
+  CHAT_LOG_NOTE,
   TIMETABLE_QUICK_ASKS,
   timetableSuggestions,
   useAiStore,
@@ -59,13 +60,6 @@ export const ASSISTANT_THINKING_LABEL = "読んでいます…";
 
 /** 「希望条件なしで提案する」で組み立てを待つあいだの文言。モデルを呼ばないので短い */
 export const BUILD_THINKING_LABEL = "時間割を組んでいます…";
-
-/**
- * 入力欄に添える断り書き（§9.1）。取り込み時の確認ウィンドウが同意を
- * 得ているのは成績表についてであり、**学生がその場で自由に書く文章までは覆わない。**
- */
-export const PREFERENCES_NOTE =
-  "入力した内容は学内のAIサーバへ送られ、100日間記録されます。";
 
 /**
  * 何ができるかが分かるように例を添える（§8.3.2）。モバイルはハーフシートに
@@ -448,7 +442,7 @@ export function useProposalAssistant(): AiConversation {
               },
             ],
       // 学生がその場で書く文章が記録されることを、書く場所の傍らで示す（§9.1）
-      note: canStart ? PREFERENCES_NOTE : undefined,
+      note: canStart ? CHAT_LOG_NOTE : undefined,
       history,
       onSelectHistory: selectHistory,
       onNewChat: canStart ? newChat : undefined,

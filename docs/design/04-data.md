@@ -413,7 +413,6 @@ type ChatMessage = {
   role: "user" | "assistant"
   content: string
   time: string
-  items?: { name: string; note: string }[]   // 差し替え案。吹き出しの下に出す(`ChatMessageList.tsx`)
   trace?: TraceItem[]            // 思考とツールの呼び出しを届いた順に(§6.1.1、§8.3.7)
   streaming?: boolean            // SSE 受信中(§6.1.1)
   changedTimetable?: boolean     // この答えの途中で時間割か条件が変わった。立っていれば再生成しない(§4.1.5)

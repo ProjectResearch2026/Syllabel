@@ -11,7 +11,7 @@ import {
 import { useChatHistory } from "@/lib/chatHistory";
 import { useStudentContext } from "@/lib/studentContext";
 import { streamSyllabusChat } from "@/lib/chatApi";
-import { questionSuggestions, type AiConversation } from "@/lib/ai";
+import { CHAT_LOG_NOTE, questionSuggestions, type AiConversation } from "@/lib/ai";
 
 /**
  * シラバス全体に対する質問（`/syllabus`。design.md §7.4）。
@@ -155,6 +155,8 @@ export function useSyllabusConversation(): AiConversation {
         abortRef.current.abort();
       },
       quickAsks: QUICK_ASKS,
+      // 入力した文章が記録されることを、書く場所の傍らで示す（§9.1）
+      note: CHAT_LOG_NOTE,
       history: entries,
       onSelectHistory,
       onNewChat,

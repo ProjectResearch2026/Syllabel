@@ -6,7 +6,6 @@ export type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   time: string;
-  items?: { name: string; note: string }[];
   /**
    * AI が考えている様子(思考とツールの呼び出し。design.md §8.3.7)。届いた順に並べ、
    * 吹き出しの本文の上に1行ずつ出す。思考の出ないモデル・設定では無い
