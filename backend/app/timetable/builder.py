@@ -685,12 +685,67 @@ def _shortfall_reasons(
         elif plan.limit is not None and all(
             plan.total + c.course.credits > plan.limit for c in reachable[key]
         ):
-            reasons[key] = "登録できる単位の上限に達した"
+            reasons[key] = "登録できる単位の上限に達した。" + _blockers(plan, reachable[key], exclude)
         elif all(exclude.matches(c.course) for c in reachable[key]):
             reasons[key] = "入れない科目に指定された科目しか候補が無い"
         else:
-            reasons[key] = "条件(全休・避ける時限・1日のコマ数など)やコマの重なりで入れられる候補が無い"
+            reasons[key] = (
+                "条件(全休・避ける時限・1日のコマ数など)やコマの重なりで入れられる候補が無い。"
+                + _blockers(plan, reachable[key], exclude)
+            )
     return reasons
+
+
+# 残る不足の理由に挙げる候補の数。多いとモデルが読む量が増えるだけになる
+_MAX_BLOCKERS = 3
+
+
+def _blockers(plan: _Plan, candidates: Sequence[Candidate], exclude: _Exclude) -> str:
+    """不足を減らせた候補が、それぞれ何に阻まれて入らなかったか(「候補: 〜(〜と月2で重なる)」)。
+
+    理由が「上限に達した」だけだと、上限に余裕があっても重なりで入らない候補を、モデルが
+    「どれかを外せば入る」と説明する(実機で、法学のすすめと月2で重なる科目を、別の科目と
+    入れ替えれば入ると提案した)。重なる科目の名前まで書き、何を外せば入るかを読めるようにする。
+    """
+    occupied = plan.occupied()
+    periods = plan.periods()
+    used = plan.days_used()
+    notes: dict[str, str] = {}
+    for candidate in candidates:
+        course = candidate.course
+        if course.title not in notes:
+            notes[course.title] = _blocker(plan, candidate, exclude, occupied, periods, used)
+    shown = list(notes.items())[:_MAX_BLOCKERS]
+    rest = len(notes) - len(shown)
+    text = "、".join(f"{title}({why})" for title, why in shown)
+    return f"候補: {text}" + (f"、ほか{rest}件" if rest else "")
+
+
+def _blocker(
+    plan: _Plan,
+    candidate: Candidate,
+    exclude: _Exclude,
+    occupied: dict[tuple, ProposedCourse],
+    periods: dict[str, set[int]],
+    used: set[str],
+) -> str:
+    """1つの候補が入らなかった理由。重なりは上限より先に書く(上限に余裕があっても入らない)。"""
+    course = candidate.course
+    if exclude.matches(course):
+        return "入れない科目に指定されている"
+    classes = [proposed_course(course, o) for o in candidate.classes]
+    free = [c for c in classes if not plan.clashes(c, occupied)]
+    if not free:
+        option = min(classes, key=lambda c: len(plan.clashes(c, occupied)))
+        return "、".join(
+            f"{other.title}と{_clash_label(option, other)}で重なる"
+            for other in plan.clashes(option, occupied)
+        )
+    if not any(plan.fits_elective(c, periods, used) for c in free):
+        return "全休・避ける時限・1日のコマ数などの条件に反する"
+    if plan.limit is not None and plan.total + course.credits > plan.limit:
+        return f"空いたコマには入るが、登録できる単位({plan.limit}単位)を超える"
+    return "ほかの科目との組み合わせで入らなかった"
 
 
 def build_timetable(
