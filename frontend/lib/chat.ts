@@ -18,6 +18,12 @@ export type ChatMessage = {
    */
   trace?: TraceItem[];
   streaming?: boolean;
+  /**
+   * この答えの途中で時間割か条件が変わった（組み立てが始まった）。途中で失敗しても立つ。
+   * 立っている答えは作り直さない — 作り直しても時間割は変わった後のままで、同じ発話に
+   * 正しく答えられない（`regenerateFrom()`）
+   */
+  changedTimetable?: boolean;
 };
 
 /**
@@ -33,7 +39,7 @@ export type TraceItem =
 /**
  * 末尾の答えを作り直す(再生成)ときの起点。末尾が答え終えた AI の吹き出しで、その直前が
  * 学生の発話のときだけ返す。案内や「希望条件なしで提案する」の説明は、学生の発話への
- * 答えではないので作り直さない。`prior` は学生の発話より前の会話で、作り直しはここに
+ * 答えではないので作り直さない。時間割か条件を変えた答え(`changedTimetable`)も作り直さない。`prior` は学生の発話より前の会話で、作り直しはここに
  * 同じ発話(`text`)を送り直す — 失敗した答えも前の答えも、次のリクエストの履歴に載せない
  */
 export function regenerateFrom(
@@ -41,7 +47,8 @@ export function regenerateFrom(
 ): { prior: ChatMessage[]; text: string } | null {
   const last = messages[messages.length - 1];
   const asked = messages[messages.length - 2];
-  if (last?.role !== "assistant" || last.streaming || asked?.role !== "user") return null;
+  if (last?.role !== "assistant" || last.streaming || last.changedTimetable) return null;
+  if (asked?.role !== "user") return null;
   return { prior: messages.slice(0, -2), text: asked.content };
 }
 

@@ -228,16 +228,24 @@ export function useProposalConversation(): ProposalConversation {
         {
           ...reply.handlers,
           onBuild: () => {
+            patchMessage(assistantId, { changedTimetable: true });
             buildPlayer.begin();
             // モバイルはシートを閉じて、時間割が組み上がっていくところを見せる（§8.3.7）。
             // 説明はシートを開き直すと読める
             useAiStore.getState().close();
           },
-          onStep: (step) => buildPlayer.step(step),
+          onStep: (step) => {
+            patchMessage(assistantId, { changedTimetable: true });
+            buildPlayer.step(step);
+          },
           onTimetable: (timetable) => {
+            patchMessage(assistantId, { changedTimetable: true });
             built = buildPlayer.finish(timetable);
           },
-          onConditions: setConditions,
+          onConditions: (next) => {
+            patchMessage(assistantId, { changedTimetable: true });
+            setConditions(next);
+          },
         },
         ctrl.signal,
       )
