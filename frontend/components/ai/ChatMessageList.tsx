@@ -16,7 +16,10 @@ export const DEFAULT_THINKING_LABEL = "考えています…";
  * Chat/UserBubble）。**PC のパネルとモバイルのシートが同じものを使う。**
  *
  * AI 側は白地・左上だけ角を立て、学生側は淡いグレー地・右上だけ角を立てる。
- * 吹き出しの幅は設計どおりに保ち、表は `MarkdownText` の中で横スクロールさせる。
+ * 吹き出しの幅は会話の欄に対する割合で決める（AI 側 90%・学生側 75%）。PC のパネル
+ * (344px)では設計の 280px・230px とほぼ同じになり、モバイルのシートでは画面の幅に
+ * 合わせて広がる（px で固定していた頃は、スマホでも左右に大きな余白が残った）。
+ * 表のために広げることはせず、表は `MarkdownText` の中で横スクロールさせる。
  *
  * 吹き出しは現れるときに下から浮かせる。CSS の動きはマウント時に1回だけなので、
  * 受信中に本文が伸びても流れ直さない。
@@ -74,7 +77,7 @@ export default function ChatMessageList({
 const UserBubble = memo(function UserBubble({ message }: { message: ChatMessage }) {
   return (
     <div className="flex w-full justify-end motion-safe:animate-rise-in">
-      <div className="max-w-[230px] whitespace-pre-wrap rounded-[12px_2px_12px_12px] border border-border-primary bg-surface-soft p-3 text-[13px] leading-[21px] text-fg-primary">
+      <div className="max-w-[75%] whitespace-pre-wrap rounded-[12px_2px_12px_12px] border border-border-primary bg-surface-soft p-3 text-[13px] leading-[21px] text-fg-primary">
         {message.content}
       </div>
     </div>
@@ -89,7 +92,7 @@ const AssistantBubble = memo(function AssistantBubble({
   thinkingLabel: string;
 }) {
   return (
-    <div className="flex max-w-[280px] flex-col gap-2 rounded-[2px_12px_12px_12px] border border-border-primary bg-surface-primary p-3 motion-safe:animate-rise-in">
+    <div className="flex max-w-[90%] flex-col gap-2 rounded-[2px_12px_12px_12px] border border-border-primary bg-surface-primary p-3 motion-safe:animate-rise-in">
       {/* 考えている様子（思考・ツールの進み具合。§8.3.7）。本文の上に置く */}
       <AgentTrace trace={msg.trace} streaming={Boolean(msg.streaming)} />
       {/* 何も来ていないあいだは指標を出す。空の吹き出しを置かない（§4.1.4）。

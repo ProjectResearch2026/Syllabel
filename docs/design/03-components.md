@@ -79,7 +79,7 @@ frontend/
 - 使うのは `react-markdown` と remark プラグイン2つ。`remark-gfm` が表・取り消し線・チェックリストを、`remark-breaks` が**段落内の単独改行**を担う。Markdown の既定では単独改行が消えるが、日本語の回答は1文ずつ改行して返ってくることが多く、消すと読みにくい
 - **生の HTML は描かない。** `rehype-raw` を入れなければ `react-markdown` はタグを文字として出す。モデルの出力を DOM に流す口を開けないため、入れない
 - 描くのは **AI側の吹き出しだけ**。学生が入力した文は Markdown として解釈せず、そのまま文字として出す
-- 表は**吹き出しの中で横スクロールさせる**。吹き出しの幅(280〜290px。`ui-ux/ui-design_*.pen`)は設計どおりに保ち、表のために広げない
+- 表は**吹き出しの中で横スクロールさせる**。吹き出しの幅は会話の欄に対する割合(AI 側 90%・学生側 75%)で決め、表のために広げない。PC のパネル(344px)では設計(`ui-ux/ui-design_*.pen`)の 280px・230px とほぼ同じになり、モバイルのシートでは画面の幅に合わせて広がる
 - **会話の吹き出しは `components/ai/ChatMessageList.tsx` の1か所で描く。** PC の AIパネル(`components/pc/AiChatPanel.tsx`。時間割・シラバス一覧・講義詳細の3画面が共用)とモバイルの AI シート(`components/ai/MobileAiAssistant.tsx`)が同じものを使い、ヘッダー・定型の質問・入力欄も `components/ai/ChatParts.tsx` を共有する。会話を描く面ごとに吹き出しを作らない
 - **会話の中身(送信・ストリーミング・履歴)も PC とモバイルで共有する。** 画面ごとの会話を `AiConversation`(`lib/ai.ts`)の形で作り — 時間割は `useProposalAssistant()`(`lib/useProposalConversation.ts`)、シラバス一覧は `lib/useSyllabusConversation.ts`、講義詳細は `lib/useCourseConversation.ts` — PC のパネルとモバイルのシートの双方に渡す。両者は同じ画面に同時に mount される(表示は CSS で切り替わる)ため、送信中かどうかは各自の state ではなく吹き出しの `streaming` から導き、**どちらから送っても両方が同じ状態を映す**
 
