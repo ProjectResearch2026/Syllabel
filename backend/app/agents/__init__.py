@@ -21,16 +21,14 @@ def build_model() -> OpenAIChatModel:
     )
 
 
-def chat_model_settings() -> OpenAIChatModelSettings | None:
+def chat_model_settings() -> OpenAIChatModelSettings:
     """会話のエージェントに渡す推論設定。design.md §6.3.1。
 
-    `llm_reasoning_effort` を設定したときだけ、`chat_template_kwargs` で思考の長さを指示する。
-    思考は1回のモデル呼び出しに数十秒かかり、ツールを挟む応答では呼び出しの数だけ重なるため、
-    応答時間と回答の質の兼ね合いを本番で比べられるよう、環境変数で切り替えられるようにする。
+    `chat_template_kwargs` で思考の長さ(`llm_reasoning_effort`。既定 low)を指示する。
+    思考は1回のモデル呼び出しに数十秒かかり、ツールを挟む応答では呼び出しの数だけ重なる。
+    環境変数 `LLM_REASONING_EFFORT` で、イメージを作り直さずに切り替えられる。
     """
     effort = get_settings().llm_reasoning_effort
-    if effort is None:
-        return None
     return OpenAIChatModelSettings(
         extra_body={"chat_template_kwargs": {"enable_thinking": True, "reasoning_effort": effort}}
     )

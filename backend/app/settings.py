@@ -18,9 +18,10 @@ class Settings(BaseSettings):
     # (OpenAI クライアントは非空の api_key を要求するため空にはできない)
     llm_api_key: str = "EMPTY"
     # Qwen3.8 のチャットテンプレートの `reasoning_effort`(§6.3.1)。会話(時間割のアシスタント・
-    # シラバスチャット)のリクエストに `chat_template_kwargs` として載せる。未設定なら送らない
-    # (テンプレートの既定 xhigh)。3値以外はテンプレートが例外を投げるので、ここで値を縛る
-    llm_reasoning_effort: Literal["xhigh", "medium", "low"] | None = None
+    # シラバスチャット)のリクエストに `chat_template_kwargs` として載せる。既定の low は実機の
+    # 比較(2026-10-23)による: テンプレートの既定 xhigh では思考が1回に数十秒〜5分かかり、
+    # ツールを挟む応答が13分に達した。3値以外はテンプレートが例外を投げるので、ここで値を縛る
+    llm_reasoning_effort: Literal["xhigh", "medium", "low"] = "low"
 
     # api-clean — design.md §6.2 / §3.4.4
     # トークンゲートウェイ経由の場合はその URL を与える。ゲートは

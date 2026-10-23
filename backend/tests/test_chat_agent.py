@@ -82,19 +82,19 @@ async def test_get_tool_returns_formatted_sections(monkeypatch):
     assert seen[0]["when"] == "前期 水3"
 
 
-def test_reasoning_effort_is_sent_only_when_configured(monkeypatch):
-    """`LLM_REASONING_EFFORT` を設定したときだけ chat_template_kwargs を載せる(§6.3.1)。"""
+def test_reasoning_effort_defaults_to_low_and_can_be_changed(monkeypatch):
+    """既定は low。`LLM_REASONING_EFFORT` で切り替えられる(§6.3.1)。"""
     from app.agents import chat_model_settings
     from app.settings import get_settings
 
-    get_settings.cache_clear()
-    monkeypatch.delenv("LLM_REASONING_EFFORT", raising=False)
-    assert chat_model_settings() is None
+    def effort() -> str:
+        get_settings.cache_clear()
+        return chat_model_settings()["extra_body"]["chat_template_kwargs"]["reasoning_effort"]
 
-    monkeypatch.setenv("LLM_REASONING_EFFORT", "low")
-    get_settings.cache_clear()
-    settings = chat_model_settings()
-    assert settings["extra_body"]["chat_template_kwargs"]["reasoning_effort"] == "low"
+    monkeypatch.delenv("LLM_REASONING_EFFORT", raising=False)
+    assert effort() == "low"
+    monkeypatch.setenv("LLM_REASONING_EFFORT", "xhigh")
+    assert effort() == "xhigh"
     get_settings.cache_clear()
 
 
