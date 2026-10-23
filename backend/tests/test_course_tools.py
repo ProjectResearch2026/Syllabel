@@ -96,6 +96,28 @@ async def test_search_reports_how_to_widen_when_nothing_matches():
 
 
 @pytest.mark.asyncio
+async def test_search_pages_past_the_limit_with_offset():
+    """上限の10科目を超えて当たったときは、offset で続きを引ける。"""
+    first = await search_courses(None, catalog=fx.catalog(), limit=10)
+    assert (first["total"], first["shown"], first["nextOffset"]) == (14, 10, 10)
+
+    rest = await search_courses(None, catalog=fx.catalog(), limit=10, offset=first["nextOffset"])
+    assert (rest["offset"], rest["shown"]) == (10, 4)
+    assert "nextOffset" not in rest
+
+    titles = [c["title"] for c in first["courses"] + rest["courses"]]
+    assert len(set(titles)) == 14  # 重なりも抜けも無い
+
+
+@pytest.mark.asyncio
+async def test_search_reports_offset_past_the_end():
+    result = await search_courses(None, catalog=fx.catalog(), offset=20)
+
+    assert (result["total"], result["shown"]) == (14, 0)
+    assert "offset" in result["hint"]
+
+
+@pytest.mark.asyncio
 async def test_topic_search_uses_api_clean_text_and_returns_matched_fields(monkeypatch):
     calls: list[dict] = []
     _text_rows(

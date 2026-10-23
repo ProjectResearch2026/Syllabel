@@ -262,15 +262,21 @@ async def search_courses(
     only_registrable: bool = True,
     include_taken: bool = False,
     limit: int = 5,
+    offset: int = 0,
     catalog: Catalog | None = None,
 ) -> dict:
     """シラバスを探す(本書の説明を参照)。科目ごとに1件で返す。
 
+    `limit` の上限(10)を超えて見るときは `offset` で続きを引く。科目の並びは条件が
+    同じなら変わらないため、`offset` を `limit` ずつ進めれば重なりも抜けも無い。
+
     Returns:
-        `{"total", "shown", "courses": [...], "hint"}`。失敗したときは `{"error": ...}`。
+        `{"total", "offset", "shown", "courses": [...], "nextOffset", "hint"}`。
+        `nextOffset` は続きがあるときだけ付く。失敗したときは `{"error": ...}`。
     """
     settings = get_settings()
     limit = max(1, min(_MAX_LIMIT, limit))
+    offset = max(0, offset)
     keyword = (keyword or "").strip() or None
     topic = (topic or "").strip() or None
     instructor = (instructor or "").strip() or None
@@ -355,7 +361,7 @@ async def search_courses(
 
     groups = sorted(grouped.values(), key=order)
     courses: list[dict] = []
-    for classes in groups[:limit]:
+    for classes in groups[offset : offset + limit]:
         classes = sorted(
             classes, key=class_order
         )
@@ -379,9 +385,20 @@ async def search_courses(
                 entry["moreClasses"] = len(classes) - _MAX_CLASSES
         courses.append(entry)
 
-    result: dict[str, object] = {"total": len(groups), "shown": len(courses), "courses": courses}
+    result: dict[str, object] = {
+        "total": len(groups),
+        "offset": offset,
+        "shown": len(courses),
+        "courses": courses,
+    }
+    if offset + len(courses) < len(groups):
+        result["nextOffset"] = offset + len(courses)
     if not courses:
-        result["hint"] = _hint(evaluated) or "条件を変えて探す"
+        result["hint"] = (
+            f"offset が当たった科目数({len(groups)})を超えている。offset を小さくする"
+            if groups
+            else _hint(evaluated) or "条件を変えて探す"
+        )
     if notes:
         result["note"] = "。".join(notes)
     return result
@@ -617,6 +634,7 @@ def register_course_tools(agent) -> None:
         only_registrable: bool = True,
         include_taken: bool = False,
         limit: Annotated[int, Field(ge=1, le=10)] = 5,
+        offset: Annotated[int, Field(ge=0)] = 0,
     ) -> dict:
         """先端理工学部の今年度のシラバスから科目を探す。条件はすべて AND。1回で探す。
 
@@ -635,9 +653,11 @@ def register_course_tools(agent) -> None:
             only_registrable: 学生が履修登録できるクラスだけにする。
             include_taken: 修得済みの科目も含める。
             limit: 返す科目の数(1〜10。既定 5)。
+            offset: 何科目目から返すか(0 始まり。既定 0)。total が返した数より多く、続きを
+                見るときは、前の結果の nextOffset を渡す。条件はほかの引数を変えずに渡す。
 
         Returns:
-            total(当たった科目数)・courses(code・title・when(学期と曜日時限)・credits・
+            total(当たった科目数)・nextOffset(続きがあるときの次の offset)・courses(code・title・when(学期と曜日時限)・credits・
             type(区分 › 履修区分)・fillsSlot(修得したら単位が入る要件枠)・status・
             matchedIn(topic が当たった項目))。0件なら hint にどの条件を外せば何科目かを書く。
         """
@@ -655,6 +675,7 @@ def register_course_tools(agent) -> None:
             only_registrable=only_registrable,
             include_taken=include_taken,
             limit=limit,
+            offset=offset,
         )
 
     @agent.tool(name="get_course")
