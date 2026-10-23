@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Brain, CalendarRange, ChevronRight, FileText, Search } from "lucide-react";
 import type { AgentActivity } from "@/lib/chatApi";
 import type { TraceItem } from "@/lib/chat";
+import { useProposalStore } from "@/lib/proposal";
 import { useScrollToBottom } from "@/lib/useScrollToBottom";
 
 /**
@@ -16,7 +17,8 @@ import { useScrollToBottom } from "@/lib/useScrollToBottom";
  *   **全文はいつでも開ける** — 末尾だけを流していた頃は、流れて消えた分を読めなかった
  * - **ツールの呼び出し**も1行で、呼んでいるあいだは backend が決めた文言(「シラバスを
  *   検索しています」)、終わったら「〜しました」にし、モデルが書いた引数を短く添える。押すと
- *   引数を1つずつ開く
+ *   引数を「時間割から外す: 水環境科学, 経済学のすすめ」のように1行ずつの文で開く(引数名や
+ *   remove のような値をそのまま出さない)
  *
  * 思考も引数もモデルの出力であり、学生のブラウザにだけ流れる（サーバには残さない）。
  */
@@ -141,7 +143,10 @@ function useNow(active: boolean): number {
 
 function ToolRow({ activity, live }: { activity: AgentActivity; live: boolean }) {
   const [open, setOpen] = useState(false);
-  const args = argLines(activity);
+  const courses = useProposalStore((s) => s.courses);
+  // シラバスコードは時間割にある科目なら科目名に直す。無ければコードのまま
+  const titleOf = (code: string) => courses.find((c) => c.syllabusCode === code)?.title ?? code;
+  const lines = argLines(activity, titleOf);
   return (
     <div className="flex flex-col">
       <TraceRow
@@ -151,18 +156,13 @@ function ToolRow({ activity, live }: { activity: AgentActivity; live: boolean })
         live={live}
         open={open}
         onToggle={() => setOpen((v) => !v)}
-        expandable={args.length > 0}
+        expandable={lines.length > 0}
       />
       {open && (
         <TraceBody>
-          <dl className="grid grid-cols-[auto_1fr] gap-x-2">
-            {args.map(([key, value]) => (
-              <div key={key} className="contents">
-                <dt className="text-fg-faint">{key}</dt>
-                <dd className="break-all">{value}</dd>
-              </div>
-            ))}
-          </dl>
+          {lines.map((line) => (
+            <p key={line}>{line}</p>
+          ))}
         </TraceBody>
       )}
     </div>
@@ -181,40 +181,141 @@ function lastLine(text: string): string {
   return lines[lines.length - 1] ?? "";
 }
 
-/** 開いたときに並べる引数。値は読める形にし、空のものは出さない */
-function argLines({ args }: AgentActivity): [string, string][] {
-  return Object.entries(args).flatMap(([key, value]): [string, string][] => {
-    if (value === null || value === undefined || value === "") return [];
-    if (Array.isArray(value) && value.length === 0) return [];
-    const text = typeof value === "object" ? JSON.stringify(value) : String(value);
-    return [[ARG_LABEL[key] ?? key, text]];
-  });
+/** 開いたときに並べる行。引数を「見出し: 値」の文にし、学生に関係の無い引数は出さない */
+function argLines({ tool, args }: AgentActivity, titleOf: (code: string) => string): string[] {
+  const lines: string[] = [];
+  for (const [key, value] of Object.entries(args)) {
+    if (value === null || value === undefined || value === "") continue;
+    const line =
+      tool === "build_timetable"
+        ? buildLine(key, value, args, titleOf)
+        : tool === "get_course"
+          ? courseLine(key, value, titleOf)
+          : searchLine(key, value, args);
+    if (line) lines.push(line);
+  }
+  return lines;
 }
 
-const ARG_LABEL: Record<string, string> = {
-  keyword: "科目名",
-  topic: "内容",
-  instructor: "教員",
-  day: "曜日",
-  period: "時限",
-  term: "学期",
-  category: "区分",
-  subcategory: "分野",
-  course_type: "履修区分",
-  limit: "件数",
-  code: "シラバスコード",
-  sections: "読む節",
-  mode: "組み方",
-  scope: "範囲",
-  free_days: "全休の曜日",
-  free_day_count: "全休の日数",
-  avoid_periods: "避ける時限",
-  max_days: "授業のある日の上限",
-  max_periods_per_day: "1日のコマ数の上限",
-  target_credits: "単位の上限",
-  include: "入れる科目",
-  exclude: "入れない科目",
+/** 配列は「, 」でつなぐ */
+function joined(value: unknown, map: (v: string) => string = (v) => v): string {
+  return Array.isArray(value) ? value.map((v) => map(String(v))).join(", ") : map(String(value));
+}
+
+/** 指定をやめたこと([] / 0)を表す値か */
+function cleared(value: unknown): boolean {
+  return (Array.isArray(value) && value.length === 0) || value === 0;
+}
+
+const BUILD_MODE_LINE: Record<string, string> = {
+  rebuild: "時間割を組み直す（自分で入れた科目は残す）",
+  adjust: "今の時間割を直す（条件に合わない科目を外し、空いたコマを埋める）",
+  remove: "条件に合わない科目を外すだけ（空いたコマは埋めない）",
 };
+
+const SCOPE_LINE: Record<string, string> = {
+  必修のみ: "必修だけを入れる",
+  不足を埋める: "卒業要件の不足を埋める",
+  広く: "不足を埋めた後も、登録できる単位まで入れる",
+};
+
+/** 「1限」は全曜日の1限、「金5」は金曜5限 */
+function periodText(v: string): string {
+  const m = v.match(/^([月火水木金土])(\d)$/);
+  if (m) return `${m[1]}曜${m[2]}限`;
+  return /^\d限$/.test(v) ? `毎日${v}` : v;
+}
+
+function buildLine(
+  key: string,
+  value: unknown,
+  args: Record<string, unknown>,
+  titleOf: (code: string) => string,
+): string | null {
+  const off = cleared(value);
+  switch (key) {
+    case "mode":
+      // 外す科目を挙げていれば「時間割から外す: …」の行で足りる
+      if (value === "remove" && Array.isArray(args.exclude) && args.exclude.length > 0) return null;
+      return BUILD_MODE_LINE[String(value)] ?? `組み方: ${value}`;
+    case "scope":
+      return SCOPE_LINE[String(value)] ?? `範囲: ${value}`;
+    case "free_days":
+      return off ? "全休の曜日の指定をやめる" : `全休にする曜日: ${joined(value, (d) => `${d}曜`)}`;
+    case "free_day_count":
+      return off ? "全休の希望をやめる" : `全休にする日数: ${value}日`;
+    case "avoid_periods":
+      return off ? "避ける時限の指定をやめる" : `避ける時限: ${joined(value, periodText)}`;
+    case "max_days":
+      return off ? "授業のある日の上限をなくす" : `授業のある日: 週${value}日まで`;
+    case "max_periods_per_day":
+      return `1日のコマ数: ${value}コマまで`;
+    case "target_credits":
+      return off ? "単位の上限をなくす" : `単位の上限: ${value}単位`;
+    case "include":
+      return off ? "入れる科目の指定をやめる" : `時間割に入れる: ${joined(value, titleOf)}`;
+    case "exclude":
+      if (off) return "入れない科目の指定をやめる";
+      return `${args.mode === "remove" ? "時間割から外す" : "時間割に入れない"}: ${joined(value, titleOf)}`;
+    default:
+      return otherLine(key, value);
+  }
+}
+
+function searchLine(key: string, value: unknown, args: Record<string, unknown>): string | null {
+  if (cleared(value) && key !== "period") return null;
+  switch (key) {
+    case "keyword":
+      return `科目名: ${value}`;
+    case "topic": {
+      const text = String(value);
+      return /[、,]/.test(text) ? `内容: ${text}（どれかを含む）` : `内容: ${text}`;
+    }
+    case "instructor":
+      return `教員: ${value}`;
+    case "day":
+      return args.period ? `曜日・時限: ${value}曜${args.period}限` : `曜日: ${value}曜`;
+    case "period":
+      return args.day ? null : `時限: ${value}限`;
+    case "term":
+      return `学期: ${value}`;
+    case "category":
+      return `区分: ${value}`;
+    case "subcategory":
+      return `分野: ${value}`;
+    case "course_type":
+      return `履修区分: ${value}`;
+    // 既定(履修登録できる科目だけ・修得済みを除く)のときは出さない
+    case "only_registrable":
+      return value === false ? "履修登録できない科目も含める" : null;
+    case "include_taken":
+      return value === true ? "修得済みの科目も含める" : null;
+    case "limit":
+      return null;
+    default:
+      return otherLine(key, value);
+  }
+}
+
+function courseLine(key: string, value: unknown, titleOf: (code: string) => string): string | null {
+  switch (key) {
+    case "code": {
+      const title = titleOf(String(value));
+      return title === value ? `シラバスコード: ${value}` : `科目: ${title}`;
+    }
+    case "sections":
+      return cleared(value) ? null : `読んだ項目: ${joined(value)}`;
+    default:
+      return otherLine(key, value);
+  }
+}
+
+/** 知らない引数は値だけを読める形にして出す */
+function otherLine(key: string, value: unknown): string | null {
+  if (cleared(value)) return null;
+  const text = typeof value === "object" && !Array.isArray(value) ? JSON.stringify(value) : joined(value);
+  return `${key}: ${text}`;
+}
 
 function ToolIcon({ tool }: { tool: string }) {
   const Icon = tool === "build_timetable" ? CalendarRange : tool === "get_course" ? FileText : Search;
