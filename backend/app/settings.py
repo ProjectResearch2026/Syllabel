@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -16,6 +17,10 @@ class Settings(BaseSettings):
     # 既定の "EMPTY" は認証なしの vllm を直接叩く開発環境向けのダミー値
     # (OpenAI クライアントは非空の api_key を要求するため空にはできない)
     llm_api_key: str = "EMPTY"
+    # Qwen3.8 のチャットテンプレートの `reasoning_effort`(§6.3.1)。会話(時間割のアシスタント・
+    # シラバスチャット)のリクエストに `chat_template_kwargs` として載せる。未設定なら送らない
+    # (テンプレートの既定 xhigh)。3値以外はテンプレートが例外を投げるので、ここで値を縛る
+    llm_reasoning_effort: Literal["xhigh", "medium", "low"] | None = None
 
     # api-clean — design.md §6.2 / §3.4.4
     # トークンゲートウェイ経由の場合はその URL を与える。ゲートは

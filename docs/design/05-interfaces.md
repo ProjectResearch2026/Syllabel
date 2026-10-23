@@ -318,7 +318,7 @@ Qwen3.8 は思考(reasoning)モデルであり、思考の扱いはチャット�
 | 時間割の組み立て(§7.2 / `POST /api/timetable/build`) | — | モデルを呼ばない |
 | 時間割のアシスタント・シラバスチャット(§7.3〜§7.5) | 既定のまま | 自由文の対話であり、ツール呼び出しの要否と引数の判断を含む。時間割の中身は組み立てが決める(§7.2)ので、旧い履修提案(モデルが数万トークンの候補一覧から時間割を書いた)のように思考が終わらず返らない事態は起きにくい。思考が出たときは `thinking` として画面に流す(§6.1.1)。本番条件で思考が出るか・`reasoning_effort` をどうするかは計測を待つ(§13) |
 
-PydanticAI からは `OpenAIChatModelSettings(extra_body={"chat_template_kwargs": {...}})` を `Agent(model_settings=...)` に渡す形で指定する。
+PydanticAI からは `OpenAIChatModelSettings(extra_body={"chat_template_kwargs": {...}})` を `Agent(model_settings=...)` に渡す形で指定する(`app/agents/__init__.py` の `chat_model_settings()`)。**会話の `reasoning_effort` は環境変数 `LLM_REASONING_EFFORT`(`xhigh` / `medium` / `low`)で切り替えられる。** 未設定なら送らず、テンプレートの既定(`xhigh`)になる。公開 VM での実機確認(2026-10-23)では、思考が1回のモデル呼び出しに20〜70秒(1,200〜2,600字)かかり、ツールを挟む応答ではそれが2〜3回重なって1〜3分になった。応答時間と回答の質の兼ね合いを、イメージを作り直さずに比べられるようにするためである(§13)
 
 あわせて `max_tokens` と `timeout` を置く。
 

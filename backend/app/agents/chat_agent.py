@@ -12,7 +12,7 @@ from functools import lru_cache
 
 from pydantic_ai import Agent
 
-from app.agents import build_model
+from app.agents import build_model, chat_model_settings
 from app.agents.course_tools import register_course_tools
 from app.timetable.context import StudentContext
 
@@ -27,6 +27,8 @@ class ChatDeps:
 @lru_cache
 def build_chat_agent() -> Agent[ChatDeps, str]:
     """シラバスチャットエージェントを生成する。build_model()(§6.3)と同じ遅延初期化。"""
-    agent: Agent[ChatDeps, str] = Agent(build_model(), deps_type=ChatDeps)
+    agent: Agent[ChatDeps, str] = Agent(
+        build_model(), model_settings=chat_model_settings(), deps_type=ChatDeps
+    )
     register_course_tools(agent)
     return agent

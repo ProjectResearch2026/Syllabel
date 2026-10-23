@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.models.openai import OpenAIChatModel, OpenAIChatModelSettings
 from pydantic_ai.providers.openai import OpenAIProvider
 
 from app.settings import get_settings
@@ -18,4 +18,19 @@ def build_model() -> OpenAIChatModel:
     return OpenAIChatModel(
         s.llm_model_id,
         provider=OpenAIProvider(base_url=s.vllm_base_url, api_key=s.llm_api_key),
+    )
+
+
+def chat_model_settings() -> OpenAIChatModelSettings | None:
+    """会話のエージェントに渡す推論設定。design.md §6.3.1。
+
+    `llm_reasoning_effort` を設定したときだけ、`chat_template_kwargs` で思考の長さを指示する。
+    思考は1回のモデル呼び出しに数十秒かかり、ツールを挟む応答では呼び出しの数だけ重なるため、
+    応答時間と回答の質の兼ね合いを本番で比べられるよう、環境変数で切り替えられるようにする。
+    """
+    effort = get_settings().llm_reasoning_effort
+    if effort is None:
+        return None
+    return OpenAIChatModelSettings(
+        extra_body={"chat_template_kwargs": {"enable_thinking": True, "reasoning_effort": effort}}
     )

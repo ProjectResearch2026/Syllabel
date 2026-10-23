@@ -80,3 +80,30 @@ async def test_get_tool_returns_formatted_sections(monkeypatch):
 
     assert seen[0]["sections"] == {"成績評価": "試験 100%"}
     assert seen[0]["when"] == "前期 水3"
+
+
+def test_reasoning_effort_is_sent_only_when_configured(monkeypatch):
+    """`LLM_REASONING_EFFORT` を設定したときだけ chat_template_kwargs を載せる(§6.3.1)。"""
+    from app.agents import chat_model_settings
+    from app.settings import get_settings
+
+    get_settings.cache_clear()
+    monkeypatch.delenv("LLM_REASONING_EFFORT", raising=False)
+    assert chat_model_settings() is None
+
+    monkeypatch.setenv("LLM_REASONING_EFFORT", "low")
+    get_settings.cache_clear()
+    settings = chat_model_settings()
+    assert settings["extra_body"]["chat_template_kwargs"]["reasoning_effort"] == "low"
+    get_settings.cache_clear()
+
+
+def test_reasoning_effort_rejects_values_the_template_does_not_know(monkeypatch):
+    """テンプレートは3値以外で例外を投げるので、起動時に弾く。"""
+    import pydantic
+
+    from app.settings import Settings
+
+    monkeypatch.setenv("LLM_REASONING_EFFORT", "high")
+    with pytest.raises(pydantic.ValidationError):
+        Settings()

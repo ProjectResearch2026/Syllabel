@@ -17,7 +17,7 @@ from typing import Annotated, Literal
 from pydantic import Field
 from pydantic_ai import Agent, ModelRetry, RunContext
 
-from app.agents import build_model
+from app.agents import build_model, chat_model_settings
 from app.agents.course_tools import register_course_tools
 from app.schemas.proposal import ProposedCourse
 from app.timetable.builder import build_timetable, check_timetable
@@ -133,7 +133,9 @@ def timetable_event(courses: list[ProposedCourse], report: Report) -> dict:
 @lru_cache
 def build_timetable_assistant() -> Agent[AssistantDeps, str]:
     """時間割のアシスタントを生成する。規則は `render_instructions()` が毎回渡す。"""
-    agent: Agent[AssistantDeps, str] = Agent(build_model(), deps_type=AssistantDeps)
+    agent: Agent[AssistantDeps, str] = Agent(
+        build_model(), model_settings=chat_model_settings(), deps_type=AssistantDeps
+    )
 
     @agent.tool(name="build_timetable")
     async def build_timetable_tool(

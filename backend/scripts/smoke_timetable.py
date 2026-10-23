@@ -364,12 +364,17 @@ async def build(client: httpx.AsyncClient, body: dict) -> None:
     print("\n" + ("[約束違反]\n  " + "\n  ".join(problems) if problems else "[OK] 約束を守っている"))
 
 
-def _settle_tool(tool: dict | None, printed: dict | None) -> dict | None:
-    """ツールの呼び出しの確定した引数を、まだ出していなければ出す。出した引数を返す。"""
-    if tool is None or tool["args"] == printed:
-        return printed
-    print(f"           引数 {json.dumps(tool['args'], ensure_ascii=False)}", flush=True)
-    return tool["args"]
+def _settle_tools(latest: dict[str, dict], printed: dict[str, dict]) -> None:
+    """ツールの呼び出しごとに、確定した引数をまだ出していなければ出す。
+
+    モデルは複数のツールを並べて呼ぶことがあり、書きかけの引数は呼び出し(id)ごとに
+    入れ替わりながら届く。呼び出しの始まりと、引数が落ち着いたところだけを出す。
+    """
+    for call_id, act in latest.items():
+        if printed.get(call_id) != act["args"]:
+            args = json.dumps(act["args"], ensure_ascii=False)
+            print(f"           {act['tool']} の引数 {args}", flush=True)
+            printed[call_id] = act["args"]
 
 
 async def chat(client: httpx.AsyncClient, body: dict, utterances: list[str]) -> None:
@@ -383,9 +388,10 @@ async def chat(client: httpx.AsyncClient, body: dict, utterances: list[str]) -> 
         reply = ""
         built = False
         thinking = 0
-        # 書きかけの引数は同じ呼び出し(id)で何度も流れる。呼び出しの始まりと、確定した引数だけを出す
-        tool: dict | None = None
-        tool_printed: dict | None = None
+        # 呼び出し(id)ごとの最新の引数と、出した引数
+        tools: dict[str, dict] = {}
+        tools_printed: dict[str, dict] = {}
+        thinking_now = False
 
         async with client.stream(
             "POST", "/api/timetable/assistant", json={**body, "messages": messages}
@@ -401,19 +407,23 @@ async def chat(client: httpx.AsyncClient, body: dict, utterances: list[str]) -> 
                 if first is None:
                     first = now
                 if "activity" in event:
+                    thinking_now = False
                     act = event["activity"]
-                    if tool is None or act.get("id") != tool.get("id"):
-                        tool_printed = _settle_tool(tool, tool_printed)
+                    call_id = str(act.get("id"))
+                    if call_id not in tools:
                         print(f"  [{now:5.1f}s] {act['label']}", flush=True)
-                        tool_printed = None
-                    tool = act
+                    tools[call_id] = act
                     continue
-                tool_printed = _settle_tool(tool, tool_printed)
+                _settle_tools(tools, tools_printed)
                 if "thinking" in event:
-                    if thinking == 0:
+                    # ツールの後にモデルがもう一度考え始めたときも出す(待っている間に何をしているか)
+                    if not thinking_now:
                         print(f"  [{now:5.1f}s] 考えている…", flush=True)
+                        thinking_now = True
                     thinking += len(event["thinking"])
-                elif "build" in event:
+                    continue
+                thinking_now = False
+                if "build" in event:
                     built = True
                 elif "timetable" in event:
                     body["timetable"] = event["timetable"]["courses"]
