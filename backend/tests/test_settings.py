@@ -37,6 +37,16 @@ def test_llm_api_key_env_override(monkeypatch):
     assert Settings().llm_api_key == "gw-token-for-test"
 
 
+def test_llm_api_keys_splits_on_commas(monkeypatch):
+    """トークンを複数発行したときはカンマ区切りで並べる(design.md §3.4.3)。前後の空白は捨てる。"""
+    monkeypatch.setenv("LLM_API_KEY", "tok-a, tok-b,")
+    assert Settings().llm_api_keys == ["tok-a", "tok-b"]
+
+
+def test_llm_api_keys_default():
+    assert Settings(_env_file=None).llm_api_keys == ["EMPTY"]
+
+
 def test_api_clean_api_key_default():
     """未設定なら空文字(認証なしの api-clean を直接叩く開発環境向け。design.md §6.2)。
 

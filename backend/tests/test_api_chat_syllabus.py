@@ -15,11 +15,13 @@ from pydantic_ai.models.function import (
 )
 
 import app.api.chat_syllabus as mod
-from app.agents import course_tools
+from app.agents import ModelPool, course_tools
+from app.api import agent_stream
 from app.agents.chat_agent import build_chat_agent
 from app.api.agent_stream import to_history
 from app.main import app
 from app.schemas.chat import ChatMessage
+from app.settings import Settings
 from app.timetable import context as context_module
 import timetable_fixtures as fx
 
@@ -203,6 +205,19 @@ def test_error_midstream_still_emits_done():
     events = _events(resp.text)
     assert events[-2] == {"error": "応答の生成中にエラーが発生しました"}
     assert events[-1] == {"done": True}
+
+
+def test_busy_when_no_token_frees(monkeypatch):
+    """トークンがすべて生成中のまま待つ上限を過ぎたら、モデルを呼ばずに混雑を伝える(§3.4.3)。"""
+    record: list[str] = []
+    monkeypatch.setattr(agent_stream, "model_pool", lambda: ModelPool([]))
+    monkeypatch.setattr(agent_stream, "get_settings", lambda: Settings(llm_wait_seconds=0.01))
+
+    with build_chat_agent().override(model=_recording(record)):
+        resp = client.post("/api/chat/syllabus", json={"message": "x"})
+
+    assert record == []
+    assert _events(resp.text) == [{"error": agent_stream.BUSY_TEXT}, {"done": True}]
 
 
 # --- 講義単位チャット ---

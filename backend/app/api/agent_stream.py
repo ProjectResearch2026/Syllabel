@@ -16,6 +16,10 @@
 出力で実行グラフを打ち切るため、ツール呼び出しの直前に空白だけの本文パートを出す
 モデルではツールが一度も実行されない。本文が始まる前の空白だけの出力は捨てる。
 
+**実行1回ぶん、トークンを1つ借りる**(`app/agents/__init__.py` の `model_pool()`)。ゲートウェイは
+同一トークンで生成を1本しか通さない(§3.4.3)ため、すべて生成中なら空くまで待つ。ツールを挟んで
+モデルを2回以上呼ぶあいだも返さない(途中の呼び出しが `503 busy` で落ちないように)。
+
 **学生データをログに出さない(§4.2.3)。** 本モジュールは本文も引数もログに書かない。
 """
 
@@ -43,8 +47,10 @@ from pydantic_ai.messages import (
 )
 from pydantic_core import from_json
 
+from app.agents import ModelBusyError, model_pool
 from app.api.sse import format_sse
 from app.schemas.chat import ChatMessage
+from app.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +59,9 @@ CODE_ARGS = {
     "build_timetable": ("include", "exclude"),
     "get_course": ("code",),
 }
+
+# トークンがすべて生成中のまま待つ上限を過ぎたときの文言(§3.4.3)
+BUSY_TEXT = "混み合っています。少し待ってからもう一度送ってください"
 
 # ツールごとの、待っている間に見せる文言
 TOOL_LABELS = {
@@ -165,9 +174,12 @@ async def stream_agent(
         return lines
 
     try:
-        async with agent.run_stream_events(
-            prompt, message_history=history, instructions=instructions, deps=deps
-        ) as events:
+        async with (
+            model_pool().acquire(get_settings().llm_wait_seconds) as model,
+            agent.run_stream_events(
+                prompt, message_history=history, instructions=instructions, deps=deps, model=model
+            ) as events,
+        ):
             async for event in events:
                 if isinstance(event, PartStartEvent):
                     part = event.part
@@ -234,6 +246,9 @@ async def stream_agent(
                 yield format_sse(extra)
     except asyncio.CancelledError:
         raise
+    except ModelBusyError:
+        logger.warning("トークンが空かないまま待つ上限を過ぎました")
+        yield format_sse({"error": BUSY_TEXT})
     except Exception as exc:  # noqa: BLE001 - SSE開始後は例外を投げられないため全て捕捉する
         logger.warning("エージェントの実行に失敗しました: %s", type(exc).__name__)
         for line in flush():
