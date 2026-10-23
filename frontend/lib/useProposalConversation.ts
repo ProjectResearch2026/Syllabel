@@ -387,7 +387,7 @@ export function useProposalAssistant(): AiConversation {
             : undefined,
       hideBaseContext: !hasTimetable,
       placeholder: hasTimetable
-        ? "時間割について話しかける…"
+        ? "希望や質問を入力"
         : "希望や質問を入力（例: 週に1日は全休にしたい）",
       inputDisabled: !canStart,
       send: sendWithContext,
