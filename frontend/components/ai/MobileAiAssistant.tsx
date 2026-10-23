@@ -248,23 +248,24 @@ function AiSheet({ conversation, base }: { conversation: AiConversation; base: A
             thinkingLabel={conversation.thinkingLabel}
             showDate={full}
             className="px-4 pb-2.5 pt-3.5"
-          />
-        )}
-
-        {/* サジェストを出していないときは、クイックチップと提案の開始・再提案を出す
-            （STEP5。ハーフは時間割のクイックチップだけ。ほかの画面はサジェストが担う） */}
-        {(full || !showSuggestions) && (
-          <ChatQuickAsks
-            conversation={
-              full
-                ? { ...dismissing, quickAsks: conversation.sheetQuickAsks ?? conversation.quickAsks }
-                : { ...dismissing, quickAsks: conversation.sheetQuickAsks ?? [] }
-            }
-            onAsk={(q) => conversation.send(q, context)}
-            // 折り返して並べる。横スクロールにすると、末尾の操作のボタンが
-            // 画面の外に切れ、押せることに気づけない
-            className="shrink-0 flex-wrap px-4 py-2"
-          />
+          >
+            {/* 会話を出しているときは、クイックチップと提案の開始・再提案を出す
+                （STEP5。ハーフは時間割のクイックチップだけ。ほかの画面はサジェストが担う）。
+                PC のパネルと同じく最後の吹き出しの後ろに置く。入力欄の上に固定すると、
+                全画面では会話の欄が伸びて「希望条件なしで提案する」が案内の吹き出しから
+                離れ、画面の下に落ちる（§8.3.1 は案内の下に置く） */}
+            <ChatQuickAsks
+              conversation={
+                full
+                  ? { ...dismissing, quickAsks: conversation.sheetQuickAsks ?? conversation.quickAsks }
+                  : { ...dismissing, quickAsks: conversation.sheetQuickAsks ?? [] }
+              }
+              onAsk={(q) => conversation.send(q, context)}
+              // 折り返して並べる。横スクロールにすると、末尾の操作のボタンが
+              // 画面の外に切れ、押せることに気づけない
+              className="flex-wrap"
+            />
+          </ChatMessageList>
         )}
 
         <ChatInputBar
