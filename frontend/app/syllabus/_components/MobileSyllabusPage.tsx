@@ -14,7 +14,7 @@ import {
   Timer,
 } from "lucide-react";
 import type { SyllabusListItem, Masters, MatchedBy } from "@/lib/syllabus-api";
-import { OFFERING_YEAR, FACULTY } from "@/lib/syllabus-api";
+import { OFFERING_YEAR, FACULTY, termChoiceLabel } from "@/lib/syllabus-api";
 import { formatSlots } from "@/lib/schedule";
 import { SYLLABUS_CONTEXT } from "@/lib/ai";
 import { useSyllabusConversation } from "@/lib/useSyllabusConversation";
@@ -71,7 +71,7 @@ export default function MobileSyllabusPage({
     selectCategory: setActiveCategory,
     selectSubcategory: setActiveSubcategory,
   } = useFilterControls();
-  // 空きコマ長押しメニューの「シラバスで絞り込む」から来たときは開いた状態で始める
+  // 空きコマのメニューの「シラバスで絞り込む」から来たときは開いた状態で始める
   const [filterOpen, setFilterOpen] = useState(searchParams.get("filters") === "open");
   // AI は PC の右パネルと同じ会話（シラバス全体への質問。§7.4）
   const conversation = useSyllabusConversation();
@@ -224,7 +224,7 @@ export default function MobileSyllabusPage({
         <select value={term} onChange={(e) => update("term", e.target.value)} className={selectClass}>
           <option value="">すべて</option>
           {masters.term.map((t) => (
-            <option key={t.id} value={t.name}>{t.name}</option>
+            <option key={t.id} value={t.name}>{termChoiceLabel(t.name)}</option>
           ))}
         </select>
       ),

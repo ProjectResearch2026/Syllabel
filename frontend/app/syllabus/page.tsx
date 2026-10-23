@@ -48,9 +48,11 @@ export default async function SyllabusPage({ searchParams }: { searchParams: Sea
   const keyword = typeof sp.q === "string" ? sp.q : undefined;
   const program = typeof sp.program === "string" ? sp.program : undefined;
   const campus = typeof sp.campus === "string" ? sp.campus : undefined;
+  // 開講期。「前期」「後期」はクォーターの科目も含める(`searchCourses()`)。時間割から
+  // 開くときは時間割の学期が付いてくる(`slotSearchHref()`)
   const term = typeof sp.term === "string" ? sp.term : undefined;
   const day = typeof sp.day === "string" ? sp.day : undefined;
-  // 時限は絞り込みパネルのほか、時間割の空きコマ長押しメニューから
+  // 時限は絞り込みパネルのほか、時間割の空きコマのメニューから
   // 「この時間に入る科目を探す」でも渡ってくる
   const period = intParam(sp.period, 1, 7);
   // 対象年次。`grade_min <= grade <= grade_max` の科目に絞る(§6.2)

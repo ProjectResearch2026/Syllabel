@@ -72,6 +72,7 @@ uvicorn app.main:app --reload      # 開発サーバ(http://localhost:8000)
 |---|---|---|
 | `VLLM_BASE_URL` | `http://vllm:8000/v1` | LLM(OpenAI 互換)の宛先。トークンゲートウェイ経由の場合はその URL(設計§3.4.3) |
 | `LLM_MODEL_ID` | `qwen3.8-27b-fp8` | 接続先が返すモデル ID と一致させる(不一致で 404) |
+| `LLM_REASONING_EFFORT` | `low` | 会話の思考の長さ(`xhigh` / `medium` / `low`)。設計§6.3.1 の実測で `xhigh` は応答が分単位で伸びたため `low` を既定とする |
 | `LLM_API_KEY` | `EMPTY` | ゲートウェイが要求するトークン。`Authorization: Bearer <値>` として送られる(設計§6.3)。認証なしの vllm を直接叩くときは既定のまま |
 | `API_CLEAN_BASE_URL` | `http://api-clean:5000` | 既存シラバス API の宛先。トークンゲートウェイ経由の場合はその URL(設計§3.4.4) |
 | `API_CLEAN_API_KEY` | (空) | ゲートウェイが要求するトークン。`Authorization: Bearer <値>` として送られる(設計§6.2)。認証なしの api-clean を直接叩くときは空のまま(ヘッダを付けない) |
@@ -150,22 +151,23 @@ cd backend
 python -m scripts.smoke_vllm
 python -m scripts.smoke_api_clean
 python -m scripts.smoke_chat_syllabus <講義コード>
-python -m scripts.smoke_proposal
+python -m scripts.smoke_timetable build '{"freeDayCount": 1}'   # 組み立てだけ(モデルを呼ばない)
+python -m scripts.smoke_timetable chat "週に1日は全休にしたい"   # 時間割のアシスタント
 
 # 公開 VM の backend コンテナ内で動かす
 podman exec -it syllabel-backend python -m scripts.smoke_api_clean
 ```
 
-履修提案は1回に4〜5分かかる。応答時間は出力トークン数でほぼ決まる(設計§7.2)。
+時間割の組み立て(`build`)はモデルを呼ばず数秒で返る。アシスタント(`chat`)はツール呼び出しを挟んでモデル呼び出しが2回以上になる(設計§7.2・§7.3)。
 
-## 実装状況(2026-09-17)
+## 実装状況(2026-10-23)
 
 | 領域 | 状況 |
 |---|---|
 | backend / シラバス | `GET /api/syllabi`・`/api/syllabi/{code}`・`/api/masters`(api-clean 中継)実装済み |
-| backend / チャット | `POST /api/chat/syllabus`・`/api/chat/syllabus/{code}`・`/api/chat/proposal` 実装済み |
+| backend / チャット | `POST /api/chat/syllabus`・`/api/chat/syllabus/{code}` 実装済み(シラバスを探すツール `search_courses` / `get_course` は時間割のアシスタントと共有) |
 | backend / 履修要項 | YAML スキーマ・ロード・マージ・要件充足判定、`GET /api/curricula/{program_code}/{admission_year}`・`POST /api/requirements` 実装済み |
-| backend / 履修提案 | `POST /api/proposal` 実装済み(SSE で逐次配信)。実機で提案の生成を確認済み |
+| backend / 時間割 | `POST /api/timetable/build`(組み立て。モデルを呼ばない)・`/check`(レポート)・`/assistant`(会話。SSE)実装済み。組み立ては実データ(ダミー学生48人)で確認済み。アシスタントの実機での確認は未実施(設計§13) |
 | frontend | 全画面を実装済み。backend との接続は設計§6.1 の宛先・SSE 書式・スキーマに準拠(`lib/api_base.ts` / `lib/chatApi.ts` / `lib/syllabus-api.ts`) |
 | 履修要項データ | 2024・2025年度入学の6課程 + 教養教育科目を作成済み。2026年度入学分は転記中 |
 | 開講年度データ | 2026年度分を作成済み。生成スクリプト(`scripts/build_offerings.py`)は未実装 |

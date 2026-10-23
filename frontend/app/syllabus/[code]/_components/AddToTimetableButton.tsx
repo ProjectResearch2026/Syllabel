@@ -19,8 +19,8 @@ import type { CourseTarget } from "@/lib/eligibility";
  *
  * **学生はこの科目を自分で時間割に登録できる。** 押すと提案の store の `courses` に
  * 入り、時間割表・今期登録単位・卒業要件の見込みがそれに追従する（§8.3.5）。
- * AI の提案と同じ一覧に入るので、提案チャットにも「学生が自分で登録した科目」として
- * 渡る（`MANUAL_REASON`）。
+ * AI の提案と同じ一覧に入り、`source: "student"` として時間割のアシスタントに渡る
+ * （組み直しても外されない）。
  *
  * AI の提案と違い単位数上限などの検査は通らないため、**入れる前に手元で確かめる**:
  *  - 時間割の学期（`useTargetTerm()`）と開講学期が合うか
@@ -29,7 +29,7 @@ import type { CourseTarget } from "@/lib/eligibility";
  *
  * 時間割の「別の科目に変更する」から来たとき（`replacing`）は、入れ替えのボタンになり、
  * 押すと元の科目と入れ替えて時間割へ戻る。すでに入っている科目では「外す」を出す。
- * 提案の生成中は届く snapshot に上書きされるので押させない。
+ * 組み立ての途中とアシスタントの応答中は、届く時間割に上書きされるので押させない。
  */
 export default function AddToTimetableButton({
   syllabus,
@@ -39,7 +39,7 @@ export default function AddToTimetableButton({
   target: CourseTarget;
 }) {
   const router = useRouter();
-  const { status, courses, replacing, addCourse, removeCourse, replaceCourse, cancelReplace } =
+  const { status, busy, courses, replacing, addCourse, removeCourse, replaceCourse, cancelReplace } =
     useProposalStore();
   const { target: term } = useTargetTerm();
   const tags = useTagMap()(syllabus.syllabus_code, target);
@@ -61,11 +61,11 @@ export default function AddToTimetableButton({
     return window.confirm(`${warnings.join("\n")}\nそれでも時間割に入れますか？`);
   };
 
-  if (status === "loading") {
+  if (status === "loading" || busy) {
     return (
       <span className="flex shrink-0 items-center gap-2 rounded-lg border border-border-primary bg-surface-gray px-[18px] py-2.5">
         <CalendarPlus size={15} className="text-fg-tertiary" aria-hidden="true" />
-        <span className="text-[13.5px] font-bold text-fg-tertiary">提案の作成中は追加できません</span>
+        <span className="text-[13.5px] font-bold text-fg-tertiary">{status === "loading" ? "時間割を組んでいる間は追加できません" : "AIの応答中は追加できません"}</span>
       </span>
     );
   }

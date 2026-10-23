@@ -160,7 +160,7 @@ export default function PcImportPage() {
     pending?.completedCourses.filter((c) => c.status === "passed") ?? [];
   const totalCredits = passedCourses.reduce((sum, c) => sum + c.credits, 0);
   const remaining = Math.max(0, GRADUATION_CREDITS - totalCredits);
-  // 不合格と履修辞退は「未修得」に丸める(設計書 §6.1。再履修の対象として同じ扱い)
+  // 不合格と履修辞退は「未修得」に丸める(設計書 §6.1)
   const unearnedCount = pending?.completedCourses.filter(isUnearned).length ?? 0;
   const registeredCount =
     pending?.completedCourses.filter((c) => c.status === "registered").length ?? 0;
@@ -258,7 +258,7 @@ export default function PcImportPage() {
                   安心のプライバシー設計
                 </h2>
                 <p className="w-80 text-center text-sm leading-6 text-fg-secondary">
-                  成績表はブラウザの中で読み取り、PDFはサーバーへ送りません。AIが提案を作るときは、履修状況を学内のAIサーバーにだけ送ります。送った内容は学内で100日間記録されます。
+                  成績表はブラウザの中で読み取り、PDFはサーバーへ送りません。AIに時間割を組ませるときと質問するときは、履修状況を学内のAIサーバーにだけ送ります。送った内容は学内で100日間記録されます。
                 </p>
               </div>
             </div>
@@ -434,7 +434,7 @@ export default function PcImportPage() {
         { label: "判定科目数", value: `${passedCourses.length}科目` },
         // 未修得は単位に数えないが、再履修の提案に使うので取り込んだことを見せる
         ...(unearnedCount > 0
-          ? [{ label: "未修得科目（再履修の対象）", value: `${unearnedCount}科目` }]
+          ? [{ label: "未修得科目", value: `${unearnedCount}科目` }]
           : []),
         // 登録済みで成績未確定。提案の候補から外すので、取り込んだことを見せる
         ...(registeredCount > 0

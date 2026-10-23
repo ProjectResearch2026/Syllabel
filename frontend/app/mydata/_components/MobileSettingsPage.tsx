@@ -284,7 +284,7 @@ export default function MobileSettingsPage() {
         {/* 未修得科目。再履修の提案に使うので取り込んだことを見せる */}
         {unearned.length > 0 && (
           <>
-            <SectionLabel>未修得科目（再履修の対象）</SectionLabel>
+            <SectionLabel>未修得科目</SectionLabel>
             <Group>
               {unearned.map((c, i) => (
                 <CourseRow key={`${c.title}-${c.year}-${c.term}-${i}`} course={c} last={i === unearned.length - 1} />

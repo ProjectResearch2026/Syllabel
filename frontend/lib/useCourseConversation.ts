@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { useChatStore, type ChatMessage } from "@/lib/chat";
+import { replyStream, useChatStore, type ChatMessage } from "@/lib/chat";
 import { useChatHistory } from "@/lib/chatHistory";
-import { useStudentStore } from "@/lib/student";
+import { useStudentContext } from "@/lib/studentContext";
 import { streamCourseChat } from "@/lib/chatApi";
 import { questionSuggestions, type AiConversation } from "@/lib/ai";
 
@@ -37,7 +37,9 @@ export function useCourseConversation({
 }): AiConversation {
   const messages = useChatStore((s) => s.courseMessages[code] ?? EMPTY);
   const setCourseMessages = useChatStore((s) => s.setCourseMessages);
-  const profile = useStudentStore((s) => s.profile);
+  // 揃えば課程コード・入学年度・対象学期も送り、その学生にとっての区分や要件の
+  // 充足状況で答えさせる(design.md §7.4.1)。揃わなければ学年と課程だけで答える
+  const { profile, context } = useStudentContext();
   const scope = `course:${code}` as const;
   const { entries, archive, restore } = useChatHistory(scope);
   const abortRef = useRef<AbortController | null>(null);
@@ -100,32 +102,31 @@ export function useCourseConversation({
 
       const ctrl = new AbortController();
       abortRef.current = ctrl;
-      let accumulated = "";
+      const reply = replyStream(patch);
       let failed = false;
       try {
         await streamCourseChat(
           code,
-          { profile, history, message: text },
-          (delta) => {
-            accumulated += delta;
-            patch({ content: accumulated });
-          },
+          { profile, history, message: text, ...context },
+          reply.handlers,
           ctrl.signal,
         );
       } catch (err) {
+        reply.flush();
         if ((err as Error).name !== "AbortError") {
           failed = true;
           patch({ content: "申し訳ありません。応答の取得に失敗しました。" });
         }
       } finally {
+        reply.end();
         patch({
           streaming: false,
-          ...(accumulated || failed ? {} : { content: "応答を受け取れませんでした。" }),
+          ...(reply.content() || failed ? {} : { content: "応答を受け取れませんでした。" }),
         });
         if (abortRef.current === ctrl) abortRef.current = null;
       }
     },
-    [code, streaming, messages, setCourseMessages, profile],
+    [code, streaming, messages, setCourseMessages, profile, context],
   );
 
   return useMemo<AiConversation>(

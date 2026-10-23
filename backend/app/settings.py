@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -16,6 +17,11 @@ class Settings(BaseSettings):
     # 既定の "EMPTY" は認証なしの vllm を直接叩く開発環境向けのダミー値
     # (OpenAI クライアントは非空の api_key を要求するため空にはできない)
     llm_api_key: str = "EMPTY"
+    # Qwen3.8 のチャットテンプレートの `reasoning_effort`(§6.3.1)。会話(時間割のアシスタント・
+    # シラバスチャット)のリクエストに `chat_template_kwargs` として載せる。既定の low は実機の
+    # 比較(2026-10-23)による: テンプレートの既定 xhigh では思考が1回に数十秒〜5分かかり、
+    # ツールを挟む応答が13分に達した。3値以外はテンプレートが例外を投げるので、ここで値を縛る
+    llm_reasoning_effort: Literal["xhigh", "medium", "low"] = "low"
 
     # api-clean — design.md §6.2 / §3.4.4
     # トークンゲートウェイ経由の場合はその URL を与える。ゲートは
@@ -36,6 +42,12 @@ class Settings(BaseSettings):
     offerings_dir: Path = Path("../offerings")
     # backend が参照する開講年度。過去年度は読まない(§4.4.3 / §4.4.4)
     offering_year: int = 2026
+    # 本サービスの対象学部(要件§2.1)。シラバスの検索ツールはこの学部の科目だけを返す
+    target_faculty: str = "先端理工学部"
+    # 開講年度ぶんの開講情報・対象課程の置き場(`app/timetable/offerings.py`)の有効期間(秒)。
+    # 学生データを含まない公開の値で、時間割の組み立てと検索のたびに api-clean を
+    # ページ送りで引き直さないために持つ
+    catalog_ttl_seconds: float = 1800.0
 
 
 @lru_cache

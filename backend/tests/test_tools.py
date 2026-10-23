@@ -6,7 +6,6 @@ from app.agents import tools as tools_module
 from app.agents.tools import (
     search_syllabi,
     search_syllabi_by_instructor,
-    search_syllabi_by_title,
     get_syllabus,
     get_masters,
 )
@@ -261,87 +260,6 @@ async def test_by_instructor_blank_drops_the_condition(monkeypatch):
 # ---------------------------------------------------------------------------
 # get_syllabus
 # ---------------------------------------------------------------------------
-
-# ---------------------------------------------------------------------------
-# search_syllabi_by_title — 科目名の表記の揺れ(design.md §6.1 / §6.2)
-# ---------------------------------------------------------------------------
-
-def _title_handler(titles: list[str], captured: list):
-    """`offset` / `limit` だけを効かせて科目名の行を返すハンドラ。送られた params を積む。"""
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        params = dict(request.url.params)
-        captured.append(params)
-        limit, offset = int(params["limit"]), int(params["offset"])
-        rows = [
-            {"syllabus_code": f"C{i:04d}", "course_title": t}
-            for i, t in enumerate(titles)
-        ][offset : offset + limit]
-        return httpx.Response(200, json={"count": len(rows), "limit": limit, "offset": offset, "results": rows})
-
-    return handler
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("keyword", "expected"),
-    [
-        ("プログラミング基礎演習1", ["プログラミング基礎演習Ⅰ"]),
-        ("仏教の思想Ａ", ["仏教の思想A"]),
-        ("英語総合1(A)", ["英語総合1（A）"]),
-        ("線形代数 演習", ["線形代数・演習"]),
-        ("でーたべーす", ["データベース"]),
-    ],
-)
-async def test_by_title_matches_normalized_title(monkeypatch, keyword, expected):
-    """`q` は api-clean に送らず、全件を引いてから表記の揺れを畳んで照合する。"""
-    captured: list = []
-    titles = ["プログラミング基礎演習Ⅰ", "プログラミング基礎演習Ⅱ", "仏教の思想A",
-              "英語総合1（A）", "線形代数・演習", "データベース"]
-    _patch_client(monkeypatch, _title_handler(titles, captured))
-
-    result = await search_syllabi_by_title(keyword, year=2026, limit=10)
-
-    assert [r["course_title"] for r in result["results"]] == expected
-    assert result["count"] == len(expected)
-    assert all("q" not in p for p in captured)
-    assert all(p["year"] == "2026" for p in captured)
-
-
-@pytest.mark.asyncio
-async def test_by_title_walks_all_pages_then_applies_limit(monkeypatch):
-    """全件を500件ずつ辿り、`limit` / `offset` は照合後の並びに掛ける。"""
-    captured: list = []
-    titles = [f"演習{i}" if i % 2 else f"講義{i}" for i in range(1200)]
-    _patch_client(monkeypatch, _title_handler(titles, captured))
-
-    result = await search_syllabi_by_title("演習", limit=5, offset=2)
-
-    assert [p["offset"] for p in captured] == ["0", "500", "1000"]
-    assert [r["course_title"] for r in result["results"]] == ["演習5", "演習7", "演習9", "演習11", "演習13"]
-    assert result["offset"] == 2 and result["limit"] == 5
-
-
-@pytest.mark.asyncio
-async def test_by_title_with_instructor_spells_name(monkeypatch):
-    """教員名も指定されたら、教員名の表記の揺れを埋めて引いた行を科目名で照合する。"""
-    def handler(request: httpx.Request) -> httpx.Response:
-        params = dict(request.url.params)
-        name = params.get("instructor") or ""
-        rows = [
-            {"syllabus_code": "A1", "course_title": "データベース"},
-            {"syllabus_code": "A2", "course_title": "情報基礎"},
-        ] if name and name in f"山田{FULL_WIDTH}太郎" else []
-        if params.get("limit") == "1":
-            rows = rows[:1]
-        return httpx.Response(200, json={"count": len(rows), "limit": 0, "offset": 0, "results": rows})
-
-    _patch_client(monkeypatch, handler)
-
-    result = await search_syllabi_by_title("でーたべーす", instructor="山田太郎", limit=10)
-
-    assert [r["syllabus_code"] for r in result["results"]] == ["A1"]
-
 
 @pytest.mark.asyncio
 async def test_get_syllabus_path(monkeypatch):

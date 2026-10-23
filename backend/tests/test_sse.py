@@ -29,5 +29,5 @@ def test_sse_response_streams_events():
     resp = client.get("/stream")
     assert resp.status_code == 200
     assert resp.headers["content-type"].startswith("text/event-stream")
-    assert resp.headers["cache-control"] == "no-cache"
+    assert resp.headers["cache-control"] == "no-cache, no-transform"
     assert resp.text == 'data: {"delta": "こん"}\n\ndata: {"done": true}\n\n'

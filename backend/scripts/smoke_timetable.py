@@ -1,32 +1,27 @@
-"""実 vLLM + api-clean 相手の履修提案(POST /api/proposal)疎通スモーク。
-   使い方: python -m scripts.smoke_proposal [希望条件]
-   起動中の backend に HTTP で問い合わせる(既定 http://localhost:8000)。
-   compose なら docker compose exec backend python -m scripts.smoke_proposal。
+"""時間割の組み立て・アシスタント(`/api/timetable/*`)を実 vLLM + api-clean 相手に試すスモーク。
 
-   向き先は SMOKE_BASE_URL、無通信の打ち切り秒数は SMOKE_READ_TIMEOUT、
-   対象の学生は SMOKE_PROGRAM_CODE / SMOKE_ADMISSION_YEAR / SMOKE_GRADE で変えられる。
-   **提案する学期**(§7.2)は SMOKE_TARGET_YEAR(年度)/ SMOKE_TARGET_TERM(前期・後期)で
-   与え、省略時は今日の日付から frontend と同じ規則で決める(4月 → 同年度の前期、
-   5〜9月 → 同年度の後期、10〜3月 → 翌年度の前期。`frontend/lib/targetTerm.ts`)。
-   SMOKE_GRADE は今日時点の学年であり、提案する学期が次の年度に入るぶん繰り上げて送る。
+使い方(起動中の backend に HTTP で問い合わせる。既定 http://localhost:8000):
 
-   確かめるのは design.md §7.2 の次の点:
-   - snapshot が時間割を**逐次**組み上げていくこと(確定を待たずに描画できる)
-   - result がコマ重複のない、候補科目から採った提案になっていること(複数コマの
-     科目は全コマで見る。§5.3)
-   - result の科目が**すべて提案する学期のもの**であること(前期・後期が混ざらない)
-   - 修得済み・登録済みの科目を提案していないこと
-   - done で締めること
+    python -m scripts.smoke_timetable build ['{"freeDayCount": 1}']
+    python -m scripts.smoke_timetable chat "全休が欲しい" ["水曜は空けたい" ...]
 
-   別の学生データで試すときは、このモジュールの `main()` に履修科目の一覧を渡す
-   (`completed=[{"title": ..., "year": ..., "term": ..., "credits": ..., "status": ...}]`)。
+- `build` はモデルを呼ばない組み立て(`POST /api/timetable/build`)。時間割・レポート・
+  手順の数を出し、約束(コマが重ならない・対象学期の科目だけ・修得済みを入れない・
+  必修が入る)を確かめる。条件は JSON(camelCase)で渡す
+- `chat` はアシスタント(`POST /api/timetable/assistant`)に発話を順に送る。前の応答で
+  返った時間割と条件を次の発話に持ち越す。思考・ツールの呼び出し(引数)・組み立て・
+  本文を届いた時点で時刻つきで出し、1発話の所要時間と、時間割を組んだか(build_timetable を
+  呼んだか)を出す。設計案(docs/proposals/timetable-redesign.md)の実験 E1〜E4・E6 に使う
 
-   httpx.ASGITransport は使わない。応答を最後まで溜めてから返すため本文が
-   逐次見えず、かつ timeout が一切効かない(生成が詰まると止められない)。
+向き先は SMOKE_BASE_URL、無通信の打ち切り秒数は SMOKE_READ_TIMEOUT、対象の学生は
+SMOKE_PROGRAM_CODE / SMOKE_ADMISSION_YEAR / SMOKE_GRADE で変えられる。**対象学期**は
+SMOKE_TARGET_YEAR(年度)/ SMOKE_TARGET_TERM(前期・後期)で与え、省略時は今日の日付から
+frontend と同じ規則で決める(`frontend/lib/targetTerm.ts`)。
 
-   学生データはこのファイル内の合成プロファイルであり、実在の成績ではない。"""
+httpx.ASGITransport は使わない。応答を最後まで溜めてから返すため本文が逐次見えない。
+
+学生データはこのファイル内の合成プロファイルであり、実在の成績ではない。"""
 import asyncio
-import contextlib
 import json
 import os
 import sys
@@ -36,16 +31,13 @@ from datetime import date
 
 import httpx
 
-from app.agents.proposal_agent import registration_half
 from app.curricula.requirements import normalize_title
 from app.schemas.proposal import CourseSlot, slots_clash
+from app.timetable.offerings import registration_half
 
 BASE_URL = os.environ.get("SMOKE_BASE_URL", "http://localhost:8000")
-# トークン間の無通信がこれを超えたら打ち切る。提案の生成は候補科目を載せた長い
-# プロンプトを1回投げるだけだが、思考(reasoning)の間は何も流れない
+# トークン間の無通信がこれを超えたら打ち切る。思考(reasoning)の間は何も流れないことがある
 READ_TIMEOUT = float(os.environ.get("SMOKE_READ_TIMEOUT", "900"))
-# 最初の snapshot が届くまでの待ち時間を知らせる間隔
-HEARTBEAT = 30.0
 # backend の起動を待つ上限。compose の up 直後は listen まで数秒かかる
 STARTUP_WAIT = 60.0
 
@@ -157,36 +149,6 @@ def _target(grade_now: int, today: date) -> dict:
     return {"year": year, "term": term, "grade": grade}
 
 
-def request_body(
-    preferences: str | None,
-    *,
-    completed: list[dict],
-    grade: int,
-    target: dict,
-    program_code: str = PROGRAM_CODE,
-    program_name: str = PROGRAM_NAME,
-    admission_year: int = ADMISSION_YEAR,
-) -> dict:
-    """`POST /api/proposal` の本文(§6.1)。課程コードと提案する学期は profile と別に送る。"""
-    return {
-        "studentProfile": {
-            "grade": grade,
-            "program": program_name,
-            "completedCourses": completed,
-        },
-        "programCode": program_code,
-        "admissionYear": admission_year,
-        "preferences": preferences,
-        "targetTerm": target,
-    }
-
-
-def _payload(line: str) -> dict | None:
-    """SSE の1行から data のペイロードを取り出す。イベント区切りの空行等は None。"""
-    if not line.startswith("data: "):
-        return None
-    return json.loads(line.removeprefix("data: "))
-
 
 def _slots(course: dict) -> list[tuple[str | None, str, int]]:
     """科目1件が占めるコマ (学期, 曜日, 時限) の全部。
@@ -234,17 +196,6 @@ def _line(course: dict) -> str:
         f" {course.get('term') or '学期未定'}"
         f" {'?' if credits is None else credits}単位"
     )
-
-
-def _settled(snapshot: dict) -> list[dict]:
-    """snapshot のうち、値が届き終えた科目。
-
-    snapshot には完成した値だけが順に載る(§7.2)。科目名が届いた時点で出すと、
-    曜日・時限がまだ届いていない科目まで「未定」と書いてしまい、モデルがコマを
-    埋められなかったのか単に途中なのかが読めない。スキーマの最後のフィールドで
-    ある `reason` が載った時点をその科目の完成とみなす。
-    """
-    return [c for c in (snapshot.get("courses") or []) if c.get("reason")]
 
 
 def _grid(courses: list[dict]) -> str:
@@ -306,39 +257,52 @@ def _grid(courses: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def _check(result: dict, body: dict) -> list[str]:
-    """提案が §7.2 の約束を守っているかを確かめ、守れていない点を返す。
+def request_body(
+    *,
+    completed: list[dict],
+    grade: int,
+    target: dict,
+    timetable: list[dict] | None = None,
+    conditions: dict | None = None,
+    program_code: str = PROGRAM_CODE,
+    program_name: str = PROGRAM_NAME,
+    admission_year: int = ADMISSION_YEAR,
+) -> dict:
+    """時間割の文脈(§6.1)。課程コードと対象学期は profile と別に送る。"""
+    return {
+        "studentProfile": {
+            "grade": grade,
+            "program": program_name,
+            "completedCourses": completed,
+        },
+        "programCode": program_code,
+        "admissionYear": admission_year,
+        "targetTerm": target,
+        "timetable": timetable or [],
+        "conditions": conditions or {},
+    }
 
-    見るのは、全コマどうしでコマが重なっていないか(1コマ目だけを見ていた頃は
-    「金4・金5」の科目と金5の科目を並べていた)、提案する学期以外の科目が
-    混ざっていないか、修得済み・登録済みの科目を提案していないか、合計単位が
-    各科目の和と合うか、の4点である。
+
+def check(courses: list[dict], body: dict, report: dict) -> list[str]:
+    """時間割が約束を守っているかを確かめ、守れていない点を返す。
+
+    全コマどうしでコマが重なっていないか、対象学期以外の科目が混ざっていないか、
+    修得済み・登録済みの科目を入れていないか、合計単位が各科目の和と合うか。
     """
     problems: list[str] = []
-    courses = result.get("courses") or []
     target = body["targetTerm"]["term"]
-
     placed: list[tuple[str, CourseSlot]] = []
     for course in courses:
         title = course.get("title") or "?"
         mine = [CourseSlot(term=t, day=d, period=p) for t, d, p in _slots(course)]
         for slot in mine:
             for other_title, other in placed:
-                if slots_clash(slot, other):
-                    problems.append(
-                        f"コマ重複: {title} と {other_title}({slot.day}{slot.period}限)"
-                    )
+                if slots_clash(slot, other) and course.get("source") != "student":
+                    problems.append(f"コマ重複: {title} と {other_title}({slot.day}{slot.period}限)")
         placed.extend((title, slot) for slot in mine)
-
-    for course in courses:
         half = registration_half(course.get("term"))
         if half is not None and half != target:
-            problems.append(
-                f"提案する学期({target})以外の科目: {course.get('title')}({course.get('term')})"
-            )
-        elif half is None:
-            problems.append(f"学期が判定できない科目: {course.get('title')}({course.get('term')})")
-
+            problems.append(f"対象学期({target})以外の科目: {title}({course.get('term')})")
     taken = {
         normalize_title(c["title"]): c["status"]
         for c in body["studentProfile"]["completedCourses"]
@@ -347,138 +311,31 @@ def _check(result: dict, body: dict) -> list[str]:
     for course in courses:
         status = taken.get(normalize_title(course.get("title") or ""))
         if status:
-            label = "修得済み" if status == "passed" else "登録済み"
-            problems.append(f"{label}の科目を提案: {course.get('title')}")
-
-    credits = [c.get("credits") for c in courses]
-    if None not in credits and result.get("totalCredits") is not None:
-        if abs(sum(credits) - result["totalCredits"]) > 1e-6:
-            problems.append(f"合計単位の食い違い: totalCredits={result['totalCredits']} / 各科目の和={sum(credits)}")
+            problems.append(f"{'修得済み' if status == 'passed' else '登録済み'}の科目: {course.get('title')}")
+    total = sum(c.get("credits") or 0 for c in courses)
+    if report and report.get("credits", {}).get("total") != total:
+        problems.append(f"合計単位の食い違い: レポート {report['credits']['total']} / 各科目の和 {total}")
     return problems
 
 
-async def _wait_notice(started: float, state: dict) -> None:
-    """最初の snapshot が届くまで待機時間を知らせる。
-
-    思考(ThinkingPart)はクライアントに流れないため、モデルが考えている間は
-    何も届かない。無言で待たされると停止と区別がつかないので経過を出す。
-    """
-    while not state["started"]:
-        await asyncio.sleep(HEARTBEAT)
-        if state["started"]:
-            return
-        print(f"… 待機 {time.monotonic() - started:.0f}秒", flush=True)
-
-
-async def stream(client: httpx.AsyncClient, body: dict) -> None:
-    """SSE を受け、途中経過と確定版を表示する。
-
-    snapshot は値が1つ完成するたびに届き、全文を出すと読めないため、
-    **新しく確定した科目の行だけ**を出す。逐次描画が成立しているか
-    (確定を待たずに時間割が埋まっていくか)はこれで見る。
-    """
-    target = body["targetTerm"]
-    completed = body["studentProfile"]["completedCourses"]
-    counts = {s: sum(c["status"] == s for c in completed) for s in ("passed", "failed", "withdrawn", "registered")}
-    print(f"=== POST {BASE_URL}/api/proposal ===")
-    print(
-        f"対象: 課程コード {body['programCode']} / {body['admissionYear']}年度入学"
-        f" / 提案する学期 {target['year']}年度 {target['term']}({target['grade']}回生)"
-    )
-    print(
-        f"履修科目: 合格 {counts['passed']} / 不合格 {counts['failed']}"
-        f" / 辞退 {counts['withdrawn']} / 登録済み {counts['registered']}"
-    )
-    print(f"希望条件: {body['preferences'] or '(なし)'}")
-    started = time.monotonic()
-    state = {"started": False}
-    notice = asyncio.create_task(_wait_notice(started, state))
-    snapshots = 0
-    shown = 0
-    result: dict | None = None
-    adjustments: list[str] = []
-    done = False
-    try:
-        async with client.stream(
-            "POST", "/api/proposal", json=body
-        ) as resp:
-            print("status:", resp.status_code, resp.headers.get("content-type"))
-            if resp.status_code != 200:
-                # SSE ではなくエラー応答。本文を読まないと原因が分からない
-                await resp.aread()
-                print("body:", resp.text)
-                return
-
-            print(RULE)
-            async for line in resp.aiter_lines():
-                payload = _payload(line)
-                if payload is None:
-                    continue
-                if "snapshot" in payload:
-                    state["started"] = True
-                    snapshots += 1
-                    settled = _settled(payload["snapshot"])
-                    for course in settled[shown:]:
-                        print(f"  + {_line(course)}", flush=True)
-                    shown = len(settled)
-                elif "result" in payload:
-                    result = payload["result"]
-                    adjustments = payload.get("adjustments") or []
-                elif "error" in payload:
-                    state["started"] = True
-                    print(f"[error] {payload['error']}")
-                elif payload.get("done"):
-                    done = True
-    except httpx.ConnectError:
-        print(f"[接続失敗] {BASE_URL} に繋がらない。backend が起動しているか確認する")
-        return
-    except httpx.ReadTimeout:
-        print(f"[打ち切り] {READ_TIMEOUT:.0f}秒 応答が届かなかった")
-    finally:
-        notice.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await notice
-
-    print(RULE)
-    if result is not None:
-        courses = result.get("courses") or []
-        print(_grid(courses))
-        print(f"\n合計 {result.get('totalCredits')}単位 / {len(courses)}科目")
-        print(f"\n{result.get('summary')}")
-        print(RULE)
-        # backend が外した科目・打ち切りの記録。画面には出ない(§7.2.2)
-        if adjustments:
-            print("[backend の調整(学生には表示しない)]")
-            for note in adjustments:
-                print(f"  - {note}")
-        else:
-            print("backend の調整: なし")
-        print(RULE)
-        problems = _check(result, body)
-        if problems:
-            print("[要確認]")
-            for problem in problems:
-                print(f"  - {problem}")
-        else:
-            print(
-                "確認: コマ重複なし(全コマ) / 提案する学期以外の科目なし / "
-                "修得済み・登録済みの科目なし / 合計単位一致"
-            )
-        print(RULE)
-    print(
-        f"snapshot {snapshots}件 / result {'あり' if result else 'なし'}"
-        f" / done {'あり' if done else 'なし'}"
-        f" / {time.monotonic() - started:.1f}秒"
-    )
+def _show(courses: list[dict], report: dict) -> None:
+    print(_grid(courses))
+    for course in courses:
+        print("  " + _line(course) + f" ({course.get('reason') or ''})")
+    credits = report.get("credits", {})
+    print(f"単位 {credits.get('total')} / 登録できる単位 {credits.get('limit')}"
+          f" / 授業の無い平日: {'・'.join(report.get('freeDays') or []) or 'なし'}")
+    for status in report.get("conditions") or []:
+        print(f"  条件 {status['condition']}: {status['status']}({status['detail']})")
+    for short in report.get("remainingShortfall") or []:
+        print(f"  残る不足 {short['slot']}: {short['shortfall']}({short.get('reason') or ''})")
+    for item in report.get("needsConfirmation") or []:
+        print(f"  確かめること: {item}")
 
 
 async def _wait_for_server(client: httpx.AsyncClient) -> bool:
-    """backend が listen するまで待つ。
-
-    `docker compose up -d` の直後は uvicorn の起動が間に合わず接続できない。
-    """
+    """backend が listen するまで待つ。"""
     deadline = time.monotonic() + STARTUP_WAIT
-    notified = False
     while True:
         try:
             resp = await client.get("/healthz", timeout=5.0)
@@ -488,44 +345,131 @@ async def _wait_for_server(client: httpx.AsyncClient) -> bool:
             pass
         if time.monotonic() >= deadline:
             print(f"[接続失敗] {BASE_URL} に繋がらない。backend が起動しているか確認する")
-            print("  docker compose ps / docker compose logs --tail 30 backend")
             return False
-        if not notified:
-            print(f"{BASE_URL} の起動を待っています…")
-            notified = True
         await asyncio.sleep(1.0)
 
 
-async def main(
-    preferences: str | None = None,
-    *,
-    completed: list[dict] | None = None,
-    grade: int = GRADE,
-    target: dict | None = None,
-    today: date | None = None,
-    **profile,
-) -> None:
-    """提案を1回頼んで表示する。
+async def build(client: httpx.AsyncClient, body: dict) -> None:
+    started = time.monotonic()
+    resp = await client.post("/api/timetable/build", json=body)
+    elapsed = time.monotonic() - started
+    if resp.status_code != 200:
+        print(f"[失敗] {resp.status_code} {resp.text[:300]}")
+        return
+    data = resp.json()
+    print(f"組み立て: {elapsed:.1f}秒 / 手順 {len(data['steps'])}件")
+    _show(data["timetable"], data["report"])
+    print("\n" + data["message"])
+    problems = check(data["timetable"], body, data["report"])
+    print("\n" + ("[約束違反]\n  " + "\n  ".join(problems) if problems else "[OK] 約束を守っている"))
 
-    Args:
-        completed: 履修科目(`completedCourses`)。省略時は埋め込みの合成プロファイル。
-        grade: 今日(`today`)時点の学年。
-        target: 提案する学期 `{"year", "term", "grade"}`。省略時は今日から決める。
-        profile: `program_code` / `program_name` / `admission_year` の上書き。
+
+def _settle_tools(latest: dict[str, dict], printed: dict[str, dict]) -> None:
+    """ツールの呼び出しごとに、確定した引数をまだ出していなければ出す。
+
+    モデルは複数のツールを並べて呼ぶことがあり、書きかけの引数は呼び出し(id)ごとに
+    入れ替わりながら届く。呼び出しの始まりと、引数が落ち着いたところだけを出す。
     """
+    for call_id, act in latest.items():
+        if printed.get(call_id) != act["args"]:
+            args = json.dumps(act["args"], ensure_ascii=False)
+            print(f"           {act['tool']} の引数 {args}", flush=True)
+            printed[call_id] = act["args"]
+
+
+async def chat(client: httpx.AsyncClient, body: dict, utterances: list[str]) -> None:
+    """発話を順に送る。思考・ツールの呼び出し・本文は届いた時点で出す(待っている間も進み具合が見える)。"""
+    messages: list[dict] = []
+    for text in utterances:
+        messages.append({"role": "user", "content": text})
+        print(f"\n{RULE}\n学生: {text}", flush=True)
+        started = time.monotonic()
+        first: float | None = None
+        reply = ""
+        built = False
+        thinking = 0
+        # 呼び出し(id)ごとの最新の引数と、出した引数
+        tools: dict[str, dict] = {}
+        tools_printed: dict[str, dict] = {}
+        thinking_now = False
+
+        async with client.stream(
+            "POST", "/api/timetable/assistant", json={**body, "messages": messages}
+        ) as resp:
+            if resp.status_code != 200:
+                print(f"[失敗] {resp.status_code} {(await resp.aread())[:300]!r}")
+                return
+            async for line in resp.aiter_lines():
+                if not line.startswith("data: "):
+                    continue
+                event = json.loads(line.removeprefix("data: "))
+                now = time.monotonic() - started
+                if first is None:
+                    first = now
+                if "activity" in event:
+                    thinking_now = False
+                    act = event["activity"]
+                    call_id = str(act.get("id"))
+                    if call_id not in tools:
+                        print(f"  [{now:5.1f}s] {act['label']}", flush=True)
+                    tools[call_id] = act
+                    continue
+                _settle_tools(tools, tools_printed)
+                if "thinking" in event:
+                    # ツールの後にモデルがもう一度考え始めたときも出す(待っている間に何をしているか)
+                    if not thinking_now:
+                        print(f"  [{now:5.1f}s] 考えている…", flush=True)
+                        thinking_now = True
+                    thinking += len(event["thinking"])
+                    continue
+                thinking_now = False
+                if "build" in event:
+                    built = True
+                elif "timetable" in event:
+                    body["timetable"] = event["timetable"]["courses"]
+                    print(f"  [{now:5.1f}s] 時間割を受け取った")
+                    _show(event["timetable"]["courses"], event["timetable"]["report"])
+                    problems = check(event["timetable"]["courses"], body, event["timetable"]["report"])
+                    if problems:
+                        print("  [約束違反] " + " / ".join(problems))
+                elif "conditions" in event:
+                    body["conditions"] = event["conditions"]
+                elif "delta" in event:
+                    if not reply:
+                        print(f"  [{now:5.1f}s] 本文を書き始めた\nAI: ", end="", flush=True)
+                    reply += event["delta"]
+                    print(event["delta"], end="", flush=True)
+                elif "error" in event:
+                    print(f"\n  [エラー] {event['error']}", flush=True)
+        total = time.monotonic() - started
+        if not reply:
+            print("AI: (本文なし)")
+        print(
+            f"\n(最初のイベント {first or 0:.1f}秒 / 合計 {total:.1f}秒 / 思考 {thinking}字 / "
+            f"時間割を{'組んだ' if built else '組んでいない'})",
+            flush=True,
+        )
+        messages.append({"role": "assistant", "content": reply})
+
+
+async def main(argv: list[str]) -> None:
+    command = argv[0] if argv else "build"
     body = request_body(
-        preferences,
-        completed=completed if completed is not None else _default_completed(),
-        grade=grade,
-        target=target or _target(grade, today or date.today()),
-        **profile,
+        completed=_default_completed(), grade=GRADE, target=_target(GRADE, date.today())
     )
     timeout = httpx.Timeout(READ_TIMEOUT, connect=5.0)
     async with httpx.AsyncClient(base_url=BASE_URL, timeout=timeout) as client:
         if not await _wait_for_server(client):
             return
-        await stream(client, body)
+        if command == "build":
+            if len(argv) > 1:
+                body["conditions"] = json.loads(argv[1])
+            await build(client, body)
+        elif command == "chat":
+            await chat(client, body, argv[1:] or ["全休が欲しい"])
+        else:
+            print(__doc__)
 
 
 if __name__ == "__main__":
-    asyncio.run(main(" ".join(sys.argv[1:]) or None))
+    asyncio.run(main(sys.argv[1:]))

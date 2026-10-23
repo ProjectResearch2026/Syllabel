@@ -94,7 +94,7 @@ async def api_get_masters():
 # ため ETag を効かせて再送を避けられる。2026年度・先端理工学部で 1,219 コード /
 # 約 99KB / gzip 約 4KB。
 
-# 一括取得の1ページあたりの件数と、辿るページ数の上限(`proposal_agent` と同じ根拠)
+# 一括取得の1ページあたりの件数と、辿るページ数の上限(`app/timetable/offerings.py` と同じ根拠)
 _PAGE_SIZE = 500
 _MAX_PAGES = 40
 

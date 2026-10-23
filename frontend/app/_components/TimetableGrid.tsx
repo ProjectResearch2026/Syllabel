@@ -1,6 +1,5 @@
 "use client";
 
-import { useCallback, useRef } from "react";
 import {
   AREA_TAG,
   CELL_STYLES,
@@ -14,8 +13,6 @@ import {
 import type { SlotTarget } from "./SlotPopover";
 import type { CourseTarget } from "./CourseMenu";
 
-const LONG_PRESS_MS = 450;
-const MOVE_TOLERANCE = 10;
 /** 1コマの高さ(px)。画面に収めるときは呼び出し側が `rowHeight` で詰める */
 export const DEFAULT_ROW_HEIGHT = 72;
 /** 詰めても下回らない高さ。科目名1行と区分・履修区分のバッジ(2段)が収まる */
@@ -95,75 +92,32 @@ function Tags({ entry }: { entry: SlotEntry }) {
  *
  * 土曜の列は土曜に科目が入ったときだけ出す（`visibleDays()`）。
  *
- * 操作は2つ。
+ * 操作は2つ。どちらも1回のタップで開く（PC と同じ）。
  *  - 科目をタップ → 選択。Ask Bar の文脈がその科目に絞られる（STEP2）。
  *    同時にその場のメニュー（`CourseMenu`）で、シラバスを開く・別の科目に変更する・
  *    時間割から外す・AIに相談する を選べる
- *  - 空きコマを長押し → その場のメニュー（STEP3）
+ *  - 空きコマをタップ → その場のメニュー（`SlotPopover`。STEP3）
  */
 export default function TimetableGrid({
   table,
   unscheduled,
-  loading,
+  freeDays = [],
   selected,
   onTapCourse,
   onTapEmpty,
-  onLongPressEmpty,
   rowHeight,
 }: {
   table: SlotTable;
   unscheduled: SlotEntry[];
-  loading?: boolean;
+  /** 全休の曜日。列を薄くし、見出しに印を付ける（design.md §8.3.7） */
+  freeDays?: string[];
   selected: SelectedCourse | null;
   onTapCourse: (target: CourseTarget) => void;
-  /** 空きコマを軽く押した。選択を外す */
-  onTapEmpty?: () => void;
-  onLongPressEmpty: (target: SlotTarget) => void;
+  /** 空きコマを押した */
+  onTapEmpty: (target: SlotTarget) => void;
   /** 1コマの高さ(px)。省略時は `DEFAULT_ROW_HEIGHT` */
   rowHeight?: number;
 }) {
-  const timer = useRef<number | null>(null);
-  const fired = useRef(false);
-  const origin = useRef<{ x: number; y: number } | null>(null);
-
-  const cancel = useCallback(() => {
-    if (timer.current !== null) {
-      window.clearTimeout(timer.current);
-      timer.current = null;
-    }
-    origin.current = null;
-  }, []);
-
-  const startPress = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>, day: string, period: number) => {
-      const el = e.currentTarget;
-      fired.current = false;
-      origin.current = { x: e.clientX, y: e.clientY };
-      timer.current = window.setTimeout(() => {
-        const rect = el.getBoundingClientRect();
-        fired.current = true;
-        timer.current = null;
-        onLongPressEmpty({
-          day,
-          period,
-          rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
-        });
-      }, LONG_PRESS_MS);
-    },
-    [onLongPressEmpty],
-  );
-
-  const trackMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (!origin.current) return;
-      const moved =
-        Math.abs(e.clientX - origin.current.x) > MOVE_TOLERANCE ||
-        Math.abs(e.clientY - origin.current.y) > MOVE_TOLERANCE;
-      if (moved) cancel();
-    },
-    [cancel],
-  );
-
   const isSelected = (entry: SlotEntry) => selected?.key === entryKey(entry);
   const days = visibleDays(table);
   const columns = columnsOf(days);
@@ -178,9 +132,12 @@ export default function TimetableGrid({
         {days.map((day) => (
           <div
             key={day}
-            className="flex items-center justify-center border-r border-border-primary last:border-r-0"
+            className="flex items-center justify-center gap-0.5 border-r border-border-primary last:border-r-0"
           >
             <span className="text-[13px] font-semibold text-fg-primary">{day}</span>
+            {freeDays.includes(day) && (
+              <span className="text-[8px] font-semibold text-fg-tertiary motion-safe:animate-fade-in">全休</span>
+            )}
           </div>
         ))}
       </div>
@@ -205,32 +162,25 @@ export default function TimetableGrid({
 
             return (
               <div
-                key={day}
-                onContextMenu={(e) => e.preventDefault()}
-                onPointerDown={(e) => {
-                  // 長押しメニューは空きコマだけ（STEP3）
-                  if (!first) startPress(e, day, period);
-                }}
-                onPointerMove={trackMove}
-                onPointerCancel={cancel}
-                onPointerLeave={cancel}
-                onPointerUp={() => {
-                  const wasLongPress = fired.current;
-                  cancel();
-                  if (wasLongPress) return;
-                  if (!first) onTapEmpty?.();
-                }}
-                // 科目は pointerup ではなく click で開く。pointerup でメニューを開くと、
-                // タップのあとに届く click がメニューのスクリムに当たって即座に閉じる
+                // 科目が入れ替わったマスだけを作り直し、現れる動きを流す(組み立ての手順を
+                // 1手ずつ描くとき。§8.3.7)
+                key={`${day}:${entries.map(entryKey).join("|")}`}
+                // 科目も空きコマも pointerup ではなく click で開く。pointerup でメニューを
+                // 開くと、タップのあとに届く click がメニューのスクリムに当たって即座に閉じる
                 onClick={(e) => {
-                  if (first && !multi) onTapCourse({ entry: first, day, period, rect: rectOf(e.currentTarget) });
+                  if (!first) onTapEmpty({ day, period, rect: rectOf(e.currentTarget) });
+                  else if (!multi) onTapCourse({ entry: first, day, period, rect: rectOf(e.currentTarget) });
                 }}
                 // 複数ならマスは白のままにし、科目ごとに区分の色の枠を積む(PC と同じ)。
                 // マスごと塗ると2科目が1つの色に溶け、科目が2つあると読めない
                 className={`relative flex min-w-0 flex-col justify-center border-r border-border-primary last:border-r-0 ${
                   multi ? "gap-1 px-0.5 py-1" : "gap-0.5 px-1 py-1.5"
-                } ${first && !multi ? CELL_STYLES[first.type].cell : "bg-surface-primary"} ${
-                  loading ? "animate-pulse" : ""
+                } ${
+                  first && !multi
+                    ? `${CELL_STYLES[first.type].cell} motion-safe:animate-pop-in`
+                    : freeDays.includes(day)
+                      ? "bg-surface-soft"
+                      : "bg-surface-primary"
                 } ${ringed ? "z-10 rounded-lg ring-2 ring-accent" : ""}`}
               >
                 {multi

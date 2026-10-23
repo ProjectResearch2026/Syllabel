@@ -20,7 +20,7 @@
 含めない。本モジュールは学生データをログに出さない(§4.2.3)。
 """
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -30,10 +30,6 @@ from app.curricula.merge import MergedCourse, MergedCurriculum
 from app.curricula.titles import normalize_title  # noqa: F401 - 従来の import 先を保つ
 from app.schemas.curriculum import Accepts, CurriculumCourse, RequirementSlot
 from app.schemas.student import Course as StudentCourse
-
-# 単位数は 0.5 刻みで現れ得るため float で扱う。浮動小数の誤差で「あと 1e-16 単位
-# 不足」と出さないための閾値
-_EPSILON = 1e-9
 
 
 class RequirementsError(ValueError):
@@ -63,7 +59,7 @@ class AssignedCourse(BaseModel):
     """
 
     title: str
-    credits: float
+    credits: int
 
 
 class SlotStatus(BaseModel):
@@ -78,8 +74,8 @@ class SlotStatus(BaseModel):
     key: str
     name: str
     required: int
-    earned: float
-    shortfall: float
+    earned: int
+    shortfall: int
     notes: str | None = None
     courses: list[AssignedCourse] = []
 
@@ -97,15 +93,15 @@ class TrackConstraintStatus(BaseModel):
     track_group: str
     pool: int
     required: int
-    earned: float
-    shortfall: float
+    earned: int
+    shortfall: int
 
 
 class UncountedCourse(BaseModel):
     """卒業要件単位に算入しなかった科目(またはその一部)と、その理由。"""
 
     title: str
-    credits: float
+    credits: int
     reason: UncountedReason
 
 
@@ -131,8 +127,8 @@ class RequirementsResult(BaseModel):
     program_code: str
     admission_year: int
     total_credits: int
-    earned_credits: float
-    remaining_credits: float
+    earned_credits: int
+    remaining_credits: int
     satisfied: bool
     slots: list[SlotStatus]
     track: str | None = None
@@ -188,9 +184,9 @@ class _Unit:
 
     title: str
     course: MergedCourse
-    credits: float
+    credits: int
     # `credit_caps` の超過分を `overflow_to` 先へ直接送る指定(枠の `accepts` は見ない)
-    forced: list[tuple[str, float]] = field(default_factory=list)
+    forced: list[tuple[str, int]] = field(default_factory=list)
 
 
 def judge(
@@ -228,8 +224,8 @@ def judge(
             key=slot.key,
             name=slot.name,
             required=slot.credits,
-            earned=_round(earned[slot.key]),
-            shortfall=_round(max(0.0, slot.credits - earned[slot.key])),
+            earned=earned[slot.key],
+            shortfall=max(0, slot.credits - earned[slot.key]),
             notes=slot.notes,
             courses=assigned[slot.key],
         )
@@ -238,18 +234,16 @@ def judge(
 
     constraints = _track_constraints(curriculum, slots, units, track)
     total_earned = sum(status.earned for status in slot_statuses)
-    satisfied = all(s.shortfall <= _EPSILON for s in slot_statuses) and all(
-        c.shortfall <= _EPSILON for c in constraints
+    satisfied = all(s.shortfall == 0 for s in slot_statuses) and all(
+        c.shortfall == 0 for c in constraints
     )
 
     return RequirementsResult(
         program_code=curriculum.program.code,
         admission_year=curriculum.admission_year,
         total_credits=curriculum.graduation.total_credits,
-        earned_credits=_round(total_earned),
-        remaining_credits=_round(
-            max(0.0, curriculum.graduation.total_credits - total_earned)
-        ),
+        earned_credits=total_earned,
+        remaining_credits=max(0, curriculum.graduation.total_credits - total_earned),
         satisfied=satisfied,
         slots=slot_statuses,
         track=track,
@@ -320,7 +314,7 @@ def _collect(
     for entry in completed:
         if entry.status != "passed":
             continue
-        credits = float(entry.credits)
+        credits = entry.credits
         normalized = normalize_title(entry.title)
         course = index.get(entry.title) or index.get(normalized)
         if course is None:
@@ -358,7 +352,7 @@ def _apply_credit_caps(
     """
     for cap in curriculum.credit_caps:
         titles = {normalize_title(t) for t in cap.titles}
-        allowance = float(cap.max_credits)
+        allowance = cap.max_credits
         for unit in units:
             if normalize_title(unit.title) not in titles:
                 continue
@@ -366,12 +360,12 @@ def _apply_credit_caps(
             excess = unit.credits - countable
             allowance -= countable
             unit.credits = countable
-            if excess <= _EPSILON:
+            if excess <= 0:
                 continue
             if cap.overflow_to is None:
                 uncounted.append(
                     UncountedCourse(
-                        title=unit.title, credits=_round(excess), reason="over_credit_cap"
+                        title=unit.title, credits=excess, reason="over_credit_cap"
                     )
                 )
             else:
@@ -391,12 +385,85 @@ def _downstream(slots: dict[str, RequirementSlot], key: str) -> set[str]:
     return reached
 
 
+def _entry_slot(
+    curriculum: MergedCurriculum,
+    course: CurriculumCourse,
+    order: dict[str, int],
+    downstream: dict[str, set[str]],
+) -> RequirementSlot | None:
+    """科目の単位を最初に計上する要件枠。受け入れる枠が無ければ None。
+
+    受け入れる枠のうち**最も条件の多いもの**とし、同数のときは他の候補を下流に持つ枠
+    (カスケードの上流)を先にする(`_assign()` の規則)。
+    """
+    candidates = [
+        slot for slot in curriculum.requirement_slots if accepts_course(slot.accepts, course)
+    ]
+    if not candidates:
+        return None
+    keys = {c.key for c in candidates}
+    return min(
+        candidates,
+        key=lambda s: (-_specificity(s.accepts), -len(downstream[s.key] & keys), order[s.key]),
+    )
+
+
+def entry_slot_keys(curriculum: MergedCurriculum) -> "EntrySlots":
+    """科目 → 単位を最初に計上する要件枠の key を引く関数と、溢れの段を返す。
+
+    履修提案の組み立て(`app/timetable/builder.py`)が、科目を1つ足したときに単位が
+    どの枠に入るかを判定し直さずに見積もるのに使う。起点の決め方は `judge()` と
+    同じ関数(`_entry_slot()`)であり、規則を二重に持たない。
+    """
+    slots = curriculum.slots_by_key
+    order = {slot.key: i for i, slot in enumerate(curriculum.requirement_slots)}
+    downstream = {
+        slot.key: _downstream(slots, slot.key) for slot in curriculum.requirement_slots
+    }
+
+    def entry(course: CurriculumCourse) -> str | None:
+        slot = _entry_slot(curriculum, course, order, downstream)
+        return slot.key if slot is not None else None
+
+    return EntrySlots(entry=entry, levels=_overflow_levels(curriculum))
+
+
+@dataclass(frozen=True)
+class EntrySlots:
+    """`entry_slot_keys()` の戻り値。
+
+    `levels` は要件枠の溢れの段で、どこからも溢れを受けない枠が 0、溢れを受ける枠は
+    送り元の段の最大 + 1 である(受け皿ほど大きい)。
+    """
+
+    entry: Callable[[CurriculumCourse], str | None]
+    levels: dict[str, int]
+
+
+def _overflow_levels(curriculum: MergedCurriculum) -> dict[str, int]:
+    """要件枠ごとの溢れの段。循環はマージ時に検査済み(§4.4.3)。"""
+    sources: dict[str, list[str]] = {slot.key: [] for slot in curriculum.requirement_slots}
+    for slot in curriculum.requirement_slots:
+        if slot.overflow_to is not None and slot.overflow_to in sources:
+            sources[slot.overflow_to].append(slot.key)
+    levels: dict[str, int] = {}
+
+    def level(key: str) -> int:
+        if key not in levels:
+            levels[key] = 1 + max((level(s) for s in sources[key]), default=-1)
+        return levels[key]
+
+    for key in sources:
+        level(key)
+    return levels
+
+
 def _assign(
     curriculum: MergedCurriculum,
     slots: dict[str, RequirementSlot],
     units: list[_Unit],
     uncounted: list[UncountedCourse],
-) -> tuple[dict[str, float], dict[str, list[AssignedCourse]]]:
+) -> tuple[dict[str, int], dict[str, list[AssignedCourse]]]:
     """各科目を要件枠へ割り当て、埋まった分は `overflow_to` 先へ送る。
 
     割り当ての起点は、その科目を受け入れる枠のうち**最も条件の多いもの**とし、
@@ -413,18 +480,18 @@ def _assign(
     downstream = {
         slot.key: _downstream(slots, slot.key) for slot in curriculum.requirement_slots
     }
-    earned: dict[str, float] = {key: 0.0 for key in slots}
+    earned: dict[str, int] = {key: 0 for key in slots}
     assigned: dict[str, list[AssignedCourse]] = {key: [] for key in slots}
 
-    def cascade(start: str, title: str, amount: float) -> float:
+    def cascade(start: str, title: str, amount: int) -> int:
         """`start` から下流へ順に計上し、計上しきれなかった単位数を返す。"""
         key: str | None = start
-        while amount > _EPSILON and key is not None:
+        while amount > 0 and key is not None:
             slot = slots[key]
             take = min(slot.credits - earned[key], amount)
-            if take > _EPSILON:
+            if take > 0:
                 earned[key] += take
-                assigned[key].append(AssignedCourse(title=title, credits=_round(take)))
+                assigned[key].append(AssignedCourse(title=title, credits=take))
                 amount -= take
             key = slot.overflow_to
         return amount
@@ -432,41 +499,29 @@ def _assign(
     for unit in units:
         for slot_key, amount in unit.forced:
             left = cascade(slot_key, unit.title, amount)
-            if left > _EPSILON:
+            if left > 0:
                 uncounted.append(
                     UncountedCourse(
-                        title=unit.title, credits=_round(left), reason="no_slot_capacity"
+                        title=unit.title, credits=left, reason="no_slot_capacity"
                     )
                 )
-        if unit.credits <= _EPSILON:
+        if unit.credits <= 0:
             continue
-        candidates = [
-            slot
-            for slot in curriculum.requirement_slots
-            if accepts_course(slot.accepts, unit.course)
-        ]
-        if not candidates:
+        entry = _entry_slot(curriculum, unit.course, order, downstream)
+        if entry is None:
             uncounted.append(
                 UncountedCourse(
                     title=unit.title,
-                    credits=_round(unit.credits),
+                    credits=unit.credits,
                     reason="no_matching_slot",
                 )
             )
             continue
-        entry = min(
-            candidates,
-            key=lambda s: (
-                -_specificity(s.accepts),
-                -len(downstream[s.key] & {c.key for c in candidates}),
-                order[s.key],
-            ),
-        )
         left = cascade(entry.key, unit.title, unit.credits)
-        if left > _EPSILON:
+        if left > 0:
             uncounted.append(
                 UncountedCourse(
-                    title=unit.title, credits=_round(left), reason="no_slot_capacity"
+                    title=unit.title, credits=left, reason="no_slot_capacity"
                 )
             )
 
@@ -498,7 +553,7 @@ def _track_constraints(
         earned = sum(
             unit.credits
             for unit in units
-            if unit.credits > _EPSILON
+            if unit.credits > 0
             and accepts_course(accepts, unit.course)
             and constraint.track_group in (unit.course.track_groups or [])
         )
@@ -508,13 +563,8 @@ def _track_constraints(
                 track_group=constraint.track_group,
                 pool=constraint.pool,
                 required=constraint.min,
-                earned=_round(earned),
-                shortfall=_round(max(0.0, constraint.min - earned)),
+                earned=earned,
+                shortfall=max(0, constraint.min - earned),
             )
         )
     return statuses
-
-
-def _round(value: float) -> float:
-    """単位数を丸める。0.5 刻みの加減算で出る浮動小数の誤差を落とす。"""
-    return round(value, 2)

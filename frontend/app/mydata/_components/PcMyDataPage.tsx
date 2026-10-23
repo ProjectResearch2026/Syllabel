@@ -103,7 +103,7 @@ export default function PcMyDataPage() {
   // 取り込みは不合格・履修辞退も含む全科目。単位に数えるのは合格したものだけ(要件§4.2)
   const passedCourses = profile.completedCourses.filter((c) => c.status === "passed");
   const totalCredits = passedCourses.reduce((sum, c) => sum + c.credits, 0);
-  // 不合格と履修辞退は「未修得」に丸める(設計書 §6.1。再履修の対象として同じ扱い)
+  // 不合格と履修辞退は「未修得」に丸める(設計書 §6.1)
   const unearnedCourses = profile.completedCourses.filter(isUnearned);
   // 登録済みで成績が未確定(成績表の `***` / `*`)。履修提案の候補から外れる
   const registeredCourses = profile.completedCourses.filter((c) => c.status === "registered");
@@ -192,7 +192,7 @@ export default function PcMyDataPage() {
 
         {/* 不合格・履修辞退。単位にはならないが再履修の提案に使う(設計書 §6.1) */}
         {unearnedCourses.length > 0 && (
-          <CourseSection title="未修得科目（再履修の対象）" courses={unearnedCourses} unearned />
+          <CourseSection title="未修得科目" courses={unearnedCourses} unearned />
         )}
 
         {registeredCourses.length > 0 && (

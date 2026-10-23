@@ -1,4 +1,4 @@
-# 履修登録支援AIチャットボット 設計書(v0.9.82)— §5 データ設計
+# 履修登録支援AIチャットボット 設計書(v0.9.95)— §5 データ設計
 
 > 本ファイルは [`docs/design.md`](../design.md) の一部である。§番号は設計書全体で通し番号であり、他ファイルの節を `§X.Y` の形で参照する。全ファイルの対応表は [design.md](../design.md) の「0.3 本書の構成」を参照。
 
@@ -371,7 +371,7 @@ type Course = {
   title: string          // 科目名
   year: number           // 履修年度
   term: "前期" | "後期" | "通年" | "1Q" | "2Q" | "3Q" | "4Q" | "サ集"
-  credits: number
+  credits: number        // 単位数。整数(backend は int で受け、小数は 422)
   status: "passed" | "failed" | "withdrawn" | "registered"
 }
 
@@ -415,7 +415,12 @@ type ChatMessage = {
   role: "user" | "assistant"
   content: string
   time: string
-  proposals?: ProposedCourse[]   // 提案チャットが返した候補科目(§5.3)
+  trace?: TraceItem[]            // 思考とツールの呼び出しを届いた順に(§6.1.1、§8.3.7)
+
+// 思考はツールの呼び出しを挟むたびに別の項目になる。endedAt が無いあいだは続いている
+type TraceItem =
+  | { kind: "thinking"; text: string; startedAt: number; endedAt?: number }
+  | { kind: "tool"; activity: AgentActivity; startedAt: number; endedAt?: number }
   streaming?: boolean            // SSE 受信中(§6.1.1)
 }
 
@@ -431,34 +436,44 @@ type ChatState = {
 
 `streaming` は SSE 受信中のメッセージに立てる印であり、`done`(§6.1.1)を受け取った時点で下ろす。
 
-#### 5.2.3 履修提案の受信状態(Zustand `proposal.ts`)
+#### 5.2.3 時間割の状態(Zustand `proposal.ts`)
 
 ```typescript
 type ProposalStatus = "idle" | "loading" | "done" | "error"
 
 type ProposalState = {
   status: ProposalStatus
-  courses: ProposedCourse[]   // §5.3。snapshot / result のいずれも入る
+  courses: ProposedCourse[]       // §5.3。組み立ての途中は手順で描いた途中の表
   totalCredits: number
-  message: string             // 提案の summary(§5.3)
-  preferences: string         // 直前に送った希望条件(§6.1)。再提案の案内に示す
+  message: string                 // 直近の組み立ての説明(「希望条件なしで提案する」の吹き出し)
+  conditions: TimetableConditions // 時間割の形についての条件(§7.2.2)。毎回のリクエストに載せる
+  report: TimetableReport | null  // 時間割についての事実(§7.2.3)
+  reportStale: boolean            // 手で直して report が古くなった(§8.3.6)
+  stepLabel: string | null        // 組み立ての途中に表の下に出す今の1手(§8.3.7)
+  stepFreeDays: string[]          // 組み立ての途中で全休にした曜日
+  busy: boolean                   // アシスタントが応答している
+  replacing: ReplaceTarget | null // 「別の科目に変更」の途中(§8.3.6)
 }
 ```
 
-**`status` の4値は「提案を持っているか」と「生成中か」を表す。** `/proposal` の入力欄の宛先(§8.3.1)と画面の出し分け(§8.3.2)がこの値だけで決まるため、意味を次のとおり固定する。
+**`status` の4値は「時間割を持っているか」と「組み立て中か」を表す。** 画面の出し分け(§8.3.2)と編集の可否(§8.3.6)がこの値で決まるため、意味を次のとおり固定する。
 
 | 値 | 意味 |
 |---|---|
-| `idle` | **まだ投げていない。** 画面に到達した直後と、再提案で提案を捨てた直後(§8.3.3) |
-| `loading` | `POST /api/proposal` の応答を受信中。`courses` に入るのは `snapshot`(§6.1.1)であり確定していない |
-| `done` | `result`(§6.1.1)を受け取った。**提案を持っている状態はこれだけである** |
-| `error` | 生成に失敗した、または前提(課程コード・入学年度・学年)が揃わず投げられない |
+| `idle` | **まだ時間割が無い。** 画面に到達した直後 |
+| `loading` | 時間割を組んでいる。組み立ての手順(`step`。§6.1.1)を1手ずつ描いているあいだも含む。`courses` は組み上がる途中であり確定していない |
+| `done` | 組み上がった(`timetable` イベント、または `/api/timetable/build` の応答)、または学生が自分で科目を登録した。**時間割を持っている状態はこれだけである** |
+| `error` | 組み立てに失敗した |
 
-`preferences` は `POST /api/proposal` に送った本文をそのまま保つ。再提案では提案チャットの履歴を退避する(§8.3.3)ため、**退避してもなお「前回この条件で頼んだ」ことを示せるのはここだけ**である。他の3本と同じく永続化しない(要件§5.2)。
+**アシスタントが応答しているか(`busy`)は `status` と別に持つ。** 質問に答えているだけのときも時間割の編集を止める — 応答の途中で組み直しが届くと、編集が上書きされるためである。入力欄は `busy` と `loading` のどちらのあいだも止める(§8.3.1)。
 
-### 5.3 履修提案の出力スキーマ
+**組み立てを始めても、前の時間割は手順を描き始めるまで残す。** `/api/timetable/build` の応答を待つあいだに表が空になると、失敗したときに元へ戻せない。組み上がらずに終わったとき(失敗・中断)は、始める前の時間割へ戻す(`lib/timetableBuild.ts`)。
 
-履修提案(§7.2)は、PydanticAI の構造化出力として次の形で受け取る(実体は `app/schemas/proposal.py`)。JSON は camelCase で出入りする。
+`conditions` と `report` は backend の値をそのまま持ち、画面で組み立てない。他の5本と同じく永続化しない(要件§5.2)。
+
+### 5.3 時間割の科目のスキーマ
+
+時間割の1科目は次の形で持つ(実体は `app/schemas/proposal.py`、frontend は `lib/chatApi.ts`)。組み立て(§7.2)が返し、frontend が保持して `/api/timetable/*` に送り返す。JSON は camelCase で出入りする。
 
 ```python
 class CourseSlot:                # 開講コマ1つ。api-clean の slots の1要素(§6.2)
@@ -473,22 +488,19 @@ class ProposedCourse:
     period: int | None           # 1コマ目の時限(1〜5)
     term: str | None             # 1コマ目の開講学期(前期 / 後期 / 通年 / 1Q など)
     slots: list[CourseSlot]      # 開講コマのすべて(原文の順)。集中講義は空
-    credits: float | None
+    credits: int | None
     category: str | None         # 履修区分(必修 / 選択必修 / 選択)
     course_category: str | None  # 区分(専門基礎科目 / 専門応用科目 / 専門関連科目 / 教養教育科目)
     subcategory: str | None      # 分野(人文科学系科目 など)。教養教育科目のみ
-    reason: str                  # この科目を勧める理由。1文(§7.2.1 規則8)
-
-class TimetableProposal:
-    courses: list[ProposedCourse]
-    total_credits: float | None
-    summary: str                 # 提案全体の方針と履修上の注意点(§7.2.1 規則9)
+    reason: str                  # この科目を入れた理由(「専門応用科目(選択)の不足を埋める」など)
+    source: Literal["assistant", "student"] = "assistant"   # 誰が時間割に入れたか
 ```
 
-- **必須は `title` / `reason` / `courses` / `summary` の4つに絞る。** 残りを省略可能にするのは、集中講義のように曜日・時限が定まらない科目と、開講情報を突合できなかった科目を、値の捏造ではなく null として表せるようにするためである。各フィールドの説明文はそのままモデルへの指示になるため、「不明なら null」を明記する
-- **モデルがこの形を直接書くのではない。** モデルが書くのは下書き(シラバスコードと理由、全体の説明)で、backend が候補一覧から残りを補ってこの形に組み上げる(§7.2.2)。下書きの `syllabusCode` はその回の候補コードの列挙であり、`courses` の件数には暴走止めの上限がある
+- **必須は `title` / `reason` の2つに絞る。** 残りを省略可能にするのは、集中講義のように曜日・時限が定まらない科目と、開講情報を突合できなかった科目を、値の捏造ではなく null として表せるようにするためである
+- **モデルはこの形を書かない。** 組み立て(§7.2)が候補一覧の値から作る。`reason` も組み立てが決まった文言で書く(必修・再履修・埋めた要件枠など)
+- **`source` は誰が時間割に入れた科目か。** 学生が自分で入れた科目は `student` で、組み立ては `rebuild` でもこれを外さない(§7.2.2 手順1)。理由の文言(`reason`)では見分けない
 - **`day` / `period` / `term` は1コマ目であり、全コマは `slots` に持つ。** 1つのクラスが複数のコマを持つ(「後期　金4・金5」「3Q　金3、4Q　金3」)。1コマ目だけで時間割を組むと、2コマ目に別の科目を重ねてしまう。`slots` は api-clean 0.3.0 の `slots`(§6.2)から採る。`slots` を返さない api-clean から作った科目と `slots` を持たない提案は、`day` / `period` / `term` の1コマを占めるとみなす(`occupied_slots()`)
-- **`TimetableProposal` はコマの重複を検証で拒否する。** 各科目の**すべてのコマどうし**を比べ、曜日・時限が同じで**開講期間(占めるクォーター)が重なる**コマを持つ科目を2つ以上含む提案は検証に落ちる(1つの科目のコマどうしは比べない)。履修提案では backend が組み上げの段階で重なる科目を外すので、この検証に落ちることはない(§7.2.2)。提案チャット(§7.3)が受け取る提案の検査にも使う。前期は 1Q・2Q、後期は 3Q・4Q、通年は全クォーターを占めるので、前期と 1Q、通年と後期は文字列が違っても重複である(文字列の一致では判定しない)。クォーターが分からない学期(集中など)どうしは文字列が同じときだけ重複とみなす。曜日または時限が null の科目はこの検査の対象外とする
-- **履修区分(`category`)には、それがどの区分・分野についての値かを添える(`course_category` / `subcategory`)。** 卒業要件の枠は (区分 × 履修区分)、教養教育科目はさらに分野で決まる(§5.1.5)ため、`必修` だけではどの枠の必修かが読めない。値は履修要項の表記のまま(§5.1.5 の `category` / `subcategory`)とし、backend が候補一覧から補う(モデルには書かせない)。他課程から導出した科目は `専門関連科目` で、その `category` は学生にとっての値(`選択`)である(§7.2.2)。旧い提案・履修要項に無い科目では null
-- **単位数は `float` とする。** 0.5 単位の科目が存在するため(§5.1.5 の `credits`、§5.2.1 の `Course.credits` と揃える)
+- **コマの重複は全コマどうしで判定する**(`course_clash()` / `slots_clash()`)。各科目の**すべてのコマどうし**を比べ、曜日・時限が同じで**開講期間(占めるクォーター)が重なる**コマを持つ2科目を重複とする(1つの科目のコマどうしは比べない)。組み立ては重なる科目を置かない(必修どうしが重なったときはどちらも置かず確かめることに載せる。§7.2.2)。**学生が送る時間割は重なっていてもよい**(学生は重なりを承知で入れられる。§8.3.6)ので、リクエストの検証では拒否しない。前期は 1Q・2Q、後期は 3Q・4Q、通年は全クォーターを占めるので、前期と 1Q、通年と後期は文字列が違っても重複である(文字列の一致では判定しない)。クォーターが分からない学期(集中など)どうしは文字列が同じときだけ重複とみなす。曜日または時限が null の科目はこの検査の対象外とする
+- **履修区分(`category`)には、それがどの区分・分野についての値かを添える(`course_category` / `subcategory`)。** 卒業要件の枠は (区分 × 履修区分)、教養教育科目はさらに分野で決まる(§5.1.5)ため、`必修` だけではどの枠の必修かが読めない。値は履修要項の表記のまま(§5.1.5 の `category` / `subcategory`)とし、backend が候補一覧から補う(モデルには書かせない)。他課程から導出した科目は `専門関連科目` で、その `category` は学生にとっての値(`選択`)である(§7.2.1)。履修要項に無い科目では null
+- **単位数は整数(`int`)とする。** 龍谷大学の単位に小数は無い(§5.1.5 の `credits`、§5.2.1 の `Course.credits` と揃える)。backend は学生プロファイルの `Course.credits`・要件充足判定(§4.4.5)・`POST /api/requirements` のレスポンスまで単位数を整数で持つ。`float` で持つと JSON に `2.0` と出て、モデルがツールの結果やプロンプトの値から「2.0単位」と写すため、モデルが見る値を整数に揃える。小数の単位数(`2.5`)を送ると検証で 422 になる
 

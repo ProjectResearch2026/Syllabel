@@ -1,10 +1,9 @@
-"""履修提案の構造化出力スキーマ。design.md §7.2。"""
+"""時間割の科目・開講コマ・対象学期のスキーマ。design.md §5.3 / §7.2。"""
 
 import unicodedata
-from collections.abc import Sequence
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, create_model, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
 
@@ -124,7 +123,7 @@ class ProposedCourse(BaseModel):
             "集中講義など曜日・時限の無い科目は空。"
         ),
     )
-    credits: float | None = Field(
+    credits: int | None = Field(
         default=None,
         description="単位数。履修要項に記載がない場合はnullにすること。単位計算に使用するため正確に転記すること。",
     )
@@ -145,6 +144,9 @@ class ProposedCourse(BaseModel):
     reason: str = Field(
         description="この科目を推薦する理由を1文で説明すること。学生のプロファイルや希望条件との関連を明記すること。",
     )
+    # 誰が時間割に入れた科目か。組み立て(`app/timetable/builder.py`)は学生が自分で
+    # 入れた科目(`student`)を外さない。理由の文言(`reason`)では見分けない
+    source: Literal["assistant", "student"] = "assistant"
 
     def occupied_slots(self) -> list[CourseSlot]:
         """その科目が占めるコマ。
@@ -166,99 +168,3 @@ def course_clash(a: ProposedCourse, b: ProposedCourse) -> CourseSlot | None:
         if any(slots_clash(slot, other) for other in others):
             return slot
     return None
-
-
-class TimetableProposal(BaseModel):
-    """時間割提案全体。"""
-
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
-
-    courses: list[ProposedCourse] = Field(
-        description="提案する科目のリスト。同一の曜日・時限・学期に複数の科目を割り当ててはならない。",
-    )
-    total_credits: float | None = Field(
-        default=None,
-        description="提案科目の合計単位数。creditsがnullの科目が含まれる場合はnullにすること。",
-    )
-    summary: str = Field(
-        description="提案全体の説明・注意点を2〜4文で記述すること。卒業要件との関係や履修上の注意点を含めること。",
-    )
-
-    @model_validator(mode="after")
-    def check_no_time_conflict(self) -> "TimetableProposal":
-        """同じ曜日・時限で、開講期間が重なる科目が無いか。
-
-        各科目の**すべてのコマ**(`occupied_slots()`)どうしを比べる。「金4・金5」の
-        科目と金5の科目は重なる。学期の文字列の一致ではなく占めるクォーターの重なりで
-        判定する(`slots_clash()`)。
-        """
-        seen: list[CourseSlot] = []
-        for course in self.courses:
-            mine = course.occupied_slots()
-            for slot in mine:
-                for other in seen:
-                    if slots_clash(slot, other):
-                        raise ValueError(
-                            f"コマが重複しています: {slot.day}{slot.period}限 "
-                            f"({other.term} と {slot.term}) — 同じ曜日・時限で開講期間が重なる"
-                            f"科目を複数割り当てないこと。"
-                        )
-            seen.extend(mine)
-        return self
-
-
-# --- モデルに書かせる下書き(§7.2)---
-#
-# **モデルにはシラバスコードと理由だけを書かせ、科目名・曜日・時限・学期・単位は
-# backend が候補一覧から補う**(`app/agents/proposal_agent.py` の `assemble_proposal()`)。
-# 2026-09-23 の実機(Qwen3.8)では、全項目を書かせる形式で次が起きた:
-#
-# - 同じ科目の並びを繰り返し書き続け、`max_tokens` で打ち切られて失敗した(620秒)
-# - シラバスコードを1件も書かなかった(null を許していたため)
-#
-# 下書きの形式はリクエストごとに作る。`syllabusCode` を**その回の候補のコードだけ**の
-# 列挙にすることで、vLLM の構造化出力が候補に無いコードを書けなくする。`courses` の
-# 件数の上限は**暴走止め**であり、履修登録の単位数の上限(CAP)そのものではない
-# (単位の合計は JSON Schema で表せないため、書き終えた後に backend が確かめる)。
-
-
-def proposal_draft_model(codes: Sequence[str], max_items: int) -> type[BaseModel]:
-    """その回の候補コードだけを選べる下書きの形式を作る。
-
-    Args:
-        codes: 【候補科目】に載せたクラスのシラバスコード。1件以上。
-        max_items: `courses` の件数の上限(暴走止め)。
-    """
-    config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
-    course = create_model(
-        "DraftCourse",
-        __config__=config,
-        __doc__="提案する1クラス。",
-        syllabus_code=(
-            Literal[tuple(codes)],
-            Field(description="【候補科目】の行の [ ] 内に書かれたシラバスコード。"),
-        ),
-        reason=(
-            str,
-            Field(description="この科目を勧める理由を40字以内の1文で書くこと。"),
-        ),
-    )
-    return create_model(
-        "ProposalDraft",
-        __config__=config,
-        __doc__="時間割提案の下書き。",
-        courses=(
-            list[course],
-            Field(
-                max_length=max_items,
-                description=(
-                    "提案するクラスのリスト。同じ科目を2回入れないこと。"
-                    "同じ曜日・時限で開講期間が重なるクラスを入れないこと。"
-                ),
-            ),
-        ),
-        summary=(
-            str,
-            Field(description="提案全体の方針と履修上の注意点を2〜4文で書くこと。"),
-        ),
-    )

@@ -12,7 +12,6 @@ import {
   FileUp,
   CirclePlay,
   FileCheck,
-  TriangleAlert,
   CircleCheck,
   CalendarCheck,
   BookOpen,
@@ -134,7 +133,7 @@ export default function MobileImportFlow() {
   const totalCredits = courses
     .filter((c) => c.status === "passed")
     .reduce((sum, c) => sum + c.credits, 0);
-  // 不合格と履修辞退は「未修得」に丸める(設計書 §6.1。再履修の対象として同じ扱い)
+  // 不合格と履修辞退は「未修得」に丸める(設計書 §6.1)
   const unearnedCourses = courses.filter(isUnearned);
   const passedCount = courses.filter((c) => c.status === "passed").length;
   const registeredCount = courses.filter((c) => c.status === "registered").length;
@@ -326,9 +325,10 @@ export default function MobileImportFlow() {
               { label: "課程", value: pending?.program ?? "-" },
               { label: "取得済み単位", value: `${totalCredits}単位` },
               ...(freshman ? [] : [{ label: "判定科目数", value: `${passedCount}科目` }]),
-              // 未修得は単位に数えないが、再履修の提案に使うので取り込んだことを見せる
+              // 未修得(不合格・履修辞退)は単位に数えないが、取り込んだことを見せる。
+              // 時間割に入るのは必修の再履修だけなので「再履修の対象」とは書かない
               ...(unearnedCourses.length > 0
-                ? [{ label: "未修得科目（再履修の対象）", value: `${unearnedCourses.length}科目` }]
+                ? [{ label: "未修得科目", value: `${unearnedCourses.length}科目` }]
                 : []),
               // 登録済みで成績未確定。提案の候補から外すので、取り込んだことを見せる
               ...(registeredCount > 0
@@ -385,17 +385,9 @@ export default function MobileImportFlow() {
             </p>
           )}
 
-          {/* Warning */}
-          {unearnedCourses.length > 0 && (
-            <div className="flex items-center gap-2 px-3 py-2.5 bg-[#FFF3CD] border-l-[3px] border-[#F59E0B] rounded-r">
-              <TriangleAlert size={16} className="text-[#F59E0B] shrink-0" />
-              <span className="flex-1 text-[11px] text-[#92400E]">
-                不合格科目（{unearnedCourses.map((c) => c.title).join("・")}）が{unearnedCourses.length}件含まれています。再履修の提案に活用されます。
-              </span>
-            </div>
-          )}
-
-          {/* Buttons */}
+          {/* 操作のボタンは画面の下に貼り付ける。確認の表が長いと、開いた時点でボタンが
+              画面の外にあり、スクロールしないと押せなかった */}
+          <div className="sticky bottom-0 -mx-5 -mb-5 flex flex-col gap-2 border-t border-[#E5E7EB] bg-white px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
           <button
             onClick={handleConfirm}
             className="w-full h-[52px] rounded-lg bg-[#E60012] flex items-center justify-center gap-2 active:bg-[#b7000c] transition-colors"
@@ -411,6 +403,7 @@ export default function MobileImportFlow() {
           >
             <span className="text-sm text-[#4B5563]">戻る</span>
           </button>
+          </div>
         </motion.div>
       )}
 

@@ -4,9 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeftRight, BookOpen, ChevronRight, Sparkles, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
 import { AREA_TAG, CELL_STYLES, type SlotEntry } from "@/lib/timetable";
+import { useAnchoredMenu } from "./useAnchoredMenu";
 
 const MENU_WIDTH = 252;
-const MARGIN = 16;
 const GAP = 8;
 
 export type CourseTarget = {
@@ -60,19 +60,13 @@ export default function CourseMenu({
     onClose();
   };
 
-  const centered = rect.left + rect.width / 2 - MENU_WIDTH / 2;
-  const left = Math.min(
-    Math.max(centered, MARGIN),
-    Math.max(MARGIN, window.innerWidth - MENU_WIDTH - MARGIN),
-  );
-  // 下に入りきらなければ科目の上に出す(メニューの高さはおよそ 230px)
-  const below = rect.top + rect.height + GAP;
-  const top = below + 230 > window.innerHeight ? Math.max(MARGIN, rect.top - GAP - 230) : below;
+  // 置き場所は実際の高さで決め、開いているあいだは裏をスクロールさせない
+  const { menuRef, style: menuStyle } = useAnchoredMenu(rect, MENU_WIDTH, GAP);
 
   const item = "flex w-full items-center gap-2.5 px-3.5 py-[11px] text-left transition-colors hover:bg-surface-gray active:bg-surface-gray";
 
   return (
-    <div className="fixed inset-0 z-50">
+    <div className="fixed inset-0 z-50 touch-none">
       <motion.button
         type="button"
         aria-label="閉じる"
@@ -97,8 +91,9 @@ export default function CourseMenu({
         initial={{ opacity: 0, scale: 0.92, y: -6 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: "spring", damping: 28, stiffness: 400, mass: 0.6 }}
-        className="absolute overflow-hidden rounded-[14px] bg-surface-primary shadow-popover"
-        style={{ top, left, width: MENU_WIDTH }}
+        ref={menuRef}
+        className="absolute touch-pan-y overflow-y-auto overscroll-contain rounded-[14px] bg-surface-primary shadow-popover"
+        style={menuStyle}
         role="menu"
         aria-label={`${entry.name}の操作`}
       >

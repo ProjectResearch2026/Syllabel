@@ -1,186 +1,109 @@
 """chat_agent のユニットテスト。実サーバには接続しない。"""
 
-import pytest
-from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart
-from pydantic_ai.models.function import FunctionModel
-from pydantic_ai.models.test import TestModel
+import json
 
-from app.agents.chat_agent import build_chat_agent
-from app.agents import tools as tools_module
+import pytest
+from pydantic_ai import Agent
+from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart, ToolReturnPart
+from pydantic_ai.models.function import FunctionModel
+
+from app.agents import course_tools
+from app.agents.chat_agent import ChatDeps, build_chat_agent
+import timetable_fixtures as fx
 
 
 @pytest.fixture(autouse=True)
-def reset_caches():
+def reset_caches(monkeypatch):
     build_chat_agent.cache_clear()
-    tools_module._get_client.cache_clear()
+
+    async def fake_catalog(*args, **kwargs):
+        return fx.catalog()
+
+    monkeypatch.setattr(course_tools, "get_catalog", fake_catalog)
     yield
     build_chat_agent.cache_clear()
-    tools_module._get_client.cache_clear()
 
 
-# ---------------------------------------------------------------------------
-# ファクトリの基本動作
-# ---------------------------------------------------------------------------
-
-def test_build_chat_agent_returns_agent():
-    """build_chat_agent() が Agent を返すことを確認する。"""
-    from pydantic_ai import Agent
-    assert isinstance(build_chat_agent(), Agent)
-
-
-def test_build_chat_agent_is_cached():
-    """lru_cache により同一インスタンスが返ることを確認する。"""
-    assert build_chat_agent() is build_chat_agent()
-
-
-# ---------------------------------------------------------------------------
-# TestModel によるエンドツーエンド確認
-# ---------------------------------------------------------------------------
-
-@pytest.mark.asyncio
-async def test_chat_agent_returns_str_without_tool():
-    """ツール呼び出しなしでも文字列の応答を返すことを確認する。"""
+def test_build_chat_agent_returns_cached_agent_with_course_tools():
     agent = build_chat_agent()
-    with agent.override(model=TestModel(call_tools=[])):
-        result = await agent.run("こんにちは")
-    assert isinstance(result.output, str)
+    assert isinstance(agent, Agent)
+    assert agent is build_chat_agent()
+    assert set(agent._function_toolset.tools) == {"search_courses", "get_course"}
 
 
-@pytest.mark.asyncio
-async def test_chat_agent_calls_search_tool(monkeypatch):
-    """TestModel が tool_search_syllabi を呼び出したとき、search_syllabi が実行されることを確認する。"""
-    called = {}
-
-    async def fake_search_syllabi(**kwargs):
-        called["kwargs"] = kwargs
-        return {"count": 1, "limit": 10, "offset": 0, "results": [{"syllabus_code": "B12345", "course_title": "情報基礎"}]}
-
-    monkeypatch.setattr("app.agents.chat_agent.search_syllabi", fake_search_syllabi)
-    build_chat_agent.cache_clear()
-
-    agent = build_chat_agent()
-    with agent.override(model=TestModel(call_tools=["tool_search_syllabi"])):
-        result = await agent.run("情報基礎を検索して")
-
-    assert isinstance(result.output, str)
-    assert "kwargs" in called
-
-
-@pytest.mark.asyncio
-async def test_chat_agent_calls_get_tool(monkeypatch):
-    """TestModel が tool_get_syllabus を呼び出したとき、get_syllabus が実行されることを確認する。"""
-    called = {}
-
-    async def fake_get_syllabus(code: str):
-        called["code"] = code
-        return {"syllabus_code": code, "course_title": "情報基礎", "instructor": "山田 太郎"}
-
-    monkeypatch.setattr("app.agents.chat_agent.get_syllabus", fake_get_syllabus)
-    build_chat_agent.cache_clear()
-
-    agent = build_chat_agent()
-    with agent.override(model=TestModel(call_tools=["tool_get_syllabus"])):
-        result = await agent.run("B12345の詳細を教えて")
-
-    assert isinstance(result.output, str)
-    assert "code" in called
-
-
-# ---------------------------------------------------------------------------
-# 教員名での検索(design.md §6.1)
-# ---------------------------------------------------------------------------
-
-def _model_calling_search(args: dict) -> FunctionModel:
-    """`tool_search_syllabi` を指定の引数で1度だけ呼ぶモデルを作る。
-
-    `TestModel` はツールの引数をスキーマから機械的に作るため、教員名のように
-    「どんな値で呼ばれたか」が要るときは `FunctionModel` で組み立てる。
-    """
-
+def _model_calling(tool: str, args: dict, seen: list):
     def call(messages, info):
-        if any(getattr(part, "tool_name", None) == "tool_search_syllabi"
-               for message in messages for part in message.parts):
-            return ModelResponse(parts=[TextPart("検索しました")])
-        return ModelResponse(parts=[ToolCallPart("tool_search_syllabi", args)])
+        returns = [
+            part
+            for message in messages
+            for part in getattr(message, "parts", [])
+            if isinstance(part, ToolReturnPart)
+        ]
+        if not returns:
+            return ModelResponse(parts=[ToolCallPart(tool_name=tool, args=args)])
+        seen.append(returns[-1].content)
+        return ModelResponse(parts=[TextPart(content="見つかりました。")])
 
     return FunctionModel(call)
 
 
 @pytest.mark.asyncio
-async def test_chat_agent_expands_instructor_notation(monkeypatch):
-    """教員名を指定されたら、表記の揺れを埋める口(search_syllabi_by_instructor)へ回す。
-
-    api-clean の `instructor` は登録された表記のままの部分一致であり、
-    `search_syllabi()` をそのまま使うと「山田太郎」(区切りなし)は0件になる(§6.1)。
-    """
-    called = {}
-
-    async def fake_by_instructor(instructor, **params):
-        called["instructor"] = instructor
-        called["params"] = params
-        return {"count": 1, "limit": 10, "offset": 0, "results": [{"syllabus_code": "B12345"}]}
-
-    monkeypatch.setattr("app.agents.chat_agent.search_syllabi_by_instructor", fake_by_instructor)
-    build_chat_agent.cache_clear()
-
+async def test_search_tool_runs_without_student():
+    seen: list = []
     agent = build_chat_agent()
-    with agent.override(model=_model_calling_search({"instructor": "山田太郎"})):
-        await agent.run("山田太郎先生の講義は?")
+    with agent.override(model=_model_calling("search_courses", {"keyword": "理論"}, seen)):
+        result = await agent.run("理論の科目は?", deps=ChatDeps())
 
-    assert called["instructor"] == "山田太郎"
-    # `instructor` は位置引数で渡すため、その他の条件だけが params に入る
-    assert "instructor" not in called["params"]
-    assert called["params"]["limit"] == 10
+    assert result.output == "見つかりました。"
+    titles = {c["title"] for c in seen[0]["courses"]}
+    assert titles == {"情報理論", "符号理論"}
 
 
 @pytest.mark.asyncio
-async def test_chat_agent_keeps_plain_search_without_instructor(monkeypatch):
-    """教員名もキーワードも無いときは従来どおり素通しの search_syllabi を使う。"""
-    called = {}
+async def test_get_tool_returns_formatted_sections(monkeypatch):
+    async def fake_get_syllabus(code):
+        return {
+            "syllabus_code": code,
+            "course_title": "符号理論",
+            "term_name": "前期",
+            "slots": [{"term": "前期", "day": "水", "period": 3}],
+            "credits": 2,
+            "grading": json.dumps({"評価項目": [{"項目": "試験", "割合": 100}]}, ensure_ascii=False),
+        }
 
-    async def fail_by_instructor(instructor, **params):  # pragma: no cover - 呼ばれない
-        raise AssertionError("教員名の指定が無いのに引き直しの口が呼ばれた")
-
-    async def fake_search_syllabi(**kwargs):
-        called["kwargs"] = kwargs
-        return {"count": 0, "limit": 10, "offset": 0, "results": []}
-
-    monkeypatch.setattr("app.agents.chat_agent.search_syllabi_by_instructor", fail_by_instructor)
-    monkeypatch.setattr("app.agents.chat_agent.search_syllabi", fake_search_syllabi)
-    build_chat_agent.cache_clear()
-
+    monkeypatch.setattr(course_tools, "get_syllabus", fake_get_syllabus)
+    seen: list = []
     agent = build_chat_agent()
-    with agent.override(model=_model_calling_search({"day": "月"})):
-        await agent.run("月曜の講義を検索して")
+    model = _model_calling("get_course", {"code": "Y000000006", "sections": ["成績評価"]}, seen)
+    with agent.override(model=model):
+        await agent.run("評価方法は?", deps=ChatDeps())
 
-    assert called["kwargs"]["day"] == "月"
+    assert seen[0]["sections"] == {"成績評価": "試験 100%"}
+    assert seen[0]["when"] == "前期 水3"
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize("instructor", [None, "山田太郎"])
-async def test_chat_agent_matches_keyword_by_normalized_title(monkeypatch, instructor):
-    """キーワードは api-clean の `q`(正規化の無い ILIKE)に送らず、科目名の表記の揺れを
-    畳んで照合する口(search_syllabi_by_title)へ回す。検索画面と同じ規則(§6.1)。"""
-    called = {}
+def test_reasoning_effort_defaults_to_low_and_can_be_changed(monkeypatch):
+    """既定は low。`LLM_REASONING_EFFORT` で切り替えられる(§6.3.1)。"""
+    from app.agents import chat_model_settings
+    from app.settings import get_settings
 
-    async def fake_by_title(q, **params):
-        called["q"] = q
-        called["params"] = params
-        return {"count": 0, "limit": 10, "offset": 0, "results": []}
+    def effort() -> str:
+        get_settings.cache_clear()
+        return chat_model_settings()["extra_body"]["chat_template_kwargs"]["reasoning_effort"]
 
-    async def fail_plain(**kwargs):  # pragma: no cover - 呼ばれない
-        raise AssertionError("キーワードが api-clean の q に素通しされた")
+    monkeypatch.delenv("LLM_REASONING_EFFORT", raising=False)
+    assert effort() == "low"
+    monkeypatch.setenv("LLM_REASONING_EFFORT", "xhigh")
+    assert effort() == "xhigh"
+    get_settings.cache_clear()
 
-    monkeypatch.setattr("app.agents.chat_agent.search_syllabi_by_title", fake_by_title)
-    monkeypatch.setattr("app.agents.chat_agent.search_syllabi", fail_plain)
-    build_chat_agent.cache_clear()
 
-    args = {"q": "プログラミング基礎演習1"} | ({"instructor": instructor} if instructor else {})
-    agent = build_chat_agent()
-    with agent.override(model=_model_calling_search(args)):
-        await agent.run("プログラミング基礎演習1について")
+def test_reasoning_effort_rejects_values_the_template_does_not_know(monkeypatch):
+    """テンプレートは3値以外で例外を投げるので、起動時に弾く。"""
+    import pydantic
 
-    assert called["q"] == "プログラミング基礎演習1"
-    assert called["params"]["instructor"] == instructor
-    assert "q" not in called["params"]
-    assert called["params"]["limit"] == 10
+    from app.settings import Settings
+
+    monkeypatch.setenv("LLM_REASONING_EFFORT", "high")
+    with pytest.raises(pydantic.ValidationError):
+        Settings()

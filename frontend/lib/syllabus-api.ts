@@ -308,6 +308,52 @@ async function fetchAllByInstructor(
 }
 
 /**
+ * 開講期の「前期」「後期」が含むクォーター。design.md §6.2。
+ *
+ * api-clean の `term` は開講期マスタの8種(前期・1Q・2Q・通年・サ集・後期・3Q・4Q)の
+ * **1つとの一致**で、`term=前期` では 1Q・2Q の科目が出ない。学生が「前期」で探すのは
+ * 前期の時間割に入る科目なので、前期・後期だけは api-clean に渡さず、全件を引いてから
+ * クォーターの科目も含めて手元で絞る。通年・サ集はどちらにも含めない(それぞれを選べば出る)
+ */
+const HALF_TERMS: Record<string, readonly string[]> = {
+  前期: ["前期", "1Q", "2Q"],
+  後期: ["後期", "3Q", "4Q"],
+};
+
+/** 開講期の表記を寄せる。api-clean は `１Ｑ` のような全角や空白入りの表記を返し得る */
+function termKey(term: string | null | undefined): string {
+  return (term ?? "").normalize("NFKC").replace(/\s/g, "");
+}
+
+/** 絞り込みの「開講期」の選択肢の表示名。前期・後期には含めるクォーターを添える */
+export function termChoiceLabel(name: string): string {
+  const half = HALF_TERMS[termKey(name)];
+  return half ? `${name}（${half.slice(1).join("・")}を含む）` : name;
+}
+
+/**
+ * 行が前期・後期(`HALF_TERMS`)に当たるか。api-clean の `term` と同じく**全コマで見る**
+ * (「３Ｑ 金３、４Ｑ 金３」は 1コマ目の `term` だけでなく 4Q でも当たる)。曜日・時限と
+ * 一緒のときは、そのコマの学期で比べる。コマの無い科目(集中講義)は科目の `term` で比べる
+ */
+function inHalfTerm(
+  row: SyllabusListItem,
+  half: readonly string[],
+  day: string | undefined,
+  period: number | undefined,
+): boolean {
+  const hit = (term: string | null | undefined) => half.includes(termKey(term));
+  // `slots` を返さない古い api-clean では 1コマ目の学期で比べる
+  if (!row.slots) return hit(row.term);
+  if (day || period != null) {
+    return row.slots.some(
+      (slot) => (!day || slot.day === day) && (period == null || slot.period === period) && hit(slot.term),
+    );
+  }
+  return hit(row.term) || row.slots.some((slot) => hit(slot.term));
+}
+
+/**
  * 検索ボックスの1語(科目名または教員名)でシラバスを検索する。design.md §6.1。
  *
  * **科目名は api-clean の `q` に投げず、条件に当たる全件を引いてから手元で照合する**
@@ -321,20 +367,25 @@ async function fetchAllByInstructor(
 export async function searchCourses(
   params: Omit<SearchParams, "q" | "instructor" | "limit" | "offset"> & { keyword?: string },
 ): Promise<CourseSearchResponse> {
-  const { keyword, ...rest } = params;
+  const { keyword, term, ...base } = params;
   const word = keyword?.trim();
+  // 前期・後期はクォーターの科目も含めて手元で絞る(`HALF_TERMS`)
+  const half = HALF_TERMS[termKey(term)];
+  const rest = half ? base : { ...base, term };
+  const inTerm = (rows: SyllabusListItem[]) =>
+    half ? rows.filter((row) => inHalfTerm(row, half, base.day, base.period)) : rows;
 
   if (!word) {
-    const results = await fetchAll(rest);
+    const results = inTerm(await fetchAll(rest));
     return { results, total: results.length, matchedBy: null };
   }
 
-  const byTitle = (await fetchAll(rest)).filter((row) => matchesTitle(row.course_title, word));
+  const byTitle = inTerm(await fetchAll(rest)).filter((row) => matchesTitle(row.course_title, word));
   if (byTitle.length > 0) {
     return { results: byTitle, total: byTitle.length, matchedBy: "title" };
   }
 
-  const byInstructor = await fetchAllByInstructor(rest, word);
+  const byInstructor = inTerm(await fetchAllByInstructor(rest, word));
   if (byInstructor.length > 0) {
     return { results: byInstructor, total: byInstructor.length, matchedBy: "instructor" };
   }
