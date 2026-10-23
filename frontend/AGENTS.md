@@ -216,7 +216,7 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 **対象年次(`grade`)も URL のクエリに持つ。** 選択肢は `GRADE_CHOICES`(1〜4)。`page.tsx` は `period` / `grade` を api-clean の値域(1〜7 / 1〜4)の整数のときだけ検索条件にする(値域外を渡すと 422 で一覧が落ちる)。
 
-**検索条件(キーワード・開講期など)は URL のクエリが正本。** ヘッダー・タブバーの「シラバス」は素の `/syllabus` ではなく `listHref(listQuery)` に向ける。`listQuery` は一覧を開いているあいだ `SyllabusQueryMemory` が URL から書き写す(design.md §8)。直書きの `/syllabus` に戻すと、時間割などを経由しただけで検索語が消える。
+**検索条件(キーワード・開講期など)は URL のクエリが正本。** **一覧の URL は `lib/syllabusQuery.ts` の `canonicalListParams()` の形だけにする**(知らないキー・空の値・重複・選べない値を落とし、キーの順をそろえる)。`page.tsx` はこの形の値で検索し、アドレスバーが違えば `SyllabusQueryMemory` が `history.replaceState()` で書き換える(`?q=音響&` の末尾の `&` は Next.js がサーバに渡す前に消すので、サーバのリダイレクトでは直せない)。 ヘッダー・タブバーの「シラバス」は素の `/syllabus` ではなく `listHref(listQuery)` に向ける。`listQuery` は一覧を開いているあいだ `SyllabusQueryMemory` が URL から書き写す(design.md §8)。直書きの `/syllabus` に戻すと、時間割などを経由しただけで検索語が消える。
 
 1. `GET /api/syllabi` の検索結果
 2. `GET /api/curricula/{program}/{year}` の履修要項データ
