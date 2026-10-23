@@ -144,15 +144,17 @@ function useNow(active: boolean): number {
 function ToolRow({ activity, live }: { activity: AgentActivity; live: boolean }) {
   const [open, setOpen] = useState(false);
   const courses = useProposalStore((s) => s.courses);
-  // シラバスコードは時間割にある科目なら科目名に直す。無ければコードのまま
-  const titleOf = (code: string) => courses.find((c) => c.syllabusCode === code)?.title ?? code;
+  // シラバスコードは backend が添えた科目名に直す。届く前は時間割にある科目の名前を使い、
+  // どちらにも無ければコードのまま
+  const titleOf = (code: string) =>
+    activity.titles?.[code] ?? courses.find((c) => c.syllabusCode === code)?.title ?? code;
   const lines = argLines(activity, titleOf);
   return (
     <div className="flex flex-col">
       <TraceRow
         icon={live ? <Spinner /> : <ToolIcon tool={activity.tool} />}
         label={live ? activity.label : doneLabel(activity)}
-        preview={describeArgs(activity) || undefined}
+        preview={describeArgs(activity, titleOf) || undefined}
         live={live}
         open={open}
         onToggle={() => setOpen((v) => !v)}
@@ -259,8 +261,7 @@ function buildLine(
     case "include":
       return off ? "入れる科目の指定をやめる" : `時間割に入れる: ${joined(value, titleOf)}`;
     case "exclude":
-      if (off) return "入れない科目の指定をやめる";
-      return `${args.mode === "remove" ? "時間割から外す" : "時間割に入れない"}: ${joined(value, titleOf)}`;
+      return off ? "外す科目の指定をやめる" : `時間割から外す: ${joined(value, titleOf)}`;
     default:
       return otherLine(key, value);
   }
@@ -351,21 +352,25 @@ const SCOPE_LABEL: Record<string, string> = {
 };
 
 /** モデルが書いた引数を短く読める形にする。分からない引数は値だけを並べる */
-function describeArgs({ tool, args }: AgentActivity): string {
+function describeArgs({ tool, args }: AgentActivity, titleOf: (code: string) => string): string {
   const parts: string[] = [];
   const text = (v: unknown) =>
     Array.isArray(v) ? v.map(String).join("・") : typeof v === "object" ? "" : String(v);
+  // シラバスコードは科目名に直す
+  const titles = (v: unknown) =>
+    text(Array.isArray(v) ? v.map((x) => titleOf(String(x))) : titleOf(String(v)));
   for (const [key, value] of Object.entries(args)) {
     if (value === null || value === undefined || value === "") continue;
     if (Array.isArray(value) && value.length === 0) continue;
     if (tool === "build_timetable") {
-      const label = buildArg(key, value, text);
+      const label = buildArg(key, value, text, titles);
       if (label) parts.push(label);
       continue;
     }
     if (key === "limit" || key === "only_registrable" || key === "include_taken") continue;
     if (key === "sections") continue;
-    if (key === "period" && typeof value === "number") parts.push(`${value}限`);
+    if (tool === "get_course" && key === "code") parts.push(titles(value));
+    else if (key === "period" && typeof value === "number") parts.push(`${value}限`);
     else if (key === "day") parts.push(`${text(value)}曜`);
     else if (key === "topic" || key === "keyword") parts.push(`「${text(value)}」`);
     else parts.push(text(value));
@@ -373,7 +378,12 @@ function describeArgs({ tool, args }: AgentActivity): string {
   return parts.filter(Boolean).join(" ");
 }
 
-function buildArg(key: string, value: unknown, text: (v: unknown) => string): string | null {
+function buildArg(
+  key: string,
+  value: unknown,
+  text: (v: unknown) => string,
+  titles: (v: unknown) => string,
+): string | null {
   switch (key) {
     case "mode":
       return MODE_LABEL[String(value)] ?? "組み直す";
@@ -392,9 +402,9 @@ function buildArg(key: string, value: unknown, text: (v: unknown) => string): st
     case "target_credits":
       return Number(value) > 0 ? `${value}単位` : null;
     case "include":
-      return `入れる ${text(value)}`;
+      return `入れる ${titles(value)}`;
     case "exclude":
-      return `入れない ${text(value)}`;
+      return `外す ${titles(value)}`;
     default:
       return text(value) || null;
   }

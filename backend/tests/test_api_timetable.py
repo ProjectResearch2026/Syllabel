@@ -193,6 +193,37 @@ def test_assistant_streams_thinking_activity_steps_timetable_and_text():
     assert "授業の無い平日" in record[-1]  # 2回目の呼び出しで受け取ったツールの結果
 
 
+def test_assistant_activity_names_courses_given_by_code():
+    """引数のシラバスコードに科目名を添える。時間割に入らなかった科目もコードのまま見せない。"""
+
+    async def stream(messages: list[ModelMessage], info: AgentInfo):
+        if not any(
+            isinstance(part, ToolReturnPart)
+            for message in messages
+            for part in getattr(message, "parts", [])
+        ):
+            yield {
+                0: DeltaToolCall(
+                    name="build_timetable",
+                    json_args='{"mode": "adjust", "include": ["Y000000006"], "exclude": ["音楽"]}',
+                )
+            }
+            return
+        yield "入れました。"
+
+    agent = build_timetable_assistant()
+    with agent.override(model=FunctionModel(stream_function=stream)):
+        resp = client.post(
+            "/api/timetable/assistant",
+            json=_body(messages=[{"role": "user", "content": "符号理論を入れて"}]),
+        )
+
+    activities = [e["activity"] for e in _events(resp.text) if "activity" in e]
+    # 書き終えた引数にだけ添える。科目名で書かれた引数(exclude の音楽)は添えない
+    assert activities[-1]["titles"] == {"Y000000006": "符号理論"}
+    assert all("titles" not in a for a in activities[:-1])
+
+
 def test_assistant_answers_without_building():
     async def stream(messages, info):
         yield "時間割づくりを手伝えます。"

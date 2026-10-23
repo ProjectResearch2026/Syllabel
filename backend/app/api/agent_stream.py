@@ -7,6 +7,7 @@
 | `{"thinking": "..."}` | モデルの思考の断片。vLLM の reasoning パーサが本文と分けて返したときだけ |
 | `{"activity": {"tool", "label", "args"}}` | ツールを呼び始めた・引数を書いている。`label` は backend が決めた固定文言で、モデルには書かせない。`args` はモデルが書いた引数(書きかけの間も流す) |
 | `{"activity": {..., "found"}}` | シラバス検索が終わったときに、同じ `id` で当たった科目数(`found`)を添えて流し直す |
+| `{"activity": {..., "titles"}}` | 引数が書き終わったとき(と結果を添えて流し直すとき)に、引数のシラバスコード → 科目名を添える。時間割に無い科目もコードのまま見せないため |
 | ツールが積んだイベント | ツールの実行が終わったときに、ツールが `outbox` に積んだもの(時間割の `step` / `timetable` / `conditions`)を流す |
 | `{"error": "..."}` / `{"done": true}` | 失敗と終端。終端はエラー時も必ず流れる |
 
@@ -45,6 +46,12 @@ from app.api.sse import format_sse
 from app.schemas.chat import ChatMessage
 
 logger = logging.getLogger(__name__)
+
+# 引数のうちシラバスコード(か科目名)を持つもの。画面では科目名に直して見せる
+CODE_ARGS = {
+    "build_timetable": ("include", "exclude"),
+    "get_course": ("code",),
+}
 
 # ツールごとの、待っている間に見せる文言
 TOOL_LABELS = {
@@ -92,12 +99,33 @@ def _activity(call_id: str, tool: str, args: dict | None, **result) -> dict:
     }
 
 
-def _result_summary(tool: str, content: object) -> dict:
-    """ツールの結果のうち画面に出すもの。シラバス検索は当たった科目数だけ(科目の中身は流さない)。"""
+def _titles(tool: str, args: dict, title_of: Callable[[str], str] | None) -> dict:
+    """引数のシラバスコード → 科目名。引けたものだけを `{"titles": {...}}` にして返す。"""
+    if title_of is None:
+        return {}
+    titles: dict[str, str] = {}
+    for key in CODE_ARGS.get(tool, ()):
+        value = args.get(key)
+        for code in value if isinstance(value, list) else [value]:
+            if not isinstance(code, str) or not code:
+                continue
+            title = title_of(code)
+            if title and title != code:
+                titles[code] = title
+    return {"titles": titles} if titles else {}
+
+
+def _result_summary(tool: str, args: dict, content: object) -> dict:
+    """ツールの結果のうち画面に出すもの。シラバス検索は当たった科目数だけ(科目の中身は流さない)、
+    シラバスを読んだときは読んだ科目の名前。"""
     if tool == "search_courses" and isinstance(content, dict):
         total = content.get("total")
         if isinstance(total, int):
             return {"found": total}
+    if tool == "get_course" and isinstance(content, dict):
+        code, title = args.get("code"), content.get("title")
+        if isinstance(code, str) and isinstance(title, str) and title and title != code:
+            return {"titles": {code: title}}
     return {}
 
 
@@ -111,19 +139,21 @@ async def stream_agent(
     outbox: list[dict] | None = None,
     error_text: str = "応答の生成中にエラーが発生しました",
     on_finish: Callable[[], list[dict]] | None = None,
+    title_of: Callable[[str], str] | None = None,
 ) -> AsyncIterator[str]:
     """エージェントを走らせ、イベントを SSE の行として返す。
 
     Args:
         outbox: ツールが流したいイベントを積むリスト。ツールの実行が終わるたびに流して空にする。
         on_finish: 最後に流すイベントを返す関数(本文の後・`done` の前)。
+        title_of: シラバスコードを科目名に直す関数。ツールの引数のコードに科目名を添える。
     """
     pending = outbox if outbox is not None else []
     started = False
     # パートの番号 → (呼び出しの id, ツール名, 書きかけの引数, 最後に流した引数)
     tools: dict[int, tuple[str, str, str, dict | None]] = {}
-    # 呼び出しの id → (ツール名, 引数)。結果を添えて流し直すときに使う
-    called: dict[str, tuple[str, dict]] = {}
+    # 呼び出しの id → (ツール名, 引数, 添えた科目名)。結果を添えて流し直すときに使う
+    called: dict[str, tuple[str, dict, dict]] = {}
 
     def flush() -> list[str]:
         lines = [format_sse(event) for event in pending]
@@ -173,17 +203,21 @@ async def stream_agent(
                     continue
                 if isinstance(event, FunctionToolCallEvent):
                     part = event.part
-                    called[part.tool_call_id] = (part.tool_name, part.args_as_dict())
-                    yield format_sse(
-                        _activity(part.tool_call_id, part.tool_name, part.args_as_dict())
-                    )
+                    args = part.args_as_dict()
+                    titles = _titles(part.tool_name, args, title_of)
+                    called[part.tool_call_id] = (part.tool_name, args, titles)
+                    yield format_sse(_activity(part.tool_call_id, part.tool_name, args, **titles))
                     continue
                 if isinstance(event, FunctionToolResultEvent):
                     result = event.part
                     if isinstance(result, ToolReturnPart) and result.tool_call_id in called:
-                        name, args = called[result.tool_call_id]
-                        summary = _result_summary(name, result.content)
+                        name, args, titles = called[result.tool_call_id]
+                        summary = _result_summary(name, args, result.content)
                         if summary:
+                            # 引数から引いた科目名に、結果から分かった科目名を重ねる
+                            merged = {**titles.get("titles", {}), **summary.get("titles", {})}
+                            if merged:
+                                summary["titles"] = merged
                             yield format_sse(_activity(result.tool_call_id, name, args, **summary))
                     for line in flush():
                         yield line

@@ -139,5 +139,6 @@ async def post_assistant(req: AssistantRequest):
             instructions=instructions,
             deps=deps,
             outbox=deps.outbox,
+            title_of=student.title_of,
         )
     )
