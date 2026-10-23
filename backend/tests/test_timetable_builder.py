@@ -390,14 +390,20 @@ async def test_report_leaves_out_shortfalls_the_student_takes_for_granted():
 
 
 @pytest.mark.asyncio
-async def test_retakes_are_shown_with_whether_they_can_be_dropped():
-    """再履修の対象には履修区分を添える。必修でない再履修まで「外せない」と説明されたため。"""
+async def test_failed_elective_is_left_out_unless_the_student_asks():
+    """必修でない不合格・履修辞退の科目は不足を埋める候補にしない。入れたいと言われたら入れる。"""
     from app.timetable.facts import retake_lines
 
     ctx = await _ctx(
         fx.course("微分積分", status="failed"), fx.course("符号理論", status="failed"), grade=2
     )
-    lines = retake_lines(ctx)
+    for seed in range(5):
+        result = build_timetable(ctx, Conditions(), rng=random.Random(seed))
+        assert "符号理論" not in _titles(result.courses)
 
-    assert "- 微分積分(必修。対象学期に履修できれば必ず入る)" in lines
-    assert any(line.startswith("- 符号理論(選択") and "外してよい" in line for line in lines)
+    code = next(code for code, (c, _) in ctx.classes.items() if c.course.title == "符号理論")
+    result = _build(ctx, Conditions(include=[code]))
+    assert "符号理論" in _titles(result.courses)
+
+    # プロンプトに載せるのは必修の再履修だけ(モデルが自分から持ち出さないように)
+    assert retake_lines(ctx) == ["- 微分積分(対象学期に履修できれば必ず入る)"]

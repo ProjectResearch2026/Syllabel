@@ -18,7 +18,8 @@
    卒業要件の不足を最も多く埋められる曜日を選ぶ(同点なら外す科目が少ない方、
    それでも同点なら無作為)
 5. **不足を埋める。** 条件に反せず、置いた科目と重ならず、単位の上限に収まる科目の
-   うち、どれかの要件枠の不足を減らすものを1件ずつ置く。順は次のとおり:
+   うち、どれかの要件枠の不足を減らすものを1件ずつ置く。必修でない不合格・履修辞退の
+   科目は使わない(学生が入れたいと言ったとき(`include`)だけ入る)。順は次のとおり:
    1. 溢れの流れの上流の枠を先に、下流の枠(受け皿)を後に埋める
    2. 同じ段の枠どうしは、不足の大きい順
    3. 履修区分の重さ(選択必修 > 選択)
@@ -478,10 +479,14 @@ def _fill(
     ctx = plan.ctx
     levels = estimator.entries.levels
     names = ctx.slot_names()
+    # 必修でない不合格・履修辞退の科目は、学生が入れたいと言ったとき(`include`)だけ入る。
+    # 不足を埋める候補には使わない(落とした選択科目を取り直すかは学生が決める)
+    retakes = ctx.retakes()
     pool: list[tuple[Candidate, list[ProposedCourse]]] = [
         (c, [proposed_course(c.course, o) for o in c.classes])
         for c in ctx.candidates
         if student_type(c.course) != "必修"
+        and normalize_title(c.course.title) not in retakes
         and not exclude.matches(c.course)
         and normalize_title(c.course.title) not in plan.blocked_titles
     ]
@@ -627,9 +632,11 @@ def _shortfall_reasons(
     if not open_slots:
         return reasons
     reachable: dict[str, list[Candidate]] = {key: [] for key in open_slots}
+    retakes = ctx.retakes()
     for candidate in ctx.candidates:
         course = candidate.course
-        if normalize_title(course.title) in titles or student_type(course) == "必修":
+        title = normalize_title(course.title)
+        if title in titles or title in retakes or student_type(course) == "必修":
             continue
         sample = proposed_course(course, candidate.classes[0])
         for key, _ in estimator.gains(course, earned, plan.courses, sample):

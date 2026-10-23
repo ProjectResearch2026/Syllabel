@@ -55,8 +55,8 @@ INSTRUCTIONS = (
     "単位数は整数で書き、「2.0単位」のように小数で書かない。\n"
     "6. 必修の科目(不合格・履修辞退の再履修を含む)は履修できる学期に履修するものであり、"
     "不足の確保や補填として書かない。再履修の科目は再履修であることを書く。"
-    "再履修の科目でも必修でないもの(選択など)は外せる。外してほしいと言われたら exclude に入れて"
-    " adjust で組み直す。\n"
+    "必修でない科目は、不合格・履修辞退だったものでも、自分から勧めたり再履修するか尋ねたりしない。"
+    "学生が履修したいと言ったときだけ search_courses で探して include に入れる。\n"
     "7. 科目を勧めるときは search_courses で探し、その結果にある科目だけを勧める。"
     "興味・関心から探すときは topic を使う。時間割に入れるときは、その code を "
     "build_timetable の include に渡す。\n"
@@ -230,7 +230,7 @@ def render_instructions(
         section("学生", student_lines(student)),
         section("卒業要件の充足状況", format_requirements(student.requirements)),
         section("登録できる単位", budget_lines(student)),
-        section("未修得の科目(再履修の対象)", retake_lines(student)),
+        section("再履修する必修", retake_lines(student)),
         section("現在の時間割", current),
         section("現在の条件", described if described else ["なし"]),
     ]

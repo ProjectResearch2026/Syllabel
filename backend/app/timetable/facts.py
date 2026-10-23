@@ -69,10 +69,11 @@ def budget_lines(ctx: StudentContext) -> list[str]:
 
 
 def retake_lines(ctx: StudentContext) -> list[str]:
-    """【未修得の科目】の中身。不合格・履修辞退のまま修得していない科目(再履修の対象)。
+    """【再履修する必修】の中身。不合格・履修辞退のまま修得していない必修の科目。
 
-    科目ごとに学生にとっての履修区分を添える。再履修というだけで外せない科目だと
-    モデルが受け取り、必修でない科目まで「外せない」と説明したため。
+    **必修でない不合格・履修辞退の科目は載せない。** 取り直すかは学生が決めることで、
+    組み立ても学生が入れたいと言ったときだけ入れる。載せるとモデルが自分から
+    「不合格でしたが再履修しますか」と持ち出す。
     """
     retakes = ctx.retakes()
     titles = dict.fromkeys(
@@ -83,11 +84,6 @@ def retake_lines(ctx: StudentContext) -> list[str]:
     lines = []
     for title in titles:
         course = ctx.course_by_title(title)
-        kind = student_type(course) if course is not None else None
-        if kind == "必修":
-            lines.append(f"- {title}(必修。対象学期に履修できれば必ず入る)")
-        elif kind is not None:
-            lines.append(f"- {title}({kind}。入れるかは学生が決める。外してよい)")
-        else:
-            lines.append(f"- {title}(履修要項に無い科目)")
+        if course is not None and student_type(course) == "必修":
+            lines.append(f"- {title}(対象学期に履修できれば必ず入る)")
     return lines or ["なし"]
