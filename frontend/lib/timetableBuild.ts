@@ -10,6 +10,12 @@ import { useProposalStore } from "@/lib/proposal";
  *
  * 時間割の画面の組み立ては一度に1つなので、再生も1本だけを持つ。新しい組み立てを
  * 始めると、描きかけの前の再生は捨てる。
+ *
+ * **先頭に並ぶ「残す」(`keep`)は1手ずつ描かず、まとめて一度に当てる。** 組み直し
+ * (`adjust` / `remove`)は今の時間割の全科目を `keep` として返すため、以前は表を空にして
+ * から残す科目を150msずつ入れ直しており、会話で組み直すたびに時間割が一度消えて
+ * 入り直して見えた。残す科目は前の表の科目のまま置くので、マスは作り直されない。
+ * 1手ずつ描くのは、外す・入れるといった実際に変わる手だけである。
  */
 
 /** 1手の間隔。必修が先に入り、選択科目が1つずつ入るのが目で追える長さ */
@@ -31,6 +37,9 @@ class BuildPlayer {
   private queue: (() => void)[] = [];
   private timer: ReturnType<typeof setTimeout> | null = null;
   private previous: Previous | null = null;
+  /** 先頭の `keep` で残す科目。最初の `keep` 以外の手か確定までためておく */
+  private kept: TimetableStep["course"][] = [];
+  /** 残す科目を表に当てた(以後の手は1手ずつ描く) */
   private started = false;
   /** `finish()` の待ちを解く関数。取りやめたときも解く(待つ側が止まらないように) */
   private waiting: (() => void)[] = [];
@@ -45,17 +54,17 @@ class BuildPlayer {
 
   /** 組み立ての1手を描く順に積む */
   step(step: TimetableStep): void {
-    this.enqueue(() => {
-      if (!this.started) {
-        this.started = true;
-        useProposalStore.getState().startSteps();
-      }
-      useProposalStore.getState().playStep(step);
-    });
+    if (!this.started && step.kind === "keep") {
+      this.kept.push(step.course);
+      return;
+    }
+    this.startSteps();
+    this.enqueue(() => useProposalStore.getState().playStep(step));
   }
 
   /** 組み上がった時間割で確定する。積んだ手順を描き終えてから当てる */
   finish(built: BuiltTimetable, message?: string): Promise<void> {
+    this.startSteps();
     return new Promise((resolve) => {
       this.waiting.push(resolve);
       this.enqueue(() => {
@@ -75,6 +84,15 @@ class BuildPlayer {
     if (previous) useProposalStore.getState().cancelBuild(previous);
   }
 
+  /** ためた `keep` を一度に当て、表を残す科目だけにする */
+  private startSteps(): void {
+    if (this.started) return;
+    this.started = true;
+    const kept = this.kept.flatMap((course) => (course ? [course] : []));
+    this.kept = [];
+    this.enqueue(() => useProposalStore.getState().startSteps(kept));
+  }
+
   /** 組み立てが始まって、まだ確定していない */
   get pending(): boolean {
     return this.previous !== null;
@@ -85,6 +103,7 @@ class BuildPlayer {
     this.timer = null;
     this.queue = [];
     this.previous = null;
+    this.kept = [];
     this.started = false;
     const waiting = this.waiting;
     this.waiting = [];
