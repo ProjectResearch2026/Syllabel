@@ -188,7 +188,7 @@ def test_assistant_streams_thinking_activity_steps_timetable_and_text():
     assert conditions["freeDayCount"] == 1 and len(conditions["freeDays"]) == 1
     # ツールの行には、頼んだ日数ではなく組み立てで全休にした曜日を添える
     assert activities[-1]["freeDays"] == conditions["freeDays"]
-    assert "unmet" not in activities[-1] and "failed" not in activities[-1]
+    assert "failed" not in activities[-1]
     assert "".join(e["delta"] for e in events if "delta" in e) == "全休を1日作りました。"
     # プロンプトには事実の節が入り、ツールの結果にはレポートが返る
     assert "【卒業要件の充足状況】" in record[0]
@@ -276,47 +276,6 @@ def test_assistant_activity_reports_what_it_could_not_include_or_exclude():
     assert activities[-1]["titles"] == {"Y000000006": "符号理論"}
     # モデルにも、時間割に無い科目を外そうとしたことが伝わる
     assert "今の時間割に無かった科目(外していない): 音楽" in record[-1]
-
-
-def test_assistant_activity_reports_unmet_conditions():
-    """満たせなかった時間割の形の条件を、ツールの行に添える。"""
-    current = [
-        {
-            "syllabusCode": "Y000000007", "title": "画像処理", "day": "金", "period": 3,
-            "term": "前期", "slots": [{"term": "前期", "day": "金", "period": 3}],
-            "credits": 4, "category": "選択", "reason": "", "source": "student",
-        }
-    ]
-
-    async def stream(messages: list[ModelMessage], info: AgentInfo):
-        if not any(
-            isinstance(part, ToolReturnPart)
-            for message in messages
-            for part in getattr(message, "parts", [])
-        ):
-            yield {
-                0: DeltaToolCall(
-                    name="build_timetable", json_args='{"mode": "adjust", "free_days": ["金"]}'
-                )
-            }
-            return
-        yield "金曜は空けられませんでした。"
-
-    agent = build_timetable_assistant()
-    with agent.override(model=FunctionModel(stream_function=stream)):
-        resp = client.post(
-            "/api/timetable/assistant",
-            json=_body(
-                timetable=current, messages=[{"role": "user", "content": "金曜を空けたい"}]
-            ),
-        )
-
-    activity = [e["activity"] for e in _events(resp.text) if "activity" in e][-1]
-    # 自分で入れた画像処理が金曜にあるので空かない
-    assert activity["unmet"] == [
-        {"condition": "金曜を全休にする", "detail": "金曜に自分で入れた画像処理(3限)がある"}
-    ]
-    assert activity["freeDays"] == ["金"]
 
 
 def test_assistant_answers_without_building():

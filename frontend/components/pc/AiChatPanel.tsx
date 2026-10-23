@@ -12,14 +12,12 @@ import ContextChip from "../ai/ContextChip";
  * `selection` を共有する。
  */
 export type PanelContext = {
-  /** 選択が無いときの文脈（例: 「この時間割」） */
+  /** 選択が無いときの文脈（例: 「時間割」） */
   base: AiContext;
   /** 画面で選んでいる科目・コマ。無ければ `base` について聞く */
   selection: AiContext | null;
   /** 選択を外して `base` に戻す */
   onClear: () => void;
-  /** 選択が無いときに添える一言（何を押せば絞れるか） */
-  hint?: string;
 };
 
 /**
@@ -66,12 +64,12 @@ export default function AiChatPanel({
     <aside className="flex min-h-0 w-[344px] shrink-0 flex-col self-stretch overflow-hidden rounded-lg border border-border-primary bg-surface-primary">
       <ChatHeader conversation={conversation} />
 
-      {/* 提案前の時間割は表が空で、「この時間割について」と出しても指すものが無い */}
+      {/* 提案前の時間割は表が空で、「時間割について」と出しても指すものが無い */}
       {context && current && (scoped || !conversation.hideBaseContext) && (
         <div className="flex h-[42px] shrink-0 items-center gap-2 border-y border-border-subtle bg-surface-gray px-4">
           <ContextChip context={current} rounded="full" />
           <span className="min-w-0 flex-1 truncate text-[11px] text-fg-secondary">
-            {scoped || !context.hint ? "について質問" : `について質問 ・ ${context.hint}`}
+            について質問
           </span>
           {scoped && (
             <button

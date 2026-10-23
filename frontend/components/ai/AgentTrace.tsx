@@ -21,8 +21,7 @@ import { useScrollToBottom } from "@/lib/useScrollToBottom";
  *   引数を「時間割から外す: 水環境科学, 経済学のすすめ」のように1行ずつの文で開く(引数名や
  *   remove のような値をそのまま出さない)。時間割の組み立ては、終わったときに頼んだ条件を
  *   結果に書き換える — 入れる・外すができなかった科目は「時間割に入れられませんでした:
- *   科目(理由)」、全休の日数は全休にした曜日(「全休にする曜日: 木, 金」)にし、満たせなかった
- *   条件を足す
+ *   科目(理由)」、全休の日数は全休にした曜日(「全休にする曜日: 木, 金」)にする
  *
  * 思考も引数もモデルの出力であり、学生のブラウザにだけ流れる（サーバには残さない）。
  */
@@ -197,11 +196,11 @@ function lastLine(text: string): string {
 
 /**
  * 開いたときに並べる行。引数を「見出し: 値」の文にし、学生に関係の無い引数は出さない。
- * 時間割の組み立ては、組み終えたところで頼んだ条件を結果に書き換える(選んだ全休の曜日・
- * 満たせなかった条件・入れられなかった科目)。開いて知りたいのは何をしたかである
+ * 時間割の組み立ては、組み終えたところで頼んだ条件を結果に書き換える(全休にした曜日・
+ * 入れられなかった科目)。開いて知りたいのは何をしたかである
  */
 function argLines(activity: AgentActivity, titleOf: (code: string) => string): string[] {
-  const { tool, args, found, unmet } = activity;
+  const { tool, args, found } = activity;
   const lines: string[] = [];
   for (const [key, value] of Object.entries(args)) {
     if (value === null || value === undefined || value === "") continue;
@@ -217,9 +216,6 @@ function argLines(activity: AgentActivity, titleOf: (code: string) => string): s
   // 今の時間割を直すだけで、入れる・外す科目も条件も無い呼び出しは、何をしたかの1行を出す
   if (tool === "build_timetable" && lines.length === 0 && args.mode === "adjust") {
     lines.push("今の時間割を見直す");
-  }
-  for (const { condition, detail } of unmet ?? []) {
-    lines.push(`満たせませんでした: ${condition}（${detail}）`);
   }
   // 検索は最後に当たった科目数を添える(backend が検索を終えたときに届く)
   if (tool === "search_courses" && found !== undefined) {

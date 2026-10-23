@@ -31,7 +31,7 @@ from app.timetable.facts import (
     section,
     student_lines,
 )
-from app.timetable.report import Report, evaluate_conditions, report_lines
+from app.timetable.report import Report, report_lines
 
 INSTRUCTIONS = (
     "あなたは龍谷大学先端理工学部の履修登録を支援するAIアシスタントです。\n"
@@ -141,21 +141,11 @@ def build_outcome(result: BuildResult, failed: dict[str, str]) -> dict:
 
     - `freeDays` — 組み立てで全休にした曜日(指定された曜日と、日数だけ頼まれて選んだ曜日。
       手順4)
-    - `unmet` — 満たせなかった時間割の形の条件(`condition` と `detail`)。入れる・外す科目は
-      `failed` が1科目ずつ伝えるので、ここには入れない
     - `failed` — 頼まれた入れる・外すのうちできなかったもの(`build_failures()`)
     """
     outcome: dict = {}
     if result.conditions.free_days:
         outcome["freeDays"] = list(result.conditions.free_days)
-    shape = result.conditions.model_copy(update={"include": [], "exclude": []})
-    unmet = [
-        {"condition": status.condition, "detail": status.detail}
-        for status in evaluate_conditions(result.courses, shape)
-        if status.status == "unmet"
-    ]
-    if unmet:
-        outcome["unmet"] = unmet
     if failed:
         outcome["failed"] = failed
     return outcome
