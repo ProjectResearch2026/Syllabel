@@ -160,7 +160,7 @@ export default function PcImportPage() {
     pending?.completedCourses.filter((c) => c.status === "passed") ?? [];
   const totalCredits = passedCourses.reduce((sum, c) => sum + c.credits, 0);
   const remaining = Math.max(0, GRADUATION_CREDITS - totalCredits);
-  // 不合格と履修辞退は「未修得」に丸める(設計書 §6.1。再履修の対象として同じ扱い)
+  // 不合格と履修辞退は「未修得」に丸める(設計書 §6.1)
   const unearnedCount = pending?.completedCourses.filter(isUnearned).length ?? 0;
   const registeredCount =
     pending?.completedCourses.filter((c) => c.status === "registered").length ?? 0;
@@ -434,7 +434,7 @@ export default function PcImportPage() {
         { label: "判定科目数", value: `${passedCourses.length}科目` },
         // 未修得は単位に数えないが、再履修の提案に使うので取り込んだことを見せる
         ...(unearnedCount > 0
-          ? [{ label: "未修得科目（再履修の対象）", value: `${unearnedCount}科目` }]
+          ? [{ label: "未修得科目", value: `${unearnedCount}科目` }]
           : []),
         // 登録済みで成績未確定。提案の候補から外すので、取り込んだことを見せる
         ...(registeredCount > 0
