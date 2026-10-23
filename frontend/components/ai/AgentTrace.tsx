@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Brain, CalendarRange, ChevronRight, FileText, Search } from "lucide-react";
+import { CalendarRange, ChevronRight, FileText, Search } from "lucide-react";
 import type { AgentActivity } from "@/lib/chatApi";
 import type { TraceItem } from "@/lib/chat";
 import { useProposalStore } from "@/lib/proposal";
@@ -12,7 +12,8 @@ import { useScrollToBottom } from "@/lib/useScrollToBottom";
  * Claude Code の会話の出し方にならう。
  *
  * - **思考**は1行に畳み、押すと全文を開く。考えているあいだは「○秒考えています」(秒数は
- *   数え上げる)と最新の1行を、終わったら「○秒考えました」を出す。開いた全文は枠の中で
+ *   数え上げる)と最新の1行を、終わったら「○秒考えました」を出す。アイコンは読み込み中の
+ *   輪で、考えているあいだだけ回り、考え終えたら止まる。開いた全文は枠の中で
  *   スクロールでき、考えているあいだは末尾に追従する(上へ戻して読んでいるときは引き戻さない)。
  *   **全文はいつでも開ける** — 末尾だけを流していた頃は、流れて消えた分を読めなかった
  * - **ツールの呼び出し**も1行で、呼んでいるあいだは backend が決めた文言(「シラバスを
@@ -113,7 +114,8 @@ function ThinkingRow({ item, live }: { item: Extract<TraceItem, { kind: "thinkin
   return (
     <div className="flex flex-col">
       <TraceRow
-        icon={<Brain size={13} />}
+        // 考えているあいだだけ回し、考え終えたら止める
+        icon={<Spinner spinning={live} />}
         label={live ? `${seconds}秒考えています` : `${seconds}秒考えました`}
         // 考えているあいだは最新の1行を添える。開いているときは中身で読めるので出さない
         preview={live && !open ? lastLine(text) : undefined}
@@ -153,7 +155,7 @@ function ToolRow({ activity, live }: { activity: AgentActivity; live: boolean })
   return (
     <div className="flex flex-col">
       <TraceRow
-        icon={live ? <Spinner /> : <ToolIcon tool={activity.tool} />}
+        icon={live ? <Spinner spinning /> : <ToolIcon tool={activity.tool} />}
         label={live ? activity.label : doneLabel(activity)}
         preview={describeArgs(activity, titleOf) || undefined}
         live={live}
@@ -172,9 +174,16 @@ function ToolRow({ activity, live }: { activity: AgentActivity; live: boolean })
   );
 }
 
-function Spinner() {
+/**
+ * 薄い輪の上を濃い弧が回る。`spinning` が偽のときは止まったまま置く。
+ * 色は辺ごとに指定する — 4辺の色(`border-fg-faint`)と上の辺の色を重ねると、
+ * 4辺の色が後に効いて弧が消えていた
+ */
+function Spinner({ spinning }: { spinning: boolean }) {
   return (
-    <span className="size-3 animate-spin rounded-full border-[1.5px] border-fg-faint border-t-fg-secondary motion-reduce:animate-none" />
+    <span
+      className={`size-3 rounded-full border-[1.5px] border-r-fg-faint/50 border-b-fg-faint/50 border-l-fg-faint/50 border-t-fg-secondary ${spinning ? "animate-spin motion-reduce:animate-none" : ""}`}
+    />
   );
 }
 
