@@ -22,7 +22,7 @@
 
 | 要素 | 役割 | 実装 | リポジトリ |
 |---|---|---|---|
-| gateway | 公開する唯一の入口(学外からのアクセスも受ける)。リクエストを**同一 VM 上の** frontend と backend へ振り分ける | 公開 VM 上の **Caddy** | 本リポジトリ(設定のみ) |
+| gateway | 公開する唯一の入口(学外からのアクセスも受ける)。リクエストを**同一 VM 上の** frontend と backend へ振り分ける | 公開 VM 上の **Caddy** | 本リポジトリの管理外(設定は公開 VM 上。§3.2.1) |
 
 さらに、本プロジェクトが管理しない外部要素を2つ経由する。
 
@@ -57,7 +57,7 @@
 
 #### 1.1.1 シラバスバックエンドの位置づけ
 
-**api-clean / postgres-clean は「手を加えない外部システム」ではない。** 実体は [ProjectResearch2026/syllabus_backend](https://github.com/ProjectResearch2026/syllabus_backend)(上流 [RyukokuDX/syllabus_backend](https://github.com/RyukokuDX/syllabus_backend) のフォーク)であり、本サービスが必要とするデータと機能はこのリポジトリ側で用意される。**したがって本サービスの機能はシラバスバックエンド側の改修に依存する。**
+**api-clean / postgres-clean は「手を加えない外部システム」ではない。** 実体は [ProjectResearch2026/syllabus_backend](https://github.com/ProjectResearch2026/syllabus_backend)(上流 [RyukokuDX/syllabus_backend](https://github.com/RyukokuDX/syllabus_backend) のフォーク)であり、本サービスが必要とするデータと機能はこのリポジトリ側で用意される。fork 元を無変更で使うのではなく、2026年度のデータを投入したうえで、本サービスで使いやすいように改修している。**したがって本サービスの機能はシラバスバックエンド側の改修に依存する。**
 
 本設計が api-clean に前提とするものは次のとおりである。
 

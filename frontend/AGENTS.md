@@ -288,7 +288,6 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 - デモの学生は `profile.demo` を持ち、**提案する学期は `demo.target` に固定する**(`lib/targetTerm.ts`。今日の日付から決めない)。`grade` は提案する学期の学年である
 - **別の学生に差し替えるときは `lib/replaceStudent.ts` の `useReplaceStudent()` を通す**(成績表の取り込み・デモの学生の切り替え)。前の学生の履修提案と会話、シラバス検索の絞り込みと検索条件(`useSyllabusUIStore` の `reset()`)を捨ててからプロファイルを入れる。`setProfile` を直接呼ぶと、前の学生の時間割が新しい学生の時間割として残る。マイデータの訂正も、内容が変わったときはこれを通す(下記)
 - 1年前期(`isFreshmanDemo()`)は成績が1件も無い。取り込み確認・完了の画面では「取り込み」と言わず「新入生として始める」とする
-- 展示用端末では「PDF取り込み」を無効化する
 
 ## マイデータの訂正
 

@@ -3,12 +3,7 @@
 科目名 → シラバスコードの対応表であり、`curricula/` 側とは**科目名**で結合する
 (§4.4.1)。`resolved` のキーと `not_offered` / `unresolved` の `title` は、
 対応する `curricula/` 側の `title` と1文字も違わない原表記を用いる。正規化は
-名寄せ処理(`backend/scripts/build_offerings.py`)の内部にとどめ、このファイルには
-持ち込まない(§5.1.5)。
-
-`curricula/` の科目名集合との突合(`resolved` ∪ `not_offered` ∪ `unresolved` が
-過不足なく一致すること)はファイル単体では成立しないため、ローダおよび CI の
-責務とする(§4.4.3 / §12.2)。
+名寄せの作業の中にとどめ、このファイルには持ち込まない(§5.1.5)。
 """
 
 from collections import Counter
@@ -49,8 +44,7 @@ class UnresolvedCourse(_YamlModel):
 
     `not_offered` の受け皿ではなく「まだ判断がついていないもの」であり、
     データ不整合として検出されなければならない。`reason` には調査状況を書く。
-    非空でも backend の起動は妨げず、警告ログを出すにとどめる。検出は CI で
-    マージをブロックする形で行う(§4.4.3 / §12.2)。
+    非空でも backend の起動は妨げず、警告ログを出すにとどめる(§4.4.3)。
     """
 
     title: CourseTitle
