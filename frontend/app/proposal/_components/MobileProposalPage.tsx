@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { FileUp } from "lucide-react";
 import logoMark from "@/public/logo.svg";
 import { useStudentStore } from "@/lib/student";
-import { useFreeDays, useProposalStore } from "@/lib/proposal";
+import { useProposalStore } from "@/lib/proposal";
 import { BuildStepLabel } from "./BuildStepLabel";
 import { useCreditSummary } from "@/lib/creditSummary";
 import { coursesToSlotTable } from "@/lib/timetable";
@@ -163,7 +163,6 @@ export default function MobileProposalPage() {
   const { table, unscheduled } = coursesToSlotTable(courses);
   const isIdle = status === "idle";
   const isLoading = status === "loading";
-  const freeDays = useFreeDays();
 
   // 科目を押すと選択し（Ask Bar の文脈になる）、その場のメニューを開く。
   // シラバスを開く・別の科目に変更・時間割から外す はメニューから選ぶ
@@ -226,7 +225,6 @@ export default function MobileProposalPage() {
           rowHeight={rowHeight}
           table={table}
           unscheduled={unscheduled}
-          freeDays={freeDays}
           selected={selected}
           onTapCourse={onTapCourse}
           onTapEmpty={(target) => {

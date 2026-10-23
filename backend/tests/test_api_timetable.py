@@ -186,9 +186,8 @@ def test_assistant_streams_thinking_activity_steps_timetable_and_text():
     assert timetable["report"]["freeDays"]
     conditions = next(e["conditions"] for e in events if "conditions" in e)
     assert conditions["freeDayCount"] == 1 and len(conditions["freeDays"]) == 1
-    # ツールの行には、頼んだ日数ではなく組み立てが選んだ全休の曜日を添える
+    # ツールの行には、頼んだ日数ではなく組み立てで全休にした曜日を添える
     assert activities[-1]["freeDays"] == conditions["freeDays"]
-    assert conditions["freeDays"][0] not in activities[-1]["otherFreeDays"]
     assert "unmet" not in activities[-1] and "failed" not in activities[-1]
     assert "".join(e["delta"] for e in events if "delta" in e) == "全休を1日作りました。"
     # プロンプトには事実の節が入り、ツールの結果にはレポートが返る
@@ -313,11 +312,11 @@ def test_assistant_activity_reports_unmet_conditions():
         )
 
     activity = [e["activity"] for e in _events(resp.text) if "activity" in e][-1]
-    # 自分で入れた画像処理が金曜にあるので空かない。曜日を指定したので選んだ曜日は無い
+    # 自分で入れた画像処理が金曜にあるので空かない
     assert activity["unmet"] == [
         {"condition": "金曜を全休にする", "detail": "金曜に自分で入れた画像処理(3限)がある"}
     ]
-    assert "freeDays" not in activity
+    assert activity["freeDays"] == ["金"]
 
 
 def test_assistant_answers_without_building():

@@ -139,17 +139,15 @@ def build_outcome(result: BuildResult, failed: dict[str, str]) -> dict:
     """組み立てのツールの行に添える結果。行を開いたときに、頼んだ条件ではなく組み立てが
     何をしたかを見せるためのもの。
 
-    - `freeDays` / `otherFreeDays` — 組み立てが選んだ全休の曜日と、代わりに空けられた平日
-      (曜日を言われずに日数だけ頼まれたとき。手順4)
+    - `freeDays` — 組み立てで全休にした曜日(指定された曜日と、日数だけ頼まれて選んだ曜日。
+      手順4)
     - `unmet` — 満たせなかった時間割の形の条件(`condition` と `detail`)。入れる・外す科目は
       `failed` が1科目ずつ伝えるので、ここには入れない
     - `failed` — 頼まれた入れる・外すのうちできなかったもの(`build_failures()`)
     """
     outcome: dict = {}
-    chosen = [step for step in result.steps if step.kind == "free_day" and step.day]
-    if chosen:
-        outcome["freeDays"] = [step.day for step in chosen]
-        outcome["otherFreeDays"] = chosen[0].others
+    if result.conditions.free_days:
+        outcome["freeDays"] = list(result.conditions.free_days)
     shape = result.conditions.model_copy(update={"include": [], "exclude": []})
     unmet = [
         {"condition": status.condition, "detail": status.detail}

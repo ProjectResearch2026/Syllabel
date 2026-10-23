@@ -21,7 +21,7 @@ import { useScrollToBottom } from "@/lib/useScrollToBottom";
  *   引数を「時間割から外す: 水環境科学, 経済学のすすめ」のように1行ずつの文で開く(引数名や
  *   remove のような値をそのまま出さない)。時間割の組み立ては、終わったときに頼んだ条件を
  *   結果に書き換える — 入れる・外すができなかった科目は「時間割に入れられませんでした:
- *   科目(理由)」、全休の日数は選んだ曜日(「全休にしました: 木曜」)にし、満たせなかった
+ *   科目(理由)」、全休の日数は全休にした曜日(「全休にする曜日: 木, 金」)にし、満たせなかった
  *   条件を足す
  *
  * 思考も引数もモデルの出力であり、学生のブラウザにだけ流れる（サーバには残さない）。
@@ -271,13 +271,13 @@ function periodText(v: string): string {
   return /^\d限$/.test(v) ? `毎日${v}` : v;
 }
 
-/** 組み立てが選んだ全休の曜日の行。組み終える前と、選べなかったとき(満たせなかった条件の行が伝える)は出さない */
-function freeDayLine({ freeDays, otherFreeDays }: AgentActivity): string | null {
-  if (!freeDays?.length) return null;
-  const others = otherFreeDays?.length
-    ? `（代わりに${otherFreeDays.map((d) => `${d}曜`).join("・")}も空けられます）`
-    : "";
-  return `全休にしました: ${joined(freeDays, (d) => `${d}曜`)}${others}`;
+/**
+ * 全休の曜日の行。組み終えたら全休にした曜日(`freeDays`。日数だけ頼まれて選んだ曜日も入る)、
+ * 組み終える前は指定された曜日を出す。曜日も日数も1行にまとめる
+ */
+function freeDayLine({ args, freeDays }: AgentActivity): string | null {
+  const days = freeDays ?? (Array.isArray(args.free_days) ? args.free_days.map(String) : []);
+  return days.length ? `全休にする曜日: ${joined(days)}` : null;
 }
 
 function buildLine(
@@ -295,10 +295,13 @@ function buildLine(
     case "scope":
       return SCOPE_LINE[String(value)] ?? `範囲: ${value}`;
     case "free_days":
-      return off ? "全休の曜日の指定をやめる" : `全休にする曜日: ${joined(value, (d) => `${d}曜`)}`;
+      return off ? "全休の曜日の指定をやめる" : freeDayLine(activity);
     case "free_day_count":
-      // 頼んだ日数ではなく、組み立てが選んだ曜日を出す
-      return off ? "全休の希望をやめる" : freeDayLine(activity);
+      // 頼んだ日数は出さない。曜日の行は free_days があればそちらが出す
+      if (off) return "全休の希望をやめる";
+      return Array.isArray(activity.args.free_days) && activity.args.free_days.length > 0
+        ? null
+        : freeDayLine(activity);
     case "avoid_periods":
       return off ? "避ける時限の指定をやめる" : `避ける時限: ${joined(value, periodText)}`;
     case "max_days":

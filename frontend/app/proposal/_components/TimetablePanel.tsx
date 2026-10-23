@@ -12,7 +12,7 @@ import {
   coursesToSlotTable,
   type SlotEntry,
 } from "@/lib/timetable";
-import { useFreeDays, useProposalStore } from "@/lib/proposal";
+import { useProposalStore } from "@/lib/proposal";
 import { BuildStepLabel } from "./BuildStepLabel";
 import { useTimetableEditing } from "@/lib/useTimetableEditing";
 import { useTargetTerm } from "@/lib/targetTerm";
@@ -167,8 +167,6 @@ export default function TimetablePanel() {
   // まだ時間割が無い（§5.2.3 の `idle`）。空の表だけを出すと、組み終わって
   // 何も無いのか、これからなのかが区別できない（§8.3.2）
   const isIdle = status === "idle";
-  // 全休の曜日は列を薄くする（組み立ての途中に空けた曜日も含む）
-  const freeDays = useFreeDays();
   const editing = useTimetableEditing();
   const onOpen = editing.editable ? editing.open : null;
 
@@ -239,7 +237,7 @@ export default function TimetablePanel() {
                   aria-label={`${d}曜${p}限の空きコマ`}
                   className={`${cellClass} transition-colors hover:bg-surface-gray focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent ${
                     slotSelected(d, p) ? RING : ""
-                  } ${freeDays.includes(d) ? "bg-surface-soft!" : ""}`}
+                  }`}
                 />
               );
             }

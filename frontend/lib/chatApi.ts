@@ -144,10 +144,8 @@ export type AgentActivity = {
   titles?: Record<string, string>;
   /** 時間割の組み立てで、頼まれた入れる・外すのうちできなかったもの(引数の値 → 理由) */
   failed?: Record<string, string>;
-  /** 時間割の組み立てが選んだ全休の曜日(曜日を言われずに日数だけ頼まれたとき) */
+  /** 時間割の組み立てで全休にした曜日(指定された曜日と、日数だけ頼まれて選んだ曜日) */
   freeDays?: string[];
-  /** `freeDays` の代わりに空けられた平日 */
-  otherFreeDays?: string[];
   /** 時間割の組み立てで満たせなかった、時間割の形の条件 */
   unmet?: { condition: string; detail: string }[];
 };

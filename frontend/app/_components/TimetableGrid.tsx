@@ -101,7 +101,6 @@ function Tags({ entry }: { entry: SlotEntry }) {
 export default function TimetableGrid({
   table,
   unscheduled,
-  freeDays = [],
   selected,
   onTapCourse,
   onTapEmpty,
@@ -109,8 +108,6 @@ export default function TimetableGrid({
 }: {
   table: SlotTable;
   unscheduled: SlotEntry[];
-  /** 全休の曜日。列を薄くする（design.md §8.3.7） */
-  freeDays?: string[];
   selected: SelectedCourse | null;
   onTapCourse: (target: CourseTarget) => void;
   /** 空きコマを押した */
@@ -175,9 +172,7 @@ export default function TimetableGrid({
                 } ${
                   first && !multi
                     ? `${CELL_STYLES[first.type].cell} motion-safe:animate-pop-in`
-                    : freeDays.includes(day)
-                      ? "bg-surface-soft"
-                      : "bg-surface-primary"
+                    : "bg-surface-primary"
                 } ${ringed ? "z-10 rounded-lg ring-2 ring-accent" : ""}`}
               >
                 {multi
