@@ -3,7 +3,7 @@
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useTransition } from "react";
 import { SlidersHorizontal } from "lucide-react";
-import { OFFERING_YEAR, FACULTY, type Masters } from "@/lib/syllabus-api";
+import { OFFERING_YEAR, FACULTY, termChoiceLabel, type Masters } from "@/lib/syllabus-api";
 import {
   CATEGORY_CHOICES,
   SUBCATEGORY_CHOICES,
@@ -164,7 +164,7 @@ export default function SyllabusFilters({ masters }: Props) {
         <select value={term} onChange={(e) => update("term", e.target.value)} className={selectClass}>
           <option value="">すべて</option>
           {masters.term.map((t) => (
-            <option key={t.id} value={t.name}>{t.name}</option>
+            <option key={t.id} value={t.name}>{termChoiceLabel(t.name)}</option>
           ))}
         </select>
       ),

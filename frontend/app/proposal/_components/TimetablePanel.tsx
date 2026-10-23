@@ -15,6 +15,8 @@ import {
 import { useFreeDays, useProposalStore } from "@/lib/proposal";
 import TimetableNotices, { BuildStepLabel } from "./TimetableNotices";
 import { useTimetableEditing } from "@/lib/useTimetableEditing";
+import { useTargetTerm } from "@/lib/targetTerm";
+import { slotSearchHref } from "@/lib/syllabusQuery";
 import { courseContext, slotContext, useAiStore, type AiContext } from "@/lib/ai";
 import CourseMenu, { type CourseTarget } from "@/app/_components/CourseMenu";
 import SlotPopover, { type SlotTarget } from "@/app/_components/SlotPopover";
@@ -179,11 +181,11 @@ export default function TimetablePanel() {
     });
   };
 
+  // 時間割の学期で絞る。前期の時間割から後期の科目を探させない
+  const { target: targetTerm } = useTargetTerm();
   const goSyllabus = (target: SlotTarget, openFilters: boolean) => {
-    const params = new URLSearchParams({ day: target.day, period: String(target.period) });
-    if (openFilters) params.set("filters", "open");
     setSlotTarget(null);
-    router.push(`/syllabus?${params.toString()}`);
+    router.push(slotSearchHref(target.day, target.period, targetTerm.term, { openFilters }));
   };
 
   const slotSelected = (day: string, period: number) =>

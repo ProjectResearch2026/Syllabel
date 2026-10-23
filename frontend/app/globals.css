@@ -49,7 +49,7 @@
   --color-border-subtle: #edeff2; /* シート内の区切り線 */
   --color-chevron: #c7ccd4;
   --color-scrim: #1a2b4e66; /* シート背後のスクリム */
-  --color-scrim-menu: #1a2b4e59; /* 長押しメニューのスクリム */
+  --color-scrim-menu: #1a2b4e59; /* その場のメニュー(科目・空きコマ)のスクリム */
 
   /* カード */
   --color-card-border: #d9dee7;

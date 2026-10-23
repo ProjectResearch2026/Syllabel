@@ -57,7 +57,7 @@ export const DEFAULT_ASK_LABEL = "AIに質問…";
 type AiStore = {
   mode: AiMode;
   context: AiContext;
-  /** Ask Bar に引き継がれる選択状態（科目をタップ中／コマを長押し中） */
+  /** Ask Bar に引き継がれる選択状態（科目・空きコマをタップ中） */
   selection: AiContext | null;
   dock: AskDock | null;
   /**

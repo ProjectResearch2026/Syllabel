@@ -1,25 +1,23 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { BookOpen, ChevronRight, Search, Sparkles, Timer } from "lucide-react";
 import { motion } from "motion/react";
+import { useAnchoredMenu } from "./useAnchoredMenu";
 
 const POPOVER_WIDTH = 252;
-const MARGIN = 16;
 const GAP = 12;
-/** メニューのおおよその高さ。セルの下に入りきらないときは上に出す */
-const POPOVER_HEIGHT = 180;
 
 export type SlotTarget = {
   day: string;
   period: number;
-  /** 長押しされたセルのビューポート座標 */
+  /** 押されたセルのビューポート座標 */
   rect: { top: number; left: number; width: number; height: number };
 };
 
 /**
- * 空きコマのその場メニュー（ui-design_phone.pen STEP3）。モバイルは長押し、PC は
- * 空きコマを押したときに出す（`variant`）。
+ * 空きコマのその場メニュー（ui-design_phone.pen STEP3）。PC・モバイルとも空きコマを
+ * 押したときに出す（科目の `CourseMenu` と同じ）。
  *
  * 「探す」「絞り込む」と並べて AI を置くことで、AI が特別扱いにならないようにしている。
  * 押したセルだけがスクリムの上に残り、何を対象にした操作かが見て分かる。
@@ -50,29 +48,31 @@ export default function SlotPopover({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
 
+  // 開いた直後のスクリムへの click は、開いたタップの続きなので閉じない(`CourseMenu` と同じ)
+  const openedAt = useRef(0);
+  useEffect(() => {
+    openedAt.current = Date.now();
+  }, [target]);
+  const handleClose = () => {
+    if (Date.now() - openedAt.current < 350) return;
+    onClose();
+  };
+
   const item = `flex w-full items-center gap-2.5 px-3.5 py-[11px] text-left ${
     pc ? "hover:bg-surface-gray" : "active:bg-surface-gray"
   }`;
 
   const { day, period, rect } = target;
-  const centered = rect.left + rect.width / 2 - POPOVER_WIDTH / 2;
-  const left = Math.min(
-    Math.max(centered, MARGIN),
-    Math.max(MARGIN, window.innerWidth - POPOVER_WIDTH - MARGIN),
-  );
-  const below = rect.top + rect.height + GAP;
-  const top =
-    below + POPOVER_HEIGHT > window.innerHeight - MARGIN
-      ? Math.max(MARGIN, rect.top - GAP - POPOVER_HEIGHT)
-      : below;
+  // 置き場所は実際の高さで決め、開いているあいだは裏をスクロールさせない
+  const { menuRef, style: menuStyle } = useAnchoredMenu(rect, POPOVER_WIDTH, GAP);
 
   return (
-    <div className={`fixed inset-0 z-50 ${pc ? "hidden md:block" : "md:hidden"}`}>
+    <div className={`fixed inset-0 z-50 touch-none ${pc ? "hidden md:block" : "md:hidden"}`}>
       {/* スクリム */}
       <motion.button
         type="button"
         aria-label="閉じる"
-        onClick={onClose}
+        onClick={handleClose}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.15 }}
@@ -96,8 +96,9 @@ export default function SlotPopover({
         initial={{ opacity: 0, scale: 0.92, y: -6 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: "spring", damping: 28, stiffness: 400, mass: 0.6 }}
-        className="absolute overflow-hidden rounded-[14px] bg-surface-primary shadow-popover"
-        style={{ top, left, width: POPOVER_WIDTH }}
+        ref={menuRef}
+        className="absolute touch-pan-y overflow-y-auto overscroll-contain rounded-[14px] bg-surface-primary shadow-popover"
+        style={menuStyle}
         role="menu"
       >
         <div className="flex items-center gap-1.5 border-b border-border-subtle px-3.5 pb-[9px] pt-[11px]">

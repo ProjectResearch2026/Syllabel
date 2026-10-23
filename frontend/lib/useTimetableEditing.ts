@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { courseKey, useProposalStore } from "@/lib/proposal";
 import { proposalDetailHref, slotSearchHref } from "@/lib/syllabusQuery";
+import { useTargetTerm } from "@/lib/targetTerm";
 import type { CourseTarget } from "@/app/_components/CourseMenu";
 
 function keyOf(target: CourseTarget): string {
@@ -15,8 +16,8 @@ function keyOf(target: CourseTarget): string {
  * `TimetablePanel` とモバイルの `MobileProposalPage` が共有する。
  *
  * - **外す** — その場で時間割から除く(`removeCourse`)
- * - **別の科目に変更する** — 外す科目を `replacing` に置き、そのコマで絞った
- *   シラバス一覧を開く。講義詳細の「この科目に変更」で入れ替わる
+ * - **別の科目に変更する** — 外す科目を `replacing` に置き、そのコマと時間割の学期で
+ *   絞ったシラバス一覧を開く。講義詳細の「この科目に変更」で入れ替わる
  *   (`AddToTimetableButton`)
  *
  * 組み立ての途中とアシスタントの応答中はメニューを開かせない(`editable`)。届く時間割に
@@ -28,6 +29,7 @@ export function useTimetableEditing() {
   const removeCourse = useProposalStore((s) => s.removeCourse);
   const startReplace = useProposalStore((s) => s.startReplace);
   const cancelReplace = useProposalStore((s) => s.cancelReplace);
+  const { target: targetTerm } = useTargetTerm();
   const [menu, setMenu] = useState<CourseTarget | null>(null);
 
   // 時間割へ戻ってきたら、選ばずに戻った入れ替えは終わりにする
@@ -53,9 +55,9 @@ export function useTimetableEditing() {
         day: target.day ?? undefined,
         period: target.period ?? undefined,
       });
-      router.push(slotSearchHref(target.day, target.period));
+      router.push(slotSearchHref(target.day, target.period, targetTerm.term));
     },
-    [router, startReplace],
+    [router, startReplace, targetTerm.term],
   );
 
   const remove = useCallback(

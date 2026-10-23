@@ -85,12 +85,24 @@ export function backLink(params: {
 }
 
 /**
- * 時間割のマスからシラバス一覧を開くリンク。そのコマ(曜日・時限)で絞った一覧にする。
- * 空きコマに科目を入れるときと、科目を別の科目に変更するときに使う。コマの無い
- * 科目(集中講義など)からは素の一覧を開く
+ * 時間割のマスからシラバス一覧を開くリンク。そのコマ(曜日・時限)と時間割の学期
+ * (`useTargetTerm()` の前期・後期)で絞った一覧にする。開講期の「前期」は 1Q・2Q も
+ * 含む(`searchCourses()`)ので、前期の時間割に入る科目だけが並ぶ。空きコマに科目を
+ * 入れるときと、科目を別の科目に変更するときに使う。コマの無い科目(集中講義など)
+ * からは学期だけで絞った一覧を開く。`openFilters` は絞り込みパネルを開いた状態で始める
  */
-export function slotSearchHref(day?: string | null, period?: number | null): string {
-  if (!day || period == null) return "/syllabus";
-  const params = new URLSearchParams({ day, period: String(period) });
+export function slotSearchHref(
+  day: string | null | undefined,
+  period: number | null | undefined,
+  term: string,
+  options: { openFilters?: boolean } = {},
+): string {
+  const params = new URLSearchParams();
+  if (day && period != null) {
+    params.set("day", day);
+    params.set("period", String(period));
+  }
+  params.set("term", term);
+  if (options.openFilters) params.set("filters", "open");
   return `/syllabus?${params.toString()}`;
 }

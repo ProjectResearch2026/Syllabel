@@ -12,6 +12,8 @@ import TimetableNotices, { BuildStepLabel } from "./TimetableNotices";
 import { useCreditSummary } from "@/lib/creditSummary";
 import { coursesToSlotTable } from "@/lib/timetable";
 import { useTimetableEditing } from "@/lib/useTimetableEditing";
+import { useTargetTerm } from "@/lib/targetTerm";
+import { slotSearchHref } from "@/lib/syllabusQuery";
 import { courseContext, slotContext, TIMETABLE_CONTEXT, useAiStore } from "@/lib/ai";
 import { useProposalAssistant } from "@/lib/useProposalConversation";
 import MobileAiAssistant from "@/components/ai/MobileAiAssistant";
@@ -176,11 +178,11 @@ export default function MobileProposalPage() {
     [setSelection, editable, openMenu],
   );
 
+  // 時間割の学期で絞る。前期の時間割から後期の科目を探させない
+  const { target: targetTerm } = useTargetTerm();
   const goSyllabus = (target: SlotTarget, openFilters: boolean) => {
-    const params = new URLSearchParams({ day: target.day, period: String(target.period) });
-    if (openFilters) params.set("filters", "open");
     setSlotTarget(null);
-    router.push(`/syllabus?${params.toString()}`);
+    router.push(slotSearchHref(target.day, target.period, targetTerm.term, { openFilters }));
   };
 
   if (!profile) {
@@ -229,11 +231,11 @@ export default function MobileProposalPage() {
           freeDays={freeDays}
           selected={selected}
           onTapCourse={onTapCourse}
-          onTapEmpty={() => {
+          onTapEmpty={(target) => {
             setSelected(null);
             setSelection(null);
+            setSlotTarget(target);
           }}
-          onLongPressEmpty={setSlotTarget}
         />
 
         {/* まだ時間割が無いこと（§5.2.3 の `idle`）を示す。空の表だけでは、組み
@@ -242,7 +244,7 @@ export default function MobileProposalPage() {
           <div className="pointer-events-none absolute inset-0 grid place-items-center bg-surface-primary/80">
             <p className="max-w-[240px] text-center text-xs leading-5 text-fg-tertiary">
               下のAI履修アシスタントに希望を送ると、ここに時間割が組み上がります。
-              空きコマを長押しして、シラバスから自分で登録することもできます。
+              空きコマをタップして、シラバスから自分で登録することもできます。
             </p>
           </div>
         )}
@@ -256,7 +258,7 @@ export default function MobileProposalPage() {
 
       {courses.length > 0 && (
         <p className="px-3 py-2 text-[9px] text-fg-tertiary">
-          科目をタップすると、シラバスを開く・別の科目に変更・時間割から外すを選べます。空きコマを長押しすると科目を探せます
+          科目をタップすると、シラバスを開く・別の科目に変更・時間割から外すを選べます。空きコマをタップすると科目を探せます
         </p>
       )}
 
