@@ -102,6 +102,12 @@ SUBCATEGORY_LABEL = {
 _TEXT_RETRY_SECONDS = 300.0
 _text_unsupported_until = 0.0
 
+# topic の言い換え(「、」区切り)の上限
+_MAX_TOPIC_ALTERNATIVES = 5
+# 返す科目の数の上限。結果はモデルが読んで考える材料になり、多いほど考える時間が伸びる
+# (20件の検索を3回読んで、次の手を決めるまでに約5分かかった)
+_MAX_LIMIT = 10
+
 # 1科目の返り値に載せるクラスの数(同名の別クラス)
 _MAX_CLASSES = 3
 # get_course の1節あたりの上限の文字数。講義概要は9割が430字以内に収まる
@@ -201,16 +207,28 @@ async def _topic_matches(topic: str, year: int, faculty: str) -> dict[str, list[
     global _text_unsupported_until
     if time.monotonic() < _text_unsupported_until:
         return None
-    rows = await fetch_rows(year=year, text=topic, faculty=faculty)
-    if any("text_matched" not in row for row in rows):
-        _text_unsupported_until = time.monotonic() + _TEXT_RETRY_SECONDS
-        logger.warning("api-clean が本文の検索(text)に対応していません")
-        return None
-    return {
-        str(row.get("syllabus_code")): list(row.get("text_matched") or [])
-        for row in rows
-        if row.get("syllabus_code")
-    }
+    matched: dict[str, list[str]] = {}
+    # 「、」で区切った言い換え(「人工知能、機械学習」)は、どれかを含む科目を探す。
+    # api-clean の `text` は AND なので言い換えごとに引いて合わせる。モデルが言い換えごとに
+    # ツールを呼ぶと、そのたびに結果を読んで考え直し、応答が分単位で伸びた
+    for words in _topic_alternatives(topic):
+        rows = await fetch_rows(year=year, text=words, faculty=faculty)
+        if any("text_matched" not in row for row in rows):
+            _text_unsupported_until = time.monotonic() + _TEXT_RETRY_SECONDS
+            logger.warning("api-clean が本文の検索(text)に対応していません")
+            return None
+        for row in rows:
+            code = str(row.get("syllabus_code") or "")
+            if code:
+                fields = matched.setdefault(code, [])
+                fields += [f for f in row.get("text_matched") or [] if f not in fields]
+    return matched
+
+
+def _topic_alternatives(topic: str) -> list[str]:
+    """「人工知能、機械学習」を言い換えごとに分ける(最大5つ)。"""
+    parts = [p.strip() for p in re.split(r"[、,，/／]", topic)]
+    return list(dict.fromkeys(p for p in parts if p))[:_MAX_TOPIC_ALTERNATIVES]
 
 
 async def _instructor_codes(instructor: str, year: int, faculty: str) -> set[str]:
@@ -243,7 +261,7 @@ async def search_courses(
     course_type: CourseTypeArg | None = None,
     only_registrable: bool = True,
     include_taken: bool = False,
-    limit: int = 10,
+    limit: int = 5,
     catalog: Catalog | None = None,
 ) -> dict:
     """シラバスを探す(本書の説明を参照)。科目ごとに1件で返す。
@@ -252,7 +270,7 @@ async def search_courses(
         `{"total", "shown", "courses": [...], "hint"}`。失敗したときは `{"error": ...}`。
     """
     settings = get_settings()
-    limit = max(1, min(20, limit))
+    limit = max(1, min(_MAX_LIMIT, limit))
     keyword = (keyword or "").strip() or None
     topic = (topic or "").strip() or None
     instructor = (instructor or "").strip() or None
@@ -598,14 +616,15 @@ def register_course_tools(agent) -> None:
         course_type: CourseTypeArg | None = None,
         only_registrable: bool = True,
         include_taken: bool = False,
-        limit: Annotated[int, Field(ge=1, le=20)] = 10,
+        limit: Annotated[int, Field(ge=1, le=10)] = 5,
     ) -> dict:
-        """先端理工学部の今年度のシラバスから科目を探す。条件はすべて AND。
+        """先端理工学部の今年度のシラバスから科目を探す。条件はすべて AND。1回で探す。
 
         Args:
             keyword: 科目名の一部(例: 「線形代数」)。全角・半角やⅠと1の違いは吸収する。
-            topic: 講義の内容に含まれる語(例: 「機械学習」「プログラミング」)。講義概要・
-                到達目標・授業計画を探す。空白で区切ると AND。興味から探すときに使う。
+            topic: 講義の内容に含まれる語(例: 「機械学習」)。講義概要・到達目標・授業計画を
+                探す。興味から探すときに使う。言い換えは「、」で区切って1回で渡す
+                (例: 「人工知能、機械学習、AI」はどれかを含む科目)。空白で区切ると AND。
             instructor: 担当教員の名前(姓だけでもよい)。
             day: 曜日。
             period: 時限(1〜7)。
@@ -615,7 +634,7 @@ def register_course_tools(agent) -> None:
             course_type: 学生にとっての履修区分。
             only_registrable: 学生が履修登録できるクラスだけにする。
             include_taken: 修得済みの科目も含める。
-            limit: 返す科目の数(1〜20)。
+            limit: 返す科目の数(1〜10。既定 5)。
 
         Returns:
             total(当たった科目数)・courses(code・title・when(学期と曜日時限)・credits・

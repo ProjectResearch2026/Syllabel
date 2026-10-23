@@ -114,6 +114,26 @@ async def test_topic_search_uses_api_clean_text_and_returns_matched_fields(monke
 
 
 @pytest.mark.asyncio
+async def test_topic_alternatives_are_searched_in_one_call(monkeypatch):
+    """「、」で区切った言い換えは、どれかを含む科目を1回の呼び出しで返す。"""
+    calls: list[dict] = []
+
+    async def fake_fetch_rows(**kwargs):
+        calls.append(kwargs)
+        if kwargs["text"] == "誤り訂正":
+            return [{"syllabus_code": "Y000000006", "text_matched": ["講義概要"]}]
+        return [{"syllabus_code": "Y000000006", "text_matched": ["授業計画"]}]
+
+    monkeypatch.setattr(course_tools, "fetch_rows", fake_fetch_rows)
+
+    result = await search_courses(await _ctx(), topic="誤り訂正、符号化")
+
+    assert [c["text"] for c in calls] == ["誤り訂正", "符号化"]
+    assert [c["title"] for c in result["courses"]] == ["符号理論"]
+    assert result["courses"][0]["matchedIn"] == ["講義概要", "授業計画"]
+
+
+@pytest.mark.asyncio
 async def test_topic_search_refuses_old_api_clean(monkeypatch):
     """古い api-clean は未知の text を黙って無視し、text_matched の無い全件を返す。
 
