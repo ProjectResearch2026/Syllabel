@@ -91,17 +91,12 @@ const AssistantBubble = memo(function AssistantBubble({
   return (
     <div className="flex max-w-[280px] flex-col gap-2 rounded-[2px_12px_12px_12px] border border-border-primary bg-surface-primary p-3 motion-safe:animate-rise-in">
       {/* 考えている様子（思考・ツールの進み具合。§8.3.7）。本文の上に置く */}
-      <AgentTrace
-        thinking={msg.thinking}
-        activities={msg.activities}
-        answering={Boolean(msg.content)}
-        streaming={Boolean(msg.streaming)}
-      />
+      <AgentTrace trace={msg.trace} streaming={Boolean(msg.streaming)} />
       {/* 何も来ていないあいだは指標を出す。空の吹き出しを置かない（§4.1.4）。
           `MarkdownText` のキャレットは最後のブロックの ::after なので、
           本文が空だと掛ける先が無く何も見えない */}
       {msg.streaming && !msg.content ? (
-        !msg.thinking?.trim() && !msg.activities?.length && <ThinkingIndicator label={thinkingLabel} />
+        !msg.trace?.length && <ThinkingIndicator label={thinkingLabel} />
       ) : (
         // 指標から本文へ差し替わるときはふわっと出す（マウント時の1回だけ）
         <MarkdownText

@@ -492,7 +492,12 @@ def make_report(
             cap=ctx.budget.cap if ctx.budget else None,
             registered=ctx.budget.registered if ctx.budget else 0,
         ),
-        retakes=[c.title for c in courses if normalize_title(c.title) in retakes],
+        # 履修区分を添える。必修でない再履修の科目まで「外せない」と説明された
+        retakes=[
+            f"{c.title}({c.category or '履修区分不明'})"
+            for c in courses
+            if normalize_title(c.title) in retakes
+        ],
         needs_confirmation=list(dict.fromkeys(confirm)),
     )
 

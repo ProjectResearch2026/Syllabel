@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 
 from app.curricula.requirements import RequirementsResult, normalize_title
-from app.timetable.candidates import oneline
+from app.timetable.candidates import oneline, student_type
 from app.timetable.context import StudentContext
 
 
@@ -69,10 +69,25 @@ def budget_lines(ctx: StudentContext) -> list[str]:
 
 
 def retake_lines(ctx: StudentContext) -> list[str]:
-    """【未修得の科目】の中身。不合格・履修辞退のまま修得していない科目(再履修の対象)。"""
-    names = [
+    """【未修得の科目】の中身。不合格・履修辞退のまま修得していない科目(再履修の対象)。
+
+    科目ごとに学生にとっての履修区分を添える。再履修というだけで外せない科目だと
+    モデルが受け取り、必修でない科目まで「外せない」と説明したため。
+    """
+    retakes = ctx.retakes()
+    titles = dict.fromkeys(
         c.title
         for c in ctx.completed
-        if c.status in ("failed", "withdrawn") and c.title and normalize_title(c.title) in ctx.retakes()
-    ]
-    return ["、".join(dict.fromkeys(names))] if names else ["なし"]
+        if c.status in ("failed", "withdrawn") and c.title and normalize_title(c.title) in retakes
+    )
+    lines = []
+    for title in titles:
+        course = ctx.course_by_title(title)
+        kind = student_type(course) if course is not None else None
+        if kind == "必修":
+            lines.append(f"- {title}(必修。対象学期に履修できれば必ず入る)")
+        elif kind is not None:
+            lines.append(f"- {title}({kind}。入れるかは学生が決める。外してよい)")
+        else:
+            lines.append(f"- {title}(履修要項に無い科目)")
+    return lines or ["なし"]

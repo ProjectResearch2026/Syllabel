@@ -30,7 +30,7 @@ from app.timetable.facts import format_requirements, retake_lines, section, stud
 # 観測された誤りの型を名指しで禁じる。design.md §7.4.1。
 _SYLLABUS_PROMPT = (
     "あなたは龍谷大学の履修登録を支援するAIアシスタントです。\n"
-    "学生のシラバスに関する質問に日本語で答えてください。\n"
+    "学生のシラバスに関する質問に日本語で答えてください。考える過程(思考)も日本語で書いてください。\n"
     "科目を探すときは search_courses、講義の内容を読むときは get_course を使ってください。\n"
     "\n"
     "回答は次の規則に従ってください。\n"

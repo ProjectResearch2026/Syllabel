@@ -415,8 +415,12 @@ type ChatMessage = {
   role: "user" | "assistant"
   content: string
   time: string
-  thinking?: string              // モデルの思考(SSE の thinking。§6.1.1、§8.3.7)
-  activities?: AgentActivity[]   // ツールの進み具合(SSE の activity)。呼び出しごとに1件
+  trace?: TraceItem[]            // 思考とツールの呼び出しを届いた順に(§6.1.1、§8.3.7)
+
+// 思考はツールの呼び出しを挟むたびに別の項目になる。endedAt が無いあいだは続いている
+type TraceItem =
+  | { kind: "thinking"; text: string; startedAt: number; endedAt?: number }
+  | { kind: "tool"; activity: AgentActivity; startedAt: number; endedAt?: number }
   streaming?: boolean            // SSE 受信中(§6.1.1)
 }
 

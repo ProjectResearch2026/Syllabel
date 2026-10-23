@@ -245,7 +245,7 @@ export function useProposalConversation(): ProposalConversation {
           patchMessage(assistantId, { content: "申し訳ありません。応答の取得に失敗しました。" });
         })
         .finally(() => {
-          reply.flush();
+          reply.end();
           // 組み立てが始まったのに時間割が届かなかった（失敗・中断）。元の時間割へ戻す
           if (!built && buildPlayer.pending) buildPlayer.cancel();
           setBusy(false);

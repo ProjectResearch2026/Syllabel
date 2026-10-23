@@ -94,7 +94,7 @@ export function useSyllabusConversation(): AiConversation {
           patch({ content: "申し訳ありません。応答の取得に失敗しました。" });
         }
       } finally {
-        reply.flush();
+        reply.end();
         // delta も error も来ずに終わると本文が空のまま残る（§4.1.4）
         patch({
           streaming: false,

@@ -109,7 +109,7 @@ async def test_failed_required_course_is_placed_as_retake():
     placed = {c.title: c for c in result.courses}
     assert placed["微分積分"].reason == "再履修の必修"
     assert any(s.kind == "required" and s.note == "再履修" for s in result.steps)
-    assert result.report.retakes == ["微分積分"]
+    assert result.report.retakes == ["微分積分(必修)"]
 
 
 @pytest.mark.asyncio
@@ -387,3 +387,17 @@ async def test_report_leaves_out_shortfalls_the_student_takes_for_granted():
     assert "教養教育科目(必修・仏教)" not in slots
     assert "専門応用科目(選択)" not in slots
     assert "専門応用科目(選択必修)" in slots
+
+
+@pytest.mark.asyncio
+async def test_retakes_are_shown_with_whether_they_can_be_dropped():
+    """再履修の対象には履修区分を添える。必修でない再履修まで「外せない」と説明されたため。"""
+    from app.timetable.facts import retake_lines
+
+    ctx = await _ctx(
+        fx.course("微分積分", status="failed"), fx.course("符号理論", status="failed"), grade=2
+    )
+    lines = retake_lines(ctx)
+
+    assert "- 微分積分(必修。対象学期に履修できれば必ず入る)" in lines
+    assert any(line.startswith("- 符号理論(選択") and "外してよい" in line for line in lines)
