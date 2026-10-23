@@ -193,6 +193,88 @@ def test_assistant_streams_thinking_activity_steps_timetable_and_text():
     assert "授業の無い平日" in record[-1]  # 2回目の呼び出しで受け取ったツールの結果
 
 
+def test_assistant_activity_names_courses_given_by_code():
+    """引数のシラバスコードに科目名を添える。時間割に入らなかった科目もコードのまま見せない。"""
+
+    async def stream(messages: list[ModelMessage], info: AgentInfo):
+        if not any(
+            isinstance(part, ToolReturnPart)
+            for message in messages
+            for part in getattr(message, "parts", [])
+        ):
+            yield {
+                0: DeltaToolCall(
+                    name="build_timetable",
+                    json_args='{"mode": "adjust", "include": ["Y000000006"], "exclude": ["音楽"]}',
+                )
+            }
+            return
+        yield "入れました。"
+
+    agent = build_timetable_assistant()
+    with agent.override(model=FunctionModel(stream_function=stream)):
+        resp = client.post(
+            "/api/timetable/assistant",
+            json=_body(messages=[{"role": "user", "content": "符号理論を入れて"}]),
+        )
+
+    activities = [e["activity"] for e in _events(resp.text) if "activity" in e]
+    # 書き終えた引数にだけ添える(書きかけの間は添えない)。科目名で書かれた引数(exclude の
+    # 音楽)は添えない
+    assert "titles" not in activities[0]
+    assert activities[-1]["titles"] == {"Y000000006": "符号理論"}
+
+
+def test_assistant_activity_reports_what_it_could_not_include_or_exclude():
+    """入れられなかった科目と、今の時間割に無くて外せなかった科目を、ツールの行に添える。"""
+    current = [
+        {
+            "syllabusCode": "Y000000005", "title": "情報理論", "day": "水", "period": 3,
+            "term": "前期", "slots": [{"term": "前期", "day": "水", "period": 3}],
+            "credits": 2, "category": "選択", "reason": "", "source": "student",
+        }
+    ]
+
+    async def stream(messages: list[ModelMessage], info: AgentInfo):
+        returned = [
+            part
+            for message in messages
+            for part in getattr(message, "parts", [])
+            if isinstance(part, ToolReturnPart)
+        ]
+        if not returned:
+            yield {
+                0: DeltaToolCall(
+                    name="build_timetable",
+                    json_args='{"mode": "adjust", "include": ["Y000000006"], "exclude": ["音楽"]}',
+                )
+            }
+            return
+        record.append(str(returned[-1].content))
+        yield "入れられませんでした。"
+
+    record: list[str] = []
+    agent = build_timetable_assistant()
+    with agent.override(model=FunctionModel(stream_function=stream)):
+        resp = client.post(
+            "/api/timetable/assistant",
+            json=_body(
+                timetable=current,
+                messages=[{"role": "user", "content": "符号理論を入れて、音楽を外して"}],
+            ),
+        )
+
+    activities = [e["activity"] for e in _events(resp.text) if "activity" in e]
+    failed = activities[-1]["failed"]
+    # 符号理論(水3)は自分で入れた情報理論(水3)と重なる。音楽は時間割に無い
+    assert "水3で重なる" in failed["Y000000006"]
+    assert failed["音楽"] == "時間割に無い"
+    # 科目名も添えたまま流し直す
+    assert activities[-1]["titles"] == {"Y000000006": "符号理論"}
+    # モデルにも、時間割に無い科目を外そうとしたことが伝わる
+    assert "今の時間割に無かった科目(外していない): 音楽" in record[-1]
+
+
 def test_assistant_answers_without_building():
     async def stream(messages, info):
         yield "時間割づくりを手伝えます。"

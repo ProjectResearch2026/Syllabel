@@ -140,6 +140,10 @@ export type AgentActivity = {
   args: Record<string, unknown>;
   /** シラバス検索が当たった科目数。検索が終わったときに同じ `id` で届く */
   found?: number;
+  /** 引数のシラバスコード → 科目名。引数を書き終えたとき(とシラバスを読み終えたとき)に届く */
+  titles?: Record<string, string>;
+  /** 時間割の組み立てで、頼まれた入れる・外すのうちできなかったもの(引数の値 → 理由) */
+  failed?: Record<string, string>;
 };
 
 /** 組み立ての起点(§7.2)。`backend/app/timetable/builder.py` の `Mode` */

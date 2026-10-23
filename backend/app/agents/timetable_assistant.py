@@ -19,6 +19,7 @@ from pydantic_ai import Agent, ModelRetry, RunContext
 
 from app.agents import build_model, chat_model_settings
 from app.agents.course_tools import register_course_tools
+from app.curricula.requirements import normalize_title
 from app.schemas.proposal import ProposedCourse
 from app.timetable.builder import build_timetable, check_timetable
 from app.timetable.conditions import Conditions, Scope, Weekday, parse_period_rule
@@ -78,7 +79,8 @@ class AssistantDeps:
 
     `timetable` と `conditions` は frontend から受け取った今の時間割と条件で、
     `build_timetable` が組み直すたびに置き換える。`outbox` はツールが SSE に流したい
-    イベント(手順・時間割・条件)を積む。
+    イベント(手順・時間割・条件)を積む。`activity_results` は呼び出しの id → その呼び出しの
+    ツールの行に添える結果(入れる・外すに失敗した科目。`failed`)。
     """
 
     student: StudentContext
@@ -87,6 +89,7 @@ class AssistantDeps:
     outbox: list[dict] = field(default_factory=list)
     rng: random.Random = field(default_factory=random.Random)
     last_report: Report | None = None
+    activity_results: dict[str, dict] = field(default_factory=dict)
 
 
 def _merge_conditions(
@@ -126,6 +129,37 @@ def _merge_conditions(
     if exclude is not None:
         update["exclude"] = list(dict.fromkeys(exclude))
     return Conditions.model_validate({**current.model_dump(), **update})
+
+
+def _matches(course: ProposedCourse, wanted: str) -> bool:
+    return course.syllabus_code == wanted or normalize_title(course.title) == normalize_title(wanted)
+
+
+def build_failures(
+    before: list[ProposedCourse],
+    after: list[ProposedCourse],
+    *,
+    mode: str,
+    include: list[str],
+    exclude: list[str],
+    include_failures: dict[str, str],
+) -> dict[str, str]:
+    """この呼び出しで頼まれた入れる・外すのうち、できなかったもの(引数の値 → 理由)。
+
+    外す科目が今の時間割に無かったときも、外せなかったものとして返す(組み直す `rebuild` は
+    今の時間割を起点にしないので除く)。モデルが時間割に無い科目を外すと言い出したとき、
+    学生にもモデルにもそれが分かるようにする。
+    """
+    failed: dict[str, str] = {}
+    for wanted in include:
+        if not any(_matches(c, wanted) for c in after):
+            failed[wanted] = include_failures.get(wanted, "時間割に入っていない")
+    for wanted in exclude:
+        if any(_matches(c, wanted) for c in after):
+            failed[wanted] = "必修・自分で入れた科目・入れたい科目は外せない"
+        elif mode != "rebuild" and not any(_matches(c, wanted) for c in before):
+            failed[wanted] = "時間割に無い"
+    return failed
 
 
 def timetable_event(courses: list[ProposedCourse], report: Report) -> dict:
@@ -199,6 +233,16 @@ def build_timetable_assistant() -> Agent[AssistantDeps, str]:
         result = build_timetable(
             deps.student, conditions, deps.timetable, mode=mode, rng=deps.rng
         )
+        failed = build_failures(
+            deps.timetable,
+            result.courses,
+            mode=mode,
+            include=include or [],
+            exclude=exclude or [],
+            include_failures=result.include_failures,
+        )
+        if failed:
+            deps.activity_results[ctx.tool_call_id] = {"failed": failed}
         deps.timetable = result.courses
         deps.conditions = result.conditions
         deps.last_report = result.report
@@ -207,6 +251,10 @@ def build_timetable_assistant() -> Agent[AssistantDeps, str]:
         deps.outbox.append(timetable_event(result.courses, result.report))
         deps.outbox.append({"conditions": result.conditions.model_dump(by_alias=True)})
         lines = ["時間割を組み直した。", *report_lines(result.report)]
+        missing = [wanted for wanted in exclude or [] if failed.get(wanted) == "時間割に無い"]
+        if missing:
+            titles = "、".join(deps.student.title_of(wanted) for wanted in missing)
+            lines.append(f"外す科目のうち、今の時間割に無かった科目(外していない): {titles}")
         described = result.conditions.describe()
         lines.append(f"今の条件: {'、'.join(described) if described else 'なし'}")
         return "\n".join(lines)

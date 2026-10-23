@@ -189,8 +189,33 @@ async def test_fill_respects_credit_limit():
     result = _build(await _ctx(), Conditions(target_credits=8))
 
     assert result.total_credits <= 8
-    reasons = {s.reason for s in result.report.remaining_shortfall}
-    assert "登録できる単位の上限に達した" in reasons
+    reasons = [s.reason or "" for s in result.report.remaining_shortfall]
+    assert any(r.startswith("登録できる単位の上限に達した。候補: ") for r in reasons)
+
+
+@pytest.mark.asyncio
+async def test_shortfall_reason_names_the_course_a_candidate_clashes_with():
+    """上限に達していても、重なりで入らない候補は重なる科目の名前まで書く。
+
+    上限だけを理由にすると、モデルは「どれかを外せば入る」と説明し、実際には重なる
+    科目を外さないと入らない入れ替えを提案した。
+    """
+    current = [
+        *_required_courses(),
+        _course("文学", "G000000003", "月", 3),
+        _course("音楽", "G000000004", "火", 3),
+        _course("哲学", "G000000002", "水", 3, category="選択必修"),
+        _course("有機化学", "Y000000008", "金", 3),
+    ]
+    result = _build(await _ctx(), Conditions(target_credits=14), current, mode="adjust")
+
+    assert result.total_credits == 14
+    short = {s.slot: s.reason or "" for s in result.report.remaining_shortfall}
+    reason = short["専門応用科目(選択)"]
+    assert reason.startswith("登録できる単位の上限に達した。候補: ")
+    assert "符号理論(哲学と水3で重なる)" in reason
+    # 挙げるのは3件までで、残りは件数にする
+    assert reason.count("で重なる") == 3 and reason.endswith("、ほか1件")
 
 
 @pytest.mark.asyncio
