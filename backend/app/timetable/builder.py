@@ -249,6 +249,8 @@ class BuildResult:
     conditions: Conditions
     report: Report
     steps: list[Step]
+    # 入れたい科目(`include` の値)を入れられなかった理由
+    include_failures: dict[str, str] = field(default_factory=dict)
 
     @property
     def total_credits(self) -> int:
@@ -801,7 +803,13 @@ def build_timetable(
     for status in report.conditions:
         if status.status == "unmet":
             steps.append(Step(kind="unmet", condition=status.condition, detail=status.detail))
-    return BuildResult(courses=plan.courses, conditions=conditions, report=report, steps=steps)
+    return BuildResult(
+        courses=plan.courses,
+        conditions=conditions,
+        report=report,
+        steps=steps,
+        include_failures=dict(plan.include_failures),
+    )
 
 
 def check_timetable(

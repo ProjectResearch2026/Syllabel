@@ -18,7 +18,8 @@ import { useScrollToBottom } from "@/lib/useScrollToBottom";
  * - **ツールの呼び出し**も1行で、呼んでいるあいだは backend が決めた文言(「シラバスを
  *   検索しています」)、終わったら「〜しました」にし、モデルが書いた引数を短く添える。押すと
  *   引数を「時間割から外す: 水環境科学, 経済学のすすめ」のように1行ずつの文で開く(引数名や
- *   remove のような値をそのまま出さない)
+ *   remove のような値をそのまま出さない)。入れる・外すができなかった科目は、組み立てが
+ *   終わったときに「時間割に入れられませんでした: 科目(理由)」に書き換える
  *
  * 思考も引数もモデルの出力であり、学生のブラウザにだけ流れる（サーバには残さない）。
  */
@@ -184,17 +185,25 @@ function lastLine(text: string): string {
 }
 
 /** 開いたときに並べる行。引数を「見出し: 値」の文にし、学生に関係の無い引数は出さない */
-function argLines({ tool, args, found }: AgentActivity, titleOf: (code: string) => string): string[] {
+function argLines(
+  { tool, args, found, failed }: AgentActivity,
+  titleOf: (code: string) => string,
+): string[] {
   const lines: string[] = [];
   for (const [key, value] of Object.entries(args)) {
     if (value === null || value === undefined || value === "") continue;
     const line =
       tool === "build_timetable"
-        ? buildLine(key, value, args, titleOf)
+        ? buildLine(key, value, titleOf, failed ?? {})
         : tool === "get_course"
           ? courseLine(key, value, titleOf)
           : searchLine(key, value, args);
-    if (line) lines.push(line);
+    if (Array.isArray(line)) lines.push(...line);
+    else if (line) lines.push(line);
+  }
+  // 今の時間割を直すだけで、入れる・外す科目も条件も無い呼び出しは、何をしたかの1行を出す
+  if (tool === "build_timetable" && lines.length === 0 && args.mode === "adjust") {
+    lines.push("今の時間割を見直す");
   }
   // 検索は最後に当たった科目数を添える(backend が検索を終えたときに届く)
   if (tool === "search_courses" && found !== undefined) {
@@ -213,11 +222,25 @@ function cleared(value: unknown): boolean {
   return (Array.isArray(value) && value.length === 0) || value === 0;
 }
 
-const BUILD_MODE_LINE: Record<string, string> = {
-  rebuild: "時間割を組み直す（自分で入れた科目は残す）",
-  adjust: "今の時間割を直す（条件に合わない科目を外し、空いたコマを埋める）",
-  remove: "条件に合わない科目を外すだけ（空いたコマは埋めない）",
-};
+/** 入れる・外す科目の行。できなかった科目は1科目1行で「〜できませんでした: 科目(理由)」にする */
+function courseLines(
+  value: unknown,
+  titleOf: (code: string) => string,
+  failed: Record<string, string>,
+  done: string,
+  undone: string,
+): string[] {
+  const values = (Array.isArray(value) ? value : [value]).map(String);
+  const ok = values.filter((v) => !(v in failed));
+  const lines = ok.length ? [`${done}: ${ok.map(titleOf).join(", ")}`] : [];
+  for (const v of values.filter((v) => v in failed)) {
+    const title = titleOf(v);
+    // 理由が科目名から始まるとき(「〜は「…」と月2で重なる」)は、名前を繰り返さない
+    const reason = failed[v].startsWith(`${title}は`) ? failed[v].slice(title.length + 1) : failed[v];
+    lines.push(`${undone}: ${title}（${reason}）`);
+  }
+  return lines;
+}
 
 const SCOPE_LINE: Record<string, string> = {
   必修のみ: "必修だけを入れる",
@@ -235,15 +258,14 @@ function periodText(v: string): string {
 function buildLine(
   key: string,
   value: unknown,
-  args: Record<string, unknown>,
   titleOf: (code: string) => string,
-): string | null {
+  failed: Record<string, string>,
+): string | string[] | null {
   const off = cleared(value);
   switch (key) {
     case "mode":
-      // 外す科目を挙げていれば「時間割から外す: …」の行で足りる
-      if (value === "remove" && Array.isArray(args.exclude) && args.exclude.length > 0) return null;
-      return BUILD_MODE_LINE[String(value)] ?? `組み方: ${value}`;
+      // 今の時間割を直す(adjust)・外すだけ(remove)は、入れる・外す科目の行で足りる
+      return value === "rebuild" ? "時間割を組み直す" : null;
     case "scope":
       return SCOPE_LINE[String(value)] ?? `範囲: ${value}`;
     case "free_days":
@@ -259,9 +281,11 @@ function buildLine(
     case "target_credits":
       return off ? "単位の上限をなくす" : `単位の上限: ${value}単位`;
     case "include":
-      return off ? "入れる科目の指定をやめる" : `時間割に入れる: ${joined(value, titleOf)}`;
+      if (off) return "入れる科目の指定をやめる";
+      return courseLines(value, titleOf, failed, "時間割に入れる", "時間割に入れられませんでした");
     case "exclude":
-      return off ? "外す科目の指定をやめる" : `時間割から外す: ${joined(value, titleOf)}`;
+      if (off) return "外す科目の指定をやめる";
+      return courseLines(value, titleOf, failed, "時間割から外す", "時間割から外せませんでした");
     default:
       return otherLine(key, value);
   }
@@ -339,11 +363,6 @@ function doneLabel(activity: AgentActivity): string {
   }
 }
 
-const MODE_LABEL: Record<string, string> = {
-  rebuild: "組み直す",
-  adjust: "今の時間割を直す",
-  remove: "外すだけ",
-};
 
 const SCOPE_LABEL: Record<string, string> = {
   必修のみ: "必修だけ",
@@ -386,7 +405,7 @@ function buildArg(
 ): string | null {
   switch (key) {
     case "mode":
-      return MODE_LABEL[String(value)] ?? "組み直す";
+      return value === "rebuild" ? "組み直す" : null;
     case "scope":
       return SCOPE_LABEL[String(value)] ?? text(value);
     case "free_days":

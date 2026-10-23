@@ -7,6 +7,7 @@
 | `{"thinking": "..."}` | モデルの思考の断片。vLLM の reasoning パーサが本文と分けて返したときだけ |
 | `{"activity": {"tool", "label", "args"}}` | ツールを呼び始めた・引数を書いている。`label` は backend が決めた固定文言で、モデルには書かせない。`args` はモデルが書いた引数(書きかけの間も流す) |
 | `{"activity": {..., "found"}}` | シラバス検索が終わったときに、同じ `id` で当たった科目数(`found`)を添えて流し直す |
+| `{"activity": {..., "failed"}}` | 時間割の組み立てが終わったときに、頼まれた入れる・外すのうちできなかったもの(引数の値 → 理由)を添えて流し直す |
 | `{"activity": {..., "titles"}}` | 引数が書き終わったとき(と結果を添えて流し直すとき)に、引数のシラバスコード → 科目名を添える。時間割に無い科目もコードのまま見せないため |
 | ツールが積んだイベント | ツールの実行が終わったときに、ツールが `outbox` に積んだもの(時間割の `step` / `timetable` / `conditions`)を流す |
 | `{"error": "..."}` / `{"done": true}` | 失敗と終端。終端はエラー時も必ず流れる |
@@ -140,6 +141,7 @@ async def stream_agent(
     error_text: str = "応答の生成中にエラーが発生しました",
     on_finish: Callable[[], list[dict]] | None = None,
     title_of: Callable[[str], str] | None = None,
+    activity_results: dict[str, dict] | None = None,
 ) -> AsyncIterator[str]:
     """エージェントを走らせ、イベントを SSE の行として返す。
 
@@ -147,6 +149,8 @@ async def stream_agent(
         outbox: ツールが流したいイベントを積むリスト。ツールの実行が終わるたびに流して空にする。
         on_finish: 最後に流すイベントを返す関数(本文の後・`done` の前)。
         title_of: シラバスコードを科目名に直す関数。ツールの引数のコードに科目名を添える。
+        activity_results: 呼び出しの id → ツールの行に添える結果。ツールが実行中に書き込み、
+            結果が届いたときに同じ `id` の `activity` に添えて流し直す。
     """
     pending = outbox if outbox is not None else []
     started = False
@@ -213,6 +217,8 @@ async def stream_agent(
                     if isinstance(result, ToolReturnPart) and result.tool_call_id in called:
                         name, args, titles = called[result.tool_call_id]
                         summary = _result_summary(name, args, result.content)
+                        if activity_results is not None:
+                            summary.update(activity_results.pop(result.tool_call_id, {}))
                         if summary:
                             # 引数から引いた科目名に、結果から分かった科目名を重ねる
                             merged = {**titles.get("titles", {}), **summary.get("titles", {})}
