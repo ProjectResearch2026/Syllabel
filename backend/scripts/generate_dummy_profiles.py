@@ -37,7 +37,7 @@ from pathlib import Path
 
 import httpx
 
-from app.agents.proposal_agent import check_prerequisite
+from app.timetable.candidates import check_prerequisite
 from app.curricula.loader import get_curricula
 from app.curricula.merge import MergedCourse, MergedCurriculum
 from app.curricula.requirements import judge

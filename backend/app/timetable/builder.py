@@ -543,10 +543,21 @@ def _fill(
         plan.add(choice, step)
 
 
-def _remaining_shortfall(plan: _Plan, estimator: _Estimator) -> int:
+def _remaining_shortfall(plan: _Plan, estimator: _Estimator) -> tuple[int, ...]:
+    """残る不足を、溢れの段ごとに上流から並べたもの。辞書順で比べる。
+
+    合計だけで比べると、上流の枠(専門応用(選択)など)を埋められない曜日を空けても、
+    受け皿の枠(フリーゾーン)が同じ単位を吸うため同点になる。上流の枠の不足が少ない
+    方を先に選ぶ(手順5の順と同じ考え)。
+    """
     _, shortfall = estimator.state(plan.courses)
-    required = {s.key: s.credits for s in plan.ctx.curriculum.requirement_slots}
-    return sum(v for k, v in shortfall.items() if required.get(k, 0) > 0)
+    levels = estimator.entries.levels
+    totals: dict[int, int] = {}
+    for slot in plan.ctx.curriculum.requirement_slots:
+        if slot.credits > 0:
+            level = levels.get(slot.key, 0)
+            totals[level] = totals.get(level, 0) + shortfall[slot.key]
+    return tuple(totals[level] for level in sorted(totals))
 
 
 def _choose_free_days(

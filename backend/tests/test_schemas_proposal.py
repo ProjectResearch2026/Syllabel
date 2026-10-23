@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.schemas.proposal import ProposedCourse, TargetTerm, TimetableProposal
+from app.schemas.proposal import ProposedCourse, TargetTerm, course_clash
 
 
 def make_course(**kwargs) -> dict:
@@ -12,17 +12,8 @@ def make_course(**kwargs) -> dict:
         "day": "月",
         "period": 1,
         "term": "前期",
-        "credits": 2.0,
+        "credits": 2,
         "reason": "必修科目のため。",
-    }
-    base.update(kwargs)
-    return base
-
-
-def make_proposal(*courses: dict, **kwargs) -> dict:
-    base = {
-        "courses": list(courses),
-        "summary": "バランスの取れた時間割です。",
     }
     base.update(kwargs)
     return base
@@ -63,75 +54,24 @@ def test_proposed_course_invalid_day():
         ProposedCourse(**make_course(day="日"))
 
 
-# --- TimetableProposal ---
+# --- コマ重複(course_clash)は開講期間(クォーター)の重なりで判定する ---
 
 
-def test_timetable_proposal_normal():
-    """重複なし2科目で生成できる。"""
-    p = TimetableProposal(**make_proposal(
-        make_course(day="月", period=1, term="前期"),
-        make_course(title="線形代数", day="火", period=2, term="前期", reason="基礎科目。"),
-    ))
-    assert len(p.courses) == 2
+def clash(a: dict, b: dict) -> bool:
+    return course_clash(ProposedCourse(**a), ProposedCourse(**b)) is not None
 
 
-def test_timetable_proposal_total_credits():
-    """total_credits を指定できる。"""
-    p = TimetableProposal(**make_proposal(
-        make_course(),
-        total_credits=4.0,
-    ))
-    assert p.total_credits == 4.0
+def test_same_slot_and_term_clash():
+    assert clash(make_course(), make_course(title="別の科目"))
 
 
-def test_timetable_proposal_total_credits_none():
-    """credits が null の科目を含む場合は total_credits を null にできる。"""
-    p = TimetableProposal(**make_proposal(
-        make_course(credits=None),
-        total_credits=None,
-    ))
-    assert p.total_credits is None
+def test_different_term_does_not_clash():
+    assert not clash(make_course(term="前期"), make_course(title="別の科目", term="後期"))
 
 
-def test_timetable_proposal_conflict():
-    """同じ曜日・時限・学期の科目が2つあると ValidationError。"""
-    with pytest.raises(ValidationError, match="コマが重複"):
-        TimetableProposal(**make_proposal(
-            make_course(day="月", period=1, term="前期"),
-            make_course(title="別の科目", day="月", period=1, term="前期", reason="理由。"),
-        ))
-
-
-def test_timetable_proposal_no_conflict_different_term():
-    """同じ曜日・時限でも学期が異なれば重複にならない。"""
-    p = TimetableProposal(**make_proposal(
-        make_course(day="月", period=1, term="前期"),
-        make_course(title="別の科目", day="月", period=1, term="後期", reason="理由。"),
-    ))
-    assert len(p.courses) == 2
-
-
-def test_timetable_proposal_no_conflict_day_none():
-    """day が None の科目は重複チェック対象外。"""
-    p = TimetableProposal(**make_proposal(
-        make_course(day=None, period=None, term=None),
-        make_course(day=None, period=None, term=None, title="集中講義B", reason="理由。"),
-    ))
-    assert len(p.courses) == 2
-
-
-def test_timetable_proposal_camel_alias():
-    """camelCaseキーで入力できる。"""
-    data = {
-        "courses": [{"title": "統計学", "reason": "基礎。", "day": "水", "period": 3, "term": "前期"}],
-        "totalCredits": 2.0,
-        "summary": "1科目提案。",
-    }
-    p = TimetableProposal.model_validate(data)
-    assert p.total_credits == 2.0
-
-
-# --- コマ重複は開講期間(クォーター)の重なりで判定する ---
+def test_course_without_day_does_not_clash():
+    """曜日・時限の無い科目(集中講義など)は重複を判定しない。"""
+    assert not clash(make_course(day=None, period=None), make_course(day=None, period=None))
 
 
 @pytest.mark.parametrize(
@@ -145,24 +85,16 @@ def test_timetable_proposal_camel_alias():
         ("サ集", "サ集"),  # クォーターに属さない学期どうしは文字列が同じなら重複
     ],
 )
-def test_timetable_proposal_conflict_when_terms_overlap(first, second):
-    with pytest.raises(ValidationError, match="コマが重複"):
-        TimetableProposal(**make_proposal(
-            make_course(day="月", period=1, term=first),
-            make_course(title="別の科目", day="月", period=1, term=second, reason="理由。"),
-        ))
+def test_clash_when_terms_overlap(first, second):
+    assert clash(make_course(term=first), make_course(title="別の科目", term=second))
 
 
 @pytest.mark.parametrize(
     ("first", "second"),
     [("1Q", "2Q"), ("前期", "3Q"), ("前期", "後期"), ("サ集", "前期")],
 )
-def test_timetable_proposal_no_conflict_when_terms_do_not_overlap(first, second):
-    p = TimetableProposal(**make_proposal(
-        make_course(day="月", period=1, term=first),
-        make_course(title="別の科目", day="月", period=1, term=second, reason="理由。"),
-    ))
-    assert len(p.courses) == 2
+def test_no_clash_when_terms_do_not_overlap(first, second):
+    assert not clash(make_course(term=first), make_course(title="別の科目", term=second))
 
 
 # --- 複数コマの科目は全コマで重複を判定する(slots。§5.3)---
@@ -172,39 +104,26 @@ def _slot(term: str, day: str, period: int) -> dict:
     return {"term": term, "day": day, "period": period}
 
 
-def test_timetable_proposal_conflict_in_second_slot():
+def test_clash_in_second_slot():
     """「後期　金4・金5」の科目と金5の科目は重なる(2026-09-23 の実機で起きた重複)。"""
-    with pytest.raises(ValidationError, match="金5限"):
-        TimetableProposal(**make_proposal(
-            make_course(
-                title="ネットワークシステム・演習", day="金", period=4, term="後期",
-                slots=[_slot("後期", "金", 4), _slot("後期", "金", 5)],
-            ),
-            make_course(title="クリティカル・シンキング", day="金", period=5, term="後期"),
-        ))
+    network = make_course(
+        title="ネットワークシステム・演習", day="金", period=4, term="後期",
+        slots=[_slot("後期", "金", 4), _slot("後期", "金", 5)],
+    )
+    other = make_course(title="クリティカル・シンキング", day="金", period=5, term="後期")
+    slot = course_clash(ProposedCourse(**network), ProposedCourse(**other))
+    assert (slot.day, slot.period) == ("金", 5)
 
 
-def test_timetable_proposal_conflict_in_second_term():
+def test_clash_in_second_term():
     """「3Q　金3、4Q　金3」の科目は、1コマ目の学期(3Q)に無い4Qの金3とも重なる。"""
-    with pytest.raises(ValidationError, match="コマが重複"):
-        TimetableProposal(**make_proposal(
-            make_course(
-                title="記号処理", day="金", period=3, term="3Q",
-                slots=[_slot("3Q", "金", 3), _slot("4Q", "金", 3)],
-            ),
-            make_course(title="進化学", day="金", period=3, term="4Q"),
-        ))
-
-
-def test_timetable_proposal_own_slots_do_not_conflict():
-    """1つの科目のコマどうし(金4・金5、3Q金3・4Q金3)は重複ではない。"""
-    p = TimetableProposal(**make_proposal(
+    assert clash(
         make_course(
-            day="金", period=4, term="後期",
-            slots=[_slot("後期", "金", 4), _slot("後期", "金", 5)],
+            title="記号処理", day="金", period=3, term="3Q",
+            slots=[_slot("3Q", "金", 3), _slot("4Q", "金", 3)],
         ),
-    ))
-    assert len(p.courses[0].slots) == 2
+        make_course(title="進化学", day="金", period=3, term="4Q"),
+    )
 
 
 def test_occupied_slots_falls_back_to_first_slot():
