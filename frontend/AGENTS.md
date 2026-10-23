@@ -57,7 +57,7 @@ frontend/
 ├── lib/                            # ユーティリティ・API通信
 │   ├── api_base.ts                 # backend の宛先解決(§6.1)
 │   ├── syllabus-api.ts             # 読み取り専用APIクライアント(JSON)
-│   ├── chatApi.ts                  # SSEクライアント(チャット・履修提案)
+│   ├── chatApi.ts                  # SSE・JSON クライアント(チャット・時間割の組み立てとアシスタント)
 │   ├── programs.ts                 # 課程名→課程コード・入学年度の算出(§4.4.2)
 │   ├── syllabusUI.ts               # 検索画面の状態とタグ突合
 │   ├── openbd.ts                   # 書影の取得(openBD。唯一の学外API。§6.4)
@@ -96,9 +96,9 @@ frontend/
 Zustand store は次の6本で、**すべて永続化機能を意図的にオフ**にする。ページリロード・タブクローズで完全消失することが要件(プライバシー要件)。
 
 - `student.ts` — 学生プロファイル(学年・課程・既修得科目)
-- `chat.ts` — 対話履歴(提案チャット・シラバスチャット・講義単位チャット)
+- `chat.ts` — 対話履歴(時間割のアシスタント・シラバスチャット・講義単位チャット)
 - `chatHistory.ts` — 「最近のチャット」に退避した過去の会話
-- `proposal.ts` — 履修提案の受信状態
+- `proposal.ts` — 時間割・条件・レポートの状態(組み立ての手順の再生は `lib/timetableBuild.ts`)
 - `syllabusUI.ts` — シラバス検索の絞り込み(タグ・区分・分野)と一覧のクエリの写し
 - `ai.ts` — AI シートの表示状態
 
@@ -121,8 +121,9 @@ Zustand store は次の6本で、**すべて永続化機能を意図的にオフ
 
 | エンドポイント | 形式 | 用途 |
 |---|---|---|
-| `POST /api/proposal` | SSE | 履修提案を生成 |
-| `POST /api/chat/proposal` | SSE | 履修提案チャット |
+| `POST /api/timetable/assistant` | SSE | 時間割の画面の会話のすべて(組み立て・組み直しと質問) |
+| `POST /api/timetable/build` | JSON | 条件から時間割を組み立てる(「希望条件なしで提案する」)。モデルを呼ばない |
+| `POST /api/timetable/check` | JSON | 与えた時間割のレポート(手で直したあとの満たせない条件など) |
 | `POST /api/chat/syllabus` | SSE | シラバス全体チャット |
 | `POST /api/chat/syllabus/{code}` | SSE | 講義単位チャット |
 | `GET /api/syllabi` | JSON | シラバス検索 |
@@ -140,10 +141,14 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 | 用途 | イベント |
 |---|---|
-| チャット系(`/api/chat/*`) | `{"delta": "..."}` / `{"error": "..."}` / `{"done": true}` |
-| 履修提案(`/api/proposal`) | `{"snapshot": {...}}` / `{"result": {...}}` に加えて `error` / `done` |
+| 共通 | `{"delta": "..."}` / `{"thinking": "..."}` / `{"activity": {"id", "tool", "label", "args"}}` / `{"error": "..."}` / `{"done": true}` |
+| 時間割のアシスタント(`/api/timetable/assistant`)だけ | `{"build": {...}}` / `{"step": {...}}` / `{"timetable": {...}}` / `{"conditions": {...}}` |
 
-チャット系リクエストには**学生プロファイルと対話履歴を毎回含める**(サーバー側で永続化しないため)。
+`thinking` と `activity` は吹き出しの本文の上に出す(`components/ai/AgentTrace.tsx`。design.md §8.3.7)。`activity` は同じ呼び出しの書きかけの引数が同じ `id` で流れ直すので、`lib/chat.ts` の `upsertActivity()` で1つのチップを書き換える。SSE の本文・思考・進み具合を吹き出しに流し込むのは `replyStream()` に任せる。
+
+**`step` は届いた順に1手ずつ、150ms 空けて時間割に描く**(`lib/timetableBuild.ts` の `buildPlayer`)。組み立ては数秒で終わり手順はほぼ一度に届くので、そのまま当てると何が起きたか見えない。**backend は待たない。** 最後の `timetable` で表を確定させる。組み立てが始まったのに `timetable` が届かなかったら(失敗・中断)、始める前の時間割へ戻す。
+
+リクエストには**学生プロファイルと対話履歴を毎回含める**(サーバー側で永続化しないため)。**時間割(`timetable`)と条件(`conditions`)も frontend が持ち、`/api/timetable/*` に毎回送る。** 条件はアシスタントの `conditions` イベントと `/api/timetable/build` の応答の値をそのまま持ち、画面で組み立てない。シラバスチャット・講義単位チャットにも課程コード・入学年度・対象学期を送る(揃えば。`lib/studentContext.ts` の `useStudentContext()`)。backend はそれで、その学生にとっての区分・要件枠で答える。
 
 ## AIの回答の描き方
 
@@ -151,7 +156,7 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 実体は `components/ai/MarkdownText.tsx` ひとつで、**吹き出しを描くのは `components/ai/ChatMessageList.tsx` の1か所だけである** — PCのパネル(`components/pc/AiChatPanel.tsx`)とモバイルの AI シート(`components/ai/MobileAiAssistant.tsx`)がこれを共有し、ヘッダー・定型の質問・入力欄も `components/ai/ChatParts.tsx` を共有する。**会話の吹き出しを新しく作らず、ここを通す。****吹き出しごとに描き方を写さない。** 字の大きさ・行間・色だけを `className` で外から与える。
 
-**会話の中身も PC とモバイルで共有する**(design.md §4.1.5)。画面ごとの会話を `AiConversation`(`lib/ai.ts`)の形で作り — 時間割は `useProposalAssistant()`(`lib/useProposalConversation.ts`)、シラバス一覧は `useSyllabusConversation()`、講義詳細は `useCourseConversation()` — PC のパネルとモバイルのシートの双方に渡す。両者は同時に mount されるので、**送信中かどうかは各自の state ではなく吹き出しの `streaming` から導く**(片方から送ったときにもう片方が送信できてしまわないように)。モバイルの時間割のシートは提案の入力欄そのもので、提案前はハーフシートで希望条件を受け、送るとシートを閉じて時間割が埋まっていくところを見せる(design.md §8.3.1)。
+**会話の中身も PC とモバイルで共有する**(design.md §4.1.5)。画面ごとの会話を `AiConversation`(`lib/ai.ts`)の形で作り — 時間割は `useProposalAssistant()`(`lib/useProposalConversation.ts`)、シラバス一覧は `useSyllabusConversation()`、講義詳細は `useCourseConversation()` — PC のパネルとモバイルのシートの双方に渡す。両者は同時に mount されるので、**送信中かどうかは各自の state ではなく吹き出しの `streaming` から導く**(片方から送ったときにもう片方が送信できてしまわないように)。**時間割の入力欄の宛先は `/api/timetable/assistant` の1つだけ**で、組み直すか質問に答えるかはアシスタントが決める(design.md §8.3.1)。「希望条件なしで提案する」だけは `/api/timetable/build` を直接引く。モバイルのシートは、組み立てが始まった(`build` イベント)ときに閉じて、時間割が組み上がっていくところを見せる。
 
 - `react-markdown` + `remark-gfm`(表・取り消し線・チェックリスト)+ `remark-breaks`(段落内の単独改行)。**`remark-breaks` を外さない** — Markdown の既定では単独改行が消えるが、日本語の回答は1文ずつ改行して返ってくる
 - **`rehype-raw` を入れてはならない。** 生のHTMLを描かないことで、モデルの出力がDOMに流れる口を塞いでいる
@@ -159,7 +164,7 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 - **表のために吹き出しを広げない。** 幅は設計(`ui-ux/ui-design_*.pen`、280〜290px)どおりに保ち、表は中で横スクロールさせる
 - Tailwind の preflight が `ul` / `ol` の記号と字下げを消すため、リストの見た目は `MarkdownText` の `components` で自分で付けている
 
-履修提案の科目スキーマは design.md §5.3 に従う(`syllabusCode` / `title` / `day` / `period` / `term` / `slots` / `credits` / `category` / `courseCategory` / `subcategory` / `reason`)。**`category` は履修区分(必修など)で、区分は `courseCategory`、教養教育科目の分野は `subcategory`(どちらも履修要項の表記)である。** 時間割のセルは区分(教養教育科目は分野)を履修区分の前に出す(design.md §8.3.4)。専門関連科目には履修区分を出さない(常に選択で、シラバス一覧のタグとそろえる。`lib/timetable.ts` の `requirementOf()`)。履修区分だけではどの枠の必修か読めない。表示名は `lib/courseLabels.ts` にあり、シラバス一覧のタグと共用する。必須は `title` と `reason` だけで、**集中講義の曜日・時限や特定できないシラバスコードは null** で来る。
+時間割の科目スキーマは design.md §5.3 に従う(`syllabusCode` / `title` / `day` / `period` / `term` / `slots` / `credits` / `category` / `courseCategory` / `subcategory` / `reason` / `source`)。**学生が自分で入れた科目は `source: "student"`**(`courseFromSyllabus()`)で、組み直しても外されない。理由の文言(`reason`)で見分けない。**`category` は履修区分(必修など)で、区分は `courseCategory`、教養教育科目の分野は `subcategory`(どちらも履修要項の表記)である。** 時間割のセルは区分(教養教育科目は分野)を履修区分の前に出す(design.md §8.3.4)。専門関連科目には履修区分を出さない(常に選択で、シラバス一覧のタグとそろえる。`lib/timetable.ts` の `requirementOf()`)。履修区分だけではどの枠の必修か読めない。表示名は `lib/courseLabels.ts` にあり、シラバス一覧のタグと共用する。必須は `title` と `reason` だけで、**集中講義の曜日・時限や特定できないシラバスコードは null** で来る。
 
 **`day` / `period` / `term` は1コマ目だけである。** 「後期 金4・金5」のように複数のコマを持つ科目の全コマは `slots` にある。時間割に置くときは `lib/timetable.ts` の `occupiedSlots()` を通し、`day` / `period` を直接使わない(1コマ目だけを見ていた頃は、金4・金5 の科目の金5 が空いて見えた)。`coursesToTimetable()` は複数コマの科目の**同じセル**を全部のマスに入れ、`toCourseList()` はそれを1科目1行に数える(マスごとに数えると単位が2倍になる)。**時間割表は PC・モバイルとも `coursesToSlotTable()` を使う**(design.md §8.3.4。PC は `TimetablePanel.tsx`、モバイルは `app/_components/TimetableGrid.tsx`)。1マスに複数の科目(3Q と 4Q)を持ち、クォーターの印を付け、曜日・時限の無い科目を `unscheduled` に分ける。**提案の科目は画面から落とさない** — 落とすと表の単位の和が「今期登録単位」と合わなくなる。1マス1科目の `coursesToTimetable()` はどの画面からも使っていない(以前のモバイルが使い、3Q と 4Q の科目の一方が消えていた)。シラバス一覧の曜日時限も api-clean の `slots` から `lib/schedule.ts` の `formatSlots()` で作る。
 
@@ -169,7 +174,7 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 ## 課程コードの解決
 
-履修要項を引くキーは **(課程コード, 入学年度)** である(design.md §4.4.2)。`StudentProfile.program` に入るのは**課程名**なので、`GET /api/curricula` と `POST /api/proposal` を呼ぶ前に `lib/programs.ts` の `programCodeOf()` でコードに直す。入学年度は同モジュールの `resolveAdmissionYear()` で決める(成績表の入学日から読んだ `admissionYear` を優先し、無いとき=読み取れなかったときだけ学年から推定する)。課程一覧の正本は `curricula/admission-<年度>/` の課程ファイルである。
+履修要項を引くキーは **(課程コード, 入学年度)** である(design.md §4.4.2)。`StudentProfile.program` に入るのは**課程名**なので、`GET /api/curricula` と `/api/timetable/*`・`/api/chat/*` を呼ぶ前に `lib/programs.ts` の `programCodeOf()` でコードに直す(時間割とチャットは `lib/studentContext.ts` の `useStudentContext()` を通す)。入学年度は同モジュールの `resolveAdmissionYear()` で決める(成績表の入学日から読んだ `admissionYear` を優先し、無いとき=読み取れなかったときだけ学年から推定する)。課程一覧の正本は `curricula/admission-<年度>/` の課程ファイルである。
 
 ## プライバシー設計上の制約
 
@@ -272,7 +277,7 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 **成績表からは学期の判断材料も読む**(design.md §5.2.1)。右上の**作成月日**(年はヘッダの年度から補う)と「**在籍年数 / 休学年数 / 在学年数**」を読む。**次に登録する学期(`lib/targetTerm.ts`)は作成日の月で決める**(4月 → 同年度前期、5〜9月 → 同年度後期、10〜3月 → 翌年度前期)。**在籍年数は学期の決定に使わない** — その年度を丸1年と数えるため(2024年4月入学で 2026年9月作成は 3.0)、「入学年度の前期+在籍年数×2学期」は9月作成の成績表で1学期先を指す(実際に 2026年度後期のはずが 2027年度前期になった)。**成績の有無から学期を推定してはならない** — 成績が1件も付かなかった学期があると1年前の学期を指す。**基本情報欄は見出し「入学日」からの相対位置で読む**(帳票は作成年度によって全体が縦にずれる)。
 
-**提案する学期は `lib/targetTerm.ts` の `useTargetTerm()` だけから引く。** 提案するのは取り込んだ成績表の次の学期であり、**学生には選び直させない**(画面の `app/proposal/_components/TargetTermLabel.tsx` は表示だけ)。`POST /api/proposal` の `targetTerm` と画面の表示が同じ値を見る。成績表から作成日を読めなかったときだけ今日の日付で決め、画面でその旨を添える(デモは `demo.target` に固定)。ブラウザの今日の日付から学期を作って表示してはならない(提案の対象と食い違う)。
+**提案する学期は `lib/targetTerm.ts` の `useTargetTerm()` だけから引く。** 提案するのは取り込んだ成績表の次の学期であり、**学生には選び直させない**(画面の `app/proposal/_components/TargetTermLabel.tsx` は表示だけ)。`/api/timetable/*` とチャットの `targetTerm` と画面の表示が同じ値を見る。成績表から作成日を読めなかったときだけ今日の日付で決め、画面でその旨を添える(デモは `demo.target` に固定)。ブラウザの今日の日付から学期を作って表示してはならない(提案の対象と食い違う)。
 
 ## 龍谷祭デモ向け機能
 

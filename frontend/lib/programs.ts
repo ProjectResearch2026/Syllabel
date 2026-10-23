@@ -4,7 +4,7 @@
  * 履修要項を引くキーは **(課程コード, 入学年度)** であり、課程コードが一次識別子で
  * ある。`StudentProfile.program` に入るのは成績表から採れる**課程名**(§5.2.1)で、
  * 課程は改称され得るため識別子には使えない。したがって backend
- * (`GET /api/curricula/{program_code}/{admission_year}`、`POST /api/proposal`)を
+ * (`GET /api/curricula/{program_code}/{admission_year}`、`/api/timetable/*`、`/api/chat/*`)を
  * 呼ぶ前に、課程名 → 課程コードの解決をここで行う。
  *
  * 一覧は `curricula/admission-<年度>/` の課程ファイル(`program.code` / `program.name`)に

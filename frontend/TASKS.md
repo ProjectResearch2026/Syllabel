@@ -85,7 +85,7 @@
 
 ## 未対応（backend 側）
 
-- [ ] **`POST /api/chat/proposal` が backend に未実装** — design.md §6.1 の表にはあるが、ルートが入るまで 404 を返す。frontend 側（`lib/chatApi.ts` の `streamProposalChat`、`lib/useProposalConversation.ts`。PC の `ChatPanel.tsx` とモバイルの AI シートが共有）は接続済み
+- [x] **`POST /api/chat/proposal` が backend に未実装** — 廃止(設計書 v0.9.95)。時間割の画面の会話は `POST /api/timetable/assistant` の1本になった(`lib/useProposalConversation.ts`)
 - [x] **`GET /api/syllabi` 系の上流障害が 500 になる** — 対応済み(接続失敗・タイムアウトも 502。design.md §6.1)。当時の状況: `backend/app/api/syllabus.py` は `httpx.HTTPStatusError` だけを捕捉しており、接続失敗（`httpx.RequestError`）が素通りする。design.md §6.1 / §3.4.4 の規定は 502
 
 ---
@@ -120,5 +120,5 @@ systemctl --user restart syllabel-backend.service syllabel-frontend.service
 - SSE は `fetch` + `ReadableStream` 方式で実装済み。`lib/chatApi.ts` の `readSSE` 共通ヘルパー経由で全チャット系エンドポイントに対応
 - 時間割表は PC・モバイルとも `lib/timetable.ts` の `coursesToSlotTable` を使う（`TimetablePanel.tsx` / `app/_components/TimetableGrid.tsx`）。`coursesToTimetable` はどの画面からも使っていない
 - 検索結果のタグは2段（`buildTagMap()` で候補 → `resolveTags()` で履修可否を掛けて3軸に決める）。入口は `lib/useTagMap.ts` の `useTagMap()` だけで、**`Map` ではなく関数を返す**（呼び出し側が2段目を掛け忘れないため。`Map` に戻さない）— 設計書 §6.1.3
-- 履修可否の判定規則は設計書 §6.1.3 に1か所で書き、実装は frontend（`lib/eligibility.ts`）と backend（`proposal_agent.py` の `fetch_eligibility()`）の2か所にある。取得経路が違うため実装は分かれる。**片方だけ直さないこと**
+- 履修可否の判定規則は設計書 §6.1.3 に1か所で書き、実装は frontend（`lib/eligibility.ts`）と backend（`app/timetable/offerings.py` の `Catalog.eligibility()`）の2か所にある。取得経路が違うため実装は分かれる。**片方だけ直さないこと**
 - 履修要項を引くキーは (課程コード, 入学年度)。プロファイルの `program` は課程名なので `lib/programs.ts` でコードに解決する — design.md §4.4.2

@@ -4,7 +4,6 @@ from typing import Any
 import httpx
 
 from app.agents.instructor_name import spell_instructor_name
-from app.agents.title_search import matches_title
 from app.settings import get_settings
 
 
@@ -142,53 +141,6 @@ async def search_syllabi_by_instructor(instructor: str, **params: Any) -> dict:
     if spelled is None or spelled == word:
         return first
     return await search_syllabi(instructor=spelled, **params)
-
-
-# 科目名の照合のために全件を辿るときの1ページあたりの件数(api-clean の `MAX_ROWS`)と、
-# 辿るページ数の上限
-_ALL_PAGE_SIZE = 500
-_ALL_MAX_PAGES = 40
-
-
-async def search_syllabi_by_title(
-    q: str,
-    *,
-    instructor: str | None = None,
-    limit: int | None = None,
-    offset: int | None = None,
-    **params: Any,
-) -> dict:
-    """科目名の表記の揺れを畳んでシラバスを検索する。design.md §6.1 / §6.2。
-
-    **api-clean の `q` は正規化の無い `ILIKE` であり、科目名の表記の揺れを吸収しない。**
-    「プログラミング基礎演習1」(登録は `Ⅰ`)や「仏教の思想Ａ」(登録は半角 `A`)は
-    `q` では0件になる。そこで `q` は api-clean に送らず、その他の条件に当たる全件を
-    500件ずつ辿ってから手元で照合する(`app/agents/title_search.py`)。照合の規則は
-    検索画面(frontend の `lib/titleSearch.ts`)と同じである。
-
-    教員名が指定されたときは、教員名の表記の揺れも埋めて引く
-    (`search_syllabi_by_instructor()`)。`limit` / `offset` は照合後の並びに掛ける。
-
-    Returns:
-        `search_syllabi()` と同じ形。`count` は返した件数。
-    """
-    rows: list[dict] = []
-    for page in range(_ALL_MAX_PAGES):
-        page_params = {**params, "limit": _ALL_PAGE_SIZE, "offset": page * _ALL_PAGE_SIZE}
-        payload = (
-            await search_syllabi_by_instructor(instructor, **page_params)
-            if instructor
-            else await search_syllabi(**page_params)
-        )
-        batch = payload.get("results") or []
-        rows += batch
-        if len(batch) < _ALL_PAGE_SIZE:
-            break
-
-    hits = [row for row in rows if matches_title(row.get("course_title") or "", q)]
-    start = offset or 0
-    results = hits[start : start + limit] if limit is not None else hits[start:]
-    return {"count": len(results), "limit": limit, "offset": start, "results": results}
 
 
 async def get_syllabus(code: str) -> dict:
