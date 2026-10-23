@@ -106,8 +106,14 @@ export default function MobileAiAssistant({
 const DOCK_HEIGHT = 58;
 /** 全画面のシートの上端（top-3） */
 const FULL_TOP = 12;
-/** 引っ張って縮められる下限。これより下げても閉じるかどうかは離したときに決める */
+/** 引っ張っているあいだに縮められる下限 */
 const MIN_DRAG_HEIGHT = 120;
+/** 止められる高さの下限。これより低く離すと、入力欄と会話が入る高さに戻す */
+const MIN_HEIGHT = 240;
+/** これより低く離すと閉じる */
+const CLOSE_BELOW = 170;
+/** 上端からこれより近くまで引き上げて離すと全画面にする */
+const SNAP_TO_FULL = 40;
 
 /**
  * シート本体。
@@ -116,8 +122,8 @@ const MIN_DRAG_HEIGHT = 120;
  * layout プロップでハーフ（384px）⇄ フルスクリーンの遷移もアニメーションする。
  *
  * **上部（グラバーとヘッダー）を押したまま上下に引っ張ると、シートの高さが指に付いて
- * くる。** 離したところでハーフ・全画面のうち近い方に収まり、ハーフより十分に下げて
- * 離せば閉じる。勢いよく弾いたときは、その向きに寄せる。グラバーだけを掴めた頃は、
+ * きて、離した高さで止まる**（`useAiStore` の `height` に覚える）。画面の上端近くまで
+ * 引き上げて離せば全画面、下端近くまで下げて離せば閉じる。グラバーだけを掴めた頃は、
  * 掴める所が細く、引っ張ってもシートが動かなかったので、調節できることに気づけなかった。
  */
 function AiSheet({ conversation, base }: { conversation: AiConversation; base: AiContext }) {
@@ -127,6 +133,8 @@ function AiSheet({ conversation, base }: { conversation: AiConversation; base: A
   const expand = useAiStore((s) => s.expand);
   const minimize = useAiStore((s) => s.minimize);
   const close = useAiStore((s) => s.close);
+  const height = useAiStore((s) => s.height);
+  const setHeight = useAiStore((s) => s.setHeight);
 
   const full = mode === "full";
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -143,8 +151,8 @@ function AiSheet({ conversation, base }: { conversation: AiConversation; base: A
   // ただし画面全体の文脈で、挨拶のあとに AI が書いたもの（履修提案の説明）が
   // あるときは会話を出す。サジェストで覆うと、提案の説明が全画面にしないと読めない
   const asked = conversation.messages.some((m) => m.role === "user");
-  const suggestAtHalf = !asked && suggestions !== null && (scoped || conversation.messages.length <= 1);
-  const showSuggestions = !full && suggestAtHalf;
+  const showSuggestions =
+    !full && !asked && suggestions !== null && (scoped || conversation.messages.length <= 1);
   // 提案前の時間割は表が空で、「この時間割について」と出しても指すものが無い
   const showContext = scoped || !conversation.hideBaseContext;
 
@@ -179,16 +187,16 @@ function AiSheet({ conversation, base }: { conversation: AiConversation; base: A
   };
   const onPanEnd = (_: PointerEvent, info: PanInfo) => {
     if (ignorePan.current) return;
-    const vh = window.innerHeight;
-    // CSS のハーフ・全画面の高さと同じ値（下の className）
-    const halfHeight = suggestAtHalf ? 384 : Math.min(480, vh - DOCK_HEIGHT - 96);
-    const fullHeight = vh - FULL_TOP;
-    // 弾いた勢いの分だけ先へ進めて、どこに収まるかを決める
-    const projected = dragFrom.current - info.offset.y - info.velocity.y * 0.2;
+    const released = dragFrom.current - info.offset.y;
+    // ハーフのシートが取れる最大の高さ（ボトムドックの上から全画面の上端まで）
+    const maxHalf = window.innerHeight - FULL_TOP - DOCK_HEIGHT;
     setDragHeight(null);
-    if (projected > (halfHeight + fullHeight) / 2) expand();
-    else if (projected < halfHeight * 0.6) close();
-    else minimize();
+    if (released < CLOSE_BELOW) close();
+    else if (released > maxHalf - SNAP_TO_FULL) expand();
+    else {
+      setHeight(Math.max(MIN_HEIGHT, Math.round(released)));
+      minimize();
+    }
     setTimeout(() => (panned.current = false), 0);
   };
 
@@ -199,12 +207,17 @@ function AiSheet({ conversation, base }: { conversation: AiConversation; base: A
       layout
       style={{
         borderRadius: "20px 20px 0 0",
-        ...(dragHeight !== null && { height: dragHeight }),
+        ...(dragHeight !== null
+          ? { height: dragHeight }
+          : !full && height !== null
+            ? // 画面が縮んだとき（キーボードが開いた・端末を回した）は全画面の高さで抑える
+              { height: `min(${height}px, calc(100dvh - ${FULL_TOP + DOCK_HEIGHT}px))` }
+            : {}),
       }}
       // 引っ張っているあいだは指に遅れず付いてくるよう、動きを付けない
       transition={dragHeight !== null ? { duration: 0 } : { duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
       className={`fixed inset-x-0 z-50 flex flex-col overflow-hidden bg-surface-gray shadow-sheet ${
-        dragHeight !== null
+        dragHeight !== null || (!full && height !== null)
           ? full
             ? "bottom-0"
             : "bottom-[58px]"

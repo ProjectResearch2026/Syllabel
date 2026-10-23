@@ -8,7 +8,8 @@ import type { ArchivedChat } from "@/lib/chatHistory";
  * どの画面からでも同じシートが同一画面上にオーバーレイとして開く。
  *
  *   closed : シート非表示（ボトムドックの Ask Bar だけが常設されている） … STEP1〜3
- *   half   : ハーフシート（高さ384・背後の画面とタブは見えたまま）       … STEP4
+ *   half   : ハーフシート（背後の画面とタブは見えたまま）                 … STEP4
+ *            高さは学生が上部を引っ張って変えられ、変えた高さ（`height`）を覚える
  *   full   : フルスクリーン（会話画面・タブは非表示）                   … STEP5
  *
  * ここは表示状態のみを持つ。対話履歴は lib/chat.ts に置く（AGENTS.md のストア構成に従う）。
@@ -66,6 +67,11 @@ type AiStore = {
    * フォーカスする。時間割の画面が mount 時に1度だけ読んで下ろす
    */
   openOnArrival: boolean;
+  /**
+   * 学生が引っ張って決めたハーフシートの高さ(px)。null のあいだは既定の高さ。
+   * 閉じて開き直しても、全画面から戻っても、この高さで開く（ページを読み直すと消える）
+   */
+  height: number | null;
 
   /** STEP1〜3 → STEP4。文脈を引き継いでハーフシートを開く */
   openHalf: (context: AiContext) => void;
@@ -80,6 +86,7 @@ type AiStore = {
   setContext: (context: AiContext) => void;
   setDock: (dock: AskDock | null) => void;
   setOpenOnArrival: (value: boolean) => void;
+  setHeight: (height: number | null) => void;
 };
 
 export const useAiStore = create<AiStore>((set) => ({
@@ -88,6 +95,7 @@ export const useAiStore = create<AiStore>((set) => ({
   selection: null,
   dock: null,
   openOnArrival: false,
+  height: null,
 
   openHalf: (context) => set({ mode: "half", context }),
   expand: (context) => set((s) => ({ mode: "full", context: context ?? s.context })),
@@ -98,6 +106,7 @@ export const useAiStore = create<AiStore>((set) => ({
   setContext: (context) => set({ context }),
   setDock: (dock) => set({ dock }),
   setOpenOnArrival: (openOnArrival) => set({ openOnArrival }),
+  setHeight: (height) => set({ height }),
 }));
 
 /* ------------------------------------------------------------------ */
