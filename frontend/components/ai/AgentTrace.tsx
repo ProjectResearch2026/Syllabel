@@ -345,6 +345,9 @@ function searchLine(key: string, value: unknown, args: Record<string, unknown>):
       return value === true ? "修得済みの科目も含める" : null;
     case "limit":
       return null;
+    // 続きを引いたときだけ、何科目目からかを出す
+    case "offset":
+      return typeof value === "number" && value > 0 ? `${value + 1}件目から` : null;
     default:
       return otherLine(key, value);
   }
@@ -415,7 +418,7 @@ function describeArgs(
       if (label) parts.push(label);
       continue;
     }
-    if (key === "limit" || key === "only_registrable" || key === "include_taken") continue;
+    if (key === "limit" || key === "offset" || key === "only_registrable" || key === "include_taken") continue;
     if (key === "sections") continue;
     if (tool === "get_course" && key === "code") parts.push(titles(value));
     else if (key === "period" && typeof value === "number") parts.push(`${value}限`);
