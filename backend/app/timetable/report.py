@@ -132,15 +132,20 @@ def _periods_label(periods: Sequence[int]) -> str:
     return "・".join(str(p) for p in sorted(set(periods))) + "限"
 
 
+# クォーターが前期・後期のどちらの半分か。「2Q」だけを渡すと、モデルが後期と読み違えた
+# (2Q は前期の後半)。プロンプトに載る形なので、読み違えようのない言葉を添える
+_QUARTER_LABEL = {1: "1Q・前期の前半", 2: "2Q・前期の後半", 3: "3Q・後期の前半", 4: "4Q・後期の後半"}
+
+
 def _quarter_mark(course: ProposedCourse) -> str:
-    """学期いっぱいでない科目(1Q〜4Q)の印。"""
+    """学期いっぱいでない科目(1Q〜4Q)の印。「2Q・前期の後半」の形。"""
     terms = {slot.term for slot in course.occupied_slots()} or {course.term}
-    marks = []
+    quarters = set()
     for term in terms:
-        quarters = quarters_of(term)
-        if quarters is not None and len(quarters) == 1:
-            marks.append(f"{next(iter(quarters))}Q")
-    return "・".join(sorted(marks))
+        found = quarters_of(term)
+        if found is not None and len(found) == 1:
+            quarters |= found
+    return "、".join(_QUARTER_LABEL[q] for q in sorted(quarters))
 
 
 def describe_course(course: ProposedCourse, day: str | None = None) -> str:

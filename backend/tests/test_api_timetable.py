@@ -235,5 +235,7 @@ def test_instructions_state_the_rules():
         "「2.0単位」のように小数で書かない",
         "不足の確保や補填として書かない",
         "言葉の定義の説明から始めない",
+        "日本語だけで答えてください",
+        "曜日ごとの科目を表や一覧で書き直さない",
     ):
         assert rule in INSTRUCTIONS

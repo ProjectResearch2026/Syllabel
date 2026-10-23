@@ -21,7 +21,7 @@ def format_requirements(requirements: RequirementsResult) -> list[str]:
     lines = [
         f"卒業必要単位: {requirements.total_credits} / "
         f"修得済み: {credits_label(requirements.earned_credits)} / "
-        f"残り: {credits_label(requirements.remaining_credits)}",
+        f"卒業までに残り: {credits_label(requirements.remaining_credits)}",
         "要件枠ごとの不足単位:",
     ]
     for slot in sorted(requirements.slots, key=lambda s: (s.shortfall <= 0, s.key)):
