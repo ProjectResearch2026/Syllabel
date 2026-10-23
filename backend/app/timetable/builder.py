@@ -54,6 +54,7 @@ from app.timetable.report import (
     is_removable,
     make_report,
     pinned_keys,
+    NO_CANDIDATE,
 )
 
 Mode = Literal["rebuild", "adjust"]
@@ -638,7 +639,7 @@ def _shortfall_reasons(
         if plan.conditions.scope == "必修のみ":
             reasons[key] = "必修だけを入れる条件のため"
         elif not reachable[key]:
-            reasons[key] = "対象学期に履修できる候補が無い"
+            reasons[key] = NO_CANDIDATE
         elif plan.limit is not None and all(
             plan.total + c.course.credits > plan.limit for c in reachable[key]
         ):

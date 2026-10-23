@@ -368,3 +368,22 @@ def test_conditions_describe_only_what_was_set():
     assert Conditions().describe() == []
     lines = Conditions(free_day_count=1, avoid_periods=[PeriodRule(day="金", period=5)]).describe()
     assert lines == ["全休の日を1日作る", "避ける時限: 金5"]
+
+
+@pytest.mark.asyncio
+async def test_report_leaves_out_shortfalls_the_student_takes_for_granted():
+    """必修の枠と、対象学期に取れる科目が無い枠の不足は、残る不足に載せない。
+
+    どちらも後の学期に取るのが当たり前で、載せると説明が長くなるだけである。
+    """
+    from app.timetable.report import NO_CANDIDATE, make_report
+
+    report = make_report(
+        await _ctx(), [], Conditions(), shortfall_reasons={"applied.elective": NO_CANDIDATE}
+    )
+    slots = {s.slot for s in report.remaining_shortfall}
+
+    assert "専門基礎科目(必修)" not in slots
+    assert "教養教育科目(必修・仏教)" not in slots
+    assert "専門応用科目(選択)" not in slots
+    assert "専門応用科目(選択必修)" in slots

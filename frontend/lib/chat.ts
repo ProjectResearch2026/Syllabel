@@ -38,32 +38,70 @@ export function upsertActivity(
 
 /**
  * 吹き出し1件に SSE の本文・思考・進み具合を流し込む口を作る。`patch` はその吹き出しを
- * 書き換える関数。`content()` は届いた本文の全体(空なら何も届かなかった)
+ * 書き換える関数。`content()` は届いた本文の全体(空なら何も届かなかった)。
+ *
+ * **書き換えは画面の描画1回(1フレーム)にまとめる。** 本文・思考は1文字ずつ届くので、
+ * 届くたびに store を書き換えると、会話の欄が描き直しに追われて表示が遅れる。
+ * 受信を終えるときは、最後の書き換えの前に `flush()` で溜まった分を当てる
+ * (溜まった分が後から当たって、失敗の文言や終わりの印を上書きしないように)。
  */
 export function replyStream(patch: (update: Partial<ChatMessage>) => void): {
   handlers: AgentStreamHandlers;
   content: () => string;
+  flush: () => void;
 } {
   let content = "";
   let thinking = "";
   let activities: AgentActivity[] = [];
+  let pending: Partial<ChatMessage> = {};
+  let scheduled: number | null = null;
+
+  const flush = () => {
+    if (scheduled !== null) {
+      cancelFrame(scheduled);
+      scheduled = null;
+    }
+    if (Object.keys(pending).length === 0) return;
+    const update = pending;
+    pending = {};
+    patch(update);
+  };
+  const queue = (update: Partial<ChatMessage>) => {
+    pending = { ...pending, ...update };
+    if (scheduled === null) scheduled = requestFrame(flush);
+  };
+
   return {
     handlers: {
       onDelta: (delta) => {
         content += delta;
-        patch({ content });
+        queue({ content });
       },
       onThinking: (delta) => {
         thinking += delta;
-        patch({ thinking });
+        queue({ thinking });
       },
       onActivity: (activity) => {
         activities = upsertActivity(activities, activity);
-        patch({ activities });
+        queue({ activities });
       },
     },
     content: () => content,
+    flush,
   };
+}
+
+// 描画のたびに1回。タブが裏にあって requestAnimationFrame が止まるときに備え、無い環境では
+// タイマーで代える
+function requestFrame(callback: () => void): number {
+  return typeof requestAnimationFrame === "function"
+    ? requestAnimationFrame(callback)
+    : (setTimeout(callback, 16) as unknown as number);
+}
+
+function cancelFrame(handle: number): void {
+  if (typeof cancelAnimationFrame === "function") cancelAnimationFrame(handle);
+  else clearTimeout(handle);
 }
 
 type ChatStore = {

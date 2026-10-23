@@ -112,11 +112,13 @@ export function useCourseConversation({
           ctrl.signal,
         );
       } catch (err) {
+        reply.flush();
         if ((err as Error).name !== "AbortError") {
           failed = true;
           patch({ content: "申し訳ありません。応答の取得に失敗しました。" });
         }
       } finally {
+        reply.flush();
         patch({
           streaming: false,
           ...(reply.content() || failed ? {} : { content: "応答を受け取れませんでした。" }),

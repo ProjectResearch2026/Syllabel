@@ -407,6 +407,22 @@ def _over_is_fixed(courses: Sequence[ProposedCourse], over: dict[str, int], cap:
     return True
 
 
+# 残る不足の理由のうち、学生に伝えなくてよいもの。対象学期に取れる科目が無い枠は、
+# 後の学期に取るのが当たり前で、書くと説明が長くなるだけである
+NO_CANDIDATE = "対象学期に履修できる候補が無い"
+
+
+def _required_slot_keys(ctx: StudentContext) -> set[str]:
+    """必修だけを受け入れる要件枠。その不足は後の学期の必修で埋まるのが当たり前で、伝えない。"""
+    keys = set()
+    for slot in ctx.curriculum.requirement_slots:
+        accepted = slot.accepts.type
+        types = accepted if isinstance(accepted, list) else [accepted]
+        if types == ["必修"]:
+            keys.add(slot.key)
+    return keys
+
+
 def make_report(
     ctx: StudentContext,
     courses: Sequence[ProposedCourse],
@@ -429,6 +445,7 @@ def make_report(
     changes: list[SlotChange] = []
     remaining: list[RemainingShortfall] = []
     reasons = shortfall_reasons or {}
+    required_slots = _required_slot_keys(ctx)
     for slot in after.slots:
         if slot.required == 0:
             continue
@@ -439,7 +456,10 @@ def make_report(
                     slot=slot.name, before=prior.earned, after=slot.earned, required=slot.required
                 )
             )
-        if slot.shortfall > 0:
+        # 必修の枠と、対象学期に取れる科目が無い枠の不足は載せない(学生には当たり前で、
+        # 載せるとアシスタントも説明に書く)
+        obvious = slot.key in required_slots or reasons.get(slot.key) == NO_CANDIDATE
+        if slot.shortfall > 0 and not obvious:
             remaining.append(
                 RemainingShortfall(
                     slot=slot.name, shortfall=slot.shortfall, reason=reasons.get(slot.key)

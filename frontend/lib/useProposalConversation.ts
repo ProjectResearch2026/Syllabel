@@ -239,11 +239,13 @@ export function useProposalConversation(): ProposalConversation {
         ctrl.signal,
       )
         .catch((err) => {
+          reply.flush();
           if ((err as Error).name === "AbortError") return;
           failed = true;
           patchMessage(assistantId, { content: "申し訳ありません。応答の取得に失敗しました。" });
         })
         .finally(() => {
+          reply.flush();
           // 組み立てが始まったのに時間割が届かなかった（失敗・中断）。元の時間割へ戻す
           if (!built && buildPlayer.pending) buildPlayer.cancel();
           setBusy(false);

@@ -60,7 +60,7 @@ export default function AgentTrace({
             className="flex w-fit max-w-full items-center gap-1.5 rounded-full bg-surface-gray px-2.5 py-1 text-[11px] leading-4 text-fg-secondary motion-safe:animate-fade-in"
           >
             <ToolIcon tool={activity.tool} />
-            <span className={current ? "font-semibold text-fg-primary" : ""}>
+            <span className={`shrink-0 whitespace-nowrap ${current ? "font-semibold text-fg-primary" : ""}`}>
               {current ? activity.label : doneLabel(activity)}
             </span>
             {detail && <span className="min-w-0 truncate text-fg-tertiary">{detail}</span>}
