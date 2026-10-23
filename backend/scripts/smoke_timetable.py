@@ -10,7 +10,7 @@
   必修が入る)を確かめる。条件は JSON(camelCase)で渡す
 - `chat` はアシスタント(`POST /api/timetable/assistant`)に発話を順に送る。前の応答で
   返った時間割と条件を次の発話に持ち越す。思考・ツールの呼び出し(引数)・組み立て・
-  本文を時刻つきで出し、1発話の所要時間と、時間割を組んだか(build_timetable を
+  本文を届いた時点で時刻つきで出し、1発話の所要時間と、時間割を組んだか(build_timetable を
   呼んだか)を出す。設計案(docs/proposals/timetable-redesign.md)の実験 E1〜E4・E6 に使う
 
 向き先は SMOKE_BASE_URL、無通信の打ち切り秒数は SMOKE_READ_TIMEOUT、対象の学生は
@@ -364,16 +364,29 @@ async def build(client: httpx.AsyncClient, body: dict) -> None:
     print("\n" + ("[約束違反]\n  " + "\n  ".join(problems) if problems else "[OK] 約束を守っている"))
 
 
+def _settle_tool(tool: dict | None, printed: dict | None) -> dict | None:
+    """ツールの呼び出しの確定した引数を、まだ出していなければ出す。出した引数を返す。"""
+    if tool is None or tool["args"] == printed:
+        return printed
+    print(f"           引数 {json.dumps(tool['args'], ensure_ascii=False)}", flush=True)
+    return tool["args"]
+
+
 async def chat(client: httpx.AsyncClient, body: dict, utterances: list[str]) -> None:
+    """発話を順に送る。思考・ツールの呼び出し・本文は届いた時点で出す(待っている間も進み具合が見える)。"""
     messages: list[dict] = []
     for text in utterances:
         messages.append({"role": "user", "content": text})
-        print(f"\n{RULE}\n学生: {text}")
+        print(f"\n{RULE}\n学生: {text}", flush=True)
         started = time.monotonic()
         first: float | None = None
         reply = ""
         built = False
         thinking = 0
+        # 書きかけの引数は同じ呼び出し(id)で何度も流れる。呼び出しの始まりと、確定した引数だけを出す
+        tool: dict | None = None
+        tool_printed: dict | None = None
+
         async with client.stream(
             "POST", "/api/timetable/assistant", json={**body, "messages": messages}
         ) as resp:
@@ -387,11 +400,19 @@ async def chat(client: httpx.AsyncClient, body: dict, utterances: list[str]) -> 
                 now = time.monotonic() - started
                 if first is None:
                     first = now
-                if "thinking" in event:
-                    thinking += len(event["thinking"])
-                elif "activity" in event:
+                if "activity" in event:
                     act = event["activity"]
-                    print(f"  [{now:5.1f}s] {act['label']} {json.dumps(act['args'], ensure_ascii=False)}")
+                    if tool is None or act.get("id") != tool.get("id"):
+                        tool_printed = _settle_tool(tool, tool_printed)
+                        print(f"  [{now:5.1f}s] {act['label']}", flush=True)
+                        tool_printed = None
+                    tool = act
+                    continue
+                tool_printed = _settle_tool(tool, tool_printed)
+                if "thinking" in event:
+                    if thinking == 0:
+                        print(f"  [{now:5.1f}s] 考えている…", flush=True)
+                    thinking += len(event["thinking"])
                 elif "build" in event:
                     built = True
                 elif "timetable" in event:
@@ -404,14 +425,19 @@ async def chat(client: httpx.AsyncClient, body: dict, utterances: list[str]) -> 
                 elif "conditions" in event:
                     body["conditions"] = event["conditions"]
                 elif "delta" in event:
+                    if not reply:
+                        print(f"  [{now:5.1f}s] 本文を書き始めた\nAI: ", end="", flush=True)
                     reply += event["delta"]
+                    print(event["delta"], end="", flush=True)
                 elif "error" in event:
-                    print(f"  [エラー] {event['error']}")
+                    print(f"\n  [エラー] {event['error']}", flush=True)
         total = time.monotonic() - started
-        print(f"AI: {reply}")
+        if not reply:
+            print("AI: (本文なし)")
         print(
-            f"(最初のイベント {first or 0:.1f}秒 / 合計 {total:.1f}秒 / 思考 {thinking}字 / "
-            f"時間割を{'組んだ' if built else '組んでいない'})"
+            f"\n(最初のイベント {first or 0:.1f}秒 / 合計 {total:.1f}秒 / 思考 {thinking}字 / "
+            f"時間割を{'組んだ' if built else '組んでいない'})",
+            flush=True,
         )
         messages.append({"role": "assistant", "content": reply})
 
