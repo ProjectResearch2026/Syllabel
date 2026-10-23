@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Brain, CalendarRange, ChevronRight, FileText, Search } from "lucide-react";
 import type { AgentActivity } from "@/lib/chatApi";
 import type { TraceItem } from "@/lib/chat";
@@ -10,12 +10,12 @@ import { useScrollToBottom } from "@/lib/useScrollToBottom";
  * AI が考えている様子（design.md §8.3.7）。吹き出しの本文の上に、届いた順に1行ずつ出す。
  * Claude Code の会話の出し方にならう。
  *
- * - **思考**は1行に畳み、押すと全文を開く。考えているあいだは「考えています」と最新の
- *   1行を、終わったら「○秒考えました」を出す。開いた全文は枠の中でスクロールでき、
- *   考えているあいだは末尾に追従する(上へ戻して読んでいるときは引き戻さない)。
+ * - **思考**は1行に畳み、押すと全文を開く。考えているあいだは「○秒考えています」(秒数は
+ *   数え上げる)と最新の1行を、終わったら「○秒考えました」を出す。開いた全文は枠の中で
+ *   スクロールでき、考えているあいだは末尾に追従する(上へ戻して読んでいるときは引き戻さない)。
  *   **全文はいつでも開ける** — 末尾だけを流していた頃は、流れて消えた分を読めなかった
  * - **ツールの呼び出し**も1行で、呼んでいるあいだは backend が決めた文言(「シラバスを
- *   検索しています」)、終わったら過去形にし、モデルが書いた引数を短く添える。押すと
+ *   検索しています」)、終わったら「〜しました」にし、モデルが書いた引数を短く添える。押すと
  *   引数を1つずつ開く
  *
  * 思考も引数もモデルの出力であり、学生のブラウザにだけ流れる（サーバには残さない）。
@@ -102,15 +102,16 @@ function TraceBody({ children, follow }: { children: React.ReactNode; follow?: u
 
 function ThinkingRow({ item, live }: { item: Extract<TraceItem, { kind: "thinking" }>; live: boolean }) {
   const [open, setOpen] = useState(false);
+  const now = useNow(live);
   const text = item.text.trim();
   if (!text) return null;
-  // 考え終えたときに入る時刻で数える(考えているあいだは秒数を出さない)
-  const seconds = Math.max(1, Math.round(((item.endedAt ?? item.startedAt) - item.startedAt) / 1000));
+  // 考え終えたら終えた時刻で、考えているあいだは今の時刻で数える
+  const seconds = Math.max(1, Math.round(((item.endedAt ?? now) - item.startedAt) / 1000));
   return (
     <div className="flex flex-col">
       <TraceRow
         icon={<Brain size={13} />}
-        label={live ? "考えています" : `${seconds}秒考えました`}
+        label={live ? `${seconds}秒考えています` : `${seconds}秒考えました`}
         // 考えているあいだは最新の1行を添える。開いているときは中身で読めるので出さない
         preview={live && !open ? lastLine(text) : undefined}
         live={live}
@@ -125,6 +126,17 @@ function ThinkingRow({ item, live }: { item: Extract<TraceItem, { kind: "thinkin
       )}
     </div>
   );
+}
+
+/** `active` のあいだ1秒ごとに進む今の時刻 */
+function useNow(active: boolean): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!active) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [active]);
+  return now;
 }
 
 function ToolRow({ activity, live }: { activity: AgentActivity; live: boolean }) {
@@ -209,17 +221,17 @@ function ToolIcon({ tool }: { tool: string }) {
   return <Icon size={13} className="shrink-0" aria-hidden="true" />;
 }
 
-/** 終わった呼び出しの文言。「〜しています」を「〜した」に寄せる */
+/** 終わった呼び出しの文言。「〜しています」を「〜しました」に寄せる */
 function doneLabel(activity: AgentActivity): string {
   switch (activity.tool) {
     case "build_timetable":
-      return "時間割を組んだ";
+      return "時間割を組みました";
     case "search_courses":
-      return "シラバスを検索した";
+      return "シラバスを検索しました";
     case "get_course":
-      return "シラバスを読んだ";
+      return "シラバスを読みました";
     default:
-      return "調べた";
+      return "調べました";
   }
 }
 
