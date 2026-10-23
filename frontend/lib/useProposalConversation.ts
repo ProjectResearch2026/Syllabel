@@ -8,7 +8,7 @@ import {
   type TimetableContext,
   type TimetableReport,
 } from "@/lib/chatApi";
-import { replyStream, useChatStore, type ChatMessage } from "@/lib/chat";
+import { regenerateFrom, replyStream, useChatStore, type ChatMessage } from "@/lib/chat";
 import { useChatHistory } from "@/lib/chatHistory";
 import { useProposalStore } from "@/lib/proposal";
 import { useStudentContext } from "@/lib/studentContext";
@@ -153,6 +153,8 @@ export type ProposalConversation = {
   /** 組めない理由。組めるときは null */
   blockedReason: string | null;
   send: (text: string) => void;
+  /** 末尾の答えを作り直す（`AiConversation.regenerate`） */
+  regenerate: () => void;
   /** 希望条件なしで組み立てる（`/api/timetable/build`） */
   startWithoutPreferences: () => void;
   /** 時間割は残したまま、会話だけをやり直す */
@@ -190,18 +192,19 @@ export function useProposalConversation(): ProposalConversation {
     scheduleCheck({ studentProfile: profile, ...context, timetable: courses, conditions }, setReport);
   }, [reportStale, status, profile, context, courses, conditions, setReport]);
 
+  // `prior` は送る前の会話。再生成は末尾の答えと発話を除いた会話を渡す
   const send = useCallback(
-    (raw: string) => {
+    (raw: string, prior: ChatMessage[] = messages) => {
       const text = raw.trim();
       if (!text || streaming || !profile || !context) return;
 
       const assistantId = nextId("a");
-      const history = messages
+      const history = prior
         .filter((m) => !m.streaming)
         .map((m) => ({ role: m.role, content: m.content }));
       const time = hhmm();
       setMessages([
-        ...messages,
+        ...prior,
         { id: nextId("u"), role: "user", content: text, time },
         { id: assistantId, role: "assistant", content: "", time, streaming: true },
       ]);
@@ -308,6 +311,11 @@ export function useProposalConversation(): ProposalConversation {
     setMessages([assistant(INTRO_ID, hasTimetable ? CONTINUE_TEXT : INTRO_TEXT)]);
   }, [archive, messages, setMessages, hasTimetable]);
 
+  const regenerate = useCallback(() => {
+    const target = regenerateFrom(messages);
+    if (target) send(target.text, target.prior);
+  }, [messages, send]);
+
   const selectHistory = useCallback(
     (id: string) => {
       const restored = restore(SCOPE, id);
@@ -327,6 +335,7 @@ export function useProposalConversation(): ProposalConversation {
     canStart,
     blockedReason,
     send,
+    regenerate,
     startWithoutPreferences,
     newChat,
     history: entries,
@@ -352,6 +361,7 @@ export function useProposalAssistant(): AiConversation {
     hasTimetable,
     canStart,
     send,
+    regenerate,
     startWithoutPreferences,
     newChat,
     history,
@@ -391,6 +401,7 @@ export function useProposalAssistant(): AiConversation {
         : "希望や質問を入力（例: 週に1日は全休にしたい）",
       inputDisabled: !canStart,
       send: sendWithContext,
+      regenerate: canStart ? regenerate : undefined,
       sheetQuickAsks: hasTimetable ? TIMETABLE_QUICK_ASKS : undefined,
       // 時間割があるときは条件を会話で変えれば組み直されるので、作り直しのボタンは置かない
       actions:
@@ -418,6 +429,7 @@ export function useProposalAssistant(): AiConversation {
       hasTimetable,
       canStart,
       sendWithContext,
+      regenerate,
       startWithoutPreferences,
       history,
       selectHistory,

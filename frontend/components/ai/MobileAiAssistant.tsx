@@ -314,6 +314,7 @@ function AiSheet({ conversation, base }: { conversation: AiConversation; base: A
             messages={conversation.messages}
             thinkingLabel={conversation.thinkingLabel}
             showDate={full}
+            onRegenerate={conversation.regenerate}
             // 全体を左へ4pxずらす(左12px・右20px)。AI の吹き出しが画面の真ん中に浮いて
             // 見えないように。左右の和は 32px のままにし、吹き出しの幅(欄に対する割合)を変えない
             className="pb-2.5 pl-3 pr-5 pt-3.5"

@@ -90,6 +90,7 @@ export default function AiChatPanel({
       <ChatMessageList
         messages={conversation.messages}
         thinkingLabel={conversation.thinkingLabel}
+        onRegenerate={conversation.regenerate}
         className="gap-3.5 p-4"
       >
         {suggestions && !conversation.streaming && (

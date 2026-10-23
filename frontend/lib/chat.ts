@@ -30,6 +30,21 @@ export type TraceItem =
   | { kind: "thinking"; text: string; startedAt: number; endedAt?: number }
   | { kind: "tool"; activity: AgentActivity; startedAt: number; endedAt?: number };
 
+/**
+ * 末尾の答えを作り直す(再生成)ときの起点。末尾が答え終えた AI の吹き出しで、その直前が
+ * 学生の発話のときだけ返す。案内や「希望条件なしで提案する」の説明は、学生の発話への
+ * 答えではないので作り直さない。`prior` は学生の発話より前の会話で、作り直しはここに
+ * 同じ発話(`text`)を送り直す — 失敗した答えも前の答えも、次のリクエストの履歴に載せない
+ */
+export function regenerateFrom(
+  messages: ChatMessage[],
+): { prior: ChatMessage[]; text: string } | null {
+  const last = messages[messages.length - 1];
+  const asked = messages[messages.length - 2];
+  if (last?.role !== "assistant" || last.streaming || asked?.role !== "user") return null;
+  return { prior: messages.slice(0, -2), text: asked.content };
+}
+
 /** 続いている項目を、いまの時刻で終える */
 function closeOpen(trace: TraceItem[], now: number): TraceItem[] {
   return trace.map((item) => (item.endedAt === undefined ? { ...item, endedAt: now } : item));

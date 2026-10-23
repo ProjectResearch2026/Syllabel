@@ -148,6 +148,12 @@ export type AiConversation = {
    * 会話の側がそれをどう使うかを決める
    */
   send: (text: string, context?: AiContext) => void;
+  /**
+   * 末尾の答えを作り直す（Claude の再生成と同じ）。直前の学生の発話を、その手前までの会話に
+   * 送り直す。作り直せないとき（送信中・末尾が学生の発話への答えでない）は何もしない。
+   * 無ければ再生成のボタンを出さない
+   */
+  regenerate?: () => void;
   /** 定型の質問 */
   quickAsks?: string[];
   /** モバイルの全画面シートにだけ出す定型の質問（ui-design_phone.pen STEP5 QuickChips） */
