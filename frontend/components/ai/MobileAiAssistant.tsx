@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, type PanInfo } from "motion/react";
 import { Maximize2, Minimize2, Repeat, X } from "lucide-react";
 import {
   DEFAULT_ASK_LABEL,
@@ -102,12 +102,23 @@ export default function MobileAiAssistant({
   );
 }
 
+/** ボトムドックの高さ。ハーフのシートはこの上に乗る（下の className の bottom-[58px]） */
+const DOCK_HEIGHT = 58;
+/** 全画面のシートの上端（top-3） */
+const FULL_TOP = 12;
+/** 引っ張って縮められる下限。これより下げても閉じるかどうかは離したときに決める */
+const MIN_DRAG_HEIGHT = 120;
+
 /**
  * シート本体。
  *
  * layoutId="ai-bar" でボトムドックの Ask Bar と形状モーフィングを共有する。
  * layout プロップでハーフ（384px）⇄ フルスクリーンの遷移もアニメーションする。
- * グラバーは上スワイプで全画面、下スワイプで縮小／クローズ。
+ *
+ * **上部（グラバーとヘッダー）を押したまま上下に引っ張ると、シートの高さが指に付いて
+ * くる。** 離したところでハーフ・全画面のうち近い方に収まり、ハーフより十分に下げて
+ * 離せば閉じる。勢いよく弾いたときは、その向きに寄せる。グラバーだけを掴めた頃は、
+ * 掴める所が細く、引っ張ってもシートが動かなかったので、調節できることに気づけなかった。
  */
 function AiSheet({ conversation, base }: { conversation: AiConversation; base: AiContext }) {
   const mode = useAiStore((s) => s.mode);
@@ -118,14 +129,22 @@ function AiSheet({ conversation, base }: { conversation: AiConversation; base: A
   const close = useAiStore((s) => s.close);
 
   const full = mode === "full";
+  const sheetRef = useRef<HTMLDivElement>(null);
+  // 引っ張っているあいだのシートの高さ(px)。null のときは mode の高さ
+  const [dragHeight, setDragHeight] = useState<number | null>(null);
+  const dragFrom = useRef(0);
+  // 「最近のチャット」のメニューの中から始めた操作では引っ張らない（一覧を選ぶ操作）
+  const ignorePan = useRef(false);
+  // 引っ張り終えた直後のクリックは捨てる。ヘッダーのボタンの上で離しても押したことにしない
+  const panned = useRef(false);
   const suggestions = conversation.suggestionsFor?.(context) ?? null;
   const scoped = context.kind !== base.kind || context.label !== base.label;
   // 学生がまだ何も聞いていないうちは、ハーフシートにサジェストを出す（STEP4）。
   // ただし画面全体の文脈で、挨拶のあとに AI が書いたもの（履修提案の説明）が
   // あるときは会話を出す。サジェストで覆うと、提案の説明が全画面にしないと読めない
   const asked = conversation.messages.some((m) => m.role === "user");
-  const showSuggestions =
-    !full && !asked && suggestions !== null && (scoped || conversation.messages.length <= 1);
+  const suggestAtHalf = !asked && suggestions !== null && (scoped || conversation.messages.length <= 1);
+  const showSuggestions = !full && suggestAtHalf;
   // 提案前の時間割は表が空で、「この時間割について」と出しても指すものが無い
   const showContext = scoped || !conversation.hideBaseContext;
 
@@ -148,20 +167,54 @@ function AiSheet({ conversation, base }: { conversation: AiConversation; base: A
 
   const icon = "text-fg-muted";
 
+  const onPanStart = () => {
+    if (ignorePan.current) return;
+    dragFrom.current = sheetRef.current?.getBoundingClientRect().height ?? 0;
+    panned.current = true;
+  };
+  const onPan = (_: PointerEvent, info: PanInfo) => {
+    if (ignorePan.current) return;
+    const max = window.innerHeight - FULL_TOP - (full ? 0 : DOCK_HEIGHT);
+    setDragHeight(Math.min(max, Math.max(MIN_DRAG_HEIGHT, dragFrom.current - info.offset.y)));
+  };
+  const onPanEnd = (_: PointerEvent, info: PanInfo) => {
+    if (ignorePan.current) return;
+    const vh = window.innerHeight;
+    // CSS のハーフ・全画面の高さと同じ値（下の className）
+    const halfHeight = suggestAtHalf ? 384 : Math.min(480, vh - DOCK_HEIGHT - 96);
+    const fullHeight = vh - FULL_TOP;
+    // 弾いた勢いの分だけ先へ進めて、どこに収まるかを決める
+    const projected = dragFrom.current - info.offset.y - info.velocity.y * 0.2;
+    setDragHeight(null);
+    if (projected > (halfHeight + fullHeight) / 2) expand();
+    else if (projected < halfHeight * 0.6) close();
+    else minimize();
+    setTimeout(() => (panned.current = false), 0);
+  };
+
   return (
     <motion.div
+      ref={sheetRef}
       layoutId="ai-bar"
       layout
-      style={{ borderRadius: "20px 20px 0 0" }}
-      transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+      style={{
+        borderRadius: "20px 20px 0 0",
+        ...(dragHeight !== null && { height: dragHeight }),
+      }}
+      // 引っ張っているあいだは指に遅れず付いてくるよう、動きを付けない
+      transition={dragHeight !== null ? { duration: 0 } : { duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
       className={`fixed inset-x-0 z-50 flex flex-col overflow-hidden bg-surface-gray shadow-sheet ${
-        full
-          ? "top-3 bottom-0"
-          : showSuggestions
-            ? "bottom-[58px] h-96"
-            : // 会話を出すハーフは、案内の吹き出しと入力欄・断り書きが入る高さにする。
-              // 背後の画面の上端は残す（全画面で覆わない）
-              "bottom-[58px] h-[min(480px,calc(100dvh-58px-96px))]"
+        dragHeight !== null
+          ? full
+            ? "bottom-0"
+            : "bottom-[58px]"
+          : full
+            ? "top-3 bottom-0"
+            : showSuggestions
+              ? "bottom-[58px] h-96"
+              : // 会話を出すハーフは、案内の吹き出しと入力欄・断り書きが入る高さにする。
+                // 背後の画面の上端は残す（全画面で覆わない）
+                "bottom-[58px] h-[min(480px,calc(100dvh-58px-96px))]"
       }`}
       role="dialog"
       aria-modal="true"
@@ -175,45 +228,46 @@ function AiSheet({ conversation, base }: { conversation: AiConversation; base: A
         transition={{ duration: 0.14, delay: 0.07 }}
         className="flex flex-1 flex-col overflow-hidden"
       >
-        {/* Grabber — ドラッグで展開／折りたたみ */}
+        {/* 上部（グラバー＋ヘッダー）。押したまま上下に引っ張ってシートの高さを変える */}
         <motion.div
-          drag="y"
-          dragConstraints={{ top: 0, bottom: 0 }}
-          dragElastic={0.25}
-          onDragEnd={(_, info) => {
-            if (info.offset.y < -44 || info.velocity.y < -280) {
-              expand();
-            } else if (info.offset.y > 64 || info.velocity.y > 280) {
-              if (full) minimize();
-              else close();
-            }
+          onPointerDownCapture={(e) => {
+            ignorePan.current = (e.target as Element).closest('[role="menu"]') !== null;
           }}
-          whileDrag={{ cursor: "grabbing" }}
-          className="flex shrink-0 cursor-grab touch-none justify-center pb-1 pt-2"
+          onClickCapture={(e) => {
+            if (!panned.current) return;
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          onPanStart={onPanStart}
+          onPan={onPan}
+          onPanEnd={onPanEnd}
+          className="shrink-0 cursor-grab touch-none active:cursor-grabbing"
         >
-          <span className="h-1 w-10 rounded-full bg-border-primary" />
-        </motion.div>
+          <div className="flex justify-center pb-1 pt-2">
+            <span className="h-1 w-10 rounded-full bg-border-primary" />
+          </div>
 
-        {/* Header（PC の Chat/Header ＋ 全画面／縮小・閉じる） */}
-        <ChatHeader
-          conversation={conversation}
-          trailing={
-            <span className="flex shrink-0 items-center gap-3 pl-0.5">
-              {full ? (
-                <button type="button" onClick={minimize} aria-label="ハーフシートに戻す">
-                  <Minimize2 size={18} className={icon} />
+          {/* Header（PC の Chat/Header ＋ 全画面／縮小・閉じる） */}
+          <ChatHeader
+            conversation={conversation}
+            trailing={
+              <span className="flex shrink-0 items-center gap-3 pl-0.5">
+                {full ? (
+                  <button type="button" onClick={minimize} aria-label="ハーフシートに戻す">
+                    <Minimize2 size={18} className={icon} />
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => expand()} aria-label="全画面にする">
+                    <Maximize2 size={18} className={icon} />
+                  </button>
+                )}
+                <button type="button" onClick={close} aria-label="閉じる">
+                  <X size={20} className={icon} />
                 </button>
-              ) : (
-                <button type="button" onClick={() => expand()} aria-label="全画面にする">
-                  <Maximize2 size={18} className={icon} />
-                </button>
-              )}
-              <button type="button" onClick={close} aria-label="閉じる">
-                <X size={20} className={icon} />
-              </button>
-            </span>
-          }
-        />
+              </span>
+            }
+          />
+        </motion.div>
 
         {/* 何について聞くか。科目・コマに絞っているなら、入れ替えアイコンで画面全体の文脈に戻す */}
         {!showContext ? null : full ? (
