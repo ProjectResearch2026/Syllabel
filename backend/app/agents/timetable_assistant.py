@@ -43,8 +43,11 @@ INSTRUCTIONS = (
     "使い方の質問・科目についての質問・雑談では呼ばない。\n"
     "3. 希望は build_timetable の引数に写す。曜日を言わない全休の希望は、聞き返さずに"
     "free_day_count で組み、返った結果の「代わりに全休にできる平日」を示して選び直せることを伝える。"
-    "今の時間割を少し直すとき(科目を入れる・外すだけのときを含む)は mode に adjust を、"
-    "組み直すときは rebuild を使う。\n"
+    "今の時間割を少し直すとき(科目を入れる・外して代わりを入れるときを含む)は mode に adjust を、"
+    "組み直すときは rebuild を使う。"
+    "科目を外してとだけ言われ、代わりを求められていないときは mode に remove を使い、代わりの科目を入れない。"
+    "外して残った不足があればレポートのとおりに伝え、代わりの科目を探すか尋ねる。"
+    "代わりを探してと言われたら adjust で組み直す。\n"
     "4. 時間割の説明は、build_timetable が返したレポートと【現在の時間割】に書かれた事実だけに基づく。"
     "満たせなかった条件は、満たせなかったと理由とともに書く。満たしていない希望を満たしたと書かない。"
     "時間割は画面の表に出るので、曜日ごとの科目を表や一覧で書き直さない。"
@@ -145,7 +148,7 @@ def build_timetable_assistant() -> Agent[AssistantDeps, str]:
     @agent.tool(name="build_timetable")
     async def build_timetable_tool(
         ctx: RunContext[AssistantDeps],
-        mode: Literal["rebuild", "adjust"] = "rebuild",
+        mode: Literal["rebuild", "adjust", "remove"] = "rebuild",
         scope: Scope | None = None,
         free_days: list[Weekday] | None = None,
         free_day_count: Annotated[int, Field(ge=0, le=5)] | None = None,
@@ -160,7 +163,8 @@ def build_timetable_assistant() -> Agent[AssistantDeps, str]:
 
         Args:
             mode: rebuild は組み直す(学生が自分で入れた科目は残す)。adjust は今の時間割を
-                起点に、条件に反する科目を外して空いた分を埋める。
+                起点に、条件に反する科目を外して空いた分を埋める。remove は今の時間割から
+                条件に反する科目を外すだけで、空いた分を埋めない。
             scope: 必修のみ(必修だけ) / 不足を埋める(既定。卒業要件の不足を埋める) /
                 広く(不足を埋めた後も登録できる単位まで入れる)。
             free_days: 全休にする曜日。[] で全休の指定をやめる。

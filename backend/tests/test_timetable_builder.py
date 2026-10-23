@@ -11,7 +11,7 @@ import pytest
 from app.curricula.requirements import entry_slot_keys
 from app.schemas.proposal import CourseSlot, ProposedCourse
 from app.timetable import context as context_module
-from app.timetable.builder import build_timetable, check_timetable
+from app.timetable.builder import UNFILLED, build_timetable, check_timetable
 from app.timetable.conditions import Conditions, PeriodRule, parse_period_rule
 from app.timetable.context import build_student_context
 import timetable_fixtures as fx
@@ -302,6 +302,51 @@ async def test_adjust_removes_only_removable_courses_on_the_free_day():
     status = next(c for c in result.report.conditions if c.condition == "水曜を全休にする")
     assert status.status == "unmet"
     assert "自分で入れた哲学" in status.detail
+
+
+def _required_courses():
+    return [
+        _course("微分積分", "Y000000001", "月", 1, category="必修"),
+        _course("線形代数", "Y000000002", "火", 1, category="必修"),
+        _course("仏教の思想A", "G000000001", "木", 2, category="必修"),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_remove_only_removes_and_reports_the_unfilled_shortfall():
+    current = [*_required_courses(), _course("文学", "G000000003", "月", 4)]
+    result = _build(await _ctx(), Conditions(exclude=["文学"]), current, mode="remove")
+
+    assert _titles(result.courses) == {"微分積分", "線形代数", "仏教の思想A"}
+    assert [s.course.title for s in result.steps if s.kind == "remove"] == ["文学"]
+    assert not any(s.kind == "fill" for s in result.steps)  # 代わりの科目を入れない
+    short = {s.slot: s.reason for s in result.report.remaining_shortfall}
+    assert short["教養教育科目(選択)"] == UNFILLED  # 音楽で埋められる
+
+
+@pytest.mark.asyncio
+async def test_adjust_fills_what_the_removed_course_left():
+    current = [*_required_courses(), _course("文学", "G000000003", "月", 4)]
+    result = _build(await _ctx(), Conditions(exclude=["文学"]), current, mode="adjust")
+
+    assert "文学" not in _titles(result.courses)
+    assert "音楽" in _titles(result.courses)
+
+
+@pytest.mark.asyncio
+async def test_remove_keeps_the_reason_of_a_shortfall_it_cannot_fill():
+    current = [
+        *_required_courses(),
+        _course("哲学", "G000000002", "水", 2, category="選択必修"),
+        _course("文学", "G000000003", "月", 4),
+        _course("音楽", "G000000004", "木", 4),
+    ]
+    result = _build(await _ctx(), Conditions(exclude=["哲学"]), current, mode="remove")
+
+    assert "哲学" not in _titles(result.courses)
+    short = {s.slot: s.reason for s in result.report.remaining_shortfall}
+    # 人文の選択必修は哲学しかなく、代わりを探しても埋まらない
+    assert short["教養教育科目(選択必修・人文)"] == "入れない科目に指定された科目しか候補が無い"
 
 
 @pytest.mark.asyncio

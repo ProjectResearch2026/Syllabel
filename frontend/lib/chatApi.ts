@@ -140,6 +140,9 @@ export type AgentActivity = {
   args: Record<string, unknown>;
 };
 
+/** 組み立ての起点(§7.2)。`backend/app/timetable/builder.py` の `Mode` */
+export type BuildMode = "rebuild" | "adjust" | "remove";
+
 /** 組み上がった時間割(`timetable` イベント)と `/api/timetable/build` の応答の共通部分 */
 export type BuiltTimetable = {
   courses: ProposedCourse[];
@@ -224,7 +227,7 @@ export type AgentStreamHandlers = {
 /** 時間割のアシスタントだけが流すイベントの口 */
 export type TimetableStreamHandlers = AgentStreamHandlers & {
   /** 組み立てが始まった。続いて `onStep` が手順の数だけ、最後に `onTimetable` が来る */
-  onBuild?: (build: { mode: "rebuild" | "adjust" }) => void;
+  onBuild?: (build: { mode: BuildMode }) => void;
   onStep?: (step: TimetableStep) => void;
   onTimetable?: (timetable: BuiltTimetable) => void;
   onConditions?: (conditions: TimetableConditions) => void;
@@ -257,7 +260,7 @@ async function streamAgent(
       } else if (isObject(event.activity)) {
         handlers.onActivity?.(event.activity as AgentActivity);
       } else if (isObject(event.build)) {
-        handlers.onBuild?.(event.build as { mode: "rebuild" | "adjust" });
+        handlers.onBuild?.(event.build as { mode: BuildMode });
       } else if (isObject(event.step)) {
         handlers.onStep?.(event.step as TimetableStep);
       } else if (isObject(event.timetable)) {
@@ -338,10 +341,10 @@ export type BuildResponse = {
 /**
  * `POST /api/timetable/build`。条件から時間割を組み立てる(§7.2)。モデルを呼ばないので
  * 数秒で返る。`rebuild` は学生が入れた科目だけを残して組み直し、`adjust` は今の時間割を
- * 残して条件に反する分を直す
+ * 残して条件に反する分を直す。`remove` は条件に反する分を外すだけで、空いた分を埋めない
  */
 export function buildTimetable(
-  body: TimetableContext & { mode?: "rebuild" | "adjust" },
+  body: TimetableContext & { mode?: BuildMode },
   signal?: AbortSignal,
 ): Promise<BuildResponse> {
   return postJson("/timetable/build", body, signal);

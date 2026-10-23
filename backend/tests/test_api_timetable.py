@@ -237,5 +237,7 @@ def test_instructions_state_the_rules():
         "言葉の定義の説明から始めない",
         "日本語だけで答えてください",
         "曜日ごとの科目を表や一覧で書き直さない",
+        "代わりを求められていないときは mode に remove を使い",
+        "代わりの科目を探すか尋ねる",
     ):
         assert rule in INSTRUCTIONS
