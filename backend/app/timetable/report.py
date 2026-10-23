@@ -5,7 +5,7 @@
 (`/api/timetable/check`)が返し、画面にもそのまま出せる形にする。
 """
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
@@ -237,11 +237,15 @@ def evaluate_conditions(
     *,
     include_failures: dict[str, str] | None = None,
     limit: int | None = None,
+    title_of: Callable[[str], str] | None = None,
 ) -> list[ConditionStatus]:
     """時間割が条件を満たしているか。条件ごとに1件。
 
     組み立てた時間割にも、学生が手で直した時間割にも同じ判定を掛ける。満たせない
     ときは、どの科目が理由かを書く(「水に必修の線形代数(2限)がある」)。
+
+    `title_of` は入れたい科目(`include`。シラバスコード)を科目名に直す関数。入れられ
+    なかった科目は時間割に無いので、ここで直さないとコードのまま学生に見える。
     """
     statuses: list[ConditionStatus] = []
     periods = day_periods(courses)
@@ -358,7 +362,7 @@ def evaluate_conditions(
         ]
         statuses.append(
             ConditionStatus(
-                condition=f"{_include_label(wanted_course, present)}を入れる",
+                condition=f"{_include_label(wanted_course, present, title_of)}を入れる",
                 status="met" if present else "unmet",
                 detail=(
                     "時間割に入っている"
@@ -393,8 +397,12 @@ def evaluate_conditions(
     return statuses
 
 
-def _include_label(wanted: str, present: Sequence[ProposedCourse]) -> str:
-    return present[0].title if present else wanted
+def _include_label(
+    wanted: str, present: Sequence[ProposedCourse], title_of: Callable[[str], str] | None
+) -> str:
+    if present:
+        return present[0].title
+    return title_of(wanted) if title_of else wanted
 
 
 def _over_is_fixed(courses: Sequence[ProposedCourse], over: dict[str, int], cap: int) -> bool:
@@ -482,7 +490,11 @@ def make_report(
         other_free_day_options=other_free_day_options(courses, pinned_keys(conditions)),
         unscheduled=[c.title for c in courses if not c.occupied_slots()],
         conditions=evaluate_conditions(
-            courses, conditions, include_failures=include_failures, limit=limit
+            courses,
+            conditions,
+            include_failures=include_failures,
+            limit=limit,
+            title_of=ctx.title_of,
         ),
         requirements=changes,
         remaining_shortfall=remaining,

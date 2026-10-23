@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { ArrowUp, Menu, SquarePen } from "lucide-react";
+import { ArrowUp, Menu, Square, SquarePen } from "lucide-react";
 import type { AiConversation } from "@/lib/ai";
 import { titleOf } from "@/lib/chatHistory";
 import ChatHistoryMenu from "../pc/ChatHistoryMenu";
@@ -125,7 +125,7 @@ export function ChatInputBar({
 }) {
   const [value, setValue] = useState("");
   const inputId = useId();
-  const { streaming, inputDisabled = false, note } = conversation;
+  const { streaming, inputDisabled = false, note, stop } = conversation;
   const label = placeholder ?? conversation.placeholder;
   const disabled = streaming || inputDisabled;
 
@@ -155,15 +155,28 @@ export function ChatInputBar({
             disabled={disabled}
             className="h-10 min-w-0 flex-1 bg-transparent px-3 text-[13px] text-fg-primary outline-none placeholder:text-fg-faint disabled:opacity-60"
           />
-          <button
-            type="button"
-            onClick={submit}
-            disabled={!value.trim() || disabled}
-            aria-label="送信"
-            className="grid size-10 shrink-0 place-items-center rounded-full bg-accent transition-opacity hover:bg-primary-dark disabled:opacity-40"
-          >
-            <ArrowUp size={18} className="text-fg-inverse" aria-hidden="true" />
-          </button>
+          {/* 受信中は送信ボタンを停止ボタンに替える（Claude と同じ四角） */}
+          {streaming && stop ? (
+            <button
+              type="button"
+              onClick={stop}
+              aria-label="応答を止める"
+              title="応答を止める"
+              className="grid size-10 shrink-0 place-items-center rounded-full bg-accent transition-colors hover:bg-primary-dark"
+            >
+              <Square size={14} className="fill-current text-fg-inverse" aria-hidden="true" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={submit}
+              disabled={!value.trim() || disabled}
+              aria-label="送信"
+              className="grid size-10 shrink-0 place-items-center rounded-full bg-accent transition-opacity hover:bg-primary-dark disabled:opacity-40"
+            >
+              <ArrowUp size={18} className="text-fg-inverse" aria-hidden="true" />
+            </button>
+          )}
         </div>
       </div>
       {note && <p className="px-5 pb-3 text-[10px] leading-4 text-fg-secondary">{note}</p>}

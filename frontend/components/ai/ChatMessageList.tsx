@@ -1,8 +1,8 @@
 "use client";
 
 import { memo } from "react";
-import { ArrowLeftRight } from "lucide-react";
-import type { ChatMessage } from "@/lib/chat";
+import { ArrowLeftRight, RotateCw } from "lucide-react";
+import { regenerateFrom, STOPPED_TEXT, type ChatMessage } from "@/lib/chat";
 import { useScrollToBottom } from "@/lib/useScrollToBottom";
 import MarkdownText from "./MarkdownText";
 import ThinkingIndicator from "./ThinkingIndicator";
@@ -16,20 +16,31 @@ export const DEFAULT_THINKING_LABEL = "考えています…";
  * Chat/UserBubble）。**PC のパネルとモバイルのシートが同じものを使う。**
  *
  * AI 側は白地・左上だけ角を立て、学生側は淡いグレー地・右上だけ角を立てる。
- * 吹き出しの幅は設計どおりに保ち、表は `MarkdownText` の中で横スクロールさせる。
+ * 吹き出しの幅は会話の欄に対する割合で決める（AI 側 90%・学生側 75%）。PC のパネル
+ * (344px)では設計の 280px・230px とほぼ同じになり、モバイルのシートでは画面の幅に
+ * 合わせて広がる（px で固定していた頃は、スマホでも左右に大きな余白が残った）。
+ * 表のために広げることはせず、表は `MarkdownText` の中で横スクロールさせる。
  *
  * 吹き出しは現れるときに下から浮かせる。CSS の動きはマウント時に1回だけなので、
  * 受信中に本文が伸びても流れ直さない。
+ *
+ * **末尾の AI の吹き出しの右に、再生成のボタンを置く**（Claude のチャットと同じ回る矢印）。
+ * 押すと直前の質問を送り直して答えを作り直す。失敗したとき（「応答の取得に失敗しました」）
+ * に、同じ質問を書き直さずに送り直せる。学生の発話への答えでない吹き出し（案内・
+ * 「希望条件なしで提案する」の説明）と受信中には出さない（`regenerateFrom()`）。
  */
 export default function ChatMessageList({
   messages,
   thinkingLabel = DEFAULT_THINKING_LABEL,
   showDate = false,
+  onRegenerate,
   className = "",
   children,
 }: {
   messages: ChatMessage[];
   thinkingLabel?: string;
+  /** 末尾の答えを作り直す（`AiConversation.regenerate`）。無ければボタンを出さない */
+  onRegenerate?: () => void;
   /** 先頭に「今日」の印を出す（モバイルの全画面シート） */
   showDate?: boolean;
   className?: string;
@@ -37,6 +48,9 @@ export default function ChatMessageList({
   children?: React.ReactNode;
 }) {
   const listRef = useScrollToBottom<HTMLDivElement>(messages, messages.length);
+  // 再生成のボタンを付ける吹き出し。ほかの吹き出しには渡さず、memo を崩さない
+  const regenerableId =
+    onRegenerate && regenerateFrom(messages) ? messages[messages.length - 1].id : null;
 
   return (
     <div
@@ -55,7 +69,12 @@ export default function ChatMessageList({
         msg.role === "user" ? (
           <UserBubble key={msg.id} message={msg} />
         ) : (
-          <AssistantBubble key={msg.id} message={msg} thinkingLabel={thinkingLabel} />
+          <AssistantBubble
+            key={msg.id}
+            message={msg}
+            thinkingLabel={thinkingLabel}
+            onRegenerate={msg.id === regenerableId ? onRegenerate : undefined}
+          />
         ),
       )}
 
@@ -74,7 +93,7 @@ export default function ChatMessageList({
 const UserBubble = memo(function UserBubble({ message }: { message: ChatMessage }) {
   return (
     <div className="flex w-full justify-end motion-safe:animate-rise-in">
-      <div className="max-w-[230px] whitespace-pre-wrap rounded-[12px_2px_12px_12px] border border-border-primary bg-surface-soft p-3 text-[13px] leading-[21px] text-fg-primary">
+      <div className="max-w-[75%] whitespace-pre-wrap rounded-[12px_2px_12px_12px] border border-border-primary bg-surface-soft p-3 text-[13px] leading-[21px] text-fg-primary">
         {message.content}
       </div>
     </div>
@@ -84,12 +103,14 @@ const UserBubble = memo(function UserBubble({ message }: { message: ChatMessage 
 const AssistantBubble = memo(function AssistantBubble({
   message: msg,
   thinkingLabel,
+  onRegenerate,
 }: {
   message: ChatMessage;
   thinkingLabel: string;
+  onRegenerate?: () => void;
 }) {
-  return (
-    <div className="flex max-w-[280px] flex-col gap-2 rounded-[2px_12px_12px_12px] border border-border-primary bg-surface-primary p-3 motion-safe:animate-rise-in">
+  const bubble = (
+    <div className="flex max-w-[90%] flex-col gap-2 rounded-[2px_12px_12px_12px] border border-border-primary bg-surface-primary p-3 motion-safe:animate-rise-in">
       {/* 考えている様子（思考・ツールの進み具合。§8.3.7）。本文の上に置く */}
       <AgentTrace trace={msg.trace} streaming={Boolean(msg.streaming)} />
       {/* 何も来ていないあいだは指標を出す。空の吹き出しを置かない（§4.1.4）。
@@ -106,6 +127,10 @@ const AssistantBubble = memo(function AssistantBubble({
           {msg.content}
         </MarkdownText>
       )}
+      {/* 停止ボタンで止めた答え。本文が届いていなければ本文がその文言になっている */}
+      {msg.stopped && msg.content !== STOPPED_TEXT && (
+        <p className="text-[11px] text-fg-muted">応答を止めました</p>
+      )}
       {/* 差し替え案（Chat/SuggestCard）。AIが返したときだけ出る */}
       {msg.items?.map((item) => (
         <p
@@ -116,6 +141,22 @@ const AssistantBubble = memo(function AssistantBubble({
           {item.name}
         </p>
       ))}
+    </div>
+  );
+  if (!onRegenerate) return bubble;
+  return (
+    // 吹き出しの右下に置く（Claude の再生成と同じ回る矢印）
+    <div className="flex items-end gap-1">
+      {bubble}
+      <button
+        type="button"
+        onClick={onRegenerate}
+        aria-label="答えを作り直す"
+        title="答えを作り直す"
+        className="grid size-7 shrink-0 place-items-center rounded-full text-fg-muted transition-colors hover:bg-surface-soft hover:text-fg-secondary"
+      >
+        <RotateCw size={15} aria-hidden="true" />
+      </button>
     </div>
   );
 });

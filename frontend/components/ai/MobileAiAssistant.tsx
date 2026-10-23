@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, type PanInfo } from "motion/react";
 import { Maximize2, Minimize2, Repeat, X } from "lucide-react";
 import {
   DEFAULT_ASK_LABEL,
@@ -102,12 +102,29 @@ export default function MobileAiAssistant({
   );
 }
 
+/** ボトムドックの高さ。ハーフのシートはこの上に乗る（下の className の bottom-[58px]） */
+const DOCK_HEIGHT = 58;
+/** 全画面のシートの上端（top-3） */
+const FULL_TOP = 12;
+/** 引っ張っているあいだに縮められる下限 */
+const MIN_DRAG_HEIGHT = 120;
+/** 止められる高さの下限。これより低く離すと、入力欄と会話が入る高さに戻す */
+const MIN_HEIGHT = 240;
+/** これより低く離すと閉じる */
+const CLOSE_BELOW = 170;
+/** 上端からこれより近くまで引き上げて離すと全画面にする */
+const SNAP_TO_FULL = 40;
+
 /**
  * シート本体。
  *
  * layoutId="ai-bar" でボトムドックの Ask Bar と形状モーフィングを共有する。
  * layout プロップでハーフ（384px）⇄ フルスクリーンの遷移もアニメーションする。
- * グラバーは上スワイプで全画面、下スワイプで縮小／クローズ。
+ *
+ * **上部（グラバーとヘッダー）を押したまま上下に引っ張ると、シートの高さが指に付いて
+ * きて、離した高さで止まる**（`useAiStore` の `height` に覚える）。画面の上端近くまで
+ * 引き上げて離せば全画面、下端近くまで下げて離せば閉じる。グラバーだけを掴めた頃は、
+ * 掴める所が細く、引っ張ってもシートが動かなかったので、調節できることに気づけなかった。
  */
 function AiSheet({ conversation, base }: { conversation: AiConversation; base: AiContext }) {
   const mode = useAiStore((s) => s.mode);
@@ -116,8 +133,18 @@ function AiSheet({ conversation, base }: { conversation: AiConversation; base: A
   const expand = useAiStore((s) => s.expand);
   const minimize = useAiStore((s) => s.minimize);
   const close = useAiStore((s) => s.close);
+  const height = useAiStore((s) => s.height);
+  const setHeight = useAiStore((s) => s.setHeight);
 
   const full = mode === "full";
+  const sheetRef = useRef<HTMLDivElement>(null);
+  // 引っ張っているあいだのシートの高さ(px)。null のときは mode の高さ
+  const [dragHeight, setDragHeight] = useState<number | null>(null);
+  const dragFrom = useRef(0);
+  // 「最近のチャット」のメニューの中から始めた操作では引っ張らない（一覧を選ぶ操作）
+  const ignorePan = useRef(false);
+  // 引っ張り終えた直後のクリックは捨てる。ヘッダーのボタンの上で離しても押したことにしない
+  const panned = useRef(false);
   const suggestions = conversation.suggestionsFor?.(context) ?? null;
   const scoped = context.kind !== base.kind || context.label !== base.label;
   // 学生がまだ何も聞いていないうちは、ハーフシートにサジェストを出す（STEP4）。
@@ -148,20 +175,59 @@ function AiSheet({ conversation, base }: { conversation: AiConversation; base: A
 
   const icon = "text-fg-muted";
 
+  const onPanStart = () => {
+    if (ignorePan.current) return;
+    dragFrom.current = sheetRef.current?.getBoundingClientRect().height ?? 0;
+    panned.current = true;
+  };
+  const onPan = (_: PointerEvent, info: PanInfo) => {
+    if (ignorePan.current) return;
+    const max = window.innerHeight - FULL_TOP - (full ? 0 : DOCK_HEIGHT);
+    setDragHeight(Math.min(max, Math.max(MIN_DRAG_HEIGHT, dragFrom.current - info.offset.y)));
+  };
+  const onPanEnd = (_: PointerEvent, info: PanInfo) => {
+    if (ignorePan.current) return;
+    const released = dragFrom.current - info.offset.y;
+    // ハーフのシートが取れる最大の高さ（ボトムドックの上から全画面の上端まで）
+    const maxHalf = window.innerHeight - FULL_TOP - DOCK_HEIGHT;
+    setDragHeight(null);
+    if (released < CLOSE_BELOW) close();
+    else if (released > maxHalf - SNAP_TO_FULL) expand();
+    else {
+      setHeight(Math.max(MIN_HEIGHT, Math.round(released)));
+      minimize();
+    }
+    setTimeout(() => (panned.current = false), 0);
+  };
+
   return (
     <motion.div
+      ref={sheetRef}
       layoutId="ai-bar"
       layout
-      style={{ borderRadius: "20px 20px 0 0" }}
-      transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+      style={{
+        borderRadius: "20px 20px 0 0",
+        ...(dragHeight !== null
+          ? { height: dragHeight }
+          : !full && height !== null
+            ? // 画面が縮んだとき（キーボードが開いた・端末を回した）は全画面の高さで抑える
+              { height: `min(${height}px, calc(100dvh - ${FULL_TOP + DOCK_HEIGHT}px))` }
+            : {}),
+      }}
+      // 引っ張っているあいだは指に遅れず付いてくるよう、動きを付けない
+      transition={dragHeight !== null ? { duration: 0 } : { duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
       className={`fixed inset-x-0 z-50 flex flex-col overflow-hidden bg-surface-gray shadow-sheet ${
-        full
-          ? "top-3 bottom-0"
-          : showSuggestions
-            ? "bottom-[58px] h-96"
-            : // 会話を出すハーフは、案内の吹き出しと入力欄・断り書きが入る高さにする。
-              // 背後の画面の上端は残す（全画面で覆わない）
-              "bottom-[58px] h-[min(480px,calc(100dvh-58px-96px))]"
+        dragHeight !== null || (!full && height !== null)
+          ? full
+            ? "bottom-0"
+            : "bottom-[58px]"
+          : full
+            ? "top-3 bottom-0"
+            : showSuggestions
+              ? "bottom-[58px] h-96"
+              : // 会話を出すハーフは、案内の吹き出しと入力欄・断り書きが入る高さにする。
+                // 背後の画面の上端は残す（全画面で覆わない）
+                "bottom-[58px] h-[min(480px,calc(100dvh-58px-96px))]"
       }`}
       role="dialog"
       aria-modal="true"
@@ -175,45 +241,46 @@ function AiSheet({ conversation, base }: { conversation: AiConversation; base: A
         transition={{ duration: 0.14, delay: 0.07 }}
         className="flex flex-1 flex-col overflow-hidden"
       >
-        {/* Grabber — ドラッグで展開／折りたたみ */}
+        {/* 上部（グラバー＋ヘッダー）。押したまま上下に引っ張ってシートの高さを変える */}
         <motion.div
-          drag="y"
-          dragConstraints={{ top: 0, bottom: 0 }}
-          dragElastic={0.25}
-          onDragEnd={(_, info) => {
-            if (info.offset.y < -44 || info.velocity.y < -280) {
-              expand();
-            } else if (info.offset.y > 64 || info.velocity.y > 280) {
-              if (full) minimize();
-              else close();
-            }
+          onPointerDownCapture={(e) => {
+            ignorePan.current = (e.target as Element).closest('[role="menu"]') !== null;
           }}
-          whileDrag={{ cursor: "grabbing" }}
-          className="flex shrink-0 cursor-grab touch-none justify-center pb-1 pt-2"
+          onClickCapture={(e) => {
+            if (!panned.current) return;
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          onPanStart={onPanStart}
+          onPan={onPan}
+          onPanEnd={onPanEnd}
+          className="shrink-0 cursor-grab touch-none active:cursor-grabbing"
         >
-          <span className="h-1 w-10 rounded-full bg-border-primary" />
-        </motion.div>
+          <div className="flex justify-center pb-1 pt-2">
+            <span className="h-1 w-10 rounded-full bg-border-primary" />
+          </div>
 
-        {/* Header（PC の Chat/Header ＋ 全画面／縮小・閉じる） */}
-        <ChatHeader
-          conversation={conversation}
-          trailing={
-            <span className="flex shrink-0 items-center gap-3 pl-0.5">
-              {full ? (
-                <button type="button" onClick={minimize} aria-label="ハーフシートに戻す">
-                  <Minimize2 size={18} className={icon} />
+          {/* Header（PC の Chat/Header ＋ 全画面／縮小・閉じる） */}
+          <ChatHeader
+            conversation={conversation}
+            trailing={
+              <span className="flex shrink-0 items-center gap-3 pl-0.5">
+                {full ? (
+                  <button type="button" onClick={minimize} aria-label="ハーフシートに戻す">
+                    <Minimize2 size={18} className={icon} />
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => expand()} aria-label="全画面にする">
+                    <Maximize2 size={18} className={icon} />
+                  </button>
+                )}
+                <button type="button" onClick={close} aria-label="閉じる">
+                  <X size={20} className={icon} />
                 </button>
-              ) : (
-                <button type="button" onClick={() => expand()} aria-label="全画面にする">
-                  <Maximize2 size={18} className={icon} />
-                </button>
-              )}
-              <button type="button" onClick={close} aria-label="閉じる">
-                <X size={20} className={icon} />
-              </button>
-            </span>
-          }
-        />
+              </span>
+            }
+          />
+        </motion.div>
 
         {/* 何について聞くか。科目・コマに絞っているなら、入れ替えアイコンで画面全体の文脈に戻す */}
         {!showContext ? null : full ? (
@@ -247,24 +314,28 @@ function AiSheet({ conversation, base }: { conversation: AiConversation; base: A
             messages={conversation.messages}
             thinkingLabel={conversation.thinkingLabel}
             showDate={full}
-            className="px-4 pb-2.5 pt-3.5"
-          />
-        )}
-
-        {/* サジェストを出していないときは、クイックチップと提案の開始・再提案を出す
-            （STEP5。ハーフは時間割のクイックチップだけ。ほかの画面はサジェストが担う） */}
-        {(full || !showSuggestions) && (
-          <ChatQuickAsks
-            conversation={
-              full
-                ? { ...dismissing, quickAsks: conversation.sheetQuickAsks ?? conversation.quickAsks }
-                : { ...dismissing, quickAsks: conversation.sheetQuickAsks ?? [] }
-            }
-            onAsk={(q) => conversation.send(q, context)}
-            // 折り返して並べる。横スクロールにすると、末尾の操作のボタンが
-            // 画面の外に切れ、押せることに気づけない
-            className="shrink-0 flex-wrap px-4 py-2"
-          />
+            onRegenerate={conversation.regenerate}
+            // 全体を左へ4pxずらす(左12px・右20px)。AI の吹き出しが画面の真ん中に浮いて
+            // 見えないように。左右の和は 32px のままにし、吹き出しの幅(欄に対する割合)を変えない
+            className="pb-2.5 pl-3 pr-5 pt-3.5"
+          >
+            {/* 会話を出しているときは、クイックチップと提案の開始・再提案を出す
+                （STEP5。ハーフは時間割のクイックチップだけ。ほかの画面はサジェストが担う）。
+                PC のパネルと同じく最後の吹き出しの後ろに置く。入力欄の上に固定すると、
+                全画面では会話の欄が伸びて「希望条件なしで提案する」が案内の吹き出しから
+                離れ、画面の下に落ちる（§8.3.1 は案内の下に置く） */}
+            <ChatQuickAsks
+              conversation={
+                full
+                  ? { ...dismissing, quickAsks: conversation.sheetQuickAsks ?? conversation.quickAsks }
+                  : { ...dismissing, quickAsks: conversation.sheetQuickAsks ?? [] }
+              }
+              onAsk={(q) => conversation.send(q, context)}
+              // 折り返して並べる。横スクロールにすると、末尾の操作のボタンが
+              // 画面の外に切れ、押せることに気づけない
+              className="flex-wrap"
+            />
+          </ChatMessageList>
         )}
 
         <ChatInputBar

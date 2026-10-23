@@ -8,7 +8,13 @@ import {
   type TimetableContext,
   type TimetableReport,
 } from "@/lib/chatApi";
-import { replyStream, useChatStore, type ChatMessage } from "@/lib/chat";
+import {
+  regenerateFrom,
+  replyStream,
+  stoppedPatch,
+  useChatStore,
+  type ChatMessage,
+} from "@/lib/chat";
 import { useChatHistory } from "@/lib/chatHistory";
 import { useProposalStore } from "@/lib/proposal";
 import { useStudentContext } from "@/lib/studentContext";
@@ -153,6 +159,10 @@ export type ProposalConversation = {
   /** 組めない理由。組めるときは null */
   blockedReason: string | null;
   send: (text: string) => void;
+  /** 末尾の答えを作り直す（`AiConversation.regenerate`） */
+  regenerate: () => void;
+  /** 受信中の答えを止める（`AiConversation.stop`） */
+  stop: () => void;
   /** 希望条件なしで組み立てる（`/api/timetable/build`） */
   startWithoutPreferences: () => void;
   /** 時間割は残したまま、会話だけをやり直す */
@@ -169,6 +179,8 @@ export function useProposalConversation(): ProposalConversation {
   const setMessages = useChatStore((s) => s.setProposalMessages);
   const { entries, archive, restore } = useChatHistory(SCOPE);
   const abortRef = useRef<AbortController | null>(null);
+  // 停止ボタンで止めた（会話の切り替えで中断したのと分ける）
+  const stoppedRef = useRef(false);
   const canStart = blockedReason === null;
 
   const hasTimetable = status === "done";
@@ -184,30 +196,32 @@ export function useProposalConversation(): ProposalConversation {
   }, [messages.length, blockedReason, setMessages]);
 
   // 学生が手で直した時間割のレポートを引き直す（モデルは呼ばない）。アシスタントは
-  // リクエストのたびに backend が計算し直すので、ここで引くのは画面に出すためである
+  // リクエストのたびに backend が計算し直す。レポートは今は画面に出していない（§8.3.7）
   useEffect(() => {
     if (!reportStale || status !== "done" || !profile || !context) return;
     scheduleCheck({ studentProfile: profile, ...context, timetable: courses, conditions }, setReport);
   }, [reportStale, status, profile, context, courses, conditions, setReport]);
 
+  // `prior` は送る前の会話。再生成は末尾の答えと発話を除いた会話を渡す
   const send = useCallback(
-    (raw: string) => {
+    (raw: string, prior: ChatMessage[] = messages) => {
       const text = raw.trim();
       if (!text || streaming || !profile || !context) return;
 
       const assistantId = nextId("a");
-      const history = messages
+      const history = prior
         .filter((m) => !m.streaming)
         .map((m) => ({ role: m.role, content: m.content }));
       const time = hhmm();
       setMessages([
-        ...messages,
+        ...prior,
         { id: nextId("u"), role: "user", content: text, time },
         { id: assistantId, role: "assistant", content: "", time, streaming: true },
       ]);
 
       const ctrl = new AbortController();
       abortRef.current = ctrl;
+      stoppedRef.current = false;
       setBusy(true);
       const reply = replyStream((update) => patchMessage(assistantId, update));
       let failed = false;
@@ -225,16 +239,24 @@ export function useProposalConversation(): ProposalConversation {
         {
           ...reply.handlers,
           onBuild: () => {
+            patchMessage(assistantId, { changedTimetable: true });
             buildPlayer.begin();
             // モバイルはシートを閉じて、時間割が組み上がっていくところを見せる（§8.3.7）。
             // 説明はシートを開き直すと読める
             useAiStore.getState().close();
           },
-          onStep: (step) => buildPlayer.step(step),
+          onStep: (step) => {
+            patchMessage(assistantId, { changedTimetable: true });
+            buildPlayer.step(step);
+          },
           onTimetable: (timetable) => {
+            patchMessage(assistantId, { changedTimetable: true });
             built = buildPlayer.finish(timetable);
           },
-          onConditions: setConditions,
+          onConditions: (next) => {
+            patchMessage(assistantId, { changedTimetable: true });
+            setConditions(next);
+          },
         },
         ctrl.signal,
       )
@@ -253,7 +275,11 @@ export function useProposalConversation(): ProposalConversation {
             streaming: false,
             // delta も error も来ずに終わると本文が空のまま残る（§4.1.4）。
             // 失敗の文言は catch が入れているので上書きしない
-            ...(reply.content() || failed ? {} : { content: "応答を受け取れませんでした。" }),
+            ...(stoppedRef.current
+              ? stoppedPatch(reply.content())
+              : reply.content() || failed
+                ? {}
+                : { content: "応答を受け取れませんでした。" }),
           });
           if (abortRef.current === ctrl) abortRef.current = null;
         });
@@ -308,6 +334,18 @@ export function useProposalConversation(): ProposalConversation {
     setMessages([assistant(INTRO_ID, hasTimetable ? CONTINUE_TEXT : INTRO_TEXT)]);
   }, [archive, messages, setMessages, hasTimetable]);
 
+  /** 受信中の答え（「希望条件なしで提案する」の組み立てを含む）を止める */
+  const stop = useCallback(() => {
+    if (!abortRef.current) return;
+    stoppedRef.current = true;
+    abortRef.current.abort();
+  }, []);
+
+  const regenerate = useCallback(() => {
+    const target = regenerateFrom(messages);
+    if (target) send(target.text, target.prior);
+  }, [messages, send]);
+
   const selectHistory = useCallback(
     (id: string) => {
       const restored = restore(SCOPE, id);
@@ -327,6 +365,8 @@ export function useProposalConversation(): ProposalConversation {
     canStart,
     blockedReason,
     send,
+    regenerate,
+    stop,
     startWithoutPreferences,
     newChat,
     history: entries,
@@ -352,6 +392,8 @@ export function useProposalAssistant(): AiConversation {
     hasTimetable,
     canStart,
     send,
+    regenerate,
+    stop,
     startWithoutPreferences,
     newChat,
     history,
@@ -391,6 +433,8 @@ export function useProposalAssistant(): AiConversation {
         : "希望や質問を入力（例: 週に1日は全休にしたい）",
       inputDisabled: !canStart,
       send: sendWithContext,
+      regenerate: canStart ? regenerate : undefined,
+      stop,
       sheetQuickAsks: hasTimetable ? TIMETABLE_QUICK_ASKS : undefined,
       // 時間割があるときは条件を会話で変えれば組み直されるので、作り直しのボタンは置かない
       actions:
@@ -418,6 +462,8 @@ export function useProposalAssistant(): AiConversation {
       hasTimetable,
       canStart,
       sendWithContext,
+      regenerate,
+      stop,
       startWithoutPreferences,
       history,
       selectHistory,

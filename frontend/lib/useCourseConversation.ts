@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { replyStream, useChatStore, type ChatMessage } from "@/lib/chat";
+import {
+  regenerateFrom,
+  replyStream,
+  stoppedPatch,
+  useChatStore,
+  type ChatMessage,
+} from "@/lib/chat";
 import { useChatHistory } from "@/lib/chatHistory";
 import { useStudentContext } from "@/lib/studentContext";
 import { streamCourseChat } from "@/lib/chatApi";
@@ -43,6 +49,8 @@ export function useCourseConversation({
   const scope = `course:${code}` as const;
   const { entries, archive, restore } = useChatHistory(scope);
   const abortRef = useRef<AbortController | null>(null);
+  // 停止ボタンで止めた（会話の切り替えで中断したのと分ける）
+  const stoppedRef = useRef(false);
   const streaming = messages.some((m) => m.streaming);
 
   /** やり直しても同じ挨拶から始める */
@@ -72,20 +80,21 @@ export function useCourseConversation({
     [archive, scope, messages, setCourseMessages, code],
   );
 
+  // `prior` は送る前の会話。再生成は末尾の答えと発話を除いた会話を渡す
   const send = useCallback(
-    async (raw: string) => {
+    async (raw: string, prior: ChatMessage[] = messages) => {
       const text = raw.trim();
       if (!text || streaming) return;
 
       const time = hhmm();
       seq += 1;
       const assistantId = `${code}-a${seq}`;
-      const history = messages
+      const history = prior
         .filter((m) => !m.streaming)
         .map((m) => ({ role: m.role, content: m.content }));
 
       setCourseMessages(code, [
-        ...messages,
+        ...prior,
         { id: `${code}-u${seq}`, role: "user", content: text, time },
         { id: assistantId, role: "assistant", content: "", time, streaming: true },
       ]);
@@ -102,6 +111,7 @@ export function useCourseConversation({
 
       const ctrl = new AbortController();
       abortRef.current = ctrl;
+      stoppedRef.current = false;
       const reply = replyStream(patch);
       let failed = false;
       try {
@@ -121,7 +131,11 @@ export function useCourseConversation({
         reply.end();
         patch({
           streaming: false,
-          ...(reply.content() || failed ? {} : { content: "応答を受け取れませんでした。" }),
+          ...(stoppedRef.current
+            ? stoppedPatch(reply.content())
+            : reply.content() || failed
+              ? {}
+              : { content: "応答を受け取れませんでした。" }),
         });
         if (abortRef.current === ctrl) abortRef.current = null;
       }
@@ -136,6 +150,15 @@ export function useCourseConversation({
       streaming,
       placeholder: "この講義について質問する…",
       send: (text) => void send(text),
+      regenerate: () => {
+        const target = regenerateFrom(messages);
+        if (target) void send(target.text, target.prior);
+      },
+      stop: () => {
+        if (!abortRef.current) return;
+        stoppedRef.current = true;
+        abortRef.current.abort();
+      },
       quickAsks: questions,
       history: entries,
       onSelectHistory: (id) => {

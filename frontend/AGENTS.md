@@ -161,7 +161,7 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 - `react-markdown` + `remark-gfm`(表・取り消し線・チェックリスト)+ `remark-breaks`(段落内の単独改行)。**`remark-breaks` を外さない** — Markdown の既定では単独改行が消えるが、日本語の回答は1文ずつ改行して返ってくる
 - **`rehype-raw` を入れてはならない。** 生のHTMLを描かないことで、モデルの出力がDOMに流れる口を塞いでいる
 - **描くのはAI側の吹き出しだけ。** 学生が入力した文は Markdown として解釈しない
-- **表のために吹き出しを広げない。** 幅は設計(`ui-ux/ui-design_*.pen`、280〜290px)どおりに保ち、表は中で横スクロールさせる
+- **表のために吹き出しを広げない。** 幅は会話の欄に対する割合(AI 側 90%・学生側 75%)で決め、表は中で横スクロールさせる。PC のパネルでは設計(`ui-ux/ui-design_*.pen`)の 280px・230px とほぼ同じで、モバイルのシートでは画面の幅に合わせて広がる
 - Tailwind の preflight が `ul` / `ol` の記号と字下げを消すため、リストの見た目は `MarkdownText` の `components` で自分で付けている
 
 時間割の科目スキーマは design.md §5.3 に従う(`syllabusCode` / `title` / `day` / `period` / `term` / `slots` / `credits` / `category` / `courseCategory` / `subcategory` / `reason` / `source`)。**学生が自分で入れた科目は `source: "student"`**(`courseFromSyllabus()`)で、組み直しても外されない。理由の文言(`reason`)で見分けない。**`category` は履修区分(必修など)で、区分は `courseCategory`、教養教育科目の分野は `subcategory`(どちらも履修要項の表記)である。** 時間割のセルは区分(教養教育科目は分野)を履修区分の前に出す(design.md §8.3.4)。専門関連科目には履修区分を出さない(常に選択で、シラバス一覧のタグとそろえる。`lib/timetable.ts` の `requirementOf()`)。履修区分だけではどの枠の必修か読めない。表示名は `lib/courseLabels.ts` にあり、シラバス一覧のタグと共用する。必須は `title` と `reason` だけで、**集中講義の曜日・時限や特定できないシラバスコードは null** で来る。

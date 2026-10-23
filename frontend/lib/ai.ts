@@ -8,7 +8,8 @@ import type { ArchivedChat } from "@/lib/chatHistory";
  * どの画面からでも同じシートが同一画面上にオーバーレイとして開く。
  *
  *   closed : シート非表示（ボトムドックの Ask Bar だけが常設されている） … STEP1〜3
- *   half   : ハーフシート（高さ384・背後の画面とタブは見えたまま）       … STEP4
+ *   half   : ハーフシート（背後の画面とタブは見えたまま）                 … STEP4
+ *            高さは学生が上部を引っ張って変えられ、変えた高さ（`height`）を覚える
  *   full   : フルスクリーン（会話画面・タブは非表示）                   … STEP5
  *
  * ここは表示状態のみを持つ。対話履歴は lib/chat.ts に置く（AGENTS.md のストア構成に従う）。
@@ -66,6 +67,11 @@ type AiStore = {
    * フォーカスする。時間割の画面が mount 時に1度だけ読んで下ろす
    */
   openOnArrival: boolean;
+  /**
+   * 学生が引っ張って決めたハーフシートの高さ(px)。null のあいだは既定の高さ。
+   * 閉じて開き直しても、全画面から戻っても、この高さで開く（ページを読み直すと消える）
+   */
+  height: number | null;
 
   /** STEP1〜3 → STEP4。文脈を引き継いでハーフシートを開く */
   openHalf: (context: AiContext) => void;
@@ -80,6 +86,7 @@ type AiStore = {
   setContext: (context: AiContext) => void;
   setDock: (dock: AskDock | null) => void;
   setOpenOnArrival: (value: boolean) => void;
+  setHeight: (height: number | null) => void;
 };
 
 export const useAiStore = create<AiStore>((set) => ({
@@ -88,6 +95,7 @@ export const useAiStore = create<AiStore>((set) => ({
   selection: null,
   dock: null,
   openOnArrival: false,
+  height: null,
 
   openHalf: (context) => set({ mode: "half", context }),
   expand: (context) => set((s) => ({ mode: "full", context: context ?? s.context })),
@@ -98,6 +106,7 @@ export const useAiStore = create<AiStore>((set) => ({
   setContext: (context) => set({ context }),
   setDock: (dock) => set({ dock }),
   setOpenOnArrival: (openOnArrival) => set({ openOnArrival }),
+  setHeight: (height) => set({ height }),
 }));
 
 /* ------------------------------------------------------------------ */
@@ -139,6 +148,18 @@ export type AiConversation = {
    * 会話の側がそれをどう使うかを決める
    */
   send: (text: string, context?: AiContext) => void;
+  /**
+   * 末尾の答えを作り直す（Claude の再生成と同じ）。直前の学生の発話を、その手前までの会話に
+   * 送り直す。作り直せないとき（送信中・末尾が学生の発話への答えでない）は何もしない。
+   * 無ければ再生成のボタンを出さない
+   */
+  regenerate?: () => void;
+  /**
+   * 受信中の答えを止める（Claude の停止ボタンと同じ）。送信中は入力欄の送信ボタンが
+   * 停止ボタンに変わる。止めた答えは、時間割を変えていなければ `regenerate` で作り直せる。
+   * 無ければ停止ボタンを出さない
+   */
+  stop?: () => void;
   /** 定型の質問 */
   quickAsks?: string[];
   /** モバイルの全画面シートにだけ出す定型の質問（ui-design_phone.pen STEP5 QuickChips） */
