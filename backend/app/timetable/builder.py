@@ -388,7 +388,7 @@ def _include_failure(ctx: StudentContext, wanted: str) -> str:
     """入れたい科目を候補に見つけられなかった理由。"""
     course = ctx.course_of_code(wanted) or ctx.course_by_title(wanted)
     offered = ctx.catalog.classes.get(wanted)
-    title = course.title if course else (offered.course_title if offered else wanted)
+    title = ctx.title_of(wanted)
     key = normalize_title(title)
     if key in ctx.passed():
         return f"{title}は修得済み"

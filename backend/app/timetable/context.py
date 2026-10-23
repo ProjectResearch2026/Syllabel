@@ -197,6 +197,18 @@ class StudentContext:
             self._by_code = index
         return self._by_code.get(code)
 
+    def title_of(self, wanted: str) -> str:
+        """シラバスコードか科目名から科目名を引く。引けなければそのまま返す。
+
+        アシスタントは入れたい科目(`include`)をシラバスコードで書くため、学生に見せる
+        文言はこれで科目名に直す。
+        """
+        course = self.course_of_code(wanted) or self.course_by_title(wanted)
+        if course is not None:
+            return course.title
+        offered = self.catalog.classes.get(wanted)
+        return offered.course_title if offered is not None else wanted
+
     def judge_with(self, courses: Iterable[ProposedCourse]) -> RequirementsResult:
         """時間割の科目を修得したとみなした要件の充足状況。"""
         added = [

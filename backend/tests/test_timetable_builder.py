@@ -280,6 +280,8 @@ async def test_include_reports_why_it_could_not_be_placed():
     details = {c.condition: c.detail for c in result.report.conditions if c.status == "unmet"}
     assert any("後期開講" in d for d in details.values())
     assert any("他課程が対象" in d for d in details.values())
+    # 入れられなかった科目もシラバスコードではなく科目名で書く
+    assert not any("Y0000000" in condition for condition in details)
 
 
 # --- 今の時間割を起点にする ---
