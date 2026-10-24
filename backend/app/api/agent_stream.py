@@ -6,8 +6,8 @@
 |---|---|
 | `{"thinking": "..."}` | モデルの思考の断片。vLLM の reasoning パーサが本文と分けて返したときだけ |
 | `{"activity": {"tool", "label", "args"}}` | ツールを呼び始めた・引数を書いている。`label` は backend が決めた固定文言で、モデルには書かせない。`args` はモデルが書いた引数(書きかけの間も流す) |
-| `{"activity": {..., "found"}}` | シラバス検索が終わったときに、同じ `id` で当たった科目数(`found`)を添えて流し直す |
-| `{"activity": {..., "failed"}}` | 時間割の組み立てが終わったときに、頼まれた入れる・外すのうちできなかったもの(引数の値 → 理由)を添えて流し直す |
+| `{"activity": {..., "found", "codes"}}` | シラバス検索が終わったときに、同じ `id` で当たった科目数(`found`)と返した科目のシラバスコード(`codes`)を添えて流し直す |
+| `{"activity": {..., "failed", "displaced"}}` | 時間割の組み立てが終わったときに、頼まれた入れる・外すのうちできなかったもの(引数の値 → 理由)と、入れたい科目のために外した科目(科目名 → 理由)を添えて流し直す |
 | `{"activity": {..., "titles"}}` | 引数が書き終わったとき(と結果を添えて流し直すとき)に、引数のシラバスコード → 科目名を添える。時間割に無い科目もコードのまま見せないため |
 | ツールが積んだイベント | ツールの実行が終わったときに、ツールが `outbox` に積んだもの(時間割の `step` / `timetable` / `conditions`)を流す |
 | `{"error": "..."}` / `{"done": true}` | 失敗と終端。終端はエラー時も必ず流れる |
@@ -28,6 +28,7 @@ import logging
 from collections.abc import AsyncIterator, Callable
 
 from pydantic_ai import Agent
+from pydantic_ai.agent import AgentInstructions
 from pydantic_ai.messages import (
     FunctionToolCallEvent,
     FunctionToolResultEvent,
@@ -126,12 +127,30 @@ def _titles(tool: str, args: dict, title_of: Callable[[str], str] | None) -> dic
 
 
 def _result_summary(tool: str, args: dict, content: object) -> dict:
-    """ツールの結果のうち画面に出すもの。シラバス検索は当たった科目数だけ(科目の中身は流さない)、
-    シラバスを読んだときは読んだ科目の名前。"""
+    """ツールの結果のうち画面に出すもの。シラバス検索は当たった科目数と返した科目のコード
+    (科目の中身は流さない)、シラバスを読んだときは読んだ科目の名前。
+
+    検索のコード(`codes`)は frontend が会話ごとに集め、次の発話で `mentionedCodes` として
+    送り返す(対話履歴は本文だけで、前の発話で出た科目のコードが残らないため。§7.3.1)。
+    """
     if tool == "search_courses" and isinstance(content, dict):
+        summary: dict = {}
         total = content.get("total")
         if isinstance(total, int):
-            return {"found": total}
+            summary["found"] = total
+        codes = [
+            code
+            for course in content.get("courses") or []
+            if isinstance(course, dict)
+            for code in [
+                course.get("code"),
+                *(c.get("code") for c in course.get("otherClasses") or [] if isinstance(c, dict)),
+            ]
+            if isinstance(code, str) and code
+        ]
+        if codes:
+            summary["codes"] = codes
+        return summary
     if tool == "get_course" and isinstance(content, dict):
         code, title = args.get("code"), content.get("title")
         if isinstance(code, str) and isinstance(title, str) and title and title != code:
@@ -144,7 +163,7 @@ async def stream_agent(
     prompt: str,
     *,
     history: list[ModelMessage],
-    instructions: str,
+    instructions: AgentInstructions,
     deps=None,
     outbox: list[dict] | None = None,
     error_text: str = "応答の生成中にエラーが発生しました",
@@ -158,6 +177,7 @@ async def stream_agent(
         outbox: ツールが流したいイベントを積むリスト。ツールの実行が終わるたびに流して空にする。
         on_finish: 最後に流すイベントを返す関数(本文の後・`done` の前)。
         title_of: シラバスコードを科目名に直す関数。ツールの引数のコードに科目名を添える。
+        instructions: 規則と事実。関数を含めると、モデルを呼ぶたびに評価し直される。
         activity_results: 呼び出しの id → ツールの行に添える結果。ツールが実行中に書き込み、
             結果が届いたときに同じ `id` の `activity` に添えて流し直す。
     """

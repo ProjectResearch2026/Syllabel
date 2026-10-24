@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { Category, CourseType, CurriculaData, Subcategory } from "@/lib/syllabus-api";
 import { canRegister, type CourseTarget } from "@/lib/eligibility";
-import { normalizeTitle } from "@/lib/courseTitle";
+import { bySubtitle, normalizeTitle } from "@/lib/courseTitle";
 import { PERIODS } from "@/lib/timetable";
 import {
   CATEGORY_LABEL,
@@ -215,7 +215,8 @@ export function buildTagMap(
   for (const course of curricula.courses) {
     // 科目名は正規化して突き合わせる。成績表由来の表記は全角英数字や空白が
     // 混じり、完全一致では外れる(`lib/courseTitle.ts`)
-    const completed = passedTitles.has(normalizeTitle(course.title));
+    // サブタイトルで別の講義を見分ける科目(特別講義)は、どの講義を修得したか分からない
+    const completed = !bySubtitle(course.title) && passedTitles.has(normalizeTitle(course.title));
     for (const code of course.syllabusCodes) {
       const current = map.get(code);
       if (current) {

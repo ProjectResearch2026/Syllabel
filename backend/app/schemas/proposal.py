@@ -103,6 +103,9 @@ class ProposedCourse(BaseModel):
     title: str = Field(
         description="科目名。シラバスに記載された正式名称を使うこと。",
     )
+    # 同じ科目名で別の講義が開かれる科目(教養教育科目特別講義)は、サブタイトルで見分ける
+    # (`app/timetable/candidates.py` の `course_key()`)
+    subtitle: str | None = Field(default=None, description="シラバスのサブタイトル。")
     # day / period / term は**1コマ目**。複数コマの科目の全コマは slots に入る
     day: Day | None = Field(
         default=None,

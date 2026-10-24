@@ -47,6 +47,23 @@ export type TraceItem =
   | { kind: "tool"; activity: AgentActivity; startedAt: number; endedAt?: number };
 
 /**
+ * 会話のツールの行に出たシラバスコード(古い順・重複なし)。シラバス検索が返した科目
+ * (`codes`)と、時間割の組み立て・シラバスを読む呼び出しの引数のコード(`titles` の鍵)。
+ * 時間割のアシスタントに `mentionedCodes` として送る。科目名は backend が引き直す
+ */
+export function mentionedCodes(messages: ChatMessage[]): string[] {
+  const codes = new Set<string>();
+  for (const message of messages) {
+    for (const item of message.trace ?? []) {
+      if (item.kind !== "tool") continue;
+      for (const code of item.activity.codes ?? []) codes.add(code);
+      for (const code of Object.keys(item.activity.titles ?? {})) codes.add(code);
+    }
+  }
+  return [...codes];
+}
+
+/**
  * 末尾の答えを作り直す(再生成)ときの起点。末尾が答え終えた AI の吹き出しで、その直前が
  * 学生の発話のときだけ返す。案内や「希望条件なしで提案する」の説明は、学生の発話への
  * 答えではないので作り直さない。時間割か条件を変えた答え(`changedTimetable`)も作り直さない。`prior` は学生の発話より前の会話で、作り直しはここに

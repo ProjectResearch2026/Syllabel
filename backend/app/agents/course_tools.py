@@ -35,7 +35,7 @@ from app.curricula.merge import MergedCourse
 from app.curricula.requirements import judge, normalize_title
 from app.schemas.student import Course as StudentCourse
 from app.settings import get_settings
-from app.timetable.candidates import student_type
+from app.timetable.candidates import by_subtitle, course_key, student_type
 from app.timetable.context import StudentContext, slots_label
 from app.timetable.offerings import (
     Catalog,
@@ -153,6 +153,13 @@ def fills_slot(ctx: StudentContext, course: MergedCourse) -> str:
 
 def _status(ctx: StudentContext, title: str) -> str | None:
     key = normalize_title(title)
+    if by_subtitle(title):
+        # 成績表にサブタイトルが無く、どの講義を修得したか分からない。別の講義は取れる
+        if key in ctx.passed():
+            return "同じ科目名の別の講義を修得済み(卒業要件に入る単位には上限がある)"
+        if key in ctx.registered():
+            return "同じ科目名の別の講義を登録済み"
+        return None
     if key in ctx.passed():
         return "修得済み"
     if key in ctx.registered():
@@ -338,7 +345,10 @@ async def search_courses(
             if only_registrable:
                 checks["only_registrable"] = ctx.eligibility.allows(code)
             if not include_taken:
-                checks["include_taken"] = normalize_title(offered.course_title) not in ctx.passed()
+                checks["include_taken"] = (
+                    by_subtitle(offered.course_title)
+                    or normalize_title(offered.course_title) not in ctx.passed()
+                )
         return checks
 
     pool = [
@@ -352,7 +362,8 @@ async def search_courses(
     # 科目名ごとに寄せる(同名の別クラスはまとめて返す)
     grouped: dict[str, list[OfferedClass]] = {}
     for offered in hits:
-        grouped.setdefault(normalize_title(offered.course_title), []).append(offered)
+        # 特別講義はサブタイトルごとに別の科目として返す(`course_key()`)
+        grouped.setdefault(course_key(offered.course_title, offered.subtitle), []).append(offered)
 
     def order(classes: list[OfferedClass]) -> tuple:
         first = classes[0]
@@ -424,7 +435,7 @@ def _hint(evaluated: Sequence[tuple[OfferedClass, dict[str, bool]]]) -> str | No
     parts = []
     for name in sorted(names, key=list(_FILTER_LABEL).index):
         titles = {
-            normalize_title(offered.course_title)
+            course_key(offered.course_title, offered.subtitle)
             for offered, checks in evaluated
             if all(v for k, v in checks.items() if k != name)
         }

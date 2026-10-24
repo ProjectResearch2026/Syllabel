@@ -306,6 +306,7 @@ export default async function SyllabusDetailPage({
       syllabus={{
         syllabus_code: syllabus.syllabus_code,
         course_title: syllabus.course_title,
+        subtitle: syllabus.subtitle,
         slots: syllabus.slots,
         day_of_week: syllabus.day_of_week,
         period: syllabus.period,

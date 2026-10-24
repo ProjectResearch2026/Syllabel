@@ -9,6 +9,7 @@ import {
   type TimetableReport,
 } from "@/lib/chatApi";
 import {
+  mentionedCodes,
   regenerateFrom,
   replyStream,
   stoppedPatch,
@@ -229,6 +230,7 @@ export function useProposalConversation(): ProposalConversation {
           conditions,
           // 対話全体を1本で送る。末尾が今回の発話（§6.1）
           messages: [...history, { role: "user", content: text }],
+          mentionedCodes: mentionedCodes(prior),
         },
         {
           ...reply.handlers,

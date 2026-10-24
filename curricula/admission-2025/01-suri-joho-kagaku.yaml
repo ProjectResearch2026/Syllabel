@@ -20,6 +20,7 @@ program:
 admission_year: 2025
 curriculum_version: "2020年度以降入学生"      # 履修要項の見出しの版表記(§4.4.1)
 duplicate_of: null                  # 他コホートの複製ではないため null(§5.1.2)
+default_track: "sogo"               # コースを選ぶ時期が無く、全員が総合コース(卒業要件を満たせば満たされる)
 tracks:                             # 課程内コース区分。値は履修要項の「専門応用科目の履修要件」別表から転記
   - key: "math"
     name: "数学系コース"

@@ -708,3 +708,30 @@ def test_real_curriculum_track_constraints():
     ]
     assert [c.required for c in result.track_constraints] == [13, 14]
     assert [c.shortfall for c in result.track_constraints] == [13, 14]
+
+
+@pytest.mark.parametrize(
+    "cohort", ["admission-2023", "admission-2024", "admission-2025", "admission-2026"]
+)
+def test_real_curriculum_defaults_to_the_general_track(cohort):
+    """数理情報科学課程はコースを選ぶ時期が無く、全員が総合コースになる(`default_track`)。
+
+    総合コースの下限(数学系9・情報系4)は、選択必修の枠(22単位)を満たせば必ず満たされる。
+    選択必修は数学系18単位・情報系13単位しか無いため、22単位を取ればそれぞれ
+    22−13=9・22−18=4 単位以上になる。
+    """
+    merged = _real_cohort(cohort)["01"]
+    assert merged.default_track == "sogo"
+    result = judge(merged, [])
+    assert result.track == "sogo"
+
+    selective = [
+        c for c in merged.own_courses if c.category == "専門応用科目" and c.type == "選択必修"
+    ]
+    pools = {}
+    for course in selective:
+        (group,) = course.track_groups
+        pools[group] = pools.get(group, 0) + course.credits
+    slot = merged.slots_by_key["applied.required_elective"].credits
+    minimums = {c.track_group: c.required for c in result.track_constraints}
+    assert minimums == {group: slot - (sum(pools.values()) - pool) for group, pool in pools.items()}

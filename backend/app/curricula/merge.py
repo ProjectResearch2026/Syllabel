@@ -64,7 +64,7 @@ class MergedCurriculum(BaseModel):
     """課程1つ分のマージ済み履修要項(§4.4.3)。
 
     `program` / `admission_year` / `curriculum_version` / `graduation` /
-    `registration_limits` / `grade_up_requirements` / `tracks` は課程ファイル由来を
+    `registration_limits` / `grade_up_requirements` / `tracks` / `default_track` は課程ファイル由来を
     そのまま持つ。`requirement_slots` / `credit_caps` / `prerequisites` /
     `courses` は課程ファイル由来のものに教養教育科目ファイル由来のものを続けた
     連結であり、`courses` にはさらに他課程から導出した専門関連科目が続く。
@@ -79,6 +79,7 @@ class MergedCurriculum(BaseModel):
     registration_limits: RegistrationLimits
     grade_up_requirements: list[GradeUpRequirement] = []
     tracks: list[Track] | None = None
+    default_track: str | None = None
     requirement_slots: list[RequirementSlot]
     credit_caps: list[CreditCap] = []
     prerequisites: list[Prerequisite] = []
@@ -162,6 +163,7 @@ def merge(
         registration_limits=program.registration_limits,
         grade_up_requirements=program.grade_up_requirements,
         tracks=program.tracks,
+        default_track=program.default_track,
         requirement_slots=slots,
         credit_caps=credit_caps,
         prerequisites=prerequisites,

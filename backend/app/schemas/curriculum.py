@@ -430,6 +430,9 @@ class Curriculum(_YamlModel):
     credit_caps: list[CreditCap] = []
     courses: list[CurriculumCourse] = Field(min_length=1)
     tracks: list[Track] | None = None
+    # コースを選んでいない学生に掛けるコース(`tracks[].key`)。数理情報科学課程は学生が
+    # コースを選ぶ時期が無く、卒業要件を満たせば満たされる総合コースになる
+    default_track: str | None = None
 
     @model_validator(mode="after")
     def check_slots(self) -> "Curriculum":
@@ -467,7 +470,10 @@ class Curriculum(_YamlModel):
 
     @model_validator(mode="after")
     def check_tracks(self) -> "Curriculum":
-        _require_unique([t.key for t in self.tracks or []], "tracks[].key")
+        keys = [t.key for t in self.tracks or []]
+        _require_unique(keys, "tracks[].key")
+        if self.default_track is not None and self.default_track not in keys:
+            raise ValueError(f"default_track が tracks に無い: {self.default_track}")
         return self
 
 

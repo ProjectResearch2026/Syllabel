@@ -73,6 +73,45 @@ async def test_context_keeps_only_registrable_classes_of_the_target_term():
     assert ctx.budget is not None and ctx.budget.remaining == 22
 
 
+@pytest.mark.asyncio
+async def test_yearly_cap_subtracts_what_was_registered_in_the_first_half():
+    """4年次の上限は年間(7・8セメスター合わせて48)。後期は前期に登録した単位を引く。
+
+    成績の付いた科目(不合格を含む)も登録した時点で上限に数えている。随意科目と
+    サマーセッション科目は上限に数えない。
+    """
+    from app.schemas.student import Course
+
+    def taken(title, credits, status="passed", term="前期"):
+        return Course(title=title, year=fx.OFFERING_YEAR, term=term, credits=credits, status=status)
+
+    ctx = await _ctx(
+        taken("前期の科目A", 20),
+        taken("前期の科目B", 4, status="failed"),
+        taken("夏の科目", 2, term="サ集"),
+        taken("去年の科目", 20, term="後期").model_copy(update={"year": fx.OFFERING_YEAR - 1}),
+        term="後期",
+        grade=4,
+    )
+    assert ctx.budget is not None
+    assert (ctx.budget.cap, ctx.budget.registered, ctx.budget.per_year) == (48, 24, True)
+    assert ctx.budget.remaining == 24
+
+    # 前期は、その学期に登録済みの単位だけを引く
+    first = await _ctx(taken("前期の科目A", 20, status="registered"), term="前期", grade=4)
+    assert (first.budget.cap, first.budget.registered) == (48, 20)
+
+
+@pytest.mark.asyncio
+async def test_semester_cap_counts_half_of_a_full_year_course():
+    """通年の科目は、前期と後期に半分ずつ数える(履修要項の注記)。"""
+    from app.schemas.student import Course
+
+    whole = Course(title="通年の科目", year=fx.OFFERING_YEAR, term="通年", credits=4, status="registered")
+    ctx = await _ctx(whole, term="後期", grade=2)
+    assert (ctx.budget.cap, ctx.budget.registered) == (22, 2)
+
+
 def test_entry_slot_levels_follow_overflow():
     entries = entry_slot_keys(fx.loaded().curriculum)
 
@@ -309,6 +348,157 @@ async def test_include_reports_why_it_could_not_be_placed():
     assert not any("Y0000000" in condition for condition in details)
 
 
+def _clash_classes():
+    """符号理論を情報理論と同じ月3に置いた開講情報。"""
+    classes = dict(fx.CLASSES)
+    classes["Y000000006"] = fx._class("Y000000006", "符号理論", [("月", 3)])
+    return classes
+
+
+@pytest.mark.asyncio
+async def test_include_displaces_a_removable_course_in_the_same_period():
+    """入れたい科目と重なる科目が外してよい科目なら、外して入れる(外したことを返す)。
+
+    実機で、現代の技術を入れたいと言われたのに、月3の政治学のすすめ(組み立てが入れた
+    選択必修)を外さず、入れられなかった。
+    """
+    current = [_course("情報理論", "Y000000005", "月", 3)]
+    result = _build(
+        await _ctx(classes=_clash_classes()),
+        Conditions(include=["Y000000006"]),
+        current,
+        mode="adjust",
+    )
+
+    assert "符号理論" in _titles(result.courses)
+    assert "情報理論" not in _titles(result.courses)
+    assert result.displaced == {"情報理論": "符号理論と月3で重なる"}
+    removed = next(i for i, s in enumerate(result.steps) if s.kind == "remove")
+    included = next(i for i, s in enumerate(result.steps) if s.kind == "include")
+    assert removed < included
+    assert result.steps[removed].note == "入れたい科目の「符号理論」と月3で重なるため"
+
+
+@pytest.mark.asyncio
+async def test_include_does_not_displace_a_course_the_student_added():
+    current = [_course("情報理論", "Y000000005", "月", 3, source="student")]
+    result = _build(
+        await _ctx(classes=_clash_classes()),
+        Conditions(include=["Y000000006"]),
+        current,
+        mode="adjust",
+    )
+
+    assert "情報理論" in _titles(result.courses)
+    assert "符号理論" not in _titles(result.courses)
+    assert result.displaced == {}
+    assert result.include_failures["Y000000006"] == (
+        "符号理論は「情報理論」(必修・自分で入れた科目・入れたい科目で外せない)と月3で重なる"
+    )
+
+
+def _required():
+    return [
+        _course("微分積分", "Y000000001", "月", 1, category="必修"),
+        _course("線形代数", "Y000000002", "火", 1, category="必修"),
+        _course("仏教の思想A", "G000000001", "木", 2, category="必修"),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_include_over_the_limit_displaces_the_course_whose_loss_hurts_least():
+    """上限を超えるときは、外しても残る不足が増えにくい科目を外す。
+
+    哲学は教養教育科目(選択必修・人文)を、文学はその下流の教養教育科目(選択)を埋めている。
+    上流の枠を空けない文学を外す。
+    """
+    current = [
+        *_required(),
+        _course("哲学", "G000000002", "水", 2, category="選択必修"),
+        _course("文学", "G000000003", "月", 4),
+    ]
+    result = _build(
+        await _ctx(),
+        Conditions(include=["Y000000006"], target_credits=10),
+        current,
+        mode="adjust",
+    )
+
+    assert "符号理論" in _titles(result.courses)
+    assert "哲学" in _titles(result.courses)
+    assert "文学" not in _titles(result.courses)
+    assert result.total_credits == 10
+    assert result.displaced == {"文学": "符号理論を入れると登録できる単位(10単位)を超える"}
+
+
+@pytest.mark.asyncio
+async def test_include_over_the_limit_fails_when_nothing_can_be_removed():
+    current = [*_required(), _course("哲学", "G000000002", "水", 2, source="student")]
+    result = _build(
+        await _ctx(),
+        Conditions(include=["Y000000006"], target_credits=8),
+        current,
+        mode="adjust",
+    )
+
+    assert "符号理論" not in _titles(result.courses)
+    assert "哲学" in _titles(result.courses)
+    assert result.displaced == {}
+    assert "外してよい科目を外しても収まらない" in result.include_failures["Y000000006"]
+
+
+@pytest.mark.asyncio
+async def test_report_tells_which_removable_courses_can_go_without_new_shortfall():
+    """外してよい科目を1つ外したときに増える不足。受け皿まで溢れている科目は増えない。"""
+    courses = [
+        *_required(),
+        _course("哲学", "G000000002", "水", 2, category="選択必修"),
+        _course("情報理論", "Y000000005", "月", 3),
+        _course("符号理論", "Y000000006", "水", 3),
+        _course("統計学", "Y000000011", "火", 3),
+        _course("画像処理", "Y000000007", "金", 3, credits=4),
+        _course("文学", "G000000003", "月", 4, source="student"),
+    ]
+    report = check_timetable(await _ctx(), courses, Conditions())
+
+    effects = {e.course: e.shortfall for e in report.removal_effects}
+    # 必修・自分で入れた科目は載せない
+    assert set(effects) == {
+        "哲学(水2)", "情報理論(月3)", "符号理論(水3)", "統計学(火3)", "画像処理(金3)"
+    }
+    assert effects["哲学(水2)"] == ["教養教育科目(選択必修・人文) 2単位"]
+    assert effects["統計学(火3)"] == []
+
+    from app.timetable.report import report_lines
+
+    lines = report_lines(report)
+    assert "- 統計学(火3): 増えない" in lines
+    assert "- 哲学(水2): 教養教育科目(選択必修・人文) 2単位" in lines
+
+
+@pytest.mark.parametrize("mode", ["remove", "adjust", "rebuild"])
+@pytest.mark.asyncio
+async def test_exclude_never_removes_a_required_course(mode):
+    """入れない科目に必修を指定されても外さない。学生が自分で入れた科目は、頼まれたので外す。"""
+    from app.agents.timetable_assistant import build_failures
+
+    current = [
+        _course("微分積分", "Y000000001", "月", 1, category="必修"),
+        _course("哲学", "G000000002", "水", 2, source="student"),
+    ]
+    result = _build(await _ctx(), Conditions(exclude=["微分積分", "哲学"]), current, mode=mode)
+
+    assert "微分積分" in _titles(result.courses)
+    assert "哲学" not in _titles(result.courses)
+    failed = build_failures(
+        current, result.courses, mode=mode, include=[], exclude=["微分積分", "哲学"],
+        include_failures={},
+    )
+    assert failed == {"微分積分": "必修は外せない"}
+    status = next(c for c in result.report.conditions if c.condition.startswith("入れない科目"))
+    assert status.detail == "微分積分が入っている(必修は外せない)"
+
+
 # --- 今の時間割を起点にする ---
 
 
@@ -479,3 +669,113 @@ async def test_failed_elective_is_left_out_unless_the_student_asks():
 
     # プロンプトに載せるのは必修の再履修だけ(モデルが自分から持ち出さないように)
     assert retake_lines(ctx) == ["- 微分積分(対象学期に履修できれば必ず入る)"]
+
+
+# --- クラスの選び方・サブタイトルで見分ける科目 ---
+
+
+def _with_offerings(monkeypatch, extra_codes: dict[str, list[str]], liberal: list[dict] = ()):
+    """開講年度ファイルにコードを、教養教育科目に科目を足す。"""
+    resolved = {k: dict(v) for k, v in fx.RESOLVED.items()}
+    for title, codes in extra_codes.items():
+        program = "00" if title in {c["title"] for c in liberal} or title in resolved["00"] else "01"
+        resolved[program][title] = [*resolved[program].get(title, []), *codes]
+    monkeypatch.setattr(fx, "RESOLVED", resolved)
+    if liberal:
+        base = fx.liberal_arts()
+        extended = base.model_copy(
+            update={
+                "courses": [
+                    *base.courses,
+                    *(type(base.courses[0]).model_validate(c) for c in liberal),
+                ]
+            }
+        )
+        monkeypatch.setattr(fx, "liberal_arts", lambda: extended)
+
+
+@pytest.mark.asyncio
+async def test_include_by_code_tries_the_other_classes_of_the_course(monkeypatch):
+    """コードで渡された入れたい科目も、そのクラスが重なれば同じ科目の別のクラスで入れる。"""
+    _with_offerings(monkeypatch, {"符号理論": ["Y000000012"]})
+    classes = dict(fx.CLASSES)
+    classes["Y000000012"] = fx._class("Y000000012", "符号理論", [("木", 5)])
+    current = [_course("哲学", "G000000002", "水", 2, source="student"),
+               _course("統計学", "Y000000011", "水", 3, source="student")]
+    result = _build(
+        await _ctx(classes=classes), Conditions(include=["Y000000006"]), current, mode="adjust"
+    )
+
+    placed = next(c for c in result.courses if c.title == "符号理論")
+    assert placed.syllabus_code == "Y000000012"  # 水3 は自分で入れた統計学と重なる
+    assert result.include_placed == {"Y000000006": "Y000000012"}
+    # 置いたクラスを入れたい科目として持ち直す(手で外したとき frontend が条件から除ける)
+    assert result.conditions.include == ["Y000000012"]
+    assert not any(c.status == "unmet" for c in result.report.conditions)
+
+
+@pytest.mark.asyncio
+async def test_include_prefers_the_class_it_was_given(monkeypatch):
+    _with_offerings(monkeypatch, {"符号理論": ["Y000000012"]})
+    classes = dict(fx.CLASSES)
+    classes["Y000000012"] = fx._class("Y000000012", "符号理論", [("月", 5)])
+    for seed in range(5):
+        result = _build(
+            await _ctx(classes=classes), Conditions(include=["Y000000006"]), seed=seed
+        )
+        placed = next(c for c in result.courses if c.title == "符号理論")
+        assert placed.syllabus_code == "Y000000006"
+        assert result.include_placed == {}
+
+
+_SPECIAL = {
+    "title": "教養教育科目特別講義",
+    "category": "教養教育科目",
+    "subcategory": "教養教育科目特別講義",
+    "type": "選択",
+    "credits": 2,
+    "grade": 1,
+    "term": "前期",
+}
+
+
+async def _special_ctx(monkeypatch, *courses):
+    _with_offerings(monkeypatch, {"教養教育科目特別講義": ["G000000005", "G000000006"]}, [_SPECIAL])
+    classes = dict(fx.CLASSES)
+    classes["G000000005"] = fx._class("G000000005", "教養教育科目特別講義", [("火", 4)])
+    classes["G000000006"] = fx._class("G000000006", "教養教育科目特別講義", [("水", 4)])
+    classes["G000000005"] = classes["G000000005"].__class__(
+        **{**classes["G000000005"].__dict__, "subtitle": "AI基礎"}
+    )
+    classes["G000000006"] = classes["G000000006"].__class__(
+        **{**classes["G000000006"].__dict__, "subtitle": "地域学"}
+    )
+    # 対象学部のコード(検索が引く範囲)も CLASSES から作られる
+    monkeypatch.setattr(fx, "CLASSES", classes)
+    return await _ctx(*courses)
+
+
+@pytest.mark.asyncio
+async def test_special_lectures_are_told_apart_by_subtitle(monkeypatch):
+    """特別講義はサブタイトルごとに別の科目。1つ修得済みでも、別の講義を入れられる。"""
+    ctx = await _special_ctx(monkeypatch, fx.course("教養教育科目特別講義"))
+
+    specials = [c for c in ctx.candidates if c.course.title == "教養教育科目特別講義"]
+    assert {c.subtitle for c in specials} == {"AI基礎", "地域学"}
+
+    result = _build(ctx, Conditions(include=["G000000005", "G000000006"]))
+    placed = {c.subtitle for c in result.courses if c.title == "教養教育科目特別講義"}
+    assert placed == {"AI基礎", "地域学"}
+    assert "教養教育科目特別講義(AI基礎)(4限)" in result.report.days["火"]
+    assert result.include_failures == {}
+
+
+@pytest.mark.asyncio
+async def test_search_lists_special_lectures_by_subtitle(monkeypatch):
+    from app.agents.course_tools import search_courses
+
+    ctx = await _special_ctx(monkeypatch, fx.course("教養教育科目特別講義"))
+    found = await search_courses(ctx, keyword="特別講義", catalog=ctx.catalog)
+
+    assert {c["subtitle"] for c in found["courses"]} == {"AI基礎", "地域学"}
+    assert all(c["status"].startswith("同じ科目名の別の講義を修得済み") for c in found["courses"])

@@ -9,7 +9,7 @@ from app.curricula.loader import LoadedCurriculum
 from app.curricula.merge import MergedCourse, MergedCurriculum
 from app.curricula.requirements import _course_index, accepts_course, judge, normalize_title
 from app.schemas.curriculum import Prerequisite, PrerequisiteAsOf, PrerequisiteConditions
-from app.schemas.proposal import HalfTerm, TargetTerm
+from app.schemas.proposal import HalfTerm, ProposedCourse, TargetTerm
 from app.schemas.student import Course as StudentCourse
 from app.schemas.student import StudentProfile
 from app.timetable.errors import ContextError
@@ -18,17 +18,57 @@ from app.timetable.offerings import Eligibility, OfferedClass, class_order, regi
 logger = logging.getLogger(__name__)
 
 
+# 同じ科目名の下に、サブタイトルの違う別の講義が開かれる科目。履修要項は1科目として
+# 持ち(卒業要件に入るのは1科目2単位まで。`credit_caps`)、成績表にもサブタイトルは
+# 載らない。科目名だけで見分けると、1つ修得しただけでほかの講義もすべて修得済みになり、
+# 「AI基礎を取りたい」に「修得済み」と答えてしまう。科目名とサブタイトルで見分ける。
+# frontend の `lib/courseTitle.ts` の `BY_SUBTITLE` と同じものを並べる
+_BY_SUBTITLE = frozenset({normalize_title("教養教育科目特別講義")})
+
+
+def by_subtitle(title: str) -> bool:
+    """サブタイトルで別の講義を見分ける科目か。"""
+    return normalize_title(title) in _BY_SUBTITLE
+
+
+def course_key(title: str, subtitle: str | None = None) -> str:
+    """科目の同一性。ふつうは正規化した科目名、`by_subtitle()` の科目はサブタイトルも含める。"""
+    key = normalize_title(title)
+    if key in _BY_SUBTITLE:
+        return f"{key}／{normalize_title(subtitle or '')}"
+    return key
+
+
+def key_of(course: "ProposedCourse") -> str:
+    """時間割の科目の同一性(`course_key()`)。"""
+    return course_key(course.title, course.subtitle)
+
+
+def display_title(course: "ProposedCourse") -> str:
+    """学生・モデルに見せる科目名。`by_subtitle()` の科目はサブタイトルを添える。"""
+    if by_subtitle(course.title) and course.subtitle:
+        return f"{course.title}({course.subtitle})"
+    return course.title
+
+
 @dataclass(frozen=True)
 class Candidate:
     """時間割に入れられる科目1件と、その開講クラス。
 
     `codes` は開講年度ファイルの `resolved` が持つシラバスコード(§4.4.2)、
     `classes` は api-clean から引いた開講情報で、`attach_offerings()` が埋める。
+    `by_subtitle()` の科目はサブタイトルごとに別の候補にし、`subtitle` にそれを持つ。
     """
 
     course: MergedCourse
     codes: tuple[str, ...]
     classes: tuple[OfferedClass, ...] = ()
+    subtitle: str | None = None
+
+    @property
+    def key(self) -> str:
+        """科目の同一性(`course_key()`)。"""
+        return course_key(self.course.title, self.subtitle)
 
 
 def student_type(course: MergedCourse) -> str:
@@ -76,7 +116,8 @@ def select_candidates(
     - `type != "随意"` — 随意科目は卒業要件単位に算入しない(§5.1.5 `excluded_types`)
     - `course.grade <= 学生の学年` — 配当年次は「この年次**から**履修可能」(§5.1.5)
     - 未修得かつ未登録 — 既修得・登録済みの科目と科目名で突合する(表記ゆれは
-      `normalize_title()` が吸収)。不合格・履修辞退の科目は再履修の対象として残る
+      `normalize_title()` が吸収)。不合格・履修辞退の科目は再履修の対象として残る。
+      `by_subtitle()` の科目は、成績表からどの講義を修得したか分からないので外さない
     - シラバスコードを持つ — `not_offered`(当年度不開講)/ `unresolved`(名寄せ未解決)
       の科目は時間割に置けないため候補から外す(§5.1.4)
 
@@ -104,7 +145,7 @@ def select_candidates(
         if course.grade > grade:
             continue
         title = normalize_title(course.title)
-        if title in taken or title in candidates:
+        if (title in taken and not by_subtitle(course.title)) or title in candidates:
             continue
         codes = loaded.syllabus_codes(course)
         if not codes:
@@ -131,7 +172,7 @@ def attach_offerings(
     **`eligibility` を与えたときは、履修登録できないクラスを落とす**(§6.1)。
     **`term` を与えたときは、その学期の履修登録で登録するクラスだけを残す**
     (`registration_half()`)。学期が判定できないクラスは残す。いずれかで1クラスも
-    残らない科目は候補から外す。
+    残らない科目は候補から外す。`by_subtitle()` の科目は、サブタイトルごとに別の候補にする。
     """
     attached: list[Candidate] = []
     for candidate in candidates:
@@ -147,6 +188,20 @@ def attach_offerings(
             key=class_order,
         )
         if not classes:
+            continue
+        if by_subtitle(candidate.course.title):
+            groups: dict[str, list[OfferedClass]] = {}
+            for offered in classes:
+                groups.setdefault(normalize_title(offered.subtitle or ""), []).append(offered)
+            attached.extend(
+                Candidate(
+                    course=candidate.course,
+                    codes=candidate.codes,
+                    classes=tuple(group),
+                    subtitle=group[0].subtitle,
+                )
+                for group in groups.values()
+            )
             continue
         attached.append(
             Candidate(course=candidate.course, codes=candidate.codes, classes=tuple(classes))

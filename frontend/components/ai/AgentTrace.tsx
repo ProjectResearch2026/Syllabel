@@ -213,6 +213,10 @@ function argLines(activity: AgentActivity, titleOf: (code: string) => string): s
     if (Array.isArray(line)) lines.push(...line);
     else if (line) lines.push(line);
   }
+  // 入れたい科目のために外した科目(組み終えたときに届く)。頼まれていない変更なので理由を添える
+  for (const [title, reason] of Object.entries(activity.displaced ?? {})) {
+    lines.push(`入れるために外した科目: ${title}（${reason}）`);
+  }
   // 今の時間割を直すだけで、入れる・外す科目も条件も無い呼び出しは、何をしたかの1行を出す
   if (tool === "build_timetable" && lines.length === 0 && args.mode === "adjust") {
     lines.push("今の時間割を見直す");
