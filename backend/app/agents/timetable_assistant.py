@@ -374,17 +374,23 @@ def current_sections(
     return "\n\n".join(sections)
 
 
-def assistant_instructions(student: StudentContext) -> list:
+def assistant_instructions(student: StudentContext):
     """エージェントに渡す instructions。**時間割と条件の節は、モデルを呼ぶたびに作り直す。**
 
     1回の応答のうちに build_timetable が時間割を変えても、先頭で作った【現在の時間割】の
     ままだと、モデルは組み立て前の時間割と組み立て後のレポートという食い違う事実を見る
     (実機で、組み立て前の「入れた理由」を読んで誤って答えた)。関数で渡すと、PydanticAI が
     モデルを呼ぶたびに評価し直す。
+
+    **全体を1つの関数で返す(system メッセージを1本にする)。** 変わらない部分と作り直す
+    部分を別々に渡すと、PydanticAI はそれぞれを別の system メッセージとして送る。Qwen の
+    チャットテンプレートは先頭以外の system メッセージを受け付けず、応答が即座に失敗した。
     """
+    fixed = static_sections(student)
 
-    def current(ctx: RunContext[AssistantDeps]) -> str:
+    def instructions(ctx: RunContext[AssistantDeps]) -> str:
         deps = ctx.deps
-        return current_sections(deps.student, deps.timetable, deps.conditions, deps.mentioned)
+        current = current_sections(deps.student, deps.timetable, deps.conditions, deps.mentioned)
+        return f"{fixed}\n\n{current}"
 
-    return [static_sections(student), current]
+    return instructions

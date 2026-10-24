@@ -432,3 +432,69 @@ def test_assistant_lists_courses_mentioned_earlier_in_the_conversation():
 
     assert "【会話で出た科目】\n- Y000000006: 符号理論 前期 水3・2単位" in seen[0]
     assert "Z999999999" not in seen[0]
+
+
+def test_assistant_sends_a_single_system_message_to_the_model(monkeypatch):
+    """OpenAI 互換の口へは system メッセージを先頭の1本だけ送る(組み直した後も)。
+
+    instructions を複数に分けて渡すと、PydanticAI は別々の system メッセージとして送る。
+    Qwen のチャットテンプレートは先頭以外の system メッセージを受け付けず、時間割の
+    アシスタントだけが即座に「応答の取得に失敗しました」になった。
+    """
+    import app.api.agent_stream as agent_stream
+    from openai import AsyncOpenAI
+    from pydantic_ai.models.openai import OpenAIChatModel
+    from pydantic_ai.providers.openai import OpenAIProvider
+
+    from app.agents import ModelPool
+
+    sent: list[dict] = []
+
+    def chunk(delta: dict, finish: str | None = None) -> str:
+        body = {
+            "id": "x", "object": "chat.completion.chunk", "created": 0, "model": "m",
+            "choices": [{"index": 0, "delta": delta, "finish_reason": finish}],
+        }
+        return f"data: {json.dumps(body)}\n\n"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        sent.append(json.loads(request.content))
+        if len(sent) == 1:
+            call = {
+                "index": 0, "id": "call_1", "type": "function",
+                "function": {"name": "build_timetable", "arguments": '{"mode": "rebuild"}'},
+            }
+            text = chunk({"role": "assistant", "tool_calls": [call]}) + chunk({}, "tool_calls")
+        else:
+            text = chunk({"role": "assistant", "content": "組みました。"}) + chunk({}, "stop")
+        return httpx.Response(
+            200, headers={"content-type": "text/event-stream"}, content=(text + "data: [DONE]\n\n").encode()
+        )
+
+    openai_client = AsyncOpenAI(
+        api_key="k",
+        base_url="http://llm.test/v1",
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+    model = OpenAIChatModel("m", provider=OpenAIProvider(openai_client=openai_client))
+    pool = ModelPool([model])
+    monkeypatch.setattr(agent_stream, "model_pool", lambda: pool)
+
+    resp = client.post(
+        "/api/timetable/assistant",
+        json=_body(
+            messages=[
+                {"role": "assistant", "content": "案内"},
+                {"role": "user", "content": "時間割を組んで"},
+            ]
+        ),
+    )
+
+    assert resp.status_code == 200
+    assert "error" not in resp.text
+    assert len(sent) == 2
+    for request in sent:
+        roles = [m["role"] for m in request["messages"]]
+        assert roles.count("system") == 1 and roles[0] == "system", roles
+    assert "まだ時間割は無い" in sent[0]["messages"][0]["content"]
+    assert "微分積分(1限)" in sent[1]["messages"][0]["content"]
