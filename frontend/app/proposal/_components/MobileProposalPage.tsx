@@ -179,7 +179,7 @@ export default function MobileProposalPage() {
   const isLoading = status === "loading";
 
   // 科目を押すと選択し（Ask Bar の文脈になる）、その場のメニューを開く。
-  // シラバスを開く・別の科目に変更・時間割から外す はメニューから選ぶ
+  // 講義詳細を見る・別の科目に変更・時間割から外す はメニューから選ぶ
   const { editable, open: openMenu } = editing;
   const onTapCourse = useCallback(
     (target: CourseTarget) => {
@@ -268,7 +268,7 @@ export default function MobileProposalPage() {
 
       {courses.length > 0 && (
         <p className="px-3 py-2 text-[9px] text-fg-tertiary">
-          科目をタップすると、シラバスを開く・別の科目に変更・時間割から外すを選べます。空きコマをタップすると科目を探せます
+          科目をタップすると、講義詳細を見る・別の科目に変更・時間割から外すを選べます。空きコマをタップすると科目を探せます
         </p>
       )}
 
