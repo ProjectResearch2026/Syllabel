@@ -77,7 +77,7 @@ export default function MobileAiAssistant({
 
   return (
     <div className="md:hidden">
-      {/* スクリム。ハーフのときはタブを覆わない（背後が見えたままであることが設計意図） */}
+      {/* スクリム。シートが開いているあいだはボトムドックを出さないので、画面の下端まで覆う */}
       <AnimatePresence>
         {open && (
           <motion.button
@@ -89,9 +89,7 @@ export default function MobileAiAssistant({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className={`fixed inset-x-0 top-0 z-40 bg-scrim ${
-              mode === "full" ? "bottom-0" : "bottom-[58px]"
-            }`}
+            className="fixed inset-0 z-40 bg-scrim"
           />
         )}
       </AnimatePresence>
@@ -102,8 +100,6 @@ export default function MobileAiAssistant({
   );
 }
 
-/** ボトムドックの高さ。ハーフのシートはこの上に乗る（下の className の bottom-[58px]） */
-const DOCK_HEIGHT = 58;
 /** 全画面のシートの上端（top-3） */
 const FULL_TOP = 12;
 /** 引っ張っているあいだに縮められる下限 */
@@ -182,14 +178,14 @@ function AiSheet({ conversation, base }: { conversation: AiConversation; base: A
   };
   const onPan = (_: PointerEvent, info: PanInfo) => {
     if (ignorePan.current) return;
-    const max = window.innerHeight - FULL_TOP - (full ? 0 : DOCK_HEIGHT);
+    const max = window.innerHeight - FULL_TOP;
     setDragHeight(Math.min(max, Math.max(MIN_DRAG_HEIGHT, dragFrom.current - info.offset.y)));
   };
   const onPanEnd = (_: PointerEvent, info: PanInfo) => {
     if (ignorePan.current) return;
     const released = dragFrom.current - info.offset.y;
-    // ハーフのシートが取れる最大の高さ（ボトムドックの上から全画面の上端まで）
-    const maxHalf = window.innerHeight - FULL_TOP - DOCK_HEIGHT;
+    // ハーフのシートが取れる最大の高さ（画面の下端から全画面の上端まで）
+    const maxHalf = window.innerHeight - FULL_TOP;
     setDragHeight(null);
     if (released < CLOSE_BELOW) close();
     else if (released > maxHalf - SNAP_TO_FULL) expand();
@@ -211,23 +207,23 @@ function AiSheet({ conversation, base }: { conversation: AiConversation; base: A
           ? { height: dragHeight }
           : !full && height !== null
             ? // 画面が縮んだとき（キーボードが開いた・端末を回した）は全画面の高さで抑える
-              { height: `min(${height}px, calc(100dvh - ${FULL_TOP + DOCK_HEIGHT}px))` }
+              { height: `min(${height}px, calc(100dvh - ${FULL_TOP}px))` }
             : {}),
       }}
       // 引っ張っているあいだは指に遅れず付いてくるよう、動きを付けない
       transition={dragHeight !== null ? { duration: 0 } : { duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
-      className={`fixed inset-x-0 z-50 flex flex-col overflow-hidden bg-surface-gray shadow-sheet ${
+      // シートが開いているあいだはボトムドックを出さない（`BottomDock`）ので、画面の下端に置く。
+      // 既定の高さはタブがあった頃と上端をそろえ、タブのぶん（58px）を会話に回す
+      className={`fixed inset-x-0 bottom-0 z-50 flex flex-col overflow-hidden bg-surface-gray shadow-sheet ${
         dragHeight !== null || (!full && height !== null)
-          ? full
-            ? "bottom-0"
-            : "bottom-[58px]"
+          ? ""
           : full
-            ? "top-3 bottom-0"
+            ? "top-3"
             : showSuggestions
-              ? "bottom-[58px] h-96"
+              ? "h-[442px]"
               : // 会話を出すハーフは、案内の吹き出しと入力欄・断り書きが入る高さにする。
                 // 背後の画面の上端は残す（全画面で覆わない）
-                "bottom-[58px] h-[min(480px,calc(100dvh-58px-96px))]"
+                "h-[min(538px,calc(100dvh-96px))]"
       }`}
       role="dialog"
       aria-modal="true"

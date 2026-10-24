@@ -159,13 +159,27 @@ export default function MobileProposalPage() {
   const [slotTarget, setSlotTarget] = useState<SlotTarget | null>(null);
   const editing = useTimetableEditing();
 
+  // AI のシートが開いたら、その場のメニューを閉じる。メニューを出したままボトムドックの
+  // Ask Bar を押すとシートが開き、メニューと浮かせたマスがシートの上に残っていた
+  // （どちらも z-50 で、後に描くメニューが上に来る）
+  const closeMenu = editing.close;
+  useEffect(
+    () =>
+      useAiStore.subscribe((state, previous) => {
+        if (previous.mode !== "closed" || state.mode === "closed") return;
+        setSlotTarget(null);
+        closeMenu();
+      }),
+    [closeMenu],
+  );
+
   // 組み立ての途中の表も描く（手順を1手ずつ。design.md §8.3.7）
   const { table, unscheduled } = coursesToSlotTable(courses);
   const isIdle = status === "idle";
   const isLoading = status === "loading";
 
   // 科目を押すと選択し（Ask Bar の文脈になる）、その場のメニューを開く。
-  // シラバスを開く・別の科目に変更・時間割から外す はメニューから選ぶ
+  // 講義詳細を見る・別の科目に変更・時間割から外す はメニューから選ぶ
   const { editable, open: openMenu } = editing;
   const onTapCourse = useCallback(
     (target: CourseTarget) => {
@@ -254,7 +268,7 @@ export default function MobileProposalPage() {
 
       {courses.length > 0 && (
         <p className="px-3 py-2 text-[9px] text-fg-tertiary">
-          科目をタップすると、シラバスを開く・別の科目に変更・時間割から外すを選べます。空きコマをタップすると科目を探せます
+          科目をタップすると、講義詳細を見る・別の科目に変更・時間割から外すを選べます。空きコマをタップすると科目を探せます
         </p>
       )}
 

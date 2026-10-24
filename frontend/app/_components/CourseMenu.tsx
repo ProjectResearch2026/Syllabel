@@ -122,7 +122,7 @@ export default function CourseMenu({
         {entry.code && (
           <button type="button" role="menuitem" onClick={onOpenSyllabus} className={item}>
             <BookOpen size={16} className="shrink-0 text-fg-secondary" />
-            <span className="text-[13px] text-fg-primary">シラバスを開く</span>
+            <span className="text-[13px] text-fg-primary">講義詳細を見る</span>
           </button>
         )}
 

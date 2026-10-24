@@ -44,10 +44,9 @@ export default function BottomDock() {
   const listQuery = useSyllabusUIStore((s) => s.listQuery);
 
   // 取り込み（`/`）は戻るボタンを持つ手順の画面なのでドックを出さない（PC ヘッダーも
-  // 取り込み前はナビを出さない）。AI が全画面のときも隠す（STEP5）
+  // 取り込み前はナビを出さない）
   if (pathname === "/") return null;
 
-  const half = mode === "half";
   const context = dock ? (selection ?? dock.base) : null;
   const hasChip = context?.kind === "course" || context?.kind === "slot";
 
@@ -84,12 +83,9 @@ export default function BottomDock() {
       {/* 本文の末尾の余白。ドックは fixed なので流れの中に高さを持たない */}
       <div aria-hidden="true" className={dock ? HEIGHT_WITH_ASK : HEIGHT_TABS_ONLY} />
 
-      {mode === "full" ? null : half ? (
-        /* ハーフシートの下に貼り付く（STEP4）。タブは見えたまま */
-        <nav data-bottom-dock className="fixed inset-x-0 bottom-0 z-50 border-t border-border-primary bg-surface-gray">
-          {tabRow}
-        </nav>
-      ) : (
+      {/* AI のシートが開いているあいだ（ハーフ・全画面とも）は隠す。会話の最中に別の画面へ
+          移ることはなく、タブはシートの高さを削るだけだった */}
+      {mode !== "closed" ? null : (
         <nav data-bottom-dock className="fixed inset-x-0 bottom-0 z-50 px-2 pb-2.5 pt-2">
           <div className="flex flex-col rounded-2xl border border-border-primary bg-surface-gray shadow-dock">
             <AnimatePresence>
