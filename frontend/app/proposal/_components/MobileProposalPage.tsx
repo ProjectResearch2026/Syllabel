@@ -159,6 +159,20 @@ export default function MobileProposalPage() {
   const [slotTarget, setSlotTarget] = useState<SlotTarget | null>(null);
   const editing = useTimetableEditing();
 
+  // AI のシートが開いたら、その場のメニューを閉じる。メニューを出したままボトムドックの
+  // Ask Bar を押すとシートが開き、メニューと浮かせたマスがシートの上に残っていた
+  // （どちらも z-50 で、後に描くメニューが上に来る）
+  const closeMenu = editing.close;
+  useEffect(
+    () =>
+      useAiStore.subscribe((state, previous) => {
+        if (previous.mode !== "closed" || state.mode === "closed") return;
+        setSlotTarget(null);
+        closeMenu();
+      }),
+    [closeMenu],
+  );
+
   // 組み立ての途中の表も描く（手順を1手ずつ。design.md §8.3.7）
   const { table, unscheduled } = coursesToSlotTable(courses);
   const isIdle = status === "idle";
