@@ -10,6 +10,7 @@ frontend が保持して次のリクエストに載せる(サーバは状態を�
 
 import re
 import unicodedata
+from collections.abc import Callable
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -91,8 +92,13 @@ class Conditions(_CamelModel):
         """全休にしたい平日の数。指定した曜日の数より少なくはならない。"""
         return max(self.free_day_count, len(set(self.free_days)))
 
-    def describe(self) -> list[str]:
-        """学生・モデルに見せる条件の一覧。既定のままの条件は書かない。"""
+    def describe(self, title_of: Callable[[str], str] | None = None) -> list[str]:
+        """学生・モデルに見せる条件の一覧。既定のままの条件は書かない。
+
+        `title_of` はシラバスコードを科目名に直す関数。入れたい科目・入れない科目を
+        「現代の技術(G260630019)」の形で書く。コードだけだと、モデルは何の科目か分からず、
+        前に入れた科目を `include` に並べ直せない(`include` は渡すたびに一覧ごと置き換わる)。
+        """
         lines: list[str] = []
         if self.scope == "必修のみ":
             lines.append("必修だけを入れる")
@@ -110,8 +116,12 @@ class Conditions(_CamelModel):
             lines.append(f"選択科目を足して1日{self.max_periods_per_day}コマまで")
         if self.target_credits is not None:
             lines.append(f"単位数は{self.target_credits}単位まで")
+        def label(value: str) -> str:
+            title = title_of(value) if title_of else value
+            return value if title == value else f"{title}({value})"
+
         if self.include:
-            lines.append(f"入れたい科目: {'、'.join(self.include)}")
+            lines.append(f"入れたい科目: {'、'.join(label(v) for v in self.include)}")
         if self.exclude:
-            lines.append(f"入れない科目: {'、'.join(self.exclude)}")
+            lines.append(f"入れない科目: {'、'.join(label(v) for v in self.exclude)}")
         return lines

@@ -372,5 +372,63 @@ def test_instructions_state_the_rules():
         "代わりの科目を探すか尋ねる",
         "入れたい科目は include に渡すだけでよい",
         "「外してよい科目を1つだけ外したときに増える不足」で判断する",
+        "前の発話で出た科目のコードは【会話で出た科目】にある",
     ):
         assert rule in INSTRUCTIONS
+
+
+def test_assistant_sees_the_rebuilt_timetable_within_the_same_reply():
+    """組み立てた後にモデルを呼ぶときは、【現在の時間割】が組み立て後の時間割になる。
+
+    先頭で1回だけ作ると、モデルは組み立て前の時間割と組み立て後のレポートという食い違う
+    事実を見る。
+    """
+    seen: list[str] = []
+
+    async def stream(messages: list[ModelMessage], info: AgentInfo):
+        seen.append(info.instructions or "")
+        returned = [
+            part
+            for message in messages
+            for part in getattr(message, "parts", [])
+            if isinstance(part, ToolReturnPart)
+        ]
+        if not returned:
+            yield {0: DeltaToolCall(name="build_timetable", json_args='{"mode": "rebuild"}')}
+            return
+        yield "組みました。"
+
+    agent = build_timetable_assistant()
+    with agent.override(model=FunctionModel(stream_function=stream)):
+        client.post(
+            "/api/timetable/assistant",
+            json=_body(messages=[{"role": "user", "content": "時間割を組んで"}]),
+        )
+
+    assert len(seen) == 2
+    assert "まだ時間割は無い" in seen[0]
+    assert "まだ時間割は無い" not in seen[1]
+    assert "微分積分(1限)" in seen[1]
+
+
+def test_assistant_lists_courses_mentioned_earlier_in_the_conversation():
+    """前の発話で出た科目のコードを、開講情報から引いた科目名と一緒に載せる。"""
+    seen: list[str] = []
+
+    async def stream(messages: list[ModelMessage], info: AgentInfo):
+        seen.append(info.instructions or "")
+        yield "はい。"
+
+    agent = build_timetable_assistant()
+    with agent.override(model=FunctionModel(stream_function=stream)):
+        client.post(
+            "/api/timetable/assistant",
+            json=_body(
+                messages=[{"role": "user", "content": "さっきの科目を入れて"}],
+                # 開講情報に無いコードは載せない(frontend の値を信じない)
+                mentionedCodes=["Y000000006", "Z999999999"],
+            ),
+        )
+
+    assert "【会話で出た科目】\n- Y000000006: 符号理論 前期 水3・2単位" in seen[0]
+    assert "Z999999999" not in seen[0]

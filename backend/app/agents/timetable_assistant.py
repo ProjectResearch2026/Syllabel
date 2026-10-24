@@ -6,10 +6,12 @@
 モデルは条件を書いて組み立てを呼び、返ったレポートだけを根拠に説明する。
 
 プロンプト(`instructions`)は規則の後に、backend がリクエストごとに計算した事実を
-節に分けて入れる(`render_instructions()`)。候補の科目の一覧は載せず、ツールで引かせる。
+節に分けて入れる(`assistant_instructions()`)。時間割と条件の節はモデルを呼ぶたびに
+作り直す。候補の科目の一覧は載せず、ツールで引かせる。
 """
 
 import random
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Annotated, Literal
@@ -22,8 +24,9 @@ from app.agents.course_tools import register_course_tools
 from app.curricula.requirements import normalize_title
 from app.schemas.proposal import ProposedCourse
 from app.timetable.builder import BuildResult, build_timetable, check_timetable
+from app.timetable.candidates import display_title
 from app.timetable.conditions import Conditions, Scope, Weekday, parse_period_rule
-from app.timetable.context import StudentContext
+from app.timetable.context import StudentContext, slots_label
 from app.timetable.facts import (
     budget_lines,
     format_requirements,
@@ -69,7 +72,8 @@ INSTRUCTIONS = (
     "学生が履修したいと言ったときだけ search_courses で探して include に入れる。\n"
     "7. 科目を勧めるときは search_courses で探し、その結果にある科目だけを勧める。"
     "興味・関心から探すときは topic を使う。時間割に入れるときは、その code を "
-    "build_timetable の include に渡す。\n"
+    "build_timetable の include に渡す。前の発話で出た科目のコードは【会話で出た科目】にある。"
+    "そこにも無いコードを記憶で書かず、search_courses で探し直す。\n"
     "8. 講義の内容・評価方法・教科書などシラバスの事項は get_course が返した内容だけを根拠にする。"
     "シラバスの語をそのまま使い、より具体的な語や製品名に言い換えない。\n"
     "9. 時間割や説明の誤りを指摘されたら、まず【現在の時間割】とレポートで事実を確かめ、"
@@ -95,6 +99,8 @@ class AssistantDeps:
     rng: random.Random = field(default_factory=random.Random)
     last_report: Report | None = None
     activity_results: dict[str, dict] = field(default_factory=dict)
+    # 会話のツールの行に出たシラバスコード(古い順)。【会話で出た科目】に載せる
+    mentioned: list[str] = field(default_factory=list)
 
 
 def _merge_conditions(
@@ -167,20 +173,24 @@ def build_failures(
     include: list[str],
     exclude: list[str],
     include_failures: dict[str, str],
+    include_placed: dict[str, str] | None = None,
 ) -> dict[str, str]:
     """この呼び出しで頼まれた入れる・外すのうち、できなかったもの(引数の値 → 理由)。
 
     外す科目が今の時間割に無かったときも、外せなかったものとして返す(組み直す `rebuild` は
     今の時間割を起点にしないので除く)。モデルが時間割に無い科目を外すと言い出したとき、
-    学生にもモデルにもそれが分かるようにする。
+    学生にもモデルにもそれが分かるようにする。入れたい科目を指定と別のクラスで置いたとき
+    (`include_placed`)は、そのクラスがあれば入れられたとみなす。
     """
+    placed = include_placed or {}
     failed: dict[str, str] = {}
     for wanted in include:
-        if not any(_matches(c, wanted) for c in after):
+        found = wanted, placed.get(wanted, wanted)
+        if not any(_matches(c, w) for c in after for w in found):
             failed[wanted] = include_failures.get(wanted, "時間割に入っていない")
     for wanted in exclude:
         if any(_matches(c, wanted) for c in after):
-            failed[wanted] = "必修・自分で入れた科目・入れたい科目は外せない"
+            failed[wanted] = "必修は外せない"
         elif mode != "rebuild" and not any(_matches(c, wanted) for c in before):
             failed[wanted] = "時間割に無い"
     return failed
@@ -199,7 +209,7 @@ def timetable_event(courses: list[ProposedCourse], report: Report) -> dict:
 
 @lru_cache
 def build_timetable_assistant() -> Agent[AssistantDeps, str]:
-    """時間割のアシスタントを生成する。規則は `render_instructions()` が毎回渡す。"""
+    """時間割のアシスタントを生成する。規則は `assistant_instructions()` が毎回渡す。"""
     agent: Agent[AssistantDeps, str] = Agent(
         build_model(), model_settings=chat_model_settings(), deps_type=AssistantDeps
     )
@@ -234,7 +244,8 @@ def build_timetable_assistant() -> Agent[AssistantDeps, str]:
             max_periods_per_day: 選択科目を足して1日に入れるコマ数の上限(既定 4)。
                 学生が「1日5コマでもいい」と言えば 5。
             target_credits: 単位数の上限。0 で上限をやめる。
-            include: 入れたい科目のシラバスコード(search_courses の code)。[] でやめる。
+            include: 入れたい科目のシラバスコード(search_courses の code)。渡すと一覧ごと
+                置き換わるので、【現在の条件】の入れたい科目も入れておくなら並べる。[] でやめる。
             exclude: 入れたくない科目の科目名またはシラバスコード。[] でやめる。
 
         Returns:
@@ -264,6 +275,7 @@ def build_timetable_assistant() -> Agent[AssistantDeps, str]:
             include=include or [],
             exclude=exclude or [],
             include_failures=result.include_failures,
+            include_placed=result.include_placed,
         )
         deps.activity_results[ctx.tool_call_id] = build_outcome(result, failed)
         deps.timetable = result.courses
@@ -283,7 +295,7 @@ def build_timetable_assistant() -> Agent[AssistantDeps, str]:
         if missing:
             titles = "、".join(deps.student.title_of(wanted) for wanted in missing)
             lines.append(f"外す科目のうち、今の時間割に無かった科目(外していない): {titles}")
-        described = result.conditions.describe()
+        described = result.conditions.describe(deps.student.title_of)
         lines.append(f"今の条件: {'、'.join(described) if described else 'なし'}")
         return "\n".join(lines)
 
@@ -291,14 +303,56 @@ def build_timetable_assistant() -> Agent[AssistantDeps, str]:
     return agent
 
 
-def render_instructions(
-    student: StudentContext, timetable: list[ProposedCourse], conditions: Conditions
+# 【会話で出た科目】に載せる科目の数の上限(新しいものから)
+MAX_MENTIONED = 30
+
+
+def static_sections(student: StudentContext) -> str:
+    """規則と、応答のあいだ変わらない事実の節(学生・卒業要件・登録できる単位・再履修)。"""
+    return "\n\n".join(
+        [
+            INSTRUCTIONS,
+            section("学生", student_lines(student)),
+            section("卒業要件の充足状況", format_requirements(student.requirements)),
+            section("登録できる単位", budget_lines(student)),
+            section("再履修する必修", retake_lines(student)),
+        ]
+    )
+
+
+def mentioned_lines(student: StudentContext, codes: Sequence[str]) -> list[str]:
+    """【会話で出た科目】の中身。シラバスコードごとに科目名・曜日時限・単位。
+
+    対話履歴は本文だけで、前の発話で検索した科目のコードは残らない。実機で、モデルが
+    前の発話で勧めた科目のコードを覚えたつもりで書き、修得済みの別の科目のコードを
+    入れたい科目に渡した。frontend が会話のツールの行から集めたコードを送り、科目名などは
+    backend が開講情報から引き直す(frontend の値を信じない)。開講情報に無いコードは載せない。
+    """
+    lines = []
+    for code in list(dict.fromkeys(reversed(codes)))[:MAX_MENTIONED]:
+        offered = student.catalog.classes.get(code)
+        if offered is None:
+            continue
+        subtitle = f"({offered.subtitle})" if offered.subtitle else ""
+        credits = f"・{offered.credits}単位" if offered.credits is not None else ""
+        lines.append(
+            f"- {code}: {offered.course_title}{subtitle} "
+            f"{slots_label(list(offered.slots), offered.term)}{credits}"
+        )
+    return lines
+
+
+def current_sections(
+    student: StudentContext,
+    timetable: list[ProposedCourse],
+    conditions: Conditions,
+    mentioned: Sequence[str] = (),
 ) -> str:
-    """規則と、リクエストごとに backend が計算した事実の節。"""
+    """時間割・条件・会話で出た科目の節。組み立てるたびに変わる。"""
     if timetable:
         current = report_lines(check_timetable(student, timetable, conditions))
         sources = [
-            f"- {c.title}: {c.reason or '理由なし'}"
+            f"- {display_title(c)}: {c.reason or '理由なし'}"
             + ("(学生が自分で入れた)" if c.source == "student" else "")
             for c in timetable
         ]
@@ -309,14 +363,28 @@ def render_instructions(
         ]
     else:
         current = ["まだ時間割は無い"]
-    described = conditions.describe()
+    described = conditions.describe(student.title_of)
     sections = [
-        INSTRUCTIONS,
-        section("学生", student_lines(student)),
-        section("卒業要件の充足状況", format_requirements(student.requirements)),
-        section("登録できる単位", budget_lines(student)),
-        section("再履修する必修", retake_lines(student)),
         section("現在の時間割", current),
         section("現在の条件", described if described else ["なし"]),
     ]
+    listed = mentioned_lines(student, mentioned)
+    if listed:
+        sections.append(section("会話で出た科目", listed))
     return "\n\n".join(sections)
+
+
+def assistant_instructions(student: StudentContext) -> list:
+    """エージェントに渡す instructions。**時間割と条件の節は、モデルを呼ぶたびに作り直す。**
+
+    1回の応答のうちに build_timetable が時間割を変えても、先頭で作った【現在の時間割】の
+    ままだと、モデルは組み立て前の時間割と組み立て後のレポートという食い違う事実を見る
+    (実機で、組み立て前の「入れた理由」を読んで誤って答えた)。関数で渡すと、PydanticAI が
+    モデルを呼ぶたびに評価し直す。
+    """
+
+    def current(ctx: RunContext[AssistantDeps]) -> str:
+        deps = ctx.deps
+        return current_sections(deps.student, deps.timetable, deps.conditions, deps.mentioned)
+
+    return [static_sections(student), current]

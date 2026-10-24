@@ -23,3 +23,22 @@
 export function normalizeTitle(title: string): string {
   return title.normalize("NFKC").replace(/\s+/g, "");
 }
+
+/**
+ * 同じ科目名の下に、サブタイトルの違う別の講義が開かれる科目。履修要項では1科目で、成績表にも
+ * サブタイトルは載らないため、1つ修得したからといってほかの講義まで修得済みにはしない。
+ * **backend の `app/timetable/candidates.py` の `_BY_SUBTITLE` と同じものを並べる。**
+ */
+const BY_SUBTITLE = new Set(["教養教育科目特別講義"].map(normalizeTitle));
+
+/** サブタイトルで別の講義を見分ける科目か */
+export function bySubtitle(title: string): boolean {
+  return BY_SUBTITLE.has(normalizeTitle(title));
+}
+
+/** 時間割に出す科目名。サブタイトルで見分ける科目は「教養教育科目特別講義（AI基礎）」とする */
+export function displayTitle(course: { title: string; subtitle?: string | null }): string {
+  return bySubtitle(course.title) && course.subtitle
+    ? `${course.title}（${course.subtitle}）`
+    : course.title;
+}

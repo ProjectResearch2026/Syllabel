@@ -14,6 +14,7 @@ from pydantic.alias_generators import to_camel
 from app.curricula.requirements import RequirementsResult, normalize_title
 from app.schemas.proposal import ProposedCourse, quarters_of
 from app.timetable.conditions import DEFAULT_MAX_PERIODS_PER_DAY, Conditions
+from app.timetable.candidates import display_title
 from app.timetable.context import StudentContext
 from app.timetable.offerings import DAYS, WEEKDAYS
 
@@ -159,16 +160,17 @@ def _quarter_mark(course: ProposedCourse) -> str:
 
 def describe_course(course: ProposedCourse, day: str | None = None) -> str:
     """「ソフトウェア開発法(3限)」の形。`day` を与えるとその曜日の時限だけを書く。"""
+    title = display_title(course)
     slots = course.occupied_slots()
     if not slots:
-        return f"{course.title}(曜日・時限未定)"
+        return f"{title}(曜日・時限未定)"
     periods = [s.period for s in slots if day is None or s.day == day]
     if day is None:
         label = "・".join(f"{s.day}{s.period}" for s in slots)
     else:
         label = _periods_label(periods)
     mark = _quarter_mark(course)
-    return f"{course.title}({label}{'・' + mark if mark else ''})"
+    return f"{title}({label}{'・' + mark if mark else ''})"
 
 
 def timetable_days(courses: Sequence[ProposedCourse]) -> dict[str, list[str]]:
@@ -388,7 +390,9 @@ def evaluate_conditions(
                 condition="入れない科目(" + "、".join(conditions.exclude) + ")を外す",
                 status="unmet" if hits else "met",
                 detail=(
-                    "、".join(c.title for c in hits) + "が入っている"
+                    "、".join(c.title for c in hits)
+                    + "が入っている"
+                    + ("(必修は外せない)" if any(is_required(c) for c in hits) else "")
                     if hits
                     else "どれも入っていない"
                 ),
@@ -410,7 +414,7 @@ def _include_label(
     wanted: str, present: Sequence[ProposedCourse], title_of: Callable[[str], str] | None
 ) -> str:
     if present:
-        return present[0].title
+        return display_title(present[0])
     return title_of(wanted) if title_of else wanted
 
 

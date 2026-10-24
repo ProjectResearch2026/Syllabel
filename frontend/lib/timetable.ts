@@ -1,4 +1,5 @@
 import { CATEGORY_LABEL, SUBCATEGORY_LABEL } from "@/lib/courseLabels";
+import { displayTitle } from "@/lib/courseTitle";
 
 export const DAYS = ["月", "火", "水", "木", "金", "土"] as const;
 export const PERIODS = [1, 2, 3, 4, 5] as const;
@@ -150,6 +151,7 @@ export function categoryToCourseType(category: string | null | undefined): Cours
 export function coursesToTimetable(
   courses: {
     title: string;
+    subtitle?: string | null;
     day: string | null;
     period: number | null;
     slots?: SlotPosition[];
@@ -164,7 +166,7 @@ export function coursesToTimetable(
     if (slots.length === 0) continue;
     // どのマスにも同じオブジェクトを入れる。科目リストはこれで1科目1行に数える
     const cell: NonNullable<CourseCell> = {
-      name: course.title,
+      name: displayTitle(course),
       type: categoryToCourseType(course.category),
       code: course.syllabusCode ?? undefined,
       credits: course.credits ?? undefined,
@@ -260,6 +262,7 @@ function quarterLabel(terms: (string | null | undefined)[]): string | undefined 
 export function coursesToSlotTable(
   courses: {
     title: string;
+    subtitle?: string | null;
     day: string | null;
     period: number | null;
     term: string | null;
@@ -275,7 +278,7 @@ export function coursesToSlotTable(
   const unscheduled: SlotEntry[] = [];
   for (const course of courses) {
     const base = {
-      name: course.title,
+      name: displayTitle(course),
       type: categoryToCourseType(course.category),
       requirement: requirementOf(course),
       category: labelOf(CATEGORY_LABEL, course.courseCategory),

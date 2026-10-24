@@ -26,8 +26,8 @@ from pydantic.alias_generators import to_camel
 
 from app.agents.timetable_assistant import (
     AssistantDeps,
+    assistant_instructions,
     build_timetable_assistant,
-    render_instructions,
 )
 from app.api.agent_stream import stream_agent, to_history
 from app.api.sse import sse_response
@@ -66,9 +66,14 @@ class BuildRequest(TimetableContextRequest):
 
 
 class AssistantRequest(TimetableContextRequest):
-    """`messages` の末尾(role: user)が今回の発話、それより前が履歴(§6.1)。"""
+    """`messages` の末尾(role: user)が今回の発話、それより前が履歴(§6.1)。
+
+    `mentioned_codes` は会話のツールの行に出たシラバスコード(古い順)。対話履歴は本文だけで
+    ツールの結果を持たないため、前の発話で出た科目のコードをこれで持ち回る(§7.3.1)。
+    """
 
     messages: list[ChatMessage] = Field(min_length=1)
+    mentioned_codes: list[str] = Field(default=[], max_length=500)
 
     @model_validator(mode="after")
     def check_last_message_is_user(self) -> "AssistantRequest":
@@ -129,14 +134,14 @@ async def post_assistant(req: AssistantRequest):
         student=student,
         timetable=list(req.timetable),
         conditions=req.conditions,
+        mentioned=list(req.mentioned_codes),
     )
-    instructions = render_instructions(student, deps.timetable, deps.conditions)
     return sse_response(
         stream_agent(
             build_timetable_assistant(),
             req.messages[-1].content,
             history=to_history(req.messages[:-1]),
-            instructions=instructions,
+            instructions=assistant_instructions(student),
             deps=deps,
             outbox=deps.outbox,
             title_of=student.title_of,

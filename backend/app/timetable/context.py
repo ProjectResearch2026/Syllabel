@@ -8,15 +8,17 @@
 4. 開講年度ぶんの開講クラスと対象課程(`get_catalog()`)から、その学生が**履修登録
    できる**クラスで、**対象学期に登録する**クラスだけを候補に結び付ける
 5. 先修条件を満たさない科目を外す
-6. 対象学期に登録できる単位(CAP − 対象学期に登録済みの単位)
+6. 対象学期に登録できる単位(CAP − すでに CAP に数えた単位。4年次の年間の上限では、
+   同じ年度の前期に登録した単位も引く)
 """
 
+import math
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 
 from app.curricula.loader import LoadedCurriculum, get_curricula
 from app.curricula.merge import MergedCourse, MergedCurriculum
-from app.curricula.requirements import RequirementsResult, judge, normalize_title
+from app.curricula.requirements import RequirementsResult, _course_index, judge, normalize_title
 from app.schemas.proposal import CourseSlot, ProposedCourse, TargetTerm
 from app.schemas.student import Course as StudentCourse
 from app.schemas.student import StudentProfile
@@ -55,39 +57,84 @@ def resolve_curriculum(program_code: str, admission_year: int) -> LoadedCurricul
     return loaded
 
 
-def semester_cap(curriculum: MergedCurriculum, semester: int) -> int | None:
+@dataclass(frozen=True)
+class RegistrationCap:
+    """セメスターの履修登録単位数の上限(CAP)。`per_year` は年間の上限(4年次)か。"""
+
+    credits: int
+    per_year: bool = False
+
+
+def registration_cap(curriculum: MergedCurriculum, semester: int) -> RegistrationCap | None:
     """セメスターの履修登録単位数の上限(CAP)。§5.1.2 `registration_limits`。
 
     学期ごとの上限(`max_credits_per_semester`)を持つ枠はその値、年間の上限
-    (`max_credits_per_year`。7・8セメスター)しか持たない枠は年間の値を返す。
-    該当する枠が無ければ None。
+    (`max_credits_per_year`。7・8セメスター)しか持たない枠は年間の値を返す。年間の
+    上限は2学期の合計なので、後期の残りは前期に登録した単位を引いて求める
+    (`registered_credits_in()`)。該当する枠が無ければ None。
     """
     caps = [
-        limit.max_credits_per_semester or limit.max_credits_per_year
+        RegistrationCap(limit.max_credits_per_semester, per_year=False)
+        if limit.max_credits_per_semester is not None
+        else RegistrationCap(limit.max_credits_per_year, per_year=True)
         for limit in curriculum.registration_limits.by_semester
         if semester in limit.semesters
+        and (limit.max_credits_per_semester or limit.max_credits_per_year) is not None
     ]
-    caps = [c for c in caps if c is not None]
-    return max(caps) if caps else None
+    return max(caps, key=lambda c: c.credits) if caps else None
 
 
-def registered_credits_in(completed: Sequence[StudentCourse], target: TargetTerm) -> int:
-    """対象学期に登録済みの科目の単位の合計。CAP から差し引く(§5.2.1)。"""
-    return sum(
-        c.credits
-        for c in completed
-        if c.status == "registered"
-        and c.year == target.year
-        and registration_half(c.term) == target.term
-    )
+def _counts_toward_cap(index: dict[str, MergedCourse], course: StudentCourse) -> bool:
+    """CAP に数える科目か。随意科目とサマーセッション科目は数えない(§5.1.2 の注記)。"""
+    if course.term == "サ集":
+        return False
+    found = index.get(normalize_title(course.title))
+    return found is None or found.type != "随意"
+
+
+def registered_credits_in(
+    completed: Sequence[StudentCourse],
+    target: TargetTerm,
+    *,
+    per_year: bool = False,
+    curriculum: MergedCurriculum | None = None,
+) -> int:
+    """CAP からすでに差し引く単位(§5.2.1)。
+
+    - 対象学期に登録済み(`registered`)の科目
+    - **年間の上限(`per_year`)で後期を組むときは、同じ年度の前期に登録した科目。**
+      成績の付いた科目(合格・不合格・履修辞退)も、登録した時点で上限に数えている
+    - 通年の科目は、履修要項の注記どおり前期と後期に半分ずつ数える(年間の上限では全部)
+
+    `curriculum` を与えると、上限に数えない科目(随意・サマーセッション)を除く。
+    """
+    index = _course_index(curriculum) if curriculum is not None else None
+    total = 0.0
+    for c in completed:
+        if c.year != target.year:
+            continue
+        if index is not None and not _counts_toward_cap(index, c):
+            continue
+        half = registration_half(c.term)
+        whole_year = c.term == "通年"
+        if per_year and target.term == "後期" and half == "前期":
+            total += c.credits
+        elif c.status == "registered" and (half == target.term or whole_year):
+            total += c.credits / 2 if whole_year and not per_year else c.credits
+    return math.ceil(total)
 
 
 @dataclass(frozen=True)
 class CreditBudget:
-    """対象学期に登録できる単位。`cap` から `registered` を引いたものが `remaining`。"""
+    """対象学期に登録できる単位。`cap` から `registered` を引いたものが `remaining`。
+
+    `per_year` は `cap` が年間の上限(4年次)であることを表し、そのとき `registered` は
+    同じ年度の前期に登録した単位を含む。
+    """
 
     cap: int
     registered: int
+    per_year: bool = False
 
     @property
     def remaining(self) -> int:
@@ -102,6 +149,7 @@ def proposed_course(
     return ProposedCourse(
         syllabus_code=offered.syllabus_code,
         title=course.title,
+        subtitle=offered.subtitle,
         day=day,
         period=offered.period if day else None,
         term=offered.term,
@@ -261,9 +309,18 @@ async def build_student_context(
     attached, prerequisite_results = check_prerequisites(
         attached, loaded.curriculum, profile.completed_courses, target=target
     )
-    cap = semester_cap(loaded.curriculum, target.semester)
+    cap = registration_cap(loaded.curriculum, target.semester)
     budget = (
-        CreditBudget(cap=cap, registered=registered_credits_in(profile.completed_courses, target))
+        CreditBudget(
+            cap=cap.credits,
+            registered=registered_credits_in(
+                profile.completed_courses,
+                target,
+                per_year=cap.per_year,
+                curriculum=loaded.curriculum,
+            ),
+            per_year=cap.per_year,
+        )
         if cap is not None
         else None
     )
@@ -303,8 +360,9 @@ __all__ = [
     "StudentContext",
     "build_student_context",
     "proposed_course",
+    "RegistrationCap",
     "registered_credits_in",
+    "registration_cap",
     "resolve_curriculum",
-    "semester_cap",
     "slots_label",
 ]

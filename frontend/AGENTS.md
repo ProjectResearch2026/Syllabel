@@ -123,14 +123,14 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 | 用途 | イベント |
 |---|---|
-| 共通 | `{"delta": "..."}` / `{"thinking": "..."}` / `{"activity": {"id", "tool", "label", "args", "found"?, "titles"?, "failed"?, "freeDays"?}}` / `{"error": "..."}` / `{"done": true}` |
+| 共通 | `{"delta": "..."}` / `{"thinking": "..."}` / `{"activity": {"id", "tool", "label", "args", "found"?, "codes"?, "titles"?, "failed"?, "freeDays"?, "displaced"?}}` / `{"error": "..."}` / `{"done": true}` |
 | 時間割のアシスタント(`/api/timetable/assistant`)だけ | `{"build": {...}}` / `{"step": {...}}` / `{"timetable": {...}}` / `{"conditions": {...}}` |
 
 `thinking` と `activity` は吹き出しの本文の上に出す(`components/ai/AgentTrace.tsx`。design.md §8.3.7)。思考とツールの呼び出しは吹き出しの `trace` に届いた順に積み、1行ずつ畳んで出す(押すと開く。Claude Code の出し方にならう)。`activity` は同じ呼び出しの書きかけの引数が同じ `id` で流れ直し(シラバス検索は終わったときに当たった科目数 `found` を添えてもう一度流れる。引数を書き終えたときは引数のシラバスコード → 科目名の `titles` も添えて届く。時間割の組み立ては終わったときに、組み立ての結果を添えてもう一度流れる — 入れる・外すのうちできなかったもの(引数の値 → 理由)の `failed` はその科目の行を「時間割に入れられませんでした: …」に、全休にした曜日 `freeDays` は全休の行を「全休にする曜日: 木, 金」に書き換え(頼んだ日数は出さない)。**開いた行には頼んだ条件の言い直しではなく、組み立てが何をしたかを出す**。**科目名は `titles` から引き、時間割の科目だけから引かない** — 時間割に入らなかった科目がコードのまま出ていた)、`lib/chat.ts` の `upsertTool()` で1つの行を書き換える。SSE の本文・思考・進み具合を吹き出しに流し込むのは `replyStream()` に任せる。
 
 **`step` は届いた順に1手ずつ、150ms 空けて時間割に描く**(`lib/timetableBuild.ts` の `buildPlayer`)。組み立ては数秒で終わり手順はほぼ一度に届くので、そのまま当てると何が起きたか見えない。**backend は待たない。** **ただし先頭に並ぶ `keep`(残す科目)はまとめて一度に当て、表を空にしない**(組み直しは今の全科目を `keep` で返すので、空にして入れ直すと組み直すたびに時間割が一度消えて見える)。最後の `timetable` で表を確定させる。組み立てが始まったのに `timetable` が届かなかったら(失敗・中断)、始める前の時間割へ戻す。
 
-リクエストには**学生プロファイルと対話履歴を毎回含める**(サーバー側で永続化しないため)。**時間割(`timetable`)と条件(`conditions`)も frontend が持ち、`/api/timetable/*` に毎回送る。** 条件はアシスタントの `conditions` イベントと `/api/timetable/build` の応答の値をそのまま持ち、画面で組み立てない。シラバスチャット・講義単位チャットにも課程コード・入学年度・対象学期を送る(揃えば。`lib/studentContext.ts` の `useStudentContext()`)。backend はそれで、その学生にとっての区分・要件枠で答える。
+リクエストには**学生プロファイルと対話履歴を毎回含める**(サーバー側で永続化しないため)。**対話履歴は本文だけなので、時間割のアシスタントには会話のツールの行に出たシラバスコードも `mentionedCodes` として送る**(`lib/chat.ts` の `mentionedCodes()`。検索の `codes` と引数の `titles` の鍵から集める。design.md §7.3.1)。送らないと、モデルは前の発話で勧めた科目のコードを記憶で書く。**時間割(`timetable`)と条件(`conditions`)も frontend が持ち、`/api/timetable/*` に毎回送る。** **学生が手で時間割を直したら、条件を合わせる**(手で外した科目を `include` から、手で入れた科目を `exclude` から除く。`lib/proposal.ts` の `reconcile()`)。残すと次の組み立てで手で直したことが戻される。 条件はアシスタントの `conditions` イベントと `/api/timetable/build` の応答の値をそのまま持ち、画面で組み立てない。シラバスチャット・講義単位チャットにも課程コード・入学年度・対象学期を送る(揃えば。`lib/studentContext.ts` の `useStudentContext()`)。backend はそれで、その学生にとっての区分・要件枠で答える。
 
 ## AIの回答の描き方
 
@@ -234,6 +234,8 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 講義詳細ページはシラバス本体を持っているので追加の取得は要らない。
 
 **課程名の比較は `lib/programs.ts` の `isSameProgram()` を通す。** 課程コード `06` は入学年度で改称され(環境生態工学課程 / 環境科学課程)、api-clean は両方を別々の課程として持つため、文字列の一致では取り違える。
+
+**教養教育科目特別講義は科目名とサブタイトルで見分ける**(`lib/courseTitle.ts` の `bySubtitle()` / `displayTitle()`。backend の `app/timetable/candidates.py` の `_BY_SUBTITLE` と同じものを並べる)。同じ科目名の下に別の講義が開かれ、成績表にサブタイトルが載らないので、1つ修得しても修得済みのタグを付けない。時間割には「教養教育科目特別講義（AI基礎）」と出す。
 
 **科目名の突合は `lib/courseTitle.ts` の `normalizeTitle()` を通す。** 大学のデータ自体が表記を混在させており、「仏教の思想A」は履修要項と api-clean が半角 `A`、Web シラバス検索ページが**全角 `Ａ`** である。成績表由来の科目名にも全角英数字や空白が混じるため、完全一致では外れる。規則は **NFKC 正規化 + 空白除去**で、**backend の `app/curricula/titles.py` の `normalize_title()` と同じに保つこと**。片方だけ直すと「残り単位では修得済みなのにタグが出ない」というねじれが起きる。
 

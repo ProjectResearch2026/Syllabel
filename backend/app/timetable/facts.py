@@ -36,9 +36,13 @@ def format_requirements(requirements: RequirementsResult) -> list[str]:
             line += f"({oneline(slot.notes)})"
         lines.append(line)
     slot_names = {slot.key: slot.name for slot in requirements.slots}
+    track = next(
+        (t.name for t in requirements.available_tracks if t.key == requirements.track),
+        requirements.track,
+    )
     for constraint in requirements.track_constraints:
         lines.append(
-            f"- コース別下限 {slot_names.get(constraint.slot, constraint.slot)}"
+            f"- コース別下限({track}) {slot_names.get(constraint.slot, constraint.slot)}"
             f" / {constraint.track_group}: "
             f"必要 {constraint.required} / 修得 {credits_label(constraint.earned)} / "
             f"不足 {credits_label(constraint.shortfall)}"
@@ -62,6 +66,11 @@ def budget_lines(ctx: StudentContext) -> list[str]:
     if ctx.budget is None:
         return ["履修登録の上限は履修要項に無い"]
     budget = ctx.budget
+    if budget.per_year:
+        return [
+            f"対象学期に登録できる単位: {budget.remaining}"
+            f"(4年次は年間の上限 {budget.cap} − この年度に登録済み {budget.registered})"
+        ]
     return [
         f"対象学期に登録できる単位: {budget.remaining}"
         f"(上限 {budget.cap} − この学期に登録済み {budget.registered})"

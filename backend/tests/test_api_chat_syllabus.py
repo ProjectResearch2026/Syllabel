@@ -185,9 +185,11 @@ def test_streams_thinking_activity_and_text():
         "label": "シラバスを検索しています",
         "args": {"keyword": "符号"},
         "found": activity[-1]["found"],
+        "codes": activity[-1]["codes"],
     }
-    # 検索が終わったら、当たった科目数を添えて流し直す
+    # 検索が終わったら、当たった科目数と返した科目のコードを添えて流し直す
     assert isinstance(activity[-1]["found"], int)
+    assert activity[-1]["codes"] == ["Y000000006"]
     assert all("found" not in a for a in activity[:-1])
     # 本文の前の空白は捨てる
     assert "".join(e["delta"] for e in events if "delta" in e) == "符号理論があります。"

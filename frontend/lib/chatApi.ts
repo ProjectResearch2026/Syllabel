@@ -57,6 +57,8 @@ export type ProposedCourse = {
   /** シラバスコード。api-clean で特定できた場合のみ */
   syllabusCode: string | null;
   title: string;
+  /** シラバスのサブタイトル。教養教育科目特別講義はこれで講義を見分ける(`lib/courseTitle.ts`) */
+  subtitle?: string | null;
   day: "月" | "火" | "水" | "木" | "金" | "土" | null;
   /** 時限(1〜5) */
   period: number | null;
@@ -142,6 +144,11 @@ export type AgentActivity = {
   args: Record<string, unknown>;
   /** シラバス検索が当たった科目数。検索が終わったときに同じ `id` で届く */
   found?: number;
+  /**
+   * シラバス検索が返した科目のシラバスコード。検索が終わったときに届く。次の発話で
+   * `mentionedCodes` として送り返す(`mentionedCodes()`)
+   */
+  codes?: string[];
   /** 引数のシラバスコード → 科目名。引数を書き終えたとき(とシラバスを読み終えたとき)に届く */
   titles?: Record<string, string>;
   /** 時間割の組み立てで、頼まれた入れる・外すのうちできなかったもの(引数の値 → 理由) */
@@ -320,7 +327,14 @@ export function streamSyllabusChat(
  * `messages` の1本で送り、末尾(role: user)が今回の発話である。時間割が空でも成立する。
  */
 export function streamTimetableAssistant(
-  body: TimetableContext & { messages: Pick<ChatMessage, "role" | "content">[] },
+  body: TimetableContext & {
+    messages: Pick<ChatMessage, "role" | "content">[];
+    /**
+     * 会話のツールの行に出たシラバスコード(古い順)。対話履歴は本文だけで、前の発話で
+     * 検索した科目のコードが残らないため持ち回る(design.md §7.3.1)
+     */
+    mentionedCodes?: string[];
+  },
   handlers: TimetableStreamHandlers,
   signal?: AbortSignal,
 ): Promise<string> {

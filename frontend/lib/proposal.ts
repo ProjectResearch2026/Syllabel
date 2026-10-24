@@ -9,6 +9,7 @@ import type {
 import type { SyllabusDetail } from "@/lib/syllabus-api";
 import { DAYS } from "@/lib/timetable";
 import { categoryOf, subcategoryOf } from "@/lib/courseLabels";
+import { normalizeTitle } from "@/lib/courseTitle";
 import type { CourseTags } from "@/lib/syllabusUI";
 
 /**
@@ -46,7 +47,14 @@ export const MANUAL_REASON = "学生が自分で時間割に登録した科目";
  */
 export type SyllabusForTimetable = Pick<
   SyllabusDetail,
-  "syllabus_code" | "course_title" | "slots" | "day_of_week" | "period" | "term_name" | "credits"
+  | "syllabus_code"
+  | "course_title"
+  | "subtitle"
+  | "slots"
+  | "day_of_week"
+  | "period"
+  | "term_name"
+  | "credits"
 >;
 
 export function courseFromSyllabus(
@@ -65,6 +73,7 @@ export function courseFromSyllabus(
   return {
     syllabusCode: syllabus.syllabus_code,
     title: syllabus.course_title,
+    subtitle: syllabus.subtitle,
     day: first?.day ?? day,
     period: first?.period ?? (day && syllabus.period ? syllabus.period : null),
     term: first?.term ?? (syllabus.term_name || null),
@@ -207,6 +216,30 @@ const EMPTY = {
   replacing: null as ReplaceTarget | null,
 };
 
+/** 条件の科目(シラバスコードか科目名)のうち、その科目を指すもの */
+function pointsTo(value: string, course: ProposedCourse): boolean {
+  return value === course.syllabusCode || normalizeTitle(value) === normalizeTitle(course.title);
+}
+
+/**
+ * 手で直した時間割に条件を合わせる。**入れたい科目(`include`)から手で外した科目を、
+ * 入れない科目(`exclude`)から手で入れた科目を除く。** 条件は次の組み立てにも載るので、
+ * 残すと手で直したことが次の組み立てで戻される — 外した科目が「入れたい科目」として
+ * 戻り(その科目のために別の科目が外されることもある)、入れ直した科目が「入れない科目」
+ * として外される
+ */
+function reconcile(
+  conditions: TimetableConditions,
+  { removed = [], added = [] }: { removed?: ProposedCourse[]; added?: ProposedCourse[] },
+): TimetableConditions {
+  const include = conditions.include?.filter((v) => !removed.some((c) => pointsTo(v, c)));
+  const exclude = conditions.exclude?.filter((v) => !added.some((c) => pointsTo(v, c)));
+  if (include?.length === conditions.include?.length && exclude?.length === conditions.exclude?.length) {
+    return conditions;
+  }
+  return { ...conditions, include, exclude };
+}
+
 /** 編集後の時間割。編集で時間割を持った状態になり、レポートは引き直しになる */
 function edited(courses: ProposedCourse[]) {
   return {
@@ -265,12 +298,19 @@ export const useProposalStore = create<ProposalStore>((set) => ({
       if (locked(s)) return {};
       const key = courseKey(course);
       if (s.courses.some((c) => courseKey(c) === key)) return {};
-      return edited([...s.courses, course]);
+      return {
+        ...edited([...s.courses, course]),
+        conditions: reconcile(s.conditions, { added: [course] }),
+      };
     }),
   removeCourse: (key) =>
     set((s) => {
       if (locked(s)) return {};
-      return edited(s.courses.filter((c) => courseKey(c) !== key));
+      const removed = s.courses.filter((c) => courseKey(c) === key);
+      return {
+        ...edited(s.courses.filter((c) => courseKey(c) !== key)),
+        conditions: reconcile(s.conditions, { removed }),
+      };
     }),
   replaceCourse: (key, course) =>
     set((s) => {
@@ -283,7 +323,12 @@ export const useProposalStore = create<ProposalStore>((set) => ({
         return k === nextKey ? [] : [c];
       });
       if (!s.courses.some((c) => courseKey(c) === key)) courses.push(course);
-      return { ...edited(courses), replacing: null };
+      const removed = s.courses.filter((c) => courseKey(c) === key);
+      return {
+        ...edited(courses),
+        conditions: reconcile(s.conditions, { removed, added: [course] }),
+        replacing: null,
+      };
     }),
   startReplace: (target) => set({ replacing: target }),
   cancelReplace: () => set({ replacing: null }),

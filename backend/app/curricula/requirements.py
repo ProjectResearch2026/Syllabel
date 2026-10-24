@@ -202,6 +202,7 @@ def judge(
         completed: 既修得科目リスト(§5.2.1)。`status` が `passed` のもののみ
             単位計算に用いる(要件§4.2)。不合格・履修辞退は結果に現れない。
         track: 選択したコースの `tracks[].key`。指定するとコース別下限を判定する。
+            省略すると履修要項の `default_track`(あれば)で判定する。
 
     Raises:
         RequirementsError: `track` が当該課程に存在しない場合、または
@@ -214,6 +215,8 @@ def judge(
     """
     slots = curriculum.slots_by_key
     _check_references(curriculum, slots)
+    if track is None:
+        track = curriculum.default_track
 
     units, uncounted = _collect(curriculum, completed)
     _apply_credit_caps(curriculum, units, uncounted)
