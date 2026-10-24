@@ -278,6 +278,51 @@ def test_assistant_activity_reports_what_it_could_not_include_or_exclude():
     assert "今の時間割に無かった科目(外していない): 音楽" in record[-1]
 
 
+def test_assistant_reports_courses_displaced_for_an_include():
+    """入れたい科目のために外した科目を、ツールの行とモデルへの結果に添える。"""
+    current = [
+        {
+            "syllabusCode": "Y000000005", "title": "情報理論", "day": "水", "period": 3,
+            "term": "前期", "slots": [{"term": "前期", "day": "水", "period": 3}],
+            "credits": 2, "category": "選択", "reason": "", "source": "assistant",
+        }
+    ]
+
+    async def stream(messages: list[ModelMessage], info: AgentInfo):
+        returned = [
+            part
+            for message in messages
+            for part in getattr(message, "parts", [])
+            if isinstance(part, ToolReturnPart)
+        ]
+        if not returned:
+            yield {
+                0: DeltaToolCall(
+                    name="build_timetable",
+                    json_args='{"mode": "adjust", "include": ["Y000000006"]}',
+                )
+            }
+            return
+        record.append(str(returned[-1].content))
+        yield "入れました。"
+
+    record: list[str] = []
+    agent = build_timetable_assistant()
+    with agent.override(model=FunctionModel(stream_function=stream)):
+        resp = client.post(
+            "/api/timetable/assistant",
+            json=_body(
+                timetable=current,
+                messages=[{"role": "user", "content": "符号理論を入れて"}],
+            ),
+        )
+
+    activities = [e["activity"] for e in _events(resp.text) if "activity" in e]
+    assert activities[-1]["displaced"] == {"情報理論": "符号理論と水3で重なる"}
+    assert "failed" not in activities[-1]
+    assert "入れたい科目のために外した科目: 情報理論(符号理論と水3で重なる)" in record[-1]
+
+
 def test_assistant_answers_without_building():
     async def stream(messages, info):
         yield "時間割づくりを手伝えます。"
@@ -325,5 +370,7 @@ def test_instructions_state_the_rules():
         "曜日ごとの科目を表や一覧で書き直さない",
         "代わりを求められていないときは mode に remove を使い",
         "代わりの科目を探すか尋ねる",
+        "入れたい科目は include に渡すだけでよい",
+        "「外してよい科目を1つだけ外したときに増える不足」で判断する",
     ):
         assert rule in INSTRUCTIONS

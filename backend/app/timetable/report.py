@@ -11,7 +11,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
-from app.curricula.requirements import normalize_title
+from app.curricula.requirements import RequirementsResult, normalize_title
 from app.schemas.proposal import ProposedCourse, quarters_of
 from app.timetable.conditions import DEFAULT_MAX_PERIODS_PER_DAY, Conditions
 from app.timetable.context import StudentContext
@@ -47,6 +47,13 @@ class RemainingShortfall(_CamelModel):
     reason: str | None = None
 
 
+class RemovalEffect(_CamelModel):
+    """外してよい科目1つを外したときに増える不足。`shortfall` が空なら不足は増えない。"""
+
+    course: str
+    shortfall: list[str] = []
+
+
 class CreditsInfo(_CamelModel):
     """時間割の単位の合計と、対象学期に登録できる単位。"""
 
@@ -67,6 +74,7 @@ class Report(_CamelModel):
     - `conditions` — 条件ごとに満たしたか
     - `requirements` — 不足のあった要件枠の、時間割を修得する前後の修得単位
     - `remaining_shortfall` — 時間割を修得してもなお残る不足
+    - `removal_effects` — 外してよい科目を1つだけ外したときに増える不足
     - `retakes` — 時間割に入っている再履修の科目
     - `needs_confirmation` — 学生が確かめるべきこと
     """
@@ -78,6 +86,7 @@ class Report(_CamelModel):
     conditions: list[ConditionStatus] = []
     requirements: list[SlotChange] = []
     remaining_shortfall: list[RemainingShortfall] = []
+    removal_effects: list[RemovalEffect] = []
     credits: CreditsInfo
     retakes: list[str] = []
     needs_confirmation: list[str] = []
@@ -431,6 +440,35 @@ def _required_slot_keys(ctx: StudentContext) -> set[str]:
     return keys
 
 
+def removal_effects(
+    ctx: StudentContext,
+    courses: Sequence[ProposedCourse],
+    conditions: Conditions,
+    after: RequirementsResult,
+) -> list[RemovalEffect]:
+    """外してよい科目を1つだけ外したときに、要件枠ごとに増える不足。
+
+    科目の「入れた理由」は入れた時点のもので、後から同じ枠に入る科目が入ると古くなる。
+    実機で、法学のすすめと政治学のすすめ(どちらも〈基幹〉・社会の2単位の枠に入る)が
+    並んでいるのに、モデルが政治学のすすめの入れた理由を読んで「外すと〈基幹〉・社会が
+    埋まらない」と答え、入れたい科目を入れなかった。外せるかの判断に使う事実を渡す。
+    """
+    pinned = pinned_keys(conditions)
+    base = {slot.key: slot.shortfall for slot in after.slots}
+    effects: list[RemovalEffect] = []
+    for course in courses:
+        if not is_removable(course, pinned):
+            continue
+        result = ctx.judge_with([c for c in courses if c is not course])
+        grown = [
+            f"{slot.name} {slot.shortfall - base[slot.key]}単位"
+            for slot in result.slots
+            if slot.required > 0 and slot.shortfall > base[slot.key]
+        ]
+        effects.append(RemovalEffect(course=describe_course(course), shortfall=grown))
+    return effects
+
+
 def make_report(
     ctx: StudentContext,
     courses: Sequence[ProposedCourse],
@@ -498,6 +536,7 @@ def make_report(
         ),
         requirements=changes,
         remaining_shortfall=remaining,
+        removal_effects=removal_effects(ctx, courses, conditions, after),
         credits=CreditsInfo(
             total=total,
             limit=limit,
@@ -544,6 +583,14 @@ def report_lines(report: Report) -> list[str]:
         for short in report.remaining_shortfall:
             reason = f"({short.reason})" if short.reason else ""
             lines.append(f"- {short.slot}: {short.shortfall}単位{reason}")
+    if report.removal_effects:
+        lines.append(
+            "外してよい科目(必修・自分で入れた科目・入れたい科目以外)を1つだけ外したときに"
+            "増える不足(2つ以上外すときは足し合わせられない):"
+        )
+        for effect in report.removal_effects:
+            grown = "、".join(effect.shortfall) if effect.shortfall else "増えない"
+            lines.append(f"- {effect.course}: {grown}")
     if report.retakes:
         lines.append(f"再履修の科目: {'、'.join(report.retakes)}")
     if report.needs_confirmation:

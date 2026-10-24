@@ -48,7 +48,10 @@ INSTRUCTIONS = (
     "組み直すときは rebuild を使う。"
     "科目を外してとだけ言われ、代わりを求められていないときは mode に remove を使い、代わりの科目を入れない。"
     "外して残った不足があればレポートのとおりに伝え、代わりの科目を探すか尋ねる。"
-    "代わりを探してと言われたら adjust で組み直す。\n"
+    "代わりを探してと言われたら adjust で組み直す。"
+    "入れたい科目は include に渡すだけでよい。コマが重なる科目や単位の上限を超える分は、"
+    "組み立てが外してよい科目から残る不足が増えにくいものを選んで外し、外した科目を結果に書く。"
+    "exclude は学生が外す科目を指定したときに使う。\n"
     "4. 時間割の説明は、build_timetable が返したレポートと【現在の時間割】に書かれた事実だけに基づく。"
     "満たせなかった条件は、満たせなかったと理由とともに書く。満たしていない希望を満たしたと書かない。"
     "確かめることがあれば、学生が何を確かめればよいかを必ず書く(画面には出ないため)。"
@@ -57,7 +60,9 @@ INSTRUCTIONS = (
     "残る不足はレポートに載っているものだけを書き、必修の不足や対象学期に取れる科目の無いことは"
     "学生に聞かれない限り書かない(後の学期に取るのが当たり前のため)。\n"
     "5. 卒業要件・単位数は【卒業要件の充足状況】とレポートの値を用いる。自分で計算しない。"
-    "単位数は整数で書き、「2.0単位」のように小数で書かない。\n"
+    "単位数は整数で書き、「2.0単位」のように小数で書かない。"
+    "科目を外すと不足が増えるかは、「外してよい科目を1つだけ外したときに増える不足」で判断する。"
+    "「科目ごとの入れたときの理由」は入れた時点の理由で、今その要件枠を満たしているとは限らない。\n"
     "6. 必修の科目(不合格・履修辞退の再履修を含む)は履修できる学期に履修するものであり、"
     "不足の確保や補填として書かない。再履修の科目は再履修であることを書く。"
     "必修でない科目は、不合格・履修辞退だったものでも、自分から勧めたり再履修するか尋ねたりしない。"
@@ -142,12 +147,15 @@ def build_outcome(result: BuildResult, failed: dict[str, str]) -> dict:
     - `freeDays` — 組み立てで全休にした曜日(指定された曜日と、日数だけ頼まれて選んだ曜日。
       手順4)
     - `failed` — 頼まれた入れる・外すのうちできなかったもの(`build_failures()`)
+    - `displaced` — 入れたい科目のために外した科目(科目名 → 理由。手順3)
     """
     outcome: dict = {}
     if result.conditions.free_days:
         outcome["freeDays"] = list(result.conditions.free_days)
     if failed:
         outcome["failed"] = failed
+    if result.displaced:
+        outcome["displaced"] = dict(result.displaced)
     return outcome
 
 
@@ -266,6 +274,11 @@ def build_timetable_assistant() -> Agent[AssistantDeps, str]:
         deps.outbox.append(timetable_event(result.courses, result.report))
         deps.outbox.append({"conditions": result.conditions.model_dump(by_alias=True)})
         lines = ["時間割を組み直した。", *report_lines(result.report)]
+        if result.displaced:
+            lines.append(
+                "入れたい科目のために外した科目: "
+                + "、".join(f"{title}({why})" for title, why in result.displaced.items())
+            )
         missing = [wanted for wanted in exclude or [] if failed.get(wanted) == "時間割に無い"]
         if missing:
             titles = "、".join(deps.student.title_of(wanted) for wanted in missing)
@@ -289,7 +302,11 @@ def render_instructions(
             + ("(学生が自分で入れた)" if c.source == "student" else "")
             for c in timetable
         ]
-        current = [*current, "科目ごとの入れた理由:", *sources]
+        current = [
+            *current,
+            "科目ごとの入れたときの理由(今その要件枠を満たしているとは限らない):",
+            *sources,
+        ]
     else:
         current = ["まだ時間割は無い"]
     described = conditions.describe()

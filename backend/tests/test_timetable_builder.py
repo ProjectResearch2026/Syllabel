@@ -309,6 +309,134 @@ async def test_include_reports_why_it_could_not_be_placed():
     assert not any("Y0000000" in condition for condition in details)
 
 
+def _clash_classes():
+    """符号理論を情報理論と同じ月3に置いた開講情報。"""
+    classes = dict(fx.CLASSES)
+    classes["Y000000006"] = fx._class("Y000000006", "符号理論", [("月", 3)])
+    return classes
+
+
+@pytest.mark.asyncio
+async def test_include_displaces_a_removable_course_in_the_same_period():
+    """入れたい科目と重なる科目が外してよい科目なら、外して入れる(外したことを返す)。
+
+    実機で、現代の技術を入れたいと言われたのに、月3の政治学のすすめ(組み立てが入れた
+    選択必修)を外さず、入れられなかった。
+    """
+    current = [_course("情報理論", "Y000000005", "月", 3)]
+    result = _build(
+        await _ctx(classes=_clash_classes()),
+        Conditions(include=["Y000000006"]),
+        current,
+        mode="adjust",
+    )
+
+    assert "符号理論" in _titles(result.courses)
+    assert "情報理論" not in _titles(result.courses)
+    assert result.displaced == {"情報理論": "符号理論と月3で重なる"}
+    removed = next(i for i, s in enumerate(result.steps) if s.kind == "remove")
+    included = next(i for i, s in enumerate(result.steps) if s.kind == "include")
+    assert removed < included
+    assert result.steps[removed].note == "入れたい科目の「符号理論」と月3で重なるため"
+
+
+@pytest.mark.asyncio
+async def test_include_does_not_displace_a_course_the_student_added():
+    current = [_course("情報理論", "Y000000005", "月", 3, source="student")]
+    result = _build(
+        await _ctx(classes=_clash_classes()),
+        Conditions(include=["Y000000006"]),
+        current,
+        mode="adjust",
+    )
+
+    assert "情報理論" in _titles(result.courses)
+    assert "符号理論" not in _titles(result.courses)
+    assert result.displaced == {}
+    assert result.include_failures["Y000000006"] == (
+        "符号理論は「情報理論」(必修・自分で入れた科目・入れたい科目で外せない)と月3で重なる"
+    )
+
+
+def _required():
+    return [
+        _course("微分積分", "Y000000001", "月", 1, category="必修"),
+        _course("線形代数", "Y000000002", "火", 1, category="必修"),
+        _course("仏教の思想A", "G000000001", "木", 2, category="必修"),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_include_over_the_limit_displaces_the_course_whose_loss_hurts_least():
+    """上限を超えるときは、外しても残る不足が増えにくい科目を外す。
+
+    哲学は教養教育科目(選択必修・人文)を、文学はその下流の教養教育科目(選択)を埋めている。
+    上流の枠を空けない文学を外す。
+    """
+    current = [
+        *_required(),
+        _course("哲学", "G000000002", "水", 2, category="選択必修"),
+        _course("文学", "G000000003", "月", 4),
+    ]
+    result = _build(
+        await _ctx(),
+        Conditions(include=["Y000000006"], target_credits=10),
+        current,
+        mode="adjust",
+    )
+
+    assert "符号理論" in _titles(result.courses)
+    assert "哲学" in _titles(result.courses)
+    assert "文学" not in _titles(result.courses)
+    assert result.total_credits == 10
+    assert result.displaced == {"文学": "符号理論を入れると登録できる単位(10単位)を超える"}
+
+
+@pytest.mark.asyncio
+async def test_include_over_the_limit_fails_when_nothing_can_be_removed():
+    current = [*_required(), _course("哲学", "G000000002", "水", 2, source="student")]
+    result = _build(
+        await _ctx(),
+        Conditions(include=["Y000000006"], target_credits=8),
+        current,
+        mode="adjust",
+    )
+
+    assert "符号理論" not in _titles(result.courses)
+    assert "哲学" in _titles(result.courses)
+    assert result.displaced == {}
+    assert "外してよい科目を外しても収まらない" in result.include_failures["Y000000006"]
+
+
+@pytest.mark.asyncio
+async def test_report_tells_which_removable_courses_can_go_without_new_shortfall():
+    """外してよい科目を1つ外したときに増える不足。受け皿まで溢れている科目は増えない。"""
+    courses = [
+        *_required(),
+        _course("哲学", "G000000002", "水", 2, category="選択必修"),
+        _course("情報理論", "Y000000005", "月", 3),
+        _course("符号理論", "Y000000006", "水", 3),
+        _course("統計学", "Y000000011", "火", 3),
+        _course("画像処理", "Y000000007", "金", 3, credits=4),
+        _course("文学", "G000000003", "月", 4, source="student"),
+    ]
+    report = check_timetable(await _ctx(), courses, Conditions())
+
+    effects = {e.course: e.shortfall for e in report.removal_effects}
+    # 必修・自分で入れた科目は載せない
+    assert set(effects) == {
+        "哲学(水2)", "情報理論(月3)", "符号理論(水3)", "統計学(火3)", "画像処理(金3)"
+    }
+    assert effects["哲学(水2)"] == ["教養教育科目(選択必修・人文) 2単位"]
+    assert effects["統計学(火3)"] == []
+
+    from app.timetable.report import report_lines
+
+    lines = report_lines(report)
+    assert "- 統計学(火3): 増えない" in lines
+    assert "- 哲学(水2): 教養教育科目(選択必修・人文) 2単位" in lines
+
+
 # --- 今の時間割を起点にする ---
 
 

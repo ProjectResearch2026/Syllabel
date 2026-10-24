@@ -112,6 +112,8 @@ export type TimetableReport = {
   conditions: { condition: string; status: "met" | "unmet"; detail: string }[];
   requirements: { slot: string; before: number; after: number; required: number }[];
   remainingShortfall: { slot: string; shortfall: number; reason: string | null }[];
+  /** 外してよい科目を1つだけ外したときに増える不足(空なら増えない) */
+  removalEffects: { course: string; shortfall: string[] }[];
   credits: { total: number; limit: number | null; cap: number | null; registered: number };
   retakes: string[];
   needsConfirmation: string[];
@@ -146,6 +148,8 @@ export type AgentActivity = {
   failed?: Record<string, string>;
   /** 時間割の組み立てで全休にした曜日(指定された曜日と、日数だけ頼まれて選んだ曜日) */
   freeDays?: string[];
+  /** 時間割の組み立てで、入れたい科目のために外した科目(科目名 → 理由) */
+  displaced?: Record<string, string>;
 };
 
 /** 組み立ての起点(§7.2)。`backend/app/timetable/builder.py` の `Mode` */

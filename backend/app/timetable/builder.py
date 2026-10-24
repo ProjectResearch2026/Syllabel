@@ -13,7 +13,10 @@
    必ず置く。条件に合うクラスを選び、どのクラスも合わなければ条件を破って置く
    (破ったことはレポートに出る)。必修どうしが重なったときはどちらも置かず、
    「確かめること」に載せる
-3. **入れたい科目(`include`)を置く**
+3. **入れたい科目(`include`)を置く。** コマが重なるとき・単位の上限を超えるときは、
+   外してよい科目(必修・学生が入れた科目・入れたい科目以外)を外して入れる。外す科目は
+   重なる科目と、上限に収めるのに要る分で、残る不足が増えにくいものから選ぶ。外せる科目で
+   足りなければ入れない。外した科目は手順5で戻さない
 4. **全休の曜日を決める。** 曜日を言われずに日数だけ言われたときは、学生に聞き返さず
    ここで決める。候補は外せない科目の無い平日で、各候補を空けたときに手順5を試し、
    卒業要件の不足を最も多く埋められる曜日を選ぶ(同点なら外す科目が少ない方、
@@ -116,6 +119,8 @@ class _Plan:
     steps: list[Step] = field(default_factory=list)
     confirmations: list[str] = field(default_factory=list)
     include_failures: dict[str, str] = field(default_factory=dict)
+    # 入れたい科目のために外した科目(科目名 → 理由)
+    displaced: dict[str, str] = field(default_factory=dict)
     removed: int = 0
     record: bool = True
 
@@ -251,6 +256,8 @@ class BuildResult:
     steps: list[Step]
     # 入れたい科目(`include` の値)を入れられなかった理由
     include_failures: dict[str, str] = field(default_factory=dict)
+    # 入れたい科目のために外した科目(科目名 → 理由)
+    displaced: dict[str, str] = field(default_factory=dict)
 
     @property
     def total_credits(self) -> int:
@@ -413,7 +420,7 @@ def _include_failure(ctx: StudentContext, wanted: str) -> str:
     return f"{title}は対象学期({ctx.target.year}年度{ctx.target.term})に履修できるクラスが無い"
 
 
-def _place_includes(plan: _Plan, rng: random.Random) -> None:
+def _place_includes(plan: _Plan, rng: random.Random, estimator: _Estimator) -> None:
     ctx = plan.ctx
     for wanted in plan.conditions.include:
         if ctx.classes.get(wanted) is not None:
@@ -437,25 +444,111 @@ def _place_includes(plan: _Plan, rng: random.Random) -> None:
         key = normalize_title(candidate.course.title)
         if key in plan.titles():
             continue
+        title = candidate.course.title
         occupied = plan.occupied()
         used = plan.days_used()
         free = [c for c in options if not plan.clashes(c, occupied)]
-        if not free:
-            others = plan.clashes(options[0], occupied)
+        if free:
+            choice = min(
+                free, key=lambda c: (plan.day_violations(c), plan.new_days(c, used), rng.random())
+            )
+            clashing: list[ProposedCourse] = []
+        else:
+            # 重なる科目がどれも外してよい科目なら、外して入れる
+            movable = [
+                c for c in options if all(plan.removable(o) for o in plan.clashes(c, occupied))
+            ]
+            if not movable:
+                others = plan.clashes(options[0], occupied)
+                fixed = next((o for o in others if not plan.removable(o)), others[0])
+                plan.include_failures[wanted] = (
+                    f"{title}は「{fixed.title}」(必修・自分で入れた科目・入れたい科目で外せない)と"
+                    f"{_clash_label(options[0], fixed)}で重なる"
+                )
+                continue
+            choice = min(
+                movable,
+                key=lambda c: (
+                    plan.day_violations(c),
+                    _shortfall_after(plan, estimator, plan.clashes(c, occupied), c),
+                    len(plan.clashes(c, occupied)),
+                    rng.random(),
+                ),
+            )
+            clashing = plan.clashes(choice, occupied)
+        over_limit = _make_room(plan, estimator, choice, clashing, rng)
+        if over_limit is None:
             plan.include_failures[wanted] = (
-                f"{candidate.course.title}は「{others[0].title}」と"
-                f"{_clash_label(options[0], others[0])}で重なる"
+                f"{title}を入れると登録できる単位({plan.limit}単位)を超え、"
+                "外してよい科目を外しても収まらない"
             )
             continue
-        choice = min(
-            free, key=lambda c: (plan.day_violations(c), plan.new_days(c, used), rng.random())
-        )
-        if plan.limit is not None and plan.total + (choice.credits or 0) > plan.limit:
-            plan.include_failures[wanted] = (
-                f"{candidate.course.title}を入れると登録できる単位({plan.limit}単位)を超える"
+        for other in clashing:
+            where = _clash_label(choice, other)
+            plan.remove(other, f"入れたい科目の「{title}」と{where}で重なるため")
+            plan.displaced[other.title] = f"{title}と{where}で重なる"
+        for other in over_limit:
+            plan.remove(other, f"入れたい科目の「{title}」を入れると登録できる単位を超えるため")
+            plan.displaced[other.title] = (
+                f"{title}を入れると登録できる単位({plan.limit}単位)を超える"
             )
-            continue
+        # 外した科目を不足を埋める手順で戻さない(外したと伝えた科目が時間割に残る)
+        plan.blocked_titles |= {normalize_title(t) for t in plan.displaced}
         plan.add(choice, Step(kind="include", course=choice))
+
+
+def _shortfall_after(
+    plan: _Plan,
+    estimator: _Estimator,
+    removed: Sequence[ProposedCourse],
+    added: ProposedCourse,
+) -> tuple[int, ...]:
+    """`removed` を外して `added` を入れたときの残る不足(`_remaining_shortfall()` の形)。"""
+    trial = plan.copy()
+    trial.courses = [c for c in plan.courses if not any(c is r for r in removed)] + [added]
+    return _remaining_shortfall(trial, estimator)
+
+
+def _make_room(
+    plan: _Plan,
+    estimator: _Estimator,
+    choice: ProposedCourse,
+    clashing: Sequence[ProposedCourse],
+    rng: random.Random,
+) -> list[ProposedCourse] | None:
+    """入れたい科目を単位の上限に収めるために、重なる科目のほかに外す科目。
+
+    外してよい科目から1つずつ、外しても残る不足が増えにくいものを選ぶ(同じなら、1つで
+    足りる科目のうち単位の少ないもの)。外せる科目で足りなければ None。
+    """
+    if plan.limit is None:
+        return []
+    removed = list(clashing)
+    extra: list[ProposedCourse] = []
+
+    def total() -> int:
+        return sum(c.credits or 0 for c in plan.courses if not any(c is r for r in removed)) + (
+            choice.credits or 0
+        )
+
+    pool = [c for c in plan.courses if plan.removable(c) and not any(c is r for r in removed)]
+    if total() - sum(c.credits or 0 for c in pool) > plan.limit:
+        return None
+    while total() > plan.limit:
+        need = total() - plan.limit
+        best = min(
+            pool,
+            key=lambda c: (
+                _shortfall_after(plan, estimator, [*removed, c], choice),
+                (c.credits or 0) < need,
+                c.credits or 0,
+                rng.random(),
+            ),
+        )
+        pool.remove(best)
+        removed.append(best)
+        extra.append(best)
+    return extra
 
 
 def _enforce_caps(plan: _Plan, rng: random.Random) -> None:
@@ -780,7 +873,7 @@ def build_timetable(
 
     _keep(plan, current, mode, exclude)
     _place_required(plan, rng, exclude)
-    _place_includes(plan, rng)
+    _place_includes(plan, rng, estimator)
     seed = _choose_free_days(plan, estimator, rng, exclude, mode)
     fill_rng = random.Random(seed)
     if mode != "rebuild":
@@ -809,6 +902,7 @@ def build_timetable(
         report=report,
         steps=steps,
         include_failures=dict(plan.include_failures),
+        displaced=dict(plan.displaced),
     )
 
 
