@@ -24,7 +24,7 @@ from app.agents.course_tools import register_course_tools
 from app.curricula.requirements import normalize_title
 from app.schemas.proposal import ProposedCourse
 from app.timetable.builder import BuildResult, build_timetable, check_timetable
-from app.timetable.candidates import display_title
+from app.timetable.candidates import display_title, key_of
 from app.timetable.conditions import Conditions, Scope, Weekday, parse_period_rule
 from app.timetable.context import StudentContext, slots_label
 from app.timetable.facts import (
@@ -54,8 +54,11 @@ INSTRUCTIONS = (
     "組み立てが外してよい科目から残る不足が増えにくいものを選んで外し、外した科目を結果に書く。"
     "exclude は学生が外す科目を指定したときに使う。"
     "学生の話から時間割に要らない科目があると分かったときは、build_timetable を呼ぶ前に、"
-    "外せる科目の科目名と単位数、その理由を示して外すか尋ねる。"
-    "学生が外すと答えたら、その科目を exclude に渡して remove で外す。\n"
+    "外せる科目(【現在の時間割】にある科目)の科目名と単位数、その理由を示して外すか尋ねる。"
+    "学生が外すと答えたら、その科目を exclude に渡して remove で外す。"
+    "学生が、成績表にまだ載っていない科目(今履修していて成績が後で出る科目など)に合格する前提で"
+    "組みたいと言ったときは、その科目名を assume_passed に渡して組み直す。"
+    "成績発表待ちの科目は渡さなくても合格する前提で数える。\n"
     "4. 時間割の説明は、build_timetable が返したレポートと【現在の時間割】に書かれた事実だけに基づく。"
     "学生が会話で述べた事実は、レポートの値を変えずに、学生から聞いたこととして添えてよい。"
     "満たせなかった条件は、満たせなかったと理由とともに書く。満たしていない希望を満たしたと書かない。"
@@ -95,17 +98,27 @@ class AssistantDeps:
     `build_timetable` が組み直すたびに置き換える。`outbox` はツールが SSE に流したい
     イベント(手順・時間割・条件)を積む。`activity_results` は呼び出しの id → その呼び出しの
     ツールの行に添える結果(`build_outcome()`)。
+
+    `student` は条件の合格する前提の科目(`assume_passed`)に合格したとみなした文脈で、
+    検索のツールとプロンプトの事実が読む。`base` はリクエストのままの文脈で、組み立ては
+    こちらから条件に合わせて作り直す(`StudentContext.assuming()`)。
     """
 
     student: StudentContext
     timetable: list[ProposedCourse]
     conditions: Conditions
+    base: StudentContext | None = None
     outbox: list[dict] = field(default_factory=list)
     rng: random.Random = field(default_factory=random.Random)
     last_report: Report | None = None
     activity_results: dict[str, dict] = field(default_factory=dict)
     # 会話のツールの行に出たシラバスコード(古い順)。【会話で出た科目】に載せる
     mentioned: list[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        if self.base is None:
+            self.base = self.student
+        self.student = self.base.assuming(self.conditions.assume_passed)
 
 
 def _merge_conditions(
@@ -120,6 +133,7 @@ def _merge_conditions(
     target_credits: int | None,
     include: list[str] | None,
     exclude: list[str] | None,
+    assume_passed: list[str] | None = None,
 ) -> Conditions:
     """ツールの引数を今の条件に重ねる。指定しなかった引数は今の条件のまま。"""
     update: dict = {}
@@ -144,23 +158,86 @@ def _merge_conditions(
         update["include"] = list(dict.fromkeys(include))
     if exclude is not None:
         update["exclude"] = list(dict.fromkeys(exclude))
+    if assume_passed is not None:
+        update["assume_passed"] = list(dict.fromkeys(assume_passed))
     return Conditions.model_validate({**current.model_dump(), **update})
+
+
+def resolve_assumed(student: StudentContext, values: list[str]) -> list[str]:
+    """合格する前提にする科目を履修要項の科目名にそろえる。引けない値はモデルに書き直させる。
+
+    単位と要件枠は履修要項から採るので、履修要項に無い科目は数えられない。
+    """
+    titles: list[str] = []
+    for value in values:
+        course = student.resolve_assumed(value)
+        if course is None:
+            raise ModelRetry(
+                f"assume_passed の「{value}」は履修要項に無い科目です。科目名を確かめてください"
+            )
+        titles.append(course.title)
+    return titles
 
 
 def _matches(course: ProposedCourse, wanted: str) -> bool:
     return course.syllabus_code == wanted or normalize_title(course.title) == normalize_title(wanted)
 
 
-def build_outcome(result: BuildResult, failed: dict[str, str]) -> dict:
+@dataclass(frozen=True)
+class Changes:
+    """組み立ての前後で時間割がどう変わったか(科目名)。"""
+
+    removed: list[str]
+    added: list[str]
+    # 同じ科目を別のコマのクラスに替えた(科目名 → 「木4→水4」)
+    moved: dict[str, str]
+
+
+def _slots_text(course: ProposedCourse) -> str:
+    return "・".join(f"{s.day}{s.period}" for s in course.occupied_slots()) or "曜日・時限未定"
+
+
+def timetable_changes(before: list[ProposedCourse], after: list[ProposedCourse]) -> Changes:
+    """この組み立てで外した科目・入れた科目・コマを移した科目。
+
+    モデルにも学生にも、組み立てが何をしたかを見せる。前後の時間割を見比べさせると、
+    モデルは自分の呼び出しで外した科目を「もともと外されていた」と読み違えた(実機)。
+    手順(`steps`)ではなく前後の時間割から出す。組み直し(`rebuild`)は残す科目も手順に積む。
+    """
+    old = {key_of(c): c for c in before}
+    new = {key_of(c): c for c in after}
+    moved = {
+        display_title(c): f"{_slots_text(old[key])}→{_slots_text(c)}"
+        for key, c in new.items()
+        if key in old and _slots_text(old[key]) != _slots_text(c)
+    }
+    return Changes(
+        removed=[display_title(c) for key, c in old.items() if key not in new],
+        added=[display_title(c) for key, c in new.items() if key not in old],
+        moved=moved,
+    )
+
+
+def build_outcome(
+    result: BuildResult, failed: dict[str, str], *, mode: str, changes: Changes
+) -> dict:
     """組み立てのツールの行に添える結果。行を開いたときに、頼んだ条件ではなく組み立てが
     何をしたかを見せるためのもの。
 
+    - `mode` — 実際に使った組み立ての起点
+    - `removed` / `added` / `moved` — この組み立てで外した科目・入れた科目・コマを移した科目
+      (`timetable_changes()`)。入れたい科目のために外した科目は `displaced` に理由つきで出すので除く
     - `freeDays` — 組み立てで全休にした曜日(指定された曜日と、日数だけ頼まれて選んだ曜日。
       手順4)
     - `failed` — 頼まれた入れる・外すのうちできなかったもの(`build_failures()`)
     - `displaced` — 入れたい科目のために外した科目(科目名 → 理由。手順3)
     """
-    outcome: dict = {}
+    outcome: dict = {
+        "mode": mode,
+        "removed": [title for title in changes.removed if title not in result.displaced],
+        "added": changes.added,
+        "moved": changes.moved,
+    }
     if result.conditions.free_days:
         outcome["freeDays"] = list(result.conditions.free_days)
     if failed:
@@ -179,14 +256,19 @@ def build_failures(
     exclude: list[str],
     include_failures: dict[str, str],
     include_placed: dict[str, str] | None = None,
+    previous_exclude: list[str] | None = None,
 ) -> dict[str, str]:
     """この呼び出しで頼まれた入れる・外すのうち、できなかったもの(引数の値 → 理由)。
 
     外す科目が今の時間割に無かったときも、外せなかったものとして返す(組み直す `rebuild` は
     今の時間割を起点にしないので除く)。モデルが時間割に無い科目を外すと言い出したとき、
-    学生にもモデルにもそれが分かるようにする。入れたい科目を指定と別のクラスで置いたとき
+    学生にもモデルにもそれが分かるようにする。ただし前から入れない科目だったもの
+    (`previous_exclude`)は除く。`exclude` は渡すたびに一覧ごと置き換わるので、モデルは
+    前に外した科目も並べ直す。それを「外せませんでした」と出すと、もう外れている科目を
+    外せなかったように読める(実機)。入れたい科目を指定と別のクラスで置いたとき
     (`include_placed`)は、そのクラスがあれば入れられたとみなす。
     """
+    previous = {normalize_title(v) for v in previous_exclude or []}
     placed = include_placed or {}
     failed: dict[str, str] = {}
     for wanted in include:
@@ -196,7 +278,11 @@ def build_failures(
     for wanted in exclude:
         if any(_matches(c, wanted) for c in after):
             failed[wanted] = "必修は外せない"
-        elif mode != "rebuild" and not any(_matches(c, wanted) for c in before):
+        elif (
+            mode != "rebuild"
+            and normalize_title(wanted) not in previous
+            and not any(_matches(c, wanted) for c in before)
+        ):
             failed[wanted] = "時間割に無い"
     return failed
 
@@ -222,7 +308,7 @@ def build_timetable_assistant() -> Agent[AssistantDeps, str]:
     @agent.tool(name="build_timetable")
     async def build_timetable_tool(
         ctx: RunContext[AssistantDeps],
-        mode: Literal["rebuild", "adjust", "remove"] = "rebuild",
+        mode: Literal["rebuild", "adjust", "remove"],
         scope: Scope | None = None,
         free_days: list[Weekday] | None = None,
         free_day_count: Annotated[int, Field(ge=0, le=5)] | None = None,
@@ -232,12 +318,13 @@ def build_timetable_assistant() -> Agent[AssistantDeps, str]:
         target_credits: Annotated[int, Field(ge=0)] | None = None,
         include: list[str] | None = None,
         exclude: list[str] | None = None,
+        assume_passed: list[str] | None = None,
     ) -> str:
         """条件から時間割を組み立てる。必修(再履修を含む)は必ず入る。指定しなかった引数は【現在の条件】のまま。
 
         Args:
-            mode: rebuild は組み直す(学生が自分で入れた科目は残す)。adjust は今の時間割を
-                起点に、条件に反する科目を外して空いた分を埋める。remove は今の時間割から
+            mode: 必ず書く。rebuild は組み直す(学生が自分で入れた科目は残す)。adjust は今の
+                時間割を起点に、条件に反する科目を外して空いた分を埋める。remove は今の時間割から
                 条件に反する科目を外すだけで、空いた分を埋めない。
             scope: 必修のみ(必修だけ) / 不足を埋める(既定。卒業要件の不足を埋める) /
                 広く(不足を埋めた後も登録できる単位まで入れる)。
@@ -251,13 +338,22 @@ def build_timetable_assistant() -> Agent[AssistantDeps, str]:
             target_credits: 単位数の上限。0 で上限をやめる。
             include: 入れたい科目のシラバスコード(search_courses の code)。渡すと一覧ごと
                 置き換わるので、【現在の条件】の入れたい科目も入れておくなら並べる。[] でやめる。
-            exclude: 入れたくない科目の科目名またはシラバスコード。[] でやめる。
+            exclude: 入れたくない科目の科目名またはシラバスコード。渡すと一覧ごと置き換わる。
+                [] でやめる。
+            assume_passed: 合格する前提で数える科目の科目名。成績表にまだ載っていない科目
+                (今履修していて成績が後で出る科目など)に合格する前提で組みたいと言われたときに
+                渡す。卒業要件の不足をその単位を足して数え、組み直す。渡すと一覧ごと置き換わる。
+                [] でやめる。成績発表待ちの科目は渡さなくても合格する前提で数える。
 
         Returns:
-            組み立てた時間割のレポート(曜日ごとの科目・授業の無い平日・条件ごとに満たしたか・
-            要件枠の修得単位の増減・残る不足・確かめること)。説明はこれだけに基づく。
+            この組み立てで外した科目・入れた科目と、組み立てた時間割のレポート(曜日ごとの科目・
+            授業の無い平日・条件ごとに満たしたか・要件枠の修得単位の増減・残る不足・確かめること)。
+            説明はこれだけに基づく。
         """
         deps = ctx.deps
+        base = deps.base or deps.student
+        if assume_passed is not None:
+            assume_passed = resolve_assumed(base, assume_passed)
         conditions = _merge_conditions(
             deps.conditions,
             scope=scope,
@@ -269,10 +365,9 @@ def build_timetable_assistant() -> Agent[AssistantDeps, str]:
             target_credits=target_credits,
             include=include,
             exclude=exclude,
+            assume_passed=assume_passed,
         )
-        result = build_timetable(
-            deps.student, conditions, deps.timetable, mode=mode, rng=deps.rng
-        )
+        result = build_timetable(base, conditions, deps.timetable, mode=mode, rng=deps.rng)
         failed = build_failures(
             deps.timetable,
             result.courses,
@@ -281,16 +376,31 @@ def build_timetable_assistant() -> Agent[AssistantDeps, str]:
             exclude=exclude or [],
             include_failures=result.include_failures,
             include_placed=result.include_placed,
+            previous_exclude=deps.conditions.exclude,
         )
-        deps.activity_results[ctx.tool_call_id] = build_outcome(result, failed)
+        changes = timetable_changes(deps.timetable, result.courses)
+        deps.activity_results[ctx.tool_call_id] = build_outcome(
+            result, failed, mode=mode, changes=changes
+        )
         deps.timetable = result.courses
         deps.conditions = result.conditions
+        deps.student = base.assuming(result.conditions.assume_passed)
         deps.last_report = result.report
         deps.outbox.append({"build": {"mode": mode}})
         deps.outbox.extend({"step": step.model_dump(by_alias=True)} for step in result.steps)
         deps.outbox.append(timetable_event(result.courses, result.report))
         deps.outbox.append({"conditions": result.conditions.model_dump(by_alias=True)})
-        lines = ["時間割を組み直した。", *report_lines(result.report)]
+        lines = [
+            f"時間割を組んだ(mode: {mode})。",
+            f"この組み立てで外した科目: {'、'.join(changes.removed) or 'なし'}",
+            f"この組み立てで入れた科目: {'、'.join(changes.added) or 'なし'}",
+        ]
+        if changes.moved:
+            lines.append(
+                "この組み立てでコマを移した科目: "
+                + "、".join(f"{title}({where})" for title, where in changes.moved.items())
+            )
+        lines += report_lines(result.report)
         if result.displaced:
             lines.append(
                 "入れたい科目のために外した科目: "
@@ -313,12 +423,15 @@ MAX_MENTIONED = 30
 
 
 def static_sections(student: StudentContext) -> str:
-    """規則と、応答のあいだ変わらない事実の節(学生・卒業要件・登録できる単位・再履修)。"""
+    """規則と、応答のあいだ変わらない事実の節(学生・登録できる単位・再履修)。
+
+    卒業要件の充足状況は条件の合格する前提の科目(`assume_passed`)で変わるので、
+    `current_sections()` に置く。
+    """
     return "\n\n".join(
         [
             INSTRUCTIONS,
             section("学生", student_lines(student)),
-            section("卒業要件の充足状況", format_requirements(student.requirements)),
             section("登録できる単位", budget_lines(student)),
             section("再履修する必修", retake_lines(student)),
         ]
@@ -353,7 +466,10 @@ def current_sections(
     conditions: Conditions,
     mentioned: Sequence[str] = (),
 ) -> str:
-    """時間割・条件・会話で出た科目の節。組み立てるたびに変わる。"""
+    """卒業要件の充足状況・時間割・条件・会話で出た科目の節。組み立てるたびに変わる。
+
+    `student` は条件の合格する前提の科目に合格したとみなした文脈(`AssistantDeps.student`)。
+    """
     if timetable:
         current = report_lines(check_timetable(student, timetable, conditions))
         sources = [
@@ -370,6 +486,10 @@ def current_sections(
         current = ["まだ時間割は無い"]
     described = conditions.describe(student.title_of)
     sections = [
+        section(
+            "卒業要件の充足状況",
+            format_requirements(student.requirements, student.assumed_passes()),
+        ),
         section("現在の時間割", current),
         section("現在の条件", described if described else ["なし"]),
     ]

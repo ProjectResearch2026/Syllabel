@@ -103,6 +103,8 @@ export type TimetableConditions = {
   targetCredits?: number | null;
   include?: string[];
   exclude?: string[];
+  /** 合格する前提で数える科目(科目名)。成績表にまだ載っていない科目を、学生が会話で頼んだとき */
+  assumePassed?: string[];
 };
 
 /** 時間割についての事実。`backend/app/timetable/report.py` の `Report`。値は backend が計算する */
@@ -157,6 +159,15 @@ export type AgentActivity = {
   freeDays?: string[];
   /** 時間割の組み立てで、入れたい科目のために外した科目(科目名 → 理由) */
   displaced?: Record<string, string>;
+  /** 時間割の組み立てで実際に使った起点。組み終えたときに届く */
+  mode?: BuildMode;
+  /**
+   * 時間割の組み立てで外した科目・入れた科目(科目名)と、コマを移した科目(科目名 → 「木4→水4」)。
+   * 組み終えたときに、組み立ての前後の時間割から backend が出して届ける
+   */
+  removed?: string[];
+  added?: string[];
+  moved?: Record<string, string>;
 };
 
 /** 組み立ての起点(§7.2)。`backend/app/timetable/builder.py` の `Mode` */

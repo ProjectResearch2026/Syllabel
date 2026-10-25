@@ -148,7 +148,7 @@ def _model(record: list[str]):
         ]
         if not returned:
             yield {0: DeltaThinkingPart(content="全休の希望なので")}
-            yield {1: DeltaToolCall(name="build_timetable", json_args='{"free_day_')}
+            yield {1: DeltaToolCall(name="build_timetable", json_args='{"mode": "rebuild", "free_day_')}
             yield {1: DeltaToolCall(json_args='count": 1}')}
             return
         record.append(str(returned[-1].content))
@@ -175,7 +175,7 @@ def test_assistant_streams_thinking_activity_steps_timetable_and_text():
     # 引数は書きかけの間から流れる
     activities = [e["activity"] for e in events if "activity" in e]
     assert activities[0]["label"] == "時間割を組んでいます"
-    assert activities[-1]["args"] == {"free_day_count": 1}
+    assert activities[-1]["args"] == {"mode": "rebuild", "free_day_count": 1}
     # 同じ呼び出しの書きかけは同じ id で流れ直す
     assert len({a["id"] for a in activities}) == 1
     # 組み立ての手順 → 時間割 → 条件 → 本文 → 終端の順
@@ -189,11 +189,16 @@ def test_assistant_streams_thinking_activity_steps_timetable_and_text():
     # ツールの行には、頼んだ日数ではなく組み立てで全休にした曜日を添える
     assert activities[-1]["freeDays"] == conditions["freeDays"]
     assert "failed" not in activities[-1]
+    # 実際に使った mode と、この組み立てで入れた科目を添える
+    assert activities[-1]["mode"] == "rebuild"
+    assert activities[-1]["removed"] == []
+    assert activities[-1]["added"] == [c["title"] for c in timetable["courses"]]
     assert "".join(e["delta"] for e in events if "delta" in e) == "全休を1日作りました。"
     # プロンプトには事実の節が入り、ツールの結果にはレポートが返る
     assert "【卒業要件の充足状況】" in record[0]
     assert "【現在の時間割】\nまだ時間割は無い" in record[0]
     assert "授業の無い平日" in record[-1]  # 2回目の呼び出しで受け取ったツールの結果
+    assert "この組み立てで外した科目: なし" in record[-1]
 
 
 def test_assistant_activity_names_courses_given_by_code():
@@ -369,7 +374,8 @@ def test_instructions_state_the_rules():
         "日本語だけで答えてください",
         "曜日ごとの科目を表や一覧で書き直さない",
         "代わりを求められていないときは mode に remove を使い",
-        "build_timetable を呼ぶ前に、外せる科目の科目名と単位数、その理由を示して外すか尋ねる",
+        "build_timetable を呼ぶ前に、外せる科目(【現在の時間割】にある科目)の科目名と単位数",
+        "その科目名を assume_passed に渡して組み直す",
         "ツールの名前や引数の名前",
         "学生から聞いたこととして添えてよい",
         "入れたい科目は include に渡すだけでよい",

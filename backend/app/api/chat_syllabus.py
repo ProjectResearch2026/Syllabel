@@ -74,7 +74,10 @@ def _facts(req: ChatRequest, student: StudentContext | None) -> list[str]:
     if student is not None:
         return [
             section("学生", student_lines(student)),
-            section("卒業要件の充足状況", format_requirements(student.requirements)),
+            section(
+                "卒業要件の充足状況",
+                format_requirements(student.requirements, student.assumed_passes()),
+            ),
             section("再履修する必修", retake_lines(student)),
         ]
     profile = req.profile

@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 
 from app.curricula.requirements import RequirementsResult, normalize_title
+from app.schemas.student import Course as StudentCourse
 from app.timetable.candidates import oneline, student_type
 from app.timetable.context import StudentContext
 
@@ -16,14 +17,26 @@ def section(title: str, lines: Sequence[str]) -> str:
     return f"【{title}】\n" + "\n".join(lines)
 
 
-def format_requirements(requirements: RequirementsResult) -> list[str]:
-    """【卒業要件の充足状況】の中身。要件枠は公式の名前で書く(§5.1.2)。不足のある枠を先に並べる。"""
+def format_requirements(
+    requirements: RequirementsResult, assumed: Sequence[StudentCourse] = ()
+) -> list[str]:
+    """【卒業要件の充足状況】の中身。要件枠は公式の名前で書く(§5.1.2)。不足のある枠を先に並べる。
+
+    `assumed` は合格する前提で数えた科目(`StudentContext.assumed_passes()`)。値はそれらに
+    合格したとみなしたもので、そのことと科目を書き添える。
+    """
+    earned = "修得済み(合格する前提の科目を含む)" if assumed else "修得済み"
     lines = [
         f"卒業必要単位: {requirements.total_credits} / "
-        f"修得済み: {credits_label(requirements.earned_credits)} / "
+        f"{earned}: {credits_label(requirements.earned_credits)} / "
         f"卒業までに残り: {credits_label(requirements.remaining_credits)}",
-        "要件枠ごとの不足単位:",
     ]
+    if assumed:
+        lines.append(
+            "合格する前提で数えた科目(成績がまだ出ていない): "
+            + "、".join(f"{c.title}({c.credits}単位)" for c in assumed)
+        )
+    lines.append("要件枠ごとの不足単位:")
     for slot in sorted(requirements.slots, key=lambda s: (s.shortfall <= 0, s.key)):
         # `required: 0` の枠は受け皿を持たない通過点であり、不足という概念がない
         if slot.required == 0:

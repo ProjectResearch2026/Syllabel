@@ -779,3 +779,96 @@ async def test_search_lists_special_lectures_by_subtitle(monkeypatch):
 
     assert {c["subtitle"] for c in found["courses"]} == {"AI基礎", "地域学"}
     assert all(c["status"].startswith("同じ科目名の別の講義を修得済み") for c in found["courses"])
+
+
+# --- 合格する前提の科目 ---
+
+
+def _applied_elective(report):
+    return next(c for c in report.requirements if c.slot == "専門応用科目(選択)")
+
+
+@pytest.mark.asyncio
+async def test_registered_course_counts_as_passed_when_filling():
+    """成績発表待ちの科目は合格する前提で不足を数える。落ちる前提で埋めると要らない科目まで入る。"""
+    ctx = await _ctx(fx.course("統計学", status="registered"))
+
+    applied = next(s for s in ctx.requirements.slots if s.key == "applied.elective")
+    assert applied.earned == 2
+    assert [c.title for c in ctx.assumed_passes()] == ["統計学"]
+    result = _build(ctx)
+    assert "統計学" not in _titles(result.courses)
+    assert _applied_elective(result.report).before == 2
+
+
+@pytest.mark.asyncio
+async def test_assume_passed_counts_the_course_and_drops_it_from_the_candidates():
+    """成績表に載っていない科目も、条件の assume_passed で合格する前提にできる。"""
+    ctx = await _ctx()
+    assert _applied_elective(_build(ctx).report).before == 0
+
+    conditions = Conditions(assume_passed=["統計学"])
+    result = _build(ctx, conditions)
+
+    assert "統計学" not in _titles(result.courses)
+    assert _applied_elective(result.report).before == 2
+    assert _applied_elective(check_timetable(ctx, result.courses, conditions)).before == 2
+    assert "合格する前提で数える科目: 統計学" in conditions.describe()
+    # 合格する前提をやめると、また候補に戻る
+    assumed = ctx.assuming(["統計学"])
+    assert "統計学" not in {c.course.title for c in assumed.candidates}
+    assert "統計学" in {c.course.title for c in assumed.assuming([]).candidates}
+
+
+@pytest.mark.asyncio
+async def test_assume_passed_skips_unknown_and_already_passed_courses():
+    ctx = await _ctx(fx.course("情報理論"))
+
+    assumed = ctx.assuming(["情報理論", "存在しない科目"])
+
+    assert assumed.assumed == []
+    assert assumed is ctx
+
+
+# --- 組み立ての結果をモデルと学生に伝える ---
+
+
+@pytest.mark.asyncio
+async def test_changes_name_removed_added_and_moved_courses():
+    from app.agents.timetable_assistant import timetable_changes
+
+    before = [_course("符号理論", "Y000000006", "水", 3), _course("音楽", "G000000004", "木", 4)]
+    after = [_course("音楽", "G000000004", "金", 4), _course("情報理論", "Y000000005", "月", 3)]
+
+    changes = timetable_changes(before, after)
+
+    assert changes.removed == ["符号理論"]
+    assert changes.added == ["情報理論"]
+    assert changes.moved == {"音楽": "木4→金4"}
+
+
+def test_failures_skip_courses_that_were_already_excluded():
+    """前から入れない科目は、時間割に無くても「外せなかった」にしない(もう外れている)。"""
+    from app.agents.timetable_assistant import build_failures
+
+    current = [_course("符号理論", "Y000000006", "水", 3)]
+    failed = build_failures(
+        current, [], mode="adjust", include=[], exclude=["音楽", "符号理論", "文学"],
+        include_failures={}, previous_exclude=["音楽"],
+    )
+
+    assert failed == {"文学": "時間割に無い"}
+
+
+@pytest.mark.asyncio
+async def test_assume_passed_must_be_a_curriculum_course():
+    """単位と要件枠は履修要項から採るので、履修要項に無い科目はモデルに書き直させる。"""
+    from pydantic_ai import ModelRetry
+
+    from app.agents.timetable_assistant import resolve_assumed
+
+    ctx = await _ctx()
+
+    assert resolve_assumed(ctx, ["統計学"]) == ["統計学"]
+    with pytest.raises(ModelRetry):
+        resolve_assumed(ctx, ["存在しない科目"])
