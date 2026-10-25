@@ -142,7 +142,7 @@ def fills_slot(ctx: StudentContext, course: MergedCourse) -> str:
     added = StudentCourse(
         title=course.title, year=9999, term="前期", credits=course.credits, status="passed"
     )
-    after = judge(ctx.curriculum, [*ctx.completed, added], track=ctx.track)
+    after = judge(ctx.curriculum, [*ctx.counted_courses(), added], track=ctx.track)
     gained = [(s.name, s.earned - before[s.key]) for s in after.slots if s.earned > before[s.key]]
     if not gained:
         return "なし(受け入れる要件枠はすでに満たしている)"

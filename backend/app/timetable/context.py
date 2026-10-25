@@ -14,7 +14,7 @@
 
 import math
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from app.curricula.loader import LoadedCurriculum, get_curricula
 from app.curricula.merge import MergedCourse, MergedCurriculum
@@ -162,6 +162,17 @@ def proposed_course(
     )
 
 
+def counted_courses(
+    completed: Sequence[StudentCourse], assumed: Sequence[StudentCourse] = ()
+) -> list[StudentCourse]:
+    """要件の判定に数える科目。成績発表待ち(`registered`)は合格とみなし、合格する前提に
+    した科目(`assumed`)を足す。"""
+    return [
+        *(c.model_copy(update={"status": "passed"}) if c.status == "registered" else c for c in completed),
+        *assumed,
+    ]
+
+
 @dataclass
 class StudentContext:
     """1人の学生・1つの対象学期について、時間割と検索に要る材料。
@@ -169,7 +180,13 @@ class StudentContext:
     `candidates` は対象学期に登録する・履修登録できる・先修条件を満たさないことが
     分かっていないクラスを持つ候補の科目で、クラスの数は絞らない(条件に合うクラスを
     選べるように)。`classes` は候補の全クラスを時間割の1科目の形にしたもので、
-    シラバスコードで引く。`requirements` は修得済みの科目だけでの要件の充足状況。
+    シラバスコードで引く。
+
+    `requirements` は**合格する前提の科目**(`assumed_passes()`)にも合格したとみなした
+    要件の充足状況で、組み立てはこの不足を埋める。合格する前提の科目は、成績発表待ちの
+    科目(`registered`)と、学生が会話で合格する前提にした科目(`assumed`。条件の
+    `assume_passed` から `assuming()` が作る)である。成績が出ていない科目に落ちる前提で
+    不足を埋めると、次の学期に要らない科目まで入る。
     """
 
     loaded: LoadedCurriculum
@@ -183,9 +200,15 @@ class StudentContext:
     eligibility: Eligibility
     track: str | None = None
     classes: dict[str, tuple[Candidate, OfferedClass]] = field(default_factory=dict)
+    # 学生が会話で合格する前提にした科目(成績表に載っていない科目。`assuming()`)
+    assumed: list[StudentCourse] = field(default_factory=list)
+    # 合格する前提の科目を除く前の候補(`assuming()` が毎回ここから除く)
+    base_candidates: list[Candidate] | None = field(default=None, repr=False)
     _by_code: dict[str, MergedCourse] | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
+        if self.base_candidates is None:
+            self.base_candidates = self.candidates
         if not self.classes:
             self.classes = {
                 offered.syllabus_code: (candidate, offered)
@@ -202,8 +225,54 @@ class StudentContext:
         return self.profile.completed_courses
 
     def taken(self) -> set[str]:
-        """修得済み・登録済みの科目名(正規化済み)。"""
-        return taken_titles(self.completed)
+        """修得済み・登録済み・合格する前提にした科目名(正規化済み)。"""
+        return taken_titles(self.completed) | self.assumed_titles()
+
+    def assumed_titles(self) -> set[str]:
+        """学生が会話で合格する前提にした科目名(正規化済み)。"""
+        return {normalize_title(c.title) for c in self.assumed}
+
+    def assumed_passes(self) -> list[StudentCourse]:
+        """合格する前提で数える科目。成績発表待ちの科目と、学生が合格する前提にした科目。"""
+        return [*(c for c in self.completed if c.status == "registered"), *self.assumed]
+
+    def counted_courses(self) -> list[StudentCourse]:
+        """要件の判定に数える科目。合格する前提の科目は合格とみなす。"""
+        return counted_courses(self.completed, self.assumed)
+
+    def resolve_assumed(self, wanted: str) -> MergedCourse | None:
+        """合格する前提にする科目を、科目名かシラバスコードから履修要項で引く。"""
+        return self.course_by_title(wanted) or self.course_of_code(wanted)
+
+    def assuming(self, wanted: Sequence[str]) -> "StudentContext":
+        """`wanted`(科目名かシラバスコード)の科目にも合格する前提にした写し。
+
+        条件の `assume_passed` から組み立てのたびに作る。合格する前提の科目は単位を数え、
+        候補から除く。前の `assumed` には重ねず、`wanted` だけで作り直す。履修要項に無い
+        科目・修得済みや発表待ちの科目は数えない(単位が分からない・二重に数える)。
+        """
+        known = {normalize_title(c.title) for c in self.completed if c.status in ("passed", "registered")}
+        assumed: list[StudentCourse] = []
+        for value in wanted:
+            course = self.resolve_assumed(value)
+            if course is None or course.credits is None:
+                continue
+            key = normalize_title(course.title)
+            if key in known or key in {normalize_title(c.title) for c in assumed}:
+                continue
+            assumed.append(
+                StudentCourse(title=course.title, year=9999, term="前期", credits=course.credits, status="passed")
+            )
+        if [c.title for c in assumed] == [c.title for c in self.assumed]:
+            return self
+        keys = {normalize_title(c.title) for c in assumed}
+        return replace(
+            self,
+            assumed=assumed,
+            requirements=judge(self.curriculum, counted_courses(self.completed, assumed), track=self.track),
+            candidates=[c for c in self.base_candidates or [] if normalize_title(c.course.title) not in keys],
+            classes={},
+        )
 
     def passed(self) -> set[str]:
         """修得済みの科目名(正規化済み)。"""
@@ -264,7 +333,7 @@ class StudentContext:
             for c in courses
             if c.credits is not None
         ]
-        return judge(self.curriculum, [*self.completed, *added], track=self.track)
+        return judge(self.curriculum, [*self.counted_courses(), *added], track=self.track)
 
     def slot_names(self) -> dict[str, str]:
         """要件枠の key → 公式の名前(§5.1.2)。"""
@@ -298,7 +367,7 @@ async def build_student_context(
     """
     loaded = resolve_curriculum(program_code, admission_year)
     profile = profile.model_copy(update={"program": program_code})
-    requirements = judge(loaded.curriculum, profile.completed_courses, track=track)
+    requirements = judge(loaded.curriculum, counted_courses(profile.completed_courses), track=track)
     candidates = select_candidates(loaded, profile, grade=target.grade)
     if catalog is None:
         catalog = await get_catalog(curriculum=loaded.curriculum)
@@ -359,6 +428,7 @@ __all__ = [
     "CurriculumNotFound",
     "StudentContext",
     "build_student_context",
+    "counted_courses",
     "proposed_course",
     "RegistrationCap",
     "registered_credits_in",

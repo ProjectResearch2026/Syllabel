@@ -76,6 +76,9 @@ class Conditions(_CamelModel):
     - `target_credits` — 単位数の目安(上限)。登録できる単位の上限は超えない
     - `include` / `exclude` — 入れたい科目(シラバスコード)と、入れない科目(科目名
       またはシラバスコード)
+    - `assume_passed` — 合格する前提で数える科目(科目名)。成績表にまだ載っていない
+      科目(履修中で成績が後で出る科目など)を、学生が合格する前提で組みたいと言ったときに
+      入れる。成績発表待ちの科目は入れなくても合格する前提で数える(`StudentContext`)
     """
 
     scope: Scope = "不足を埋める"
@@ -87,6 +90,7 @@ class Conditions(_CamelModel):
     target_credits: int | None = Field(None, ge=1)
     include: list[str] = []
     exclude: list[str] = []
+    assume_passed: list[str] = []
 
     def wanted_free_days(self) -> int:
         """全休にしたい平日の数。指定した曜日の数より少なくはならない。"""
@@ -124,4 +128,6 @@ class Conditions(_CamelModel):
             lines.append(f"入れたい科目: {'、'.join(label(v) for v in self.include)}")
         if self.exclude:
             lines.append(f"入れない科目: {'、'.join(label(v) for v in self.exclude)}")
+        if self.assume_passed:
+            lines.append(f"合格する前提で数える科目: {'、'.join(self.assume_passed)}")
         return lines

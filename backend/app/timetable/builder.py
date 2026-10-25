@@ -412,6 +412,8 @@ def _include_failure(ctx: StudentContext, wanted: str) -> str:
         return f"{title}は修得済み"
     if key in ctx.registered():
         return f"{title}は登録済み(成績発表待ち)"
+    if key in ctx.assumed_titles():
+        return f"{title}は合格する前提で数えている科目"
     if offered is not None:
         if registration_half(offered.term) not in (ctx.target.term, None):
             return f"{title}({wanted})は{offered.term}開講で、{ctx.target.term}に登録する科目ではない"
@@ -887,6 +889,9 @@ def build_timetable(
 ) -> BuildResult:
     """条件から時間割を組み立てる(§7.2)。手順はモジュールの説明を参照。
 
+    不足は、条件の `assume_passed` と成績発表待ちの科目に合格する前提で数える
+    (`StudentContext.assuming()`)。
+
     Args:
         current: 今の時間割。`rebuild` は学生が入れた科目だけを残し、`adjust` と `remove` は
             全科目を起点にする。`remove` は不足を埋めない。
@@ -894,6 +899,7 @@ def build_timetable(
     """
     rng = rng or random.Random()
     conditions = conditions.model_copy(deep=True)
+    ctx = ctx.assuming(conditions.assume_passed)
     exclude = _Exclude(conditions.exclude)
     plan = _Plan(
         ctx=ctx,
@@ -945,4 +951,4 @@ def check_timetable(
     ctx: StudentContext, courses: Sequence[ProposedCourse], conditions: Conditions
 ) -> Report:
     """学生が手で直した時間割のレポート。組み立ては行わない。"""
-    return make_report(ctx, courses, conditions)
+    return make_report(ctx.assuming(conditions.assume_passed), courses, conditions)

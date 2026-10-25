@@ -19,9 +19,11 @@ import { useScrollToBottom } from "@/lib/useScrollToBottom";
  * - **ツールの呼び出し**も1行で、呼んでいるあいだは backend が決めた文言(「シラバスを
  *   検索しています」)、終わったら「〜しました」にし、モデルが書いた引数を短く添える。押すと
  *   引数を「時間割から外す: 水環境科学, 経済学のすすめ」のように1行ずつの文で開く(引数名や
- *   remove のような値をそのまま出さない)。時間割の組み立ては、終わったときに頼んだ条件を
- *   結果に書き換える — 入れる・外すができなかった科目は「時間割に入れられませんでした:
- *   科目(理由)」、全休の日数は全休にした曜日(「全休にする曜日: 木, 金」)にする
+ *   remove のような値をそのまま出さない)。時間割の組み立ては、先頭に組み方(「やり方: 今の時間割から科目を外す」)
+ *   を出し、終わったときに頼んだ条件を結果に書き換える — 入れた・外した科目は組み立ての前後の差
+ *   (「時間割から外しました: …」「時間割に入れました: …」)、入れる・外すができなかった科目は
+ *   「時間割に入れられませんでした: 科目(理由)」、全休の日数は全休にした曜日(「全休にする曜日:
+ *   木, 金」)にする
  *
  * 思考も引数もモデルの出力であり、学生のブラウザにだけ流れる（サーバには残さない）。
  */
@@ -194,14 +196,28 @@ function lastLine(text: string): string {
   return lines[lines.length - 1] ?? "";
 }
 
+/** 組み立ての起点(`mode`)。時間割の組み立ての行を開いたときの先頭に出す */
+const MODE_LINE: Record<string, string> = {
+  rebuild: "やり方: 必修と自分で入れた科目を残して組み直す",
+  adjust: "やり方: 今の時間割をもとに、科目を入れ替える・足す",
+  remove: "やり方: 今の時間割から科目を外す",
+};
+
 /**
  * 開いたときに並べる行。引数を「見出し: 値」の文にし、学生に関係の無い引数は出さない。
  * 時間割の組み立ては、組み終えたところで頼んだ条件を結果に書き換える(全休にした曜日・
- * 入れられなかった科目)。開いて知りたいのは何をしたかである
+ * 入れられなかった科目・外した科目と入れた科目)。開いて知りたいのは何をしたかである。
+ * **先頭には実際に使った起点(`mode`)を出す** — 外すだけか、空いた分まで埋めるかで、
+ * 同じ「外す」でも時間割の変わり方が違う
  */
 function argLines(activity: AgentActivity, titleOf: (code: string) => string): string[] {
   const { tool, args, found } = activity;
   const lines: string[] = [];
+  if (tool === "build_timetable") {
+    // 組み終えたら backend が実際に使った値、それまではモデルが書いた値
+    const mode = activity.mode ?? args.mode;
+    if (typeof mode === "string" && MODE_LINE[mode]) lines.push(MODE_LINE[mode]);
+  }
   for (const [key, value] of Object.entries(args)) {
     if (value === null || value === undefined || value === "") continue;
     const line =
@@ -217,10 +233,7 @@ function argLines(activity: AgentActivity, titleOf: (code: string) => string): s
   for (const [title, reason] of Object.entries(activity.displaced ?? {})) {
     lines.push(`入れるために外した科目: ${title}（${reason}）`);
   }
-  // 今の時間割を直すだけで、入れる・外す科目も条件も無い呼び出しは、何をしたかの1行を出す
-  if (tool === "build_timetable" && lines.length === 0 && args.mode === "adjust") {
-    lines.push("今の時間割を見直す");
-  }
+  if (tool === "build_timetable" && built(activity)) lines.push(...changeLines(activity));
   // 検索は最後に当たった科目数を添える(backend が検索を終えたときに届く)
   if (tool === "search_courses" && found !== undefined) {
     lines.push(found > 0 ? `${found}件見つかりました` : "見つかりませんでした");
@@ -238,17 +251,43 @@ function cleared(value: unknown): boolean {
   return (Array.isArray(value) && value.length === 0) || value === 0;
 }
 
-/** 入れる・外す科目の行。できなかった科目は1科目1行で「〜できませんでした: 科目(理由)」にする */
+/** 組み立てが終わり、外した科目・入れた科目が届いたか */
+function built(activity: AgentActivity): boolean {
+  return activity.added !== undefined || activity.removed !== undefined;
+}
+
+/**
+ * 組み立てで実際に変わったこと。頼んだ「入れる・外す」の言い直しではなく、組み立ての前後の
+ * 時間割の差を出す — 引数を並べていた頃は、外して空いた分を組み立てが別の科目で埋めても
+ * 行に出ず、前から外れていた科目まで「外す」と出ていた
+ */
+function changeLines(activity: AgentActivity): string[] {
+  const lines: string[] = [];
+  if (activity.removed?.length) lines.push(`時間割から外しました: ${activity.removed.join(", ")}`);
+  if (activity.added?.length) lines.push(`時間割に入れました: ${activity.added.join(", ")}`);
+  for (const [title, where] of Object.entries(activity.moved ?? {})) {
+    lines.push(`コマを移しました: ${title}（${where}）`);
+  }
+  const changed = lines.length > 0 || Object.keys(activity.displaced ?? {}).length > 0;
+  return changed ? lines : ["時間割は変わりませんでした"];
+}
+
+/**
+ * 入れる・外す科目の行。できなかった科目は1科目1行で「〜できませんでした: 科目(理由)」にする。
+ * 組み終えたあと(`showDone` が偽)は、できたほうを出さない。何を入れて何を外したかは
+ * `changeLines()` が前後の時間割の差で出す
+ */
 function courseLines(
   value: unknown,
   titleOf: (code: string) => string,
   failed: Record<string, string>,
   done: string,
   undone: string,
+  showDone = true,
 ): string[] {
   const values = (Array.isArray(value) ? value : [value]).map(String);
   const ok = values.filter((v) => !(v in failed));
-  const lines = ok.length ? [`${done}: ${ok.map(titleOf).join(", ")}`] : [];
+  const lines = showDone && ok.length ? [`${done}: ${ok.map(titleOf).join(", ")}`] : [];
   for (const v of values.filter((v) => v in failed)) {
     const title = titleOf(v);
     // 理由が科目名から始まるとき(「〜は「…」と月2で重なる」)は、名前を繰り返さない
@@ -290,8 +329,8 @@ function buildLine(
   const failed = activity.failed ?? {};
   switch (key) {
     case "mode":
-      // 今の時間割を直す(adjust)・外すだけ(remove)は、入れる・外す科目の行で足りる
-      return value === "rebuild" ? "時間割を組み直す" : null;
+      // 先頭の「やり方」の行で出す(`argLines()`)
+      return null;
     case "scope":
       return SCOPE_LINE[String(value)] ?? `範囲: ${value}`;
     case "free_days":
@@ -312,10 +351,16 @@ function buildLine(
       return off ? "単位の上限をなくす" : `単位の上限: ${value}単位`;
     case "include":
       if (off) return "入れる科目の指定をやめる";
-      return courseLines(value, titleOf, failed, "時間割に入れる", "時間割に入れられませんでした");
+      return courseLines(
+        value, titleOf, failed, "時間割に入れる", "時間割に入れられませんでした", !built(activity),
+      );
     case "exclude":
       if (off) return "外す科目の指定をやめる";
-      return courseLines(value, titleOf, failed, "時間割から外す", "時間割から外せませんでした");
+      return courseLines(
+        value, titleOf, failed, "時間割から外す", "時間割から外せませんでした", !built(activity),
+      );
+    case "assume_passed":
+      return off ? "合格する前提の科目の指定をやめる" : `合格する前提で数える: ${joined(value)}`;
     default:
       return otherLine(key, value);
   }
@@ -463,6 +508,8 @@ function buildArg(
       return `入れる ${titles(value)}`;
     case "exclude":
       return `外す ${titles(value)}`;
+    case "assume_passed":
+      return `合格する前提 ${text(value)}`;
     default:
       return text(value) || null;
   }

@@ -22,7 +22,7 @@ class Course(BaseModel):
     credits: int
     # `registered` は成績表の `***`(登録科目)/ `*`(継続履修中)。登録済みで成績が
     # 未確定の科目であり、修得でも未修得でもない。単位計算には数えず(`passed` のみ)、
-    # 履修提案では候補から外す(§5.2.1 / §7.2)
+    # 履修提案では候補から外す。時間割の組み立ては合格する前提で不足を数える(§5.2.1 / §7.2)
     status: Literal["passed", "failed", "withdrawn", "registered"]
 
 
