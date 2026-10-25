@@ -76,6 +76,7 @@ class Report(_CamelModel):
     - `requirements` — 不足のあった要件枠の、時間割を修得する前後の修得単位
     - `remaining_shortfall` — 時間割を修得してもなお残る不足
     - `removal_effects` — 外してよい科目を1つだけ外したときに増える不足
+    - `surplus` — 時間割の単位のうち、卒業要件に数えられない単位(「国際学のすすめ(月3) 2単位」)
     - `retakes` — 時間割に入っている再履修の科目
     - `needs_confirmation` — 学生が確かめるべきこと
     """
@@ -88,6 +89,7 @@ class Report(_CamelModel):
     requirements: list[SlotChange] = []
     remaining_shortfall: list[RemainingShortfall] = []
     removal_effects: list[RemovalEffect] = []
+    surplus: list[str] = []
     credits: CreditsInfo
     retakes: list[str] = []
     needs_confirmation: list[str] = []
@@ -473,6 +475,35 @@ def removal_effects(
     return effects
 
 
+# 要件枠が埋まっていて余る単位の理由(`UncountedCourse.reason`)。随意・履修要項に無い科目は
+# 学生が別の目的(教職など)で取るもので、余りとは言わない
+_SURPLUS_REASONS = {"no_slot_capacity", "over_credit_cap"}
+
+
+def surplus_credits(
+    ctx: StudentContext, courses: Sequence[ProposedCourse], pinned: set[str] = frozenset()
+) -> list[str]:
+    """時間割の単位のうち、入る要件枠が受け皿まで埋まっている・算入の上限を超えるため、
+    卒業要件に数えられない単位(「国際学のすすめ(月3) 2単位」)。
+
+    `SlotChange.after` は必要単位を超えないので、オールフリーゾーンからも溢れた単位は
+    レポートのどこにも出ない。実機で、学生が「成績表に無いプロジェクトリサーチⅡの単位が
+    オールフリーゾーンに入るので、今の時間割では余計に取る」と言ったのを、モデルは
+    確かめられず読み違えた。どの科目が余るかは判定に渡す順で決まるので、外してよい科目を
+    後に渡し、余りを外してよい科目に寄せる。
+    """
+    ordered = sorted(courses, key=lambda c: is_removable(c, pinned))
+    by_title = {normalize_title(c.title): c for c in courses}
+    found: dict[str, int] = {}
+    for item in ctx.judge_with(ordered).uncounted:
+        course = by_title.get(normalize_title(item.title))
+        if item.reason not in _SURPLUS_REASONS or course is None:
+            continue
+        label = describe_course(course)
+        found[label] = found.get(label, 0) + item.credits
+    return [f"{label} {credits}単位" for label, credits in found.items()]
+
+
 def make_report(
     ctx: StudentContext,
     courses: Sequence[ProposedCourse],
@@ -541,6 +572,7 @@ def make_report(
         requirements=changes,
         remaining_shortfall=remaining,
         removal_effects=removal_effects(ctx, courses, conditions, after),
+        surplus=surplus_credits(ctx, courses, pinned_keys(conditions)),
         credits=CreditsInfo(
             total=total,
             limit=limit,
@@ -579,7 +611,10 @@ def report_lines(report: Report) -> list[str]:
             mark = "満たした" if status.status == "met" else "満たせなかった"
             lines.append(f"- {status.condition}: {mark}。{status.detail}")
     if report.requirements:
-        lines.append("要件枠の修得単位(時間割を修得する前 → 後 / 必要):")
+        lines.append(
+            "要件枠の修得単位(時間割を修得する前 → 後 / 必要。前は合格する前提の科目を含む。"
+            "後は必要を超えない):"
+        )
         for change in report.requirements:
             lines.append(f"- {change.slot}: {change.before} → {change.after} / {change.required}")
     if report.remaining_shortfall:
@@ -587,6 +622,13 @@ def report_lines(report: Report) -> list[str]:
         for short in report.remaining_shortfall:
             reason = f"({short.reason})" if short.reason else ""
             lines.append(f"- {short.slot}: {short.shortfall}単位{reason}")
+    if report.surplus:
+        lines.append(
+            "時間割の単位のうち卒業要件に数えられない単位(入る要件枠が受け皿まで埋まっている、"
+            "または算入の上限を超える): " + "、".join(report.surplus)
+        )
+    else:
+        lines.append("時間割の単位のうち卒業要件に数えられない単位: なし")
     if report.removal_effects:
         lines.append(
             "外してよい科目(必修・自分で入れた科目・入れたい科目以外)を1つだけ外したときに"
@@ -621,6 +663,8 @@ def summarize_report(report: Report, course_count: int) -> str:
     for short in report.remaining_shortfall:
         reason = f"。{short.reason}" if short.reason else ""
         lines.append(f"- この時間割を修得しても {short.slot} が{short.shortfall}単位不足{reason}")
+    if report.surplus:
+        lines.append(f"- 卒業要件に数えられない単位: {'、'.join(report.surplus)}")
     if report.retakes:
         lines.append(f"- 再履修の科目: {'、'.join(report.retakes)}")
     for item in report.needs_confirmation:

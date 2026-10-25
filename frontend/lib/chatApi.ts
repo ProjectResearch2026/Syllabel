@@ -118,6 +118,8 @@ export type TimetableReport = {
   remainingShortfall: { slot: string; shortfall: number; reason: string | null }[];
   /** 外してよい科目を1つだけ外したときに増える不足(空なら増えない) */
   removalEffects: { course: string; shortfall: string[] }[];
+  /** 時間割の単位のうち、要件枠が受け皿まで埋まっていて卒業要件に数えられない単位(「国際学のすすめ(月3) 2単位」) */
+  surplus: string[];
   credits: { total: number; limit: number | null; cap: number | null; registered: number };
   retakes: string[];
   needsConfirmation: string[];

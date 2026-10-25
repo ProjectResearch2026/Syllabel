@@ -476,6 +476,35 @@ async def test_report_tells_which_removable_courses_can_go_without_new_shortfall
     assert "- 哲学(水2): 教養教育科目(選択必修・人文) 2単位" in lines
 
 
+@pytest.mark.asyncio
+async def test_report_tells_the_credits_that_overflow_every_slot():
+    """受け皿(オールフリーゾーン)まで埋まって余る単位。要件枠の「後」は必要を超えないので、別に載せる。"""
+    from app.timetable.report import report_lines
+
+    courses = [
+        *_required(),
+        _course("統計学", "Y000000011", "火", 3, source="student"),
+        _course("情報理論", "Y000000005", "月", 3),
+        _course("符号理論", "Y000000006", "水", 3),
+        _course("画像処理", "Y000000007", "金", 3, credits=4),
+    ]
+    report = check_timetable(await _ctx(), courses, Conditions())
+
+    # 専門応用(選択)4 → 学部フリー2 → オールフリー2 に入りきらない2単位。余りは
+    # 自分で入れた科目でなく、外してよい科目に寄せる
+    assert report.surplus == ["画像処理(金3) 2単位"]
+    assert (
+        "時間割の単位のうち卒業要件に数えられない単位(入る要件枠が受け皿まで埋まっている、"
+        "または算入の上限を超える): 画像処理(金3) 2単位"
+    ) in report_lines(report)
+    free = next(c for c in report.requirements if c.slot == "オールフリーゾーン")
+    assert (free.after, free.required) == (2, 2)
+
+    fewer = check_timetable(await _ctx(), courses[:-1], Conditions())
+    assert fewer.surplus == []
+    assert "時間割の単位のうち卒業要件に数えられない単位: なし" in report_lines(fewer)
+
+
 @pytest.mark.parametrize("mode", ["remove", "adjust", "rebuild"])
 @pytest.mark.asyncio
 async def test_exclude_never_removes_a_required_course(mode):
@@ -818,6 +847,66 @@ async def test_assume_passed_counts_the_course_and_drops_it_from_the_candidates(
     assumed = ctx.assuming(["統計学"])
     assert "統計学" not in {c.course.title for c in assumed.candidates}
     assert "統計学" in {c.course.title for c in assumed.assuming([]).candidates}
+
+
+def _overfilled_courses():
+    """画像処理(専門応用・選択 4単位)に合格する前提にすると、2単位余る時間割。"""
+    return [
+        *_required_courses(),
+        _course("哲学", "G000000002", "水", 2, category="選択必修"),
+        _course("情報理論", "Y000000005", "月", 3),
+        _course("符号理論", "Y000000006", "水", 3),
+        _course("統計学", "Y000000011", "火", 3),
+        _course("文学", "G000000003", "月", 4),
+        _course("音楽", "G000000004", "木", 4),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_adjust_drops_a_course_left_over_by_a_course_assumed_passed():
+    """合格する前提の科目が増えて要らなくなった科目を、adjust は外す(単位が余るだけになる)。"""
+    ctx = await _ctx()
+    conditions = Conditions(assume_passed=["画像処理"])
+    assert len(check_timetable(ctx, _overfilled_courses(), conditions).surplus) == 1
+
+    result = _build(ctx, conditions, _overfilled_courses(), mode="adjust")
+
+    removed = [s.course.title for s in result.steps if s.kind == "remove"]
+    assert len(removed) == 1
+    assert removed[0] in {"情報理論", "符号理論", "統計学"}
+    assert next(s for s in result.steps if s.kind == "remove").note == "単位が卒業要件に数えられず余るため"
+    assert result.report.surplus == []
+    # 外しても不足は増えない
+    before = {s.slot: s.after for s in check_timetable(ctx, _overfilled_courses(), conditions).requirements}
+    after = {s.slot: s.after for s in result.report.requirements}
+    assert all(after[slot] >= value for slot, value in before.items())
+
+
+@pytest.mark.asyncio
+async def test_remove_and_broad_scope_keep_the_left_over_course():
+    """remove は頼まれた科目だけを外し、広くは上限まで足すので、余る科目を外さない。"""
+    ctx = await _ctx()
+    for conditions, mode in [
+        (Conditions(assume_passed=["画像処理"]), "remove"),
+        (Conditions(assume_passed=["画像処理"], scope="広く"), "adjust"),
+    ]:
+        result = _build(ctx, conditions, _overfilled_courses(), mode=mode)
+        assert not any(s.kind == "remove" for s in result.steps)
+
+
+@pytest.mark.asyncio
+async def test_requirements_tell_where_the_credits_of_an_assumed_course_go():
+    """学生は単位の行き先で話す(「余剰分だからオールフリーゾーンに入る」)。その行き先を載せる。"""
+    from app.timetable.facts import format_requirements
+
+    ctx = (await _ctx(fx.course("情報理論"), fx.course("符号理論"))).assuming(["統計学"])
+
+    lines = format_requirements(ctx.requirements, ctx.assumed_passes())
+
+    assert (
+        "合格する前提で数えた科目(成績がまだ出ていない)と、単位の入る要件枠: "
+        "統計学(2単位: 学部フリーゾーンに2単位)"
+    ) in lines
 
 
 @pytest.mark.asyncio

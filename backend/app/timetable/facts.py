@@ -33,8 +33,8 @@ def format_requirements(
     ]
     if assumed:
         lines.append(
-            "合格する前提で数えた科目(成績がまだ出ていない): "
-            + "、".join(f"{c.title}({c.credits}単位)" for c in assumed)
+            "合格する前提で数えた科目(成績がまだ出ていない)と、単位の入る要件枠: "
+            + "、".join(f"{c.title}({_landing(requirements, c)})" for c in assumed)
         )
     lines.append("要件枠ごとの不足単位:")
     for slot in sorted(requirements.slots, key=lambda s: (s.shortfall <= 0, s.key)):
@@ -61,6 +61,25 @@ def format_requirements(
             f"不足 {credits_label(constraint.shortfall)}"
         )
     return lines
+
+
+def _landing(requirements: RequirementsResult, course: StudentCourse) -> str:
+    """科目の単位が入った要件枠(「2単位: オールフリーゾーンに2単位」)。
+
+    学生は「プロジェクトリサーチⅡは余剰分だからオールフリーゾーンに入る」のように、単位の
+    行き先で話す。行き先が無いと、モデルはそれを確かめられない。
+    """
+    key = normalize_title(course.title)
+    parts = [
+        f"{slot.name}に{credits_label(assigned.credits)}単位"
+        for slot in requirements.slots
+        for assigned in slot.courses
+        if normalize_title(assigned.title) == key
+    ]
+    left = sum(u.credits for u in requirements.uncounted if normalize_title(u.title) == key)
+    if left:
+        parts.append(f"卒業要件に数えられない{credits_label(left)}単位")
+    return f"{credits_label(course.credits)}単位: " + "、".join(parts or ["要件枠に入らない"])
 
 
 def student_lines(ctx: StudentContext) -> list[str]:

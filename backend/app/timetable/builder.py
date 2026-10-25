@@ -17,7 +17,9 @@
 3. **入れたい科目(`include`)を置く。** コマが重なるとき・単位の上限を超えるときは、
    外してよい科目(必修・学生が入れた科目・入れたい科目以外)を外して入れる。外す科目は
    重なる科目と、上限に収めるのに要る分で、残る不足が増えにくいものから選ぶ。外せる科目で
-   足りなければ入れない。外した科目は手順5で戻さない
+   足りなければ入れない。外した科目は手順5で戻さない。`adjust` では続けて、外してよい科目の
+   うち、外してもどの不足も増えない科目(単位が受け皿まで埋まった枠に入って余る)を外す。
+   合格する前提の科目が増えたときや、入れたい科目が同じ枠に入ったときに残る余りである
 4. **全休の曜日を決める。** 曜日を言われずに日数だけ言われたときは、学生に聞き返さず
    ここで決める。候補は外せない科目の無い平日で、各候補を空けたときに手順5を試し、
    卒業要件の不足を最も多く埋められる曜日を選ぶ(同点なら外す科目が少ない方、
@@ -49,7 +51,12 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Literal
 
-from app.curricula.requirements import EntrySlots, entry_slot_keys, normalize_title
+from app.curricula.requirements import (
+    EntrySlots,
+    RequirementsResult,
+    entry_slot_keys,
+    normalize_title,
+)
 from app.curricula.merge import MergedCourse
 from app.schemas.proposal import CourseSlot, ProposedCourse, course_clash, quarters_of
 from app.timetable.candidates import Candidate, by_subtitle, display_title, key_of, student_type
@@ -584,6 +591,44 @@ def _make_room(
     return extra
 
 
+def _shortfalls(result: RequirementsResult) -> tuple[tuple[int, ...], tuple[int, ...]]:
+    return (
+        tuple(s.shortfall for s in result.slots),
+        tuple(c.shortfall for c in result.track_constraints),
+    )
+
+
+def _drop_surplus(plan: _Plan, rng: random.Random) -> None:
+    """今の時間割を直すとき、外してもどの不足も増えない外してよい科目を外す(手順3の後)。
+
+    `adjust` は今の科目をすべて残すので、合格する前提の科目が増えると、その単位で要らなく
+    なった科目が残り、単位が卒業要件に数えられずに余る。実機で、学生が「プロジェクト
+    リサーチⅡの単位がオールフリーゾーンに入るので、今の時間割では余計に取る」と言った。
+    単位の多い科目から外す(同じなら無作為)。随意・履修要項に無い科目は、学生が別の目的
+    (教職など)で取る科目なので外さない。
+    """
+    ctx = plan.ctx
+    while True:
+        base = _shortfalls(ctx.judge_with(plan.courses))
+        surplus = []
+        for course in plan.courses:
+            found = ctx.course_by_title(course.title)
+            if (
+                not plan.removable(course)
+                or not course.credits
+                or found is None
+                or found.type == "随意"
+            ):
+                continue
+            rest = [c for c in plan.courses if c is not course]
+            if _shortfalls(ctx.judge_with(rest)) == base:
+                surplus.append(course)
+        if not surplus:
+            return
+        course = max(surplus, key=lambda c: (c.credits, rng.random()))
+        plan.remove(course, "単位が卒業要件に数えられず余るため")
+
+
 def _enforce_caps(plan: _Plan, rng: random.Random) -> None:
     """今の時間割を直すとき、1日のコマ数・平日の数の上限を超える分を外す。"""
     cap = plan.conditions.max_periods_per_day
@@ -914,6 +959,8 @@ def build_timetable(
     _keep(plan, current, mode, exclude)
     _place_required(plan, rng, exclude)
     _place_includes(plan, rng, estimator)
+    if mode == "adjust" and conditions.scope != "広く":
+        _drop_surplus(plan, rng)
     seed = _choose_free_days(plan, estimator, rng, exclude, mode)
     fill_rng = random.Random(seed)
     if mode != "rebuild":
