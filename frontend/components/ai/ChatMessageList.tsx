@@ -93,7 +93,7 @@ export default function ChatMessageList({
 const UserBubble = memo(function UserBubble({ message }: { message: ChatMessage }) {
   return (
     <div className="flex w-full justify-end motion-safe:animate-rise-in">
-      <div className="max-w-[75%] whitespace-pre-wrap rounded-[12px_2px_12px_12px] border border-border-primary bg-surface-soft p-3 text-[13px] leading-[21px] text-fg-primary">
+      <div className="max-w-[75%] whitespace-pre-wrap break-words rounded-[12px_2px_12px_12px] border border-border-primary bg-surface-soft p-3 text-[13px] leading-[21px] text-fg-primary">
         {message.content}
       </div>
     </div>

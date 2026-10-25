@@ -17,6 +17,10 @@ const STICK_DISTANCE = 48;
  * 滑らかなスクロールを始めると、動きが終わる前に次が始まって表示が本文に追い付かず、
  * 学生のスクロールとも取り合いになる。
  *
+ * **会話欄そのものが縮んだときも、最下部に居れば最下部に留める。** 入力欄が複数行に
+ * 伸びる・キーボードが出る・シートの高さを変えると会話欄の高さが減るが、スクロール位置は
+ * そのまま残るため、末尾の吹き出しや「希望条件なしで提案する」が入力欄の陰に隠れていた。
+ *
  * `scrollIntoView()` は使わない。**祖先まで遡ってスクロールできる要素をすべて
  * 動かす**ため、会話欄が伸びきって内側にスクロールが生じない画面(講義詳細の
  * 右パネルなど)では代わりにページ本体が動き、画面を開いた直後に本文がわずかに
@@ -42,8 +46,16 @@ export function useScrollToBottom<T extends HTMLElement>(
       const distance = element.scrollHeight - element.scrollTop - element.clientHeight;
       pinned.current = distance <= STICK_DISTANCE;
     };
+    // 高さが変わってもスクロールイベントは来ないので、ここで最下部へ戻す
+    const resize = new ResizeObserver(() => {
+      if (pinned.current) element.scrollTo({ top: element.scrollHeight, behavior: "auto" });
+    });
     element.addEventListener("scroll", onScroll, { passive: true });
-    return () => element.removeEventListener("scroll", onScroll);
+    resize.observe(element);
+    return () => {
+      element.removeEventListener("scroll", onScroll);
+      resize.disconnect();
+    };
   }, []);
 
   useEffect(() => {
