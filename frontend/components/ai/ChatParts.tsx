@@ -163,9 +163,11 @@ export function ChatInputBar({
   return (
     <div className="shrink-0 bg-surface-gray">
       <div className="p-3">
+        {/* 枠線と薄い影で外の灰色の地から浮かせる（白地だけでは境目が見えない。Claude と同じ）。
+            書いているあいだは枠線を濃くする。枠線の 1px ぶん余白を詰め、高さを変えない */}
         <div
           ref={boxRef}
-          className={`flex items-end gap-2 bg-surface-primary p-3 ${multiline ? "rounded-3xl" : "rounded-full"}`}
+          className={`flex items-end gap-2 border border-border-primary bg-surface-primary p-[11px] shadow-card transition-colors focus-within:border-fg-faint ${multiline ? "rounded-3xl" : "rounded-full"}`}
         >
           <label htmlFor={inputId} className="sr-only">
             {label}
@@ -191,7 +193,7 @@ export function ChatInputBar({
             }}
             placeholder={label}
             disabled={disabled}
-            className="block max-h-[168px] min-h-10 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent px-3 py-[9.5px] text-[13px] leading-[21px] text-fg-primary outline-none placeholder:text-fg-faint disabled:opacity-60 max-md:max-h-[105px]"
+            className="block max-h-[168px] min-h-10 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent px-3 py-[9.5px] text-[13px] leading-[21px] text-fg-primary outline-none placeholder:truncate placeholder:text-fg-faint disabled:opacity-60 max-md:max-h-[105px]"
           />
           {/* 受信中は送信ボタンを停止ボタンに替える（Claude と同じ四角） */}
           {streaming && stop ? (
