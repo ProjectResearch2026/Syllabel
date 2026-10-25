@@ -134,16 +134,21 @@ export function ChatInputBar({
   const [value, setValue] = useState("");
   // 2行目に入ったら枠を丸から角丸に替える（丸のままだと四隅で文字が切れる）
   const [multiline, setMultiline] = useState(false);
+  const boxRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const inputId = useId();
   const { streaming, inputDisabled = false, note, stop } = conversation;
   const label = placeholder ?? conversation.placeholder;
   const disabled = streaming || inputDisabled;
 
-  // 中身に高さを合わせる。上限は CSS の max-height が決める
+  // 中身に高さを合わせる。上限は CSS の max-height が決める。測るあいだは枠の高さを留める —
+  // 1行に縮めたままレイアウトすると会話の欄が一瞬伸び、そのスクロール位置が先頭へ戻される
   const fit = (el: HTMLTextAreaElement) => {
+    const box = boxRef.current;
+    if (box) box.style.height = `${box.offsetHeight}px`;
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
+    if (box) box.style.height = "";
     setMultiline(el.scrollHeight > SINGLE_LINE_HEIGHT);
   };
 
@@ -159,6 +164,7 @@ export function ChatInputBar({
     <div className="shrink-0 bg-surface-gray">
       <div className="p-3">
         <div
+          ref={boxRef}
           className={`flex items-end gap-2 bg-surface-primary p-3 ${multiline ? "rounded-3xl" : "rounded-full"}`}
         >
           <label htmlFor={inputId} className="sr-only">
