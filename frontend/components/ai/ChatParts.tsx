@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { ArrowUp, Menu, Square, SquarePen } from "lucide-react";
 import type { AiConversation } from "@/lib/ai";
 import { titleOf } from "@/lib/chatHistory";
@@ -110,7 +110,15 @@ export function ChatQuickAsks({
   );
 }
 
-/** 入力欄。送れるときだけ送って入力を消す（Enter は無効なときも届く） */
+/** 入力欄の1行ぶんの高さ（行の高さ 21px + 上下の余白 9.5px ずつ） */
+const SINGLE_LINE_HEIGHT = 40;
+
+/**
+ * 入力欄。送れるときだけ送って入力を消す（Enter は無効なときも届く）。
+ * 書いた行に合わせて高さが伸び、上限（PC 8行・モバイル 5行）を超えたら欄の中でスクロールする。
+ * PC は Enter で送り Shift+Enter で改行する（Claude と同じ）。タッチの端末は Enter で改行し、
+ * 送るのはボタンだけ — ソフトキーボードには Shift が無く、Enter で送ると改行できない
+ */
 export function ChatInputBar({
   conversation,
   placeholder,
@@ -124,36 +132,60 @@ export function ChatInputBar({
   autoFocus?: boolean;
 }) {
   const [value, setValue] = useState("");
+  // 2行目に入ったら枠を丸から角丸に替える（丸のままだと四隅で文字が切れる）
+  const [multiline, setMultiline] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const inputId = useId();
   const { streaming, inputDisabled = false, note, stop } = conversation;
   const label = placeholder ?? conversation.placeholder;
   const disabled = streaming || inputDisabled;
 
+  // 中身に高さを合わせる。上限は CSS の max-height が決める
+  const fit = (el: HTMLTextAreaElement) => {
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+    setMultiline(el.scrollHeight > SINGLE_LINE_HEIGHT);
+  };
+
   const submit = () => {
     if (!value.trim() || disabled) return;
     onSend(value);
     setValue("");
+    if (textareaRef.current) textareaRef.current.style.height = "";
+    setMultiline(false);
   };
 
   return (
     <div className="shrink-0 bg-surface-gray">
       <div className="p-3">
-        <div className="flex items-center gap-2 rounded-full bg-surface-primary p-3">
+        <div
+          className={`flex items-end gap-2 bg-surface-primary p-3 ${multiline ? "rounded-3xl" : "rounded-full"}`}
+        >
           <label htmlFor={inputId} className="sr-only">
             {label}
           </label>
-          <input
+          <textarea
+            ref={textareaRef}
             id={inputId}
-            type="text"
+            rows={1}
             value={value}
             autoFocus={autoFocus}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(e) => {
+              setValue(e.target.value);
+              fit(e.target);
+            }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.nativeEvent.isComposing) submit();
+              if (e.key !== "Enter" || e.shiftKey) return;
+              // 変換の確定に押した Enter は送らない。Safari は確定の keydown で
+              // isComposing が false になるため keyCode 229 でも見分ける
+              if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+              if (window.matchMedia("(pointer: coarse)").matches) return;
+              e.preventDefault();
+              submit();
             }}
             placeholder={label}
             disabled={disabled}
-            className="h-10 min-w-0 flex-1 bg-transparent px-3 text-[13px] text-fg-primary outline-none placeholder:text-fg-faint disabled:opacity-60"
+            className="block max-h-[168px] min-h-10 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent px-3 py-[9.5px] text-[13px] leading-[21px] text-fg-primary outline-none placeholder:text-fg-faint disabled:opacity-60 max-md:max-h-[105px]"
           />
           {/* 受信中は送信ボタンを停止ボタンに替える（Claude と同じ四角） */}
           {streaming && stop ? (
