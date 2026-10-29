@@ -152,7 +152,7 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 ## 卒業要件枠の内訳
 
-履修提案の画面はヘッダーカードの直下の帯(PC)・単位バーと提案する学期の下(モバイル。`MobileRequirementsStrip`)に要件枠ごとの充足状況を出す(design.md §8.3.5、`app/proposal/_components/RequirementsPanel.tsx`)。**充足した枠(修得済みの単位だけで充足した枠。見込みでは決めない — `SlotProgress.earnedShortfall`)は1つのまとめに畳み、足りない枠だけを1行に並べ、入りきらない分は横にスクロールさせる(折り返さない。PC はスクロールバーを隠し、端のぼかしと矢印ボタンで続きを示し、凡例は ⓘ に畳む。取得済みのまとめは2行で切り、枠の数のボタンを押すと全部の枠を公式の区分名と単位数で一覧に開く。モバイルは指で送るので矢印を置かない。モバイルは時間割を大きく見せるため帯を横1列に詰め、充足した枠は件数のチップにして押すと名前が開く)。** 取得済み・今期登録・卒業残りの単位数は PC のヘッダー(`components/Header.tsx`)とモバイルの時間割の単位バーにある。**ヘッダーと帯の値は `lib/creditSummary.tsx` の `useCreditSummary()` から採る**(`CreditSummaryProvider` がルートのレイアウトで判定を1回だけ引く。各所で `useRequirements()` を呼ばない)。**数字は `lib/requirements.ts` の `useRequirements()` から採り、画面で足し算しない。** 枠への割り当て・溢れ・算入上限は backend の `requirements.py` が判定する(同じ枠の科目を不足より多く取った分は下流の枠に回る)。今期の時間割(提案の `courses`)の分は、それを修得したとみなして2回目を引いた差で出す。**登録済み(`registered`)の科目は今期の時間割に入れない**(成績表に `***` で載るのは終わった学期の成績発表待ちの科目で、提案する学期の科目ではない)。その単位は `SlotProgress.pending` として薄い紺(`bg-pending`)で別に積み、不足と卒業残りには含めない。提案の store の `courses` に追従するので、時間割を変える経路を足すときは store を書き換えればよい。`profile.program` は課程**コード**で送る(`fetchRequirements()` が差し替える)。
+履修提案の画面はヘッダーカードの直下の帯(PC)・単位バーと提案する学期の下(モバイル。`MobileRequirementsStrip`)に要件枠ごとの充足状況を出す(design.md §8.3.5、`app/proposal/_components/RequirementsPanel.tsx`)。**充足した枠(修得済みの単位だけで充足した枠。見込みでは決めない — `SlotProgress.earnedShortfall`)は1つのまとめに畳み、足りない枠だけを1行に並べ、入りきらない分は横にスクロールさせる(折り返さない。PC はスクロールバーを隠し、端のぼかしと矢印ボタンで続きを示し、凡例は ⓘ に畳む。取得済みのまとめは2行で切り、枠の数のボタンを押すと全部の枠を公式の区分名と単位数で一覧に開く。モバイルは指で送るので矢印を置かない。モバイルは時間割を大きく見せるため帯を横1列に詰め、充足した枠は件数のチップにして押すと名前が開く)。** 取得済み・今期登録・卒業残りの単位数は PC のヘッダー(`components/Header.tsx`)とモバイルの時間割の単位バーにある。**ヘッダーと帯の値は `lib/creditSummary.tsx` の `useCreditSummary()` から採る**(`CreditSummaryProvider` がルートのレイアウトで判定を1回だけ引く。各所で `useRequirements()` を呼ばない)。**数字は `lib/requirements.ts` の `useRequirements()` から採り、画面で足し算しない。** 枠への割り当て・溢れ・算入上限は backend の `requirements.py` が判定する(同じ枠の科目を不足より多く取った分は下流の枠に回る)。今期の時間割(提案の `courses`)の分は、それを修得したとみなして2回目を引いた差で出す。**登録済み(`registered`)の科目は今期の時間割に入れない**(成績表に `***` で載るのは終わった学期の成績発表待ちの科目で、提案する学期の科目ではない)。その単位は `SlotProgress.pending` として薄い紺(`bg-pending`)で別に積み、不足と卒業残りには含めない。提案の store の `courses` に追従するので、時間割を変える経路を足すときは store を書き換えればよい。`profile.program` は課程**コード**で送る(`fetchRequirements()` が差し替える)。**履修要項と突き合わせられず数えていない科目(`isUnmatched()`。`not_in_curriculum` / `no_matching_slot`)があるときは、帯に「要確認 ○単位」を出してマイデータへ送る**(余剰・算入上限などの規定で数えない分は数えない。4回生のほとんどに出て知らせにならない)。
 
 ## 課程コードの解決
 
@@ -272,6 +272,14 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 - デモの学生は `profile.demo` を持ち、**提案する学期は `demo.target` に固定する**(`lib/targetTerm.ts`。今日の日付から決めない)。`grade` は提案する学期の学年である
 - **別の学生に差し替えるときは `lib/replaceStudent.ts` の `useReplaceStudent()` を通す**(成績表の取り込み・デモの学生の切り替え)。前の学生の履修提案と会話、シラバス検索の絞り込みと検索条件(`useSyllabusUIStore` の `reset()`)を捨ててからプロファイルを入れる。`setProfile` を直接呼ぶと、前の学生の時間割が新しい学生の時間割として残る。マイデータの訂正も、内容が変わったときはこれを通す(下記)
 - 1年前期(`isFreshmanDemo()`)は成績が1件も無い。取り込み確認・完了の画面では「取り込み」と言わず「新入生として始める」とする
+
+## マイデータの卒業要件の内訳
+
+design.md §8.4.1。**修得済みの科目ごとに、卒業要件のどの枠に数えたか・数えなかった理由を出す**(`app/mydata/_components/CreditAccounting.tsx`。PC・モバイル共用)。帯の数字が成績表と合わないとき、科目が一覧に無ければ読み取りの誤り、「履修要項と突き合わせられなかった科目」に出れば表記の違いか履修要項データの誤り、と学生の目の前で切り分けるためである(学生のデータはサーバに残らないので、後からは確かめられない)。
+
+- **行き先は判定の `slots[].courses` と `uncounted` を科目名で引き戻すだけ**(`lib/requirements.ts` の `courseDestinations()`)。手元で判定し直さない。同じ名前の科目は最初の行が割り当てを、残りの行が `duplicate` を受け取る(backend の `_collect()` と同じ順)。判定は `useCreditSummary()` のものを使い、マイデータのために引き直さない
+- **突き合わせられなかった科目は開いて注意の色で、規定で数えていない科目(余剰・算入上限・重複・随意)は `<details>` に畳む。** 余剰を開いて並べると、4回生では20件を超えて本当に要る1件が埋もれる
+- 履修プロファイルに「卒業要件に数える単位」(`earnedCredits`)を「取得単位」と並べる。差が数えていない単位である
 
 ## マイデータの訂正
 

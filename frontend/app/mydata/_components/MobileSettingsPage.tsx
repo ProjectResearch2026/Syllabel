@@ -23,6 +23,13 @@ import { demoLabel, isFreshmanDemo } from "@/lib/dummy/profiles";
 import DemoPicker from "@/app/_components/DemoPicker";
 import { useReplaceStudent } from "@/lib/replaceStudent";
 import ProfileEditForm from "@/app/_components/ProfileEditForm";
+import type { CourseDestination } from "@/lib/requirements";
+import {
+  ACCOUNTING_HINT,
+  DestinationNote,
+  UncountedPanels,
+  useCreditAccounting,
+} from "./CreditAccounting";
 
 /** 修得済み科目は先頭の数件だけ出し、残りは「すべて表示」で開く */
 const PREVIEW_COUNT = 4;
@@ -108,8 +115,19 @@ function NavRow({
   );
 }
 
-/** 取り込んだ科目の1行。履修状態の印は修得済みが紺、未修得が赤、登録済み（未確定）が薄い紺 */
-function CourseRow({ course, last }: { course: Course; last?: boolean }) {
+/**
+ * 取り込んだ科目の1行。履修状態の印は修得済みが紺、未修得が赤、登録済み（未確定）が薄い紺。
+ * 修得済みの科目は、卒業要件のどの枠に数えたかを科目名の下に添える(design.md §8.4.1)
+ */
+function CourseRow({
+  course,
+  last,
+  dests,
+}: {
+  course: Course;
+  last?: boolean;
+  dests?: CourseDestination[];
+}) {
   const unearned = isUnearned(course);
   const meta = `${course.year}年度 ${course.term}`;
   return (
@@ -119,6 +137,11 @@ function CourseRow({ course, last }: { course: Course; last?: boolean }) {
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-[13px] font-semibold text-fg-primary">{course.title}</span>
         <span className="text-[10px] text-fg-secondary">{meta}</span>
+        {dests && (
+          <span className="flex flex-col gap-0.5 text-[10px] leading-snug">
+            <DestinationNote dests={dests} />
+          </span>
+        )}
       </div>
       <span className="shrink-0 text-[11px] text-fg-secondary">{course.credits}単位</span>
       {course.status === "registered" ? (
@@ -159,6 +182,8 @@ export default function MobileSettingsPage() {
   // 学年・課程と科目は同じフォームで訂正する(design.md §8.4)
   const [editing, setEditing] = useState(false);
   const [showAllPassed, setShowAllPassed] = useState(false);
+  // 科目ごとの卒業要件の行き先(design.md §8.4.1)。判定が届くまでは null
+  const accounting = useCreditAccounting();
 
   // いま読み込んでいるのがデモのプロファイルか。デモを選ぶとその内容に差し替わる
   const [demoOn, setDemoOn] = useState(profile?.demo != null);
@@ -221,8 +246,16 @@ export default function MobileSettingsPage() {
           <InfoRow
             label="取得単位"
             value={completedCredits != null ? `${completedCredits} / ${graduationCredits} 単位` : "—"}
-            last
+            last={!accounting}
           />
+          {/* 取得単位(読み取った合格科目の単位の和)との差が、卒業要件に数えていない単位である */}
+          {accounting && (
+            <InfoRow
+              label="卒業要件に数える単位"
+              value={`${accounting.earnedCredits} / ${graduationCredits} 単位`}
+              last
+            />
+          )}
         </Group>
 
         {/* 取り込み済みデータ */}
@@ -256,15 +289,24 @@ export default function MobileSettingsPage() {
           </div>
         </Group>
 
+        {/* 成績表と数字が合わないときの手がかり。数えていない科目があるときだけ出す */}
+        {accounting && <UncountedPanels uncounted={accounting.uncounted} frame="border-y px-5 py-3" />}
+
         {/* 修得済み科目 */}
         {passed.length > 0 && (
           <>
             <SectionLabel>修得済み科目（{passed.length}科目）</SectionLabel>
             <Group>
+              {accounting && (
+                <p className="border-b border-[#F3F4F6] px-5 py-2.5 text-[11px] leading-snug text-fg-secondary">
+                  {ACCOUNTING_HINT}
+                </p>
+              )}
               {visiblePassed.map((c, i) => (
                 <CourseRow
                   key={`${c.title}-${c.year}-${c.term}-${i}`}
                   course={c}
+                  dests={accounting?.destinations.get(c)}
                   last={i === visiblePassed.length - 1 && passed.length <= PREVIEW_COUNT}
                 />
               ))}

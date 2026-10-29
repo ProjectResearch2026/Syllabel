@@ -1,8 +1,22 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleCheck, Info } from "lucide-react";
-import type { RequirementsView, SlotProgress } from "@/lib/requirements";
+import Link from "next/link";
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  CircleCheck,
+  Info,
+  TriangleAlert,
+} from "lucide-react";
+import {
+  isUnmatched,
+  shortSlotName,
+  type RequirementsView,
+  type SlotProgress,
+} from "@/lib/requirements";
 
 /** 0.5 単位の科目があるので、整数でなければ小数1桁で出す */
 function fmt(n: number): string {
@@ -17,19 +31,6 @@ function slotTitle(slot: SlotProgress): string {
   const rest = slot.shortfall > 0 ? `あと${fmt(slot.shortfall)}単位` : "今期の時間割で埋まります";
   const pending = slot.pending > 0 ? `成績発表待ち ${fmt(slot.pending)}単位（合格すれば算入）` : null;
   return [slot.name, rest, pending, slot.notes].filter(Boolean).join("\n");
-}
-
-/**
- * 枠の名前を帯に収まる長さに詰める。公式の区分名(`slot.name`)は「教養教育科目(必修・仏教)」の
- * ように**区別に要る部分が括弧の中にある**ため、末尾を「…」で切ると「教養教育科目(必修…」と
- * なり、どの枠か分からなくなっていた。共通の頭(「科目」「教養教育」)を削り、括弧の中を残す。
- * 公式の区分名はツールチップと読み上げで出す
- */
-export function shortSlotName(name: string): string {
-  return name
-    .replace(/^教養教育科目/, "教養")
-    .replace(/^(専門基礎|専門応用|専門関連)科目/, "$1")
-    .replace("選択必修〈基幹〉・", "基幹・");
 }
 
 /** バーの幅。修得済み(紺)・成績発表待ち(薄い紺)・今期(赤)の順に積み、100% で打ち切る */
@@ -269,6 +270,32 @@ function DoneSummary({
 }
 
 /**
+ * 修得済みのうち、履修要項と突き合わせられず卒業要件に数えていない単位の和。
+ * 余剰・算入上限などの規定で数えない分は含めない(`isUnmatched()`)
+ */
+function uncountedCredits(view: Extract<RequirementsView, { status: "ready" }>): number {
+  return view.uncounted.filter((c) => isUnmatched(c.reason)).reduce((sum, c) => sum + c.credits, 0);
+}
+
+/**
+ * 履修要項と突き合わせられなかった科目があることを知らせ、マイデータの内訳へ送る
+ * (design.md §8.3.5)。帯の数字が成績表と合わない原因はマイデータで科目ごとに見る。
+ * 帯には単位数だけを出す
+ */
+function UncountedLink({ credits, className }: { credits: number; className: string }) {
+  return (
+    <Link
+      href="/mydata"
+      title="履修要項と突き合わせられず、卒業要件に数えていない科目があります。マイデータで科目と理由を見る"
+      className={`flex shrink-0 items-center gap-1 rounded-md border border-tag-selective-border bg-tag-selective-bg font-bold text-tag-selective-fg transition-colors hover:border-tag-selective-fg ${className}`}
+    >
+      <TriangleAlert size={12} className="shrink-0" aria-hidden="true" />
+      要確認 {fmt(credits)}単位
+    </Link>
+  );
+}
+
+/**
  * 卒業要件枠ごとの充足状況(design.md §8.3.5)。卒業要件の帯(`CreditBar`)に出す。
  *
  * **足りない枠だけを並べ、充足した枠は1つのまとめに畳む。** すべての枠を出すと帯が
@@ -292,6 +319,7 @@ export default function RequirementsPanel({ view }: { view: RequirementsView }) 
   }
   const done = view.slots.filter((s) => s.earnedShortfall <= 0);
   const short = view.slots.filter((s) => s.earnedShortfall > 0);
+  const uncounted = uncountedCredits(view);
   return (
     /* 計算し直しているあいだは修得済みだけを出しているので、薄くして示す */
     <div
@@ -303,6 +331,7 @@ export default function RequirementsPanel({ view }: { view: RequirementsView }) 
       ) : (
         <LegendInfo updating={view.updating} pending={view.pendingCredits > 0} />
       )}
+      {uncounted > 0 && <UncountedLink credits={uncounted} className="h-8 px-2.5 text-[11px]" />}
       {/*
         枠名(公式の区分名)が読める幅を保ち、入りきらない分は横にスクロールさせる。
         折り返すと帯が高くなり、時間割に回す高さが減る
@@ -348,6 +377,7 @@ export function MobileRequirementsStrip({ view }: { view: RequirementsView }) {
   }
   const done = view.slots.filter((s) => s.earnedShortfall <= 0);
   const short = view.slots.filter((s) => s.earnedShortfall > 0);
+  const uncounted = uncountedCredits(view);
   return (
     <div className={`${frame} transition-opacity ${view.updating ? "opacity-60" : ""}`} aria-busy={view.updating}>
       <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -366,6 +396,9 @@ export function MobileRequirementsStrip({ view }: { view: RequirementsView }) {
               {done.length}枠 {doneOpen ? "▴" : "▾"}
             </span>
           </button>
+        )}
+        {uncounted > 0 && (
+          <UncountedLink credits={uncounted} className="px-2.5 py-1.5 text-[10px]" />
         )}
         {short.length > 0 ? (
           short.map((slot) => {

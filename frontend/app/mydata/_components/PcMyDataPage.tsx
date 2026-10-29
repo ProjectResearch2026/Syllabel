@@ -22,6 +22,13 @@ import { demoLabel, isFreshmanDemo } from "@/lib/dummy/profiles";
 import DemoPicker from "@/app/_components/DemoPicker";
 import ProfileEditForm from "@/app/_components/ProfileEditForm";
 import { useReplaceStudent } from "@/lib/replaceStudent";
+import type { CourseDestination } from "@/lib/requirements";
+import {
+  ACCOUNTING_HINT,
+  DestinationNote,
+  UncountedPanels,
+  useCreditAccounting,
+} from "./CreditAccounting";
 
 const GRADUATION_CREDITS = 124;
 
@@ -36,6 +43,8 @@ export default function PcMyDataPage() {
   const resetSyllabusUI = useSyllabusUIStore((s) => s.reset);
   // 学年・課程と取り込んだ科目の訂正。モバイルのマイデータと同じフォームを開く(design.md §8.4)
   const [editing, setEditing] = useState(false);
+  // 科目ごとの卒業要件の行き先(design.md §8.4.1)。判定が届くまでは null
+  const accounting = useCreditAccounting();
 
   const openEditor = () => {
     setEditing(true);
@@ -112,6 +121,10 @@ export default function PcMyDataPage() {
     { label: "課程", value: profile.program },
     { label: "入学年度", value: profile.admissionYear != null ? `${profile.admissionYear}年度` : "不明" },
     { label: "取得単位", value: `${totalCredits} / ${GRADUATION_CREDITS} 単位` },
+    // 取得単位(読み取った合格科目の単位の和)との差が、卒業要件に数えていない単位である
+    ...(accounting
+      ? [{ label: "卒業要件に数える単位", value: `${accounting.earnedCredits} / ${GRADUATION_CREDITS} 単位` }]
+      : []),
   ];
 
   return (
@@ -178,10 +191,17 @@ export default function PcMyDataPage() {
           </div>
         </section>
 
+        {/* 成績表と数字が合わないときの手がかり。数えていない科目があるときだけ出す */}
+        {accounting && (
+          <UncountedPanels uncounted={accounting.uncounted} frame="rounded-xl border px-5 py-4" />
+        )}
+
         {/* 訂正の画面には未修得の科目も並ぶので、件数は取り込んだ全科目で出す */}
         <CourseSection
           title="修得済み科目"
           courses={passedCourses}
+          destinations={accounting?.destinations}
+          hint={accounting ? ACCOUNTING_HINT : undefined}
           action={
             <EditButton
               label={`科目を訂正（${profile.completedCourses.length}科目）`}
@@ -258,11 +278,16 @@ function CourseSection({
   courses,
   unearned = false,
   action,
+  destinations,
+  hint,
 }: {
   title: string;
   courses: Course[];
   unearned?: boolean;
   action?: React.ReactNode;
+  /** 修得済みの科目の卒業要件の行き先。渡すと科目名の下に添える */
+  destinations?: Map<Course, CourseDestination[]>;
+  hint?: string;
 }) {
   return (
     <section className="overflow-hidden rounded-xl border border-border-primary bg-surface-primary">
@@ -270,6 +295,9 @@ function CourseSection({
         <h2 className="text-sm font-semibold text-fg-primary">{title}</h2>
         {action}
       </div>
+      {hint && (
+        <p className="border-b border-[#F3F4F6] px-5 py-2.5 text-xs leading-[1.6] text-fg-secondary">{hint}</p>
+      )}
       <div className="divide-y divide-[#F3F4F6]">
         {courses.map((course) => (
           <div
@@ -281,6 +309,11 @@ function CourseSection({
               <p className="mt-0.5 text-xs text-fg-faint">
                 {course.year}年度 {course.term}
               </p>
+              {destinations && (
+                <p className="mt-1 flex flex-col gap-0.5 text-xs">
+                  <DestinationNote dests={destinations.get(course)} />
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-3 shrink-0">
               <span className="text-xs text-fg-tertiary">{course.credits}単位</span>
