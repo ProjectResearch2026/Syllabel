@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleCheck, Info } from "lucide-react";
-import type { RequirementsView, SlotProgress } from "@/lib/requirements";
+import { shortSlotName, type RequirementsView, type SlotProgress } from "@/lib/requirements";
 
 /** 0.5 単位の科目があるので、整数でなければ小数1桁で出す */
 function fmt(n: number): string {
@@ -17,19 +17,6 @@ function slotTitle(slot: SlotProgress): string {
   const rest = slot.shortfall > 0 ? `あと${fmt(slot.shortfall)}単位` : "今期の時間割で埋まります";
   const pending = slot.pending > 0 ? `成績発表待ち ${fmt(slot.pending)}単位（合格すれば算入）` : null;
   return [slot.name, rest, pending, slot.notes].filter(Boolean).join("\n");
-}
-
-/**
- * 枠の名前を帯に収まる長さに詰める。公式の区分名(`slot.name`)は「教養教育科目(必修・仏教)」の
- * ように**区別に要る部分が括弧の中にある**ため、末尾を「…」で切ると「教養教育科目(必修…」と
- * なり、どの枠か分からなくなっていた。共通の頭(「科目」「教養教育」)を削り、括弧の中を残す。
- * 公式の区分名はツールチップと読み上げで出す
- */
-export function shortSlotName(name: string): string {
-  return name
-    .replace(/^教養教育科目/, "教養")
-    .replace(/^(専門基礎|専門応用|専門関連)科目/, "$1")
-    .replace("選択必修〈基幹〉・", "基幹・");
 }
 
 /** バーの幅。修得済み(紺)・成績発表待ち(薄い紺)・今期(赤)の順に積み、100% で打ち切る */
