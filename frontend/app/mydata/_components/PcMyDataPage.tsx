@@ -22,6 +22,14 @@ import { demoLabel, isFreshmanDemo } from "@/lib/dummy/profiles";
 import DemoPicker from "@/app/_components/DemoPicker";
 import ProfileEditForm from "@/app/_components/ProfileEditForm";
 import { useReplaceStudent } from "@/lib/replaceStudent";
+import type { SlotGroup, UncountedGroupItem } from "@/lib/courseGroups";
+import {
+  creditText,
+  SlotCredits,
+  UncountedReasonText,
+  uncountedHeading,
+  useCourseGroups,
+} from "./CourseGroups";
 
 const GRADUATION_CREDITS = 124;
 
@@ -36,6 +44,8 @@ export default function PcMyDataPage() {
   const resetSyllabusUI = useSyllabusUIStore((s) => s.reset);
   // 学年・課程と取り込んだ科目の訂正。モバイルのマイデータと同じフォームを開く(design.md §8.4)
   const [editing, setEditing] = useState(false);
+  // 修得済み科目を卒業要件の枠ごとに並べる(design.md §8.4.1)。判定が届くまでは null
+  const groups = useCourseGroups();
 
   const openEditor = () => {
     setEditing(true);
@@ -179,16 +189,31 @@ export default function PcMyDataPage() {
         </section>
 
         {/* 訂正の画面には未修得の科目も並ぶので、件数は取り込んだ全科目で出す */}
-        <CourseSection
-          title="修得済み科目"
-          courses={passedCourses}
-          action={
-            <EditButton
-              label={`科目を訂正（${profile.completedCourses.length}科目）`}
-              onClick={openEditor}
+        {groups ? (
+          <>
+            <SlotGroupSection
+              groups={groups.slots}
+              action={
+                <EditButton
+                  label={`科目を訂正（${profile.completedCourses.length}科目）`}
+                  onClick={openEditor}
+                />
+              }
             />
-          }
-        />
+            {groups.uncounted.length > 0 && <UncountedSection items={groups.uncounted} />}
+          </>
+        ) : (
+          <CourseSection
+            title="修得済み科目"
+            courses={passedCourses}
+            action={
+              <EditButton
+                label={`科目を訂正（${profile.completedCourses.length}科目）`}
+                onClick={openEditor}
+              />
+            }
+          />
+        )}
 
         {/* 不合格・履修辞退。単位にはならないが再履修の提案に使う(設計書 §6.1) */}
         {unearnedCourses.length > 0 && (
@@ -296,6 +321,92 @@ function CourseSection({
                 {COURSE_STATUS_LABEL[course.status]}
               </span>
             </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** 科目の行の見出し(科目名・年度学期)。区分を添えるときは科目名の横に出す */
+function CourseTitle({ course, category }: { course: Course; category?: string | null }) {
+  return (
+    <div className="flex-1 min-w-0">
+      <p className="flex items-center gap-2 text-sm font-medium text-fg-primary">
+        <span className="truncate">{course.title}</span>
+        {category && (
+          <span className="shrink-0 rounded border border-tag-category-border bg-tag-category-bg px-1.5 py-px text-[11px] font-semibold text-tag-category-fg">
+            {category}
+          </span>
+        )}
+      </p>
+      <p className="mt-0.5 text-xs text-fg-faint">
+        {course.year}年度 {course.term}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * 修得済み科目を卒業要件の枠ごとに並べる(design.md §8.4.1)。枠の名前・並び・単位数は
+ * 時間割の帯と同じ判定から採る。単位が枠に分かれた科目は、それぞれの枠に分けた単位で出す
+ */
+function SlotGroupSection({ groups, action }: { groups: SlotGroup[]; action: React.ReactNode }) {
+  return (
+    <section className="overflow-hidden rounded-xl border border-border-primary bg-surface-primary">
+      <div className="flex items-center gap-3 px-5 py-3 border-b border-[#E5E7EB] bg-[#F9FAFB]">
+        <h2 className="text-sm font-semibold text-fg-primary">修得済み科目</h2>
+        {action}
+      </div>
+      {groups.map((group) => (
+        <div key={group.key} className="border-b border-[#E5E7EB] last:border-b-0">
+          <div className="flex items-center justify-between gap-3 bg-surface-gray px-5 py-2" title={group.fullName}>
+            <h3 className="truncate text-[13px] font-bold text-fg-primary">{group.name}</h3>
+            <SlotCredits group={group} className="text-xs" />
+          </div>
+          {group.courses.length === 0 ? (
+            <p className="px-5 py-3 text-xs text-fg-faint">数えた科目はありません</p>
+          ) : (
+            <div className="divide-y divide-[#F3F4F6]">
+              {group.courses.map(({ course, credits, category }, i) => (
+                <div key={`${course.title}-${i}`} className="flex items-center justify-between gap-3 px-5 py-3">
+                  <CourseTitle course={course} category={category} />
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="text-xs text-fg-tertiary">{creditText(credits, course.credits)}</span>
+                    <span className="rounded bg-[#EFF6FF] px-1.5 py-0.5 text-center text-xs font-semibold text-fg-primary">
+                      {COURSE_STATUS_LABEL[course.status]}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </section>
+  );
+}
+
+/** 卒業要件に数えていない科目。理由を科目ごとに添える(design.md §8.4.1) */
+function UncountedSection({ items }: { items: UncountedGroupItem[] }) {
+  return (
+    <section className="overflow-hidden rounded-xl border border-border-primary bg-surface-primary">
+      <div className="flex items-center gap-3 px-5 py-3 border-b border-[#E5E7EB] bg-[#F9FAFB]">
+        <h2 className="text-sm font-semibold text-fg-primary">{uncountedHeading(items)}</h2>
+      </div>
+      <div className="divide-y divide-[#F3F4F6]">
+        {items.map((item, i) => (
+          <div key={`${item.title}-${i}`} className="flex items-center justify-between gap-3 px-5 py-3">
+            <div className="flex-1 min-w-0">
+              <p className="truncate text-sm font-medium text-fg-primary">{item.title}</p>
+              {item.course && (
+                <p className="mt-0.5 text-xs text-fg-faint">
+                  {item.course.year}年度 {item.course.term}
+                </p>
+              )}
+              <UncountedReasonText item={item} className="mt-1 text-xs" />
+            </div>
+            <span className="shrink-0 text-xs text-fg-tertiary">{creditText(item.credits, item.course?.credits)}</span>
           </div>
         ))}
       </div>

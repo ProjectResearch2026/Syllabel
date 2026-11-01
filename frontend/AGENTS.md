@@ -273,6 +273,15 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 - **別の学生に差し替えるときは `lib/replaceStudent.ts` の `useReplaceStudent()` を通す**(成績表の取り込み・デモの学生の切り替え)。前の学生の履修提案と会話、シラバス検索の絞り込みと検索条件(`useSyllabusUIStore` の `reset()`)を捨ててからプロファイルを入れる。`setProfile` を直接呼ぶと、前の学生の時間割が新しい学生の時間割として残る。マイデータの訂正も、内容が変わったときはこれを通す(下記)
 - 1年前期(`isFreshmanDemo()`)は成績が1件も無い。取り込み確認・完了の画面では「取り込み」と言わず「新入生として始める」とする
 
+## マイデータの修得済み科目の並び
+
+design.md §8.4.1。**修得済み科目は卒業要件の枠ごとに並べる**(`app/mydata/_components/CourseGroups.tsx` の `useCourseGroups()`、並べ替えは `lib/courseGroups.ts` の `groupCoursesBySlot()`。PC・モバイル共用)。成績表の「単位修得状況」欄と枠ごとに見比べ、帯の数字が合わないときにどの枠のどの科目かをその場で分かるようにするためである。
+
+- **枠の名前・並び・単位数は時間割の帯とそろえる**(`shortSlotName()` と `useCreditSummary()` の同じ判定。マイデータのために `POST /api/requirements` を引き直さない)。`required: 0` の枠は出さない(専門関連科目は枠ではなく区分で、単位は学部フリーゾーンかオールフリーゾーンに入る)
+- **科目は判定の `slots[].courses` を科目名で引き戻して、数えた枠の下に並べる。** 手元で判定し直さない。枠の中は判定の順のまま。学部フリーゾーン・オールフリーゾーンの科目には区分を添える。単位が分かれた科目は両方の枠に「4単位のうち2単位」と出す
+- **卒業要件に数えていない科目(`uncounted`)は別の欄に理由付きで出す。** 履修要項と突き合わせられなかった科目(`isUnmatched()`)を注意の色で先に並べる。同じ名前の科目は最初の行が割り当てを、残りの行が `duplicate` を受け取る(backend の `_collect()` と同じ順)
+- 登録済み・未修得の科目は従来どおり別の欄。判定が届かないときは従来の一覧を出す
+
 ## マイデータの訂正
 
 design.md §8.4。フォームは `app/_components/ProfileEditForm.tsx` ひとつで、PC(`PcMyDataPage.tsx`)とモバイル(`MobileSettingsPage.tsx`)が共用する。

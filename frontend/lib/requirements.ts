@@ -24,12 +24,48 @@ export type SlotStatus = {
   courses: { title: string; credits: number }[];
 };
 
+/**
+ * 卒業要件に数えなかった理由。backend の `UncountedReason` と同じ値を並べる
+ * (`app/curricula/requirements.py`)
+ */
+export type UncountedReason =
+  | "not_in_curriculum"
+  | "excluded_type"
+  | "duplicate"
+  | "over_credit_cap"
+  | "no_matching_slot"
+  | "no_slot_capacity";
+
+/** 卒業要件に数えなかった科目(またはその一部)。`title` は送った科目名のまま返る */
+export type UncountedCourse = { title: string; credits: number; reason: UncountedReason };
+
+/** 数えなかった理由の表示名(マイデータ。design.md §8.4.1) */
+export const UNCOUNTED_REASON_LABEL: Record<UncountedReason, string> = {
+  not_in_curriculum: "履修要項に同じ名前の科目がありません",
+  excluded_type: "随意科目は卒業要件に含まれません",
+  duplicate: "同じ名前の科目をすでに数えています",
+  over_credit_cap: "卒業要件に数えられる単位の上限を超えた分です",
+  no_matching_slot: "当てはまる卒業要件の枠がありません",
+  no_slot_capacity: "当てはまる枠がすでに埋まっています（余剰）",
+};
+
+/**
+ * 履修要項と突き合わせられなかったことを表す理由。余剰・算入上限・重複・随意は履修要項の
+ * 規定どおり数えていないだけだが、こちらは成績表では数えられている単位を落としている
+ * おそれがある(科目名の表記の違い、履修要項データに無い科目)。マイデータでは先頭に
+ * 注意の印を付けて並べる
+ */
+export function isUnmatched(reason: UncountedReason): boolean {
+  return reason === "not_in_curriculum" || reason === "no_matching_slot";
+}
+
 export type RequirementsResult = {
   totalCredits: number;
   earnedCredits: number;
   remainingCredits: number;
   satisfied: boolean;
   slots: SlotStatus[];
+  uncounted: UncountedCourse[];
 };
 
 /** `POST /api/requirements`。`profile.program` は課程**コード**で送る(§6.1) */
@@ -48,6 +84,20 @@ export async function fetchRequirements(
   });
   if (!res.ok) throw new Error(`requirements: ${res.status}`);
   return res.json();
+}
+
+/**
+ * 枠の名前を帯に収まる長さに詰める。公式の区分名(`slot.name`)は「教養教育科目(必修・仏教)」の
+ * ように**区別に要る部分が括弧の中にある**ため、末尾を「…」で切ると「教養教育科目(必修…」と
+ * なり、どの枠か分からなくなっていた。共通の頭(「科目」「教養教育」)を削り、括弧の中を残す。
+ * 公式の区分名はツールチップと読み上げで出す。卒業要件の帯(`RequirementsPanel.tsx`)と
+ * マイデータの枠の見出しで同じ名前を使う
+ */
+export function shortSlotName(name: string): string {
+  return name
+    .replace(/^教養教育科目/, "教養")
+    .replace(/^(専門基礎|専門応用|専門関連)科目/, "$1")
+    .replace("選択必修〈基幹〉・", "基幹・");
 }
 
 /** 画面に出す要件枠1つ。`planned` は今期の時間割(提案の科目)を修得したときに増える単位 */
@@ -90,6 +140,13 @@ export type RequirementsView =
       remainingCredits: number;
       /** 見込みの計算が最新の時間割に追いついていない(提案の生成中・再計算中) */
       updating: boolean;
+      /**
+       * 修得済みだけで見た判定の全枠(`required: 0` の枠も含む判定のまま)。各枠の `courses` が
+       * その枠に数えた科目と単位で、マイデータが枠ごとに科目を並べるのに使う(§8.4.1)
+       */
+      counted: SlotStatus[];
+      /** 修得済みのうち卒業要件に数えなかった科目。今期の時間割・成績発表待ちは含めない */
+      uncounted: UncountedCourse[];
     };
 
 /**
@@ -237,5 +294,7 @@ export function useRequirements(
     pendingCredits: Math.max(0, (base.pending ?? before).earnedCredits - before.earnedCredits),
     remainingCredits: (after ?? before).remainingCredits,
     updating: after === null,
+    counted: before.slots,
+    uncounted: before.uncounted,
   };
 }

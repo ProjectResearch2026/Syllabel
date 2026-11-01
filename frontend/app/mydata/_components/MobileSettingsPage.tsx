@@ -9,6 +9,7 @@ import {
   Shield,
   Database,
   Trash2,
+  ChevronDown,
   ChevronRight,
 } from "lucide-react";
 import { COURSE_STATUS_LABEL, isUnearned, useStudentStore, type Course } from "@/lib/student";
@@ -23,6 +24,14 @@ import { demoLabel, isFreshmanDemo } from "@/lib/dummy/profiles";
 import DemoPicker from "@/app/_components/DemoPicker";
 import { useReplaceStudent } from "@/lib/replaceStudent";
 import ProfileEditForm from "@/app/_components/ProfileEditForm";
+import type { SlotGroup, UncountedGroupItem } from "@/lib/courseGroups";
+import {
+  creditText,
+  SlotCredits,
+  UncountedReasonText,
+  uncountedHeading,
+  useCourseGroups,
+} from "./CourseGroups";
 
 /** 修得済み科目は先頭の数件だけ出し、残りは「すべて表示」で開く */
 const PREVIEW_COUNT = 4;
@@ -108,8 +117,21 @@ function NavRow({
   );
 }
 
-/** 取り込んだ科目の1行。履修状態の印は修得済みが紺、未修得が赤、登録済み（未確定）が薄い紺 */
-function CourseRow({ course, last }: { course: Course; last?: boolean }) {
+/**
+ * 取り込んだ科目の1行。履修状態の印は修得済みが紺、未修得が赤、登録済み（未確定）が薄い紺。
+ * 卒業要件の枠ごとに並べるときは、その枠に数えた単位(`credits`)と区分(`category`)を渡す
+ */
+function CourseRow({
+  course,
+  last,
+  credits,
+  category,
+}: {
+  course: Course;
+  last?: boolean;
+  credits?: number;
+  category?: string | null;
+}) {
   const unearned = isUnearned(course);
   const meta = `${course.year}年度 ${course.term}`;
   return (
@@ -118,9 +140,18 @@ function CourseRow({ course, last }: { course: Course; last?: boolean }) {
     >
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-[13px] font-semibold text-fg-primary">{course.title}</span>
-        <span className="text-[10px] text-fg-secondary">{meta}</span>
+        <span className="flex items-center gap-1.5 text-[10px] text-fg-secondary">
+          {meta}
+          {category && (
+            <span className="rounded border border-tag-category-border bg-tag-category-bg px-1 font-semibold text-tag-category-fg">
+              {category}
+            </span>
+          )}
+        </span>
       </div>
-      <span className="shrink-0 text-[11px] text-fg-secondary">{course.credits}単位</span>
+      <span className="shrink-0 text-[11px] text-fg-secondary">
+        {credits == null ? `${course.credits}単位` : creditText(credits, course.credits)}
+      </span>
       {course.status === "registered" ? (
         // 成績発表待ち。卒業要件のバーと同じ薄い紺で示す
         <span className="flex h-[22px] shrink-0 items-center justify-center rounded bg-pending-bg px-1.5 text-[10px] font-bold text-pending-fg">
@@ -159,6 +190,8 @@ export default function MobileSettingsPage() {
   // 学年・課程と科目は同じフォームで訂正する(design.md §8.4)
   const [editing, setEditing] = useState(false);
   const [showAllPassed, setShowAllPassed] = useState(false);
+  // 修得済み科目を卒業要件の枠ごとに並べる(design.md §8.4.1)。判定が届くまでは null
+  const groups = useCourseGroups();
 
   // いま読み込んでいるのがデモのプロファイルか。デモを選ぶとその内容に差し替わる
   const [demoOn, setDemoOn] = useState(profile?.demo != null);
@@ -256,8 +289,19 @@ export default function MobileSettingsPage() {
           </div>
         </Group>
 
-        {/* 修得済み科目 */}
-        {passed.length > 0 && (
+        {/* 修得済み科目。判定が届いていれば卒業要件の枠ごとに並べる */}
+        {passed.length > 0 && groups && (
+          <>
+            <SectionLabel>修得済み科目（{passed.length}科目）</SectionLabel>
+            <Group>
+              {groups.slots.map((group, i) => (
+                <SlotGroupRows key={group.key} group={group} last={i === groups.slots.length - 1} />
+              ))}
+            </Group>
+            {groups.uncounted.length > 0 && <UncountedRows items={groups.uncounted} />}
+          </>
+        )}
+        {passed.length > 0 && !groups && (
           <>
             <SectionLabel>修得済み科目（{passed.length}科目）</SectionLabel>
             <Group>
@@ -399,5 +443,91 @@ export default function MobileSettingsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * 卒業要件の枠1つ(見出しと科目)。モバイルは枠が縦に長く並ぶので、見出しだけを並べて
+ * 押すと科目を開く。見出しの名前と単位数は時間割の帯と同じ判定から採る(design.md §8.4.1)
+ */
+function SlotGroupRows({ group, last }: { group: SlotGroup; last: boolean }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={last && !open ? "" : "border-b border-[#F3F4F6]"}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex h-11 w-full items-center gap-2 px-5 text-left active:bg-surface-gray"
+      >
+        <ChevronDown
+          size={14}
+          className={`shrink-0 text-fg-secondary transition-transform ${open ? "" : "-rotate-90"}`}
+          aria-hidden="true"
+        />
+        <span className="min-w-0 flex-1 truncate text-[13px] font-bold text-fg-primary">{group.name}</span>
+        <SlotCredits group={group} className="text-[11px]" />
+      </button>
+      {open && (
+        <div className="border-t border-[#F3F4F6] bg-surface-gray/50">
+          {group.courses.length === 0 ? (
+            <p className="px-5 py-2.5 text-[11px] text-fg-faint">数えた科目はありません</p>
+          ) : (
+            group.courses.map(({ course, credits, category }, i) => (
+              <CourseRow
+                key={`${course.title}-${i}`}
+                course={course}
+                credits={credits}
+                category={category}
+                last={i === group.courses.length - 1}
+              />
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** 卒業要件に数えていない科目。理由を科目ごとに添え、多いときは先頭だけ出す */
+function UncountedRows({ items }: { items: UncountedGroupItem[] }) {
+  const [showAll, setShowAll] = useState(false);
+  const visible = showAll ? items : items.slice(0, PREVIEW_COUNT);
+  return (
+    <>
+      <SectionLabel>{uncountedHeading(items)}</SectionLabel>
+      <Group>
+        {visible.map((item, i) => (
+          <div
+            key={`${item.title}-${i}`}
+            className={`flex items-center gap-2.5 px-5 py-2.5 ${
+              i === visible.length - 1 && items.length <= PREVIEW_COUNT ? "" : "border-b border-[#F3F4F6]"
+            }`}
+          >
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="truncate text-[13px] font-semibold text-fg-primary">{item.title}</span>
+              {item.course && (
+                <span className="text-[10px] text-fg-secondary">
+                  {item.course.year}年度 {item.course.term}
+                </span>
+              )}
+              <UncountedReasonText item={item} className="text-[10px]" />
+            </div>
+            <span className="shrink-0 text-[11px] text-fg-secondary">
+              {creditText(item.credits, item.course?.credits)}
+            </span>
+          </div>
+        ))}
+        {items.length > PREVIEW_COUNT && (
+          <button
+            type="button"
+            onClick={() => setShowAll((v) => !v)}
+            className="flex h-10 items-center justify-center text-xs font-semibold text-accent"
+          >
+            {showAll ? "閉じる" : `すべて表示（${items.length}件）`}
+          </button>
+        )}
+      </Group>
+    </>
   );
 }
