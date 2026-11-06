@@ -6,7 +6,7 @@ import BottomDock from "@/components/BottomDock";
 import { CreditSummaryProvider } from "@/lib/creditSummary";
 import MotionProvider from "@/components/MotionProvider";
 import ReplaceBanner from "@/components/ReplaceBanner";
-import { SITE_DESCRIPTION, SITE_TITLE } from "@/lib/site";
+import { MANIFEST_PATH, SITE_DESCRIPTION, SITE_TITLE } from "@/lib/site";
 
 /*
  * 全書体を IBM Plex Sans JP に統一する。
@@ -40,6 +40,15 @@ export default function RootLayout({
       lang="ja"
       className={ibmPlexSansJP.variable}
     >
+      <head>
+        {/*
+          マニフェストは Cookie を付けて取りに行かせる。付けないと入口の Google ログインの
+          ゲートに未ログイン扱いされ、Android の Chrome がアプリとして追加できない。
+          Next.js の自動の <link> はこの属性を付けないので自分で出す
+          (app/manifest.webmanifest/route.ts)
+        */}
+        <link rel="manifest" href={MANIFEST_PATH} crossOrigin="use-credentials" />
+      </head>
       <body className="min-h-screen flex flex-col font-ui bg-surface-gray">
         {/*
           単位の集計と卒業要件の判定。ヘッダーの単位数と履修提案の帯が同じ値を見るため、
