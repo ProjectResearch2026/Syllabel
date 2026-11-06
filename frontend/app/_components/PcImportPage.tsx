@@ -23,6 +23,7 @@ import PrivacyConsentModal from "./PrivacyConsentModal";
 import { isUnearned, type StudentProfile } from "@/lib/student";
 import { useReplaceStudent } from "@/lib/replaceStudent";
 import { useAiStore } from "@/lib/ai";
+import { useCreditSummary } from "@/lib/creditSummary";
 import { demoLabel, isFreshmanDemo } from "@/lib/dummy/profiles";
 import DemoPicker from "./DemoPicker";
 
@@ -33,9 +34,6 @@ import DemoPicker from "./DemoPicker";
  * 1段目だけ左に「なぜ安全か」の説明パネルを置き、2・3段目は中央1カラムにする。
  * **説明を読むのは最初の1回だけ**で、確認や完了の画面で左半分を占め続ける理由が無い。
  */
-
-const TERM_PLANNED_CREDITS = 18;
-const GRADUATION_CREDITS = 124;
 
 type ImportState =
   | { type: "idle" }
@@ -159,7 +157,10 @@ export default function PcImportPage() {
   const passedCourses =
     pending?.completedCourses.filter((c) => c.status === "passed") ?? [];
   const totalCredits = passedCourses.reduce((sum, c) => sum + c.credits, 0);
-  const remaining = Math.max(0, GRADUATION_CREDITS - totalCredits);
+  // 今期登録・卒業残りはヘッダー・時間割と同じ集計を使う(`lib/creditSummary.tsx`。モバイルの
+  // 完了画面も同じ)。以前は画面設計の仮の値(今期18・卒業124)のままで、時間割を
+  // 組む前から「今期登録予定 18」と出ていた。今期登録は提案ができるまで「—」になる
+  const { currentCredits, remainingCredits } = useCreditSummary();
   // 不合格と履修辞退は「未修得」に丸める(設計書 §6.1)
   const unearnedCount = pending?.completedCourses.filter(isUnearned).length ?? 0;
   const registeredCount =
@@ -499,8 +500,8 @@ export default function PcImportPage() {
     // ---- 3段目: 完了 ----
     const stats = [
       { val: totalCredits, label: "取得済み単位", color: "text-fg-primary" },
-      { val: TERM_PLANNED_CREDITS, label: "今期登録予定", color: "text-accent" },
-      { val: remaining, label: "卒業残り単位", color: "text-fg-secondary" },
+      { val: currentCredits, label: "今期登録予定", color: "text-accent" },
+      { val: remainingCredits, label: "卒業残り単位", color: "text-fg-secondary" },
     ];
     return (
       <CenterColumn>
@@ -529,7 +530,7 @@ export default function PcImportPage() {
         <div className="flex w-[520px] justify-around rounded-lg border border-border-primary bg-surface-primary py-6 motion-safe:animate-rise-in [animation-delay:250ms]">
           {stats.map(({ val, label, color }) => (
             <div key={label} className="flex flex-col items-center gap-1">
-              <span className={`tabular-nums text-2xl font-bold ${color}`}>{val}</span>
+              <span className={`tabular-nums text-2xl font-bold ${color}`}>{val ?? "—"}</span>
               <span className="text-[11px] text-fg-secondary">{label}</span>
             </div>
           ))}
