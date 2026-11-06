@@ -20,6 +20,9 @@ const ibmPlexSansJP = IBM_Plex_Sans_JP({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   display: "swap",
+  // 先読みすると和文の分割ファイル（4ウェイトで約370個）を初回表示時に一斉に
+  // 読み込み、入口の回数制限（60秒で300回）に掛かるため無効にする。
+  preload: false,
 });
 
 export const metadata: Metadata = {
