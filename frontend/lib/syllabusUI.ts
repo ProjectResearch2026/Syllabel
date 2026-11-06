@@ -92,11 +92,18 @@ type SyllabusUIStore = {
   setActiveSubcategory: (subcategory: string) => void;
   /**
    * 最後に開いていた一覧のクエリ(`q=…&term=…`)。`LIST_QUERY_KEYS` で濾したもの。
-   * ヘッダー・タブバーの「シラバス」をここへ向け、他の画面から戻っても
-   * 検索条件を開き直す(`lib/syllabusQuery.ts` の `listHref()`)
+   * 詳細画面の「シラバス一覧に戻る」とヘッダー・タブバーの「シラバス」をここへ向け、
+   * 他の画面から戻っても検索条件を開き直す(`lib/syllabusQuery.ts` の `listHref()`)
    */
   listQuery: string;
   setListQuery: (query: string) => void;
+  /**
+   * 履修提案の時間割から開いた講義のコード。空なら時間割からは開いていない。
+   * 詳細画面の「戻る」を時間割へ向けるのに使う(`lib/syllabusQuery.ts` の `backLink()`)。
+   * 時間割から開くときに立て、一覧を開くと下ろす
+   */
+  proposalOrigin: string;
+  setProposalOrigin: (code: string) => void;
   /** 絞り込みと検索条件を初期状態に戻す。リセット(全消去)で呼ぶ */
   reset: () => void;
 };
@@ -110,7 +117,8 @@ type SyllabusUIStore = {
  *
  * 検索条件そのもの(キーワード・開講期など)は URL のクエリが正本であり、
  * `listQuery` はその**写し**にすぎない。一覧を開いているあいだ
- * `SyllabusQueryMemory` が書き写し、ヘッダーから一覧へ戻るリンクがそれを読む。
+ * `SyllabusQueryMemory` が書き写し、詳細画面やヘッダーから一覧へ戻るリンクがそれを読む。
+ * 詳細画面の戻り先(`listQuery` と `proposalOrigin`)は URL に載せない(§8.2.3)。
  * 他の状態と同じくメモリにだけ持ち、再読み込みで消える。
  */
 export const useSyllabusUIStore = create<SyllabusUIStore>((set) => ({
@@ -125,6 +133,8 @@ export const useSyllabusUIStore = create<SyllabusUIStore>((set) => ({
   setActiveSubcategory: (subcategory) => set({ activeSubcategory: subcategory }),
   listQuery: "",
   setListQuery: (query) => set({ listQuery: query }),
+  proposalOrigin: "",
+  setProposalOrigin: (code) => set({ proposalOrigin: code }),
   reset: () =>
     set({
       hideCompleted: true,
@@ -132,6 +142,7 @@ export const useSyllabusUIStore = create<SyllabusUIStore>((set) => ({
       activeCategory: ALL_CATEGORIES,
       activeSubcategory: ALL_SUBCATEGORIES,
       listQuery: "",
+      proposalOrigin: "",
     }),
 }));
 

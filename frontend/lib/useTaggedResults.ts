@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   useSyllabusUIStore,
   matchesFilter,
@@ -9,13 +9,13 @@ import {
 } from "@/lib/syllabusUI";
 import { useTagMap } from "@/lib/useTagMap";
 import { targetOfPrograms } from "@/lib/eligibility";
-import { fetchInstructorMap, type SyllabusListItem } from "@/lib/syllabus-api";
+import { formatInstructors, type SyllabusListItem } from "@/lib/syllabus-api";
 
 /** 表示する1行。 */
 export type TaggedCourse = {
   course: SyllabusListItem;
   tags: CourseTags;
-  /** 担当教員名。取得前・取得失敗時は null */
+  /** 担当教員名(一覧の `instructors` から。§6.2)。担当者が無い・api-clean が返さないときは null */
   instructors: string | null;
 };
 
@@ -61,7 +61,7 @@ export type TaggedResults = {
  * 届いた時点で元の位置に戻れるようにする。
  *
  * **PC・モバイルの双方から呼ぶ。** 同じ結果でなければならないため、切り出しと
- * 教員名の補完をここに1つだけ置く(§8.1 と同じ理由)。
+ * 教員名の整形をここに1つだけ置く(§8.1 と同じ理由)。
  *
  * **対象課程が引けなくても検索は動く。** `targets` が null のとき、または当該
  * コードが表に無いときはタグを出さない(修得済みだけは成績の事実なので出る)。
@@ -109,27 +109,14 @@ export function useTaggedResults(
   const start = Math.min(offset, lastPageStart);
   const page = useMemo(() => filtered.slice(start, start + limit), [filtered, start, limit]);
 
-  // 教員名は表示する行のぶんだけ引く(§6.2)。補助情報なので、揃う前でもカードは描く
-  const [instructors, setInstructors] = useState<Record<string, string>>({});
-  const codes = page.map((p) => p.course.syllabus_code).join(",");
-
-  useEffect(() => {
-    if (!codes) return;
-    let cancelled = false;
-    fetchInstructorMap(codes.split(","))
-      .then((map) => {
-        if (!cancelled) setInstructors((prev) => ({ ...prev, ...map }));
-      })
-      .catch(() => {
-        // 教員名が引けなくても一覧は出す
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [codes]);
+  // 教員名は一覧の各行が持っている(api-clean 0.5.0 以降。§6.2)。詳細を1件ずつ引かない
+  const visible = useMemo(
+    () => page.map((p) => ({ ...p, instructors: formatInstructors(p.course.instructors) })),
+    [page],
+  );
 
   return {
-    visible: page.map((p) => ({ ...p, instructors: instructors[p.course.syllabus_code] ?? null })),
+    visible,
     matched: filtered.length,
     total: results.length,
     filtering: isFiltering(activeTag, activeCategory, activeSubcategory, hiddenCompleted > 0),

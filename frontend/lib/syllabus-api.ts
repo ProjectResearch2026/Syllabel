@@ -32,6 +32,12 @@ export type SyllabusListItem = {
   grade_min: number;
   grade_max: number;
   credits: number;
+  /**
+   * 担当者(api-clean 0.5.0 以降。design.md §6.2)。形と順は `GET /syllabi/{code}` の
+   * `instructors` と同じで、表示名は `formatInstructors()` で作る。それより古い
+   * api-clean は返さない
+   */
+  instructors?: Instructor[];
   detail_url: string;
 };
 
@@ -460,104 +466,4 @@ export function formatInstructors(instructors: Instructor[] | undefined | null):
     .filter((name): name is string => !!name);
   const unique = Array.from(new Set(names));
   return unique.length > 0 ? unique.join("、") : null;
-}
-
-/**
- * 一覧を教員名で補うときの同時実行数。
- *
- * 経路にトークンゲートウェイが挟まり、同一トークンの同時リクエストが
- * `503` で弾かれ得る(§3.4.3 は vllm 側での実測)。控えめに並べ、弾かれた分は
- * 1度だけ引き直す。
- */
-const INSTRUCTOR_CONCURRENCY = 4;
-
-/** `503`/`429` を1度だけ待って引き直すときの待ち時間(ミリ秒) */
-const RETRY_DELAY_MS = 200;
-
-/** 補完に使う詳細のキャッシュ期間(秒)。シラバスは年度内で変わらない */
-const DETAIL_REVALIDATE_SECONDS = 86400;
-
-async function fetchInstructorsOf(code: string, retry = true): Promise<string | null> {
-  try {
-    const res = await fetch(`${apiBase()}/syllabi/${encodeURIComponent(code)}`, {
-      // 補完のための取得。`getSyllabus()` と違い再検証つきでキャッシュする
-      next: { revalidate: DETAIL_REVALIDATE_SECONDS },
-    });
-    if (!res.ok) {
-      if (retry && (res.status === 503 || res.status === 429)) {
-        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
-        return fetchInstructorsOf(code, false);
-      }
-      return null;
-    }
-    const detail = (await res.json()) as Pick<SyllabusDetail, "instructors">;
-    return formatInstructors(detail.instructors);
-  } catch {
-    // 1件の失敗で一覧を落とさない。その科目だけ教員名なしになる
-    return null;
-  }
-}
-
-/**
- * 教員名の取得を、科目コードごとに1回にまとめるための表(取得中のものも含む)。
- *
- * **一覧は PC 用とモバイル用の組み立てが常に両方 mount されている**(CSS で出し分ける。
- * §8)。それぞれが表示中の行の教員名を引くため、以前は同じ30件の詳細を2回ずつ、
- * 1ページあたり60本引いていた。取得中の Promise ごと共有すれば、後から来た側は
- * 同じ取得の完了を待つだけで済む。ページを戻ったときにも引き直さない。
- *
- * 持つのは公開されている教員名だけで、学生データは含まない。**失敗した科目は表から
- * 外す**(次に表示したときに引き直せるように)。ブラウザのメモリにだけあり、
- * 再読み込みで消える。
- */
-const instructorCache = new Map<string, Promise<string | null>>();
-
-function instructorsOf(code: string): Promise<string | null> {
-  let pending = instructorCache.get(code);
-  if (!pending) {
-    pending = fetchInstructorsOf(code).then((names) => {
-      if (names === null) instructorCache.delete(code);
-      return names;
-    });
-    instructorCache.set(code, pending);
-  }
-  return pending;
-}
-
-/**
- * 検索結果に担当教員名を補う。`syllabus_code` → 教員名の対応を返す。design.md §6.2。
- *
- * **api-clean の `GET /syllabi` は担当教員を返さない。** 1科目に複数の教員が
- * 対応するため一覧の `SELECT DISTINCT` から外されており、教員名は
- * `GET /syllabi/{code}` にしかない。api-clean は無変更で使う前提(§1.1.1、§3.4.4)で
- * 一覧に足す口も無いため、**表示している行の分だけ詳細を引いて補う**。
- *
- * **ブラウザから呼ぶ。** 以前はサーバ側描画から呼んでいたが、タグでの絞り込みを
- * 全件に効かせたことで**どの行が表示されるかはクライアントで決まる**ようになった
- * (§8)。絞り込みはプロファイルとの突合で決まり、その結果(例えば修得済みの
- * コード一覧)は学生の成績そのものなのでサーバへ送れない(要件§5)。したがって
- * 表示する行を知っているのはブラウザだけである。
- *
- * 教員名は補助情報なので、揃う前でもカードは描ける(揃った時点で差し込まれる)。
- * カードは教員名の行を取得前から同じ高さで確保しておき、届いても高さを変えない。
- * 対象課程は**この口では引かない** — 絞り込みには全件ぶん要るため
- * `fetchCourseTargets()` でまとめて受け取る(§6.1.3)。
- */
-export async function fetchInstructorMap(codes: string[]): Promise<Record<string, string>> {
-  const targets = Array.from(new Set(codes));
-  const map: Record<string, string> = {};
-  let cursor = 0;
-
-  const worker = async () => {
-    while (cursor < targets.length) {
-      const code = targets[cursor++];
-      const names = await instructorsOf(code);
-      if (names) map[code] = names;
-    }
-  };
-
-  await Promise.all(
-    Array.from({ length: Math.min(INSTRUCTOR_CONCURRENCY, targets.length) }, worker),
-  );
-  return map;
 }

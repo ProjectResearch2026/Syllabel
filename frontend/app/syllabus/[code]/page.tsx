@@ -1,7 +1,5 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import {
-  ChevronLeft,
   BookOpen,
   Target,
   Presentation,
@@ -16,7 +14,6 @@ import {
 } from "lucide-react";
 import { getSyllabus } from "@/lib/syllabus-api";
 import { fetchBookInfo } from "@/lib/openbd";
-import { backLink } from "@/lib/syllabusQuery";
 import { parseGrading } from "@/lib/grading";
 import { courseQuestions } from "@/lib/courseQuestions";
 import { parseNote, registrationFlags, pruneNote } from "@/lib/note";
@@ -33,9 +30,9 @@ import CourseTag from "./_components/CourseTag";
 import CourseTabs, { type CourseTab } from "./_components/CourseTabs";
 import PanelCard from "./_components/PanelCard";
 import AddToTimetableButton from "./_components/AddToTimetableButton";
+import BackLink from "./_components/BackLink";
 
 type Params = Promise<{ code: string }>;
-type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
 
 /** 概要タブの中の1節。見出し（赤アイコン＋太字）と本文。 */
 function OverviewSection({
@@ -59,17 +56,10 @@ function OverviewSection({
   );
 }
 
-export default async function SyllabusDetailPage({
-  params,
-  searchParams,
-}: {
-  params: Params;
-  searchParams: SearchParams;
-}) {
+export default async function SyllabusDetailPage({ params }: { params: Params }) {
+  // **URL のクエリは読まない。** 戻り先(一覧の条件・時間割から開いたか)は
+  // ストアに持ち、`BackLink` が決める(`lib/syllabusQuery.ts`、§8.1)
   const { code } = await params;
-  // 一覧の絞り込みは `back` に畳んで渡ってくる。履修提案の時間割から開いたときは
-  // `from=proposal` で、戻り先は時間割になる(`lib/syllabusQuery.ts`、§8.3.4)
-  const back = backLink(await searchParams);
 
   let syllabus;
   try {
@@ -370,15 +360,7 @@ export default async function SyllabusDetailPage({
     </header>
   );
 
-  const backBar = (
-    <Link
-      href={back.href}
-      className="flex h-12 items-center gap-1.5 border-b border-border-primary bg-surface-primary px-4 text-[13px] font-semibold text-fg-primary md:-ml-1.5 md:inline-flex md:h-auto md:w-fit md:gap-1 md:rounded-lg md:border-0 md:bg-transparent md:px-1.5 md:py-1 md:font-medium md:text-fg-secondary md:transition-colors md:hover:bg-surface-primary md:hover:text-fg-primary"
-    >
-      <ChevronLeft size={18} className="md:size-4" aria-hidden="true" />
-      {back.label}
-    </Link>
-  );
+  const backBar = <BackLink code={syllabus.syllabus_code} />;
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 gap-4 md:pc-viewport">

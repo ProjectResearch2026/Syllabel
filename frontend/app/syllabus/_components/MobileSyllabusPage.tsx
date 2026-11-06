@@ -367,7 +367,9 @@ export default function MobileSyllabusPage({
             return (
               <Link
                 key={`${c.syllabus_code}-${c.year}`}
-                href={detailHref(c.syllabus_code, searchParams.toString())}
+                href={detailHref(c.syllabus_code)}
+                // 先読みしない(`CourseCard.tsx` と同じ理由。§8.2.4)
+                prefetch={false}
                 className="flex flex-col gap-1.5 px-4 py-3 border-b border-[#D1D5DB] active:bg-[#F8F9FA] transition-colors"
               >
                 <div className="flex items-center justify-between">
