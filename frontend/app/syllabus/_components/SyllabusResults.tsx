@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import CompletedFilter from "./CompletedFilter";
 import type { MatchedBy, SyllabusListItem } from "@/lib/syllabus-api";
 import { detailHref } from "@/lib/syllabusQuery";
@@ -44,6 +45,18 @@ export default function SyllabusResults({
     limit,
   );
 
+  // **ページが替わったら結果の列を先頭へ戻す。** PC の結果は `page.tsx` の `<main>` の中で
+  // スクロールし、ページ送りは同じ部品のまま props だけが替わるため、Next.js のスクロール
+  // 復帰(ウィンドウ側)では戻らず、前のページで下まで送った位置に次のページが出ていた。
+  // 初回の描画では動かさない(戻らせる位置が無い)
+  const headerRef = useRef<HTMLDivElement>(null);
+  const shownStart = useRef(start);
+  useEffect(() => {
+    if (shownStart.current === start) return;
+    shownStart.current = start;
+    headerRef.current?.closest("main")?.scrollTo({ top: 0 });
+  }, [start]);
+
   return (
     <>
       {/*
@@ -51,7 +64,7 @@ export default function SyllabusResults({
         デザインからも外した — 並びは api-clean の返すシラバスコード順で選べず、
         表示どおりに並べても学年の専門科目が後ろのページに回るだけだった
       */}
-      <div className="flex shrink-0 items-center justify-between gap-4">
+      <div ref={headerRef} className="flex shrink-0 items-center justify-between gap-4">
         <h1 className="text-sm font-bold text-fg-primary">
           検索結果 {matched.toLocaleString()}件
           {/* 絞っているときは、絞る前の母数も示す */}
