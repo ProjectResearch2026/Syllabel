@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -93,6 +93,7 @@ export default function MobileImportFlow() {
   const [fileName, setFileName] = useState("");
   const [parseState, setParseState] = useState<ParseState>({ type: "idle" });
   const [demoOpen, setDemoOpen] = useState(false);
+  const demoPanelRef = useRef<HTMLDivElement>(null);
 
   const stage = (profile: StudentProfile, name?: string) => {
     setPending(profile);
@@ -236,9 +237,10 @@ export default function MobileImportFlow() {
               <div className="flex-1 h-px bg-[#E5E7EB]" />
             </div>
 
-            <div className="relative">
+            <div>
               <button
                 onClick={() => setDemoOpen((o) => !o)}
+                aria-expanded={demoOpen}
                 className="w-full h-12 rounded-lg border-2 border-[#1A2B4E] flex items-center justify-center gap-2.5 active:bg-[#EEF1F8] transition-colors"
               >
                 <CirclePlay size={18} className="text-[#1A2B4E]" />
@@ -249,17 +251,29 @@ export default function MobileImportFlow() {
                   <ChevronDown size={15} className="text-[#1A2B4E]" />
                 )}
               </button>
-              <AnimatePresence>
+              {/*
+                重ねて出さず、下の「インポート方法」を押し下げて開く。重ねると画面の縦が短い
+                スマホでは「この学生で試す」が画面の外に出て、スクロールしても届かないことがある。
+                開き終えたら、パネルの下端まで見える位置へスクロールする
+              */}
+              <AnimatePresence initial={false}>
                 {demoOpen && (
                   <motion.div
-                    initial={{ opacity: 0, y: -6, scaleY: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scaleY: 1 }}
-                    exit={{ opacity: 0, y: -4, scaleY: 0.97 }}
-                    transition={{ duration: 0.16, ease: [0.25, 0.1, 0.25, 1] }}
-                    style={{ originY: "top" }}
-                    className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#D1D5DB] rounded-lg shadow-md overflow-hidden z-10"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+                    onAnimationComplete={(def) => {
+                      if (typeof def === "object" && def !== null && "height" in def && def.height === "auto") {
+                        demoPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                      }
+                    }}
+                    className="overflow-hidden"
                   >
-                    <div className="p-4">
+                    <div
+                      ref={demoPanelRef}
+                      className="mt-2 scroll-mb-5 bg-white border border-[#D1D5DB] rounded-lg p-4"
+                    >
                       <DemoPicker onLoad={handleDemoLoad} />
                     </div>
                   </motion.div>
