@@ -269,7 +269,7 @@ export default function MobileImportFlow() {
 
             <h2 className="text-[15px] font-bold text-[#1A2B4E] mt-1">インポート方法</h2>
             {[
-              { title: "ポータルにアクセス", desc: "龍谷大学ポータルサイト (kukuli) にログイン" },
+              { title: "ポータルにアクセス", desc: "龍谷大学ポータルサイトにログイン" },
               { title: "成績照会を開く", desc: "「成績照会」→「成績表印刷」からPDFをダウンロード" },
               { title: "このページで選択", desc: "ダウンロードしたPDFを上のボタンから選択" },
             ].map((s, i) => (
