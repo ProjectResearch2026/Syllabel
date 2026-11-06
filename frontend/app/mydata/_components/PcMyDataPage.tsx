@@ -231,7 +231,7 @@ export default function PcMyDataPage() {
             <h2 className="text-[15px] font-bold text-fg-primary">デモモード</h2>
           </div>
           <p className="text-[11px] text-fg-secondary">
-            展示用のダミー学生に切り替えます。学年・課程・履修を組む学期を選んでください。
+            架空の学生のデータに切り替えます。学年・課程・履修を組む学期を選んでください。
           </p>
           <DemoPicker
             key={profile.demo ? `${profile.demo.key.programCode}-${profile.demo.key.grade}-${profile.demo.key.term}` : "none"}

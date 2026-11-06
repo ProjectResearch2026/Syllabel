@@ -6,8 +6,6 @@ import { motion, AnimatePresence } from "motion/react";
 import {
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
-  ChevronUp,
   Info,
   FileUp,
   CirclePlay,
@@ -24,7 +22,7 @@ import { useCreditSummary } from "@/lib/creditSummary";
 import { useReplaceStudent } from "@/lib/replaceStudent";
 import { useAiStore } from "@/lib/ai";
 import { demoLabel, isFreshmanDemo } from "@/lib/dummy/profiles";
-import DemoPicker from "./DemoPicker";
+import DemoDialog from "./DemoDialog";
 import PrivacyConsentModal from "./PrivacyConsentModal";
 
 const STEPS = ["アップロード", "確認", "完了"] as const;
@@ -172,6 +170,9 @@ export default function MobileImportFlow() {
         />
       )}
 
+      {/* 段の動き(transform)の外に置く。中に置くと fixed の基準が段になる */}
+      <DemoDialog open={step === 0 && demoOpen} onClose={() => setDemoOpen(false)} onLoad={handleDemoLoad} />
+
       <StepBar current={step} />
 
       <AnimatePresence mode="wait" initial={false}>
@@ -197,7 +198,7 @@ export default function MobileImportFlow() {
                 <div className="flex items-start gap-1.5">
                   <CircleAlert size={18} className="text-[#BA1A1A] shrink-0 mt-px" />
                   <p className="text-[13px] font-semibold text-[#93000A]">
-                    成績表を読み取れませんでした。もう一度選ぶか、デモの学生で試してください。
+                    成績表を読み取れませんでした。もう一度選ぶか、ダミーデータで試してください。
                   </p>
                 </div>
                 <p className="text-[11px] text-[#93000A]/80">{parseState.message}</p>
@@ -207,7 +208,7 @@ export default function MobileImportFlow() {
                     onClick={() => setDemoOpen(true)}
                     className="h-11 rounded bg-accent text-sm font-semibold text-fg-inverse active:bg-primary-dark transition-colors"
                   >
-                    デモの学生で試す
+                    ダミーデータで試す
                   </button>
                   <label className="h-11 rounded border-[1.5px] border-fg-primary bg-surface-primary flex items-center justify-center cursor-pointer active:bg-surface-gray transition-colors">
                     <input type="file" accept="application/pdf" className="hidden" onChange={handleFile} />
@@ -236,40 +237,18 @@ export default function MobileImportFlow() {
               <div className="flex-1 h-px bg-[#E5E7EB]" />
             </div>
 
-            <div className="relative">
-              <button
-                onClick={() => setDemoOpen((o) => !o)}
-                className="w-full h-12 rounded-lg border-2 border-[#1A2B4E] flex items-center justify-center gap-2.5 active:bg-[#EEF1F8] transition-colors"
-              >
-                <CirclePlay size={18} className="text-[#1A2B4E]" />
-                <span className="text-sm font-semibold text-[#1A2B4E]">ダミーデータで試す（展示用）</span>
-                {demoOpen ? (
-                  <ChevronUp size={15} className="text-[#1A2B4E]" />
-                ) : (
-                  <ChevronDown size={15} className="text-[#1A2B4E]" />
-                )}
-              </button>
-              <AnimatePresence>
-                {demoOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -6, scaleY: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scaleY: 1 }}
-                    exit={{ opacity: 0, y: -4, scaleY: 0.97 }}
-                    transition={{ duration: 0.16, ease: [0.25, 0.1, 0.25, 1] }}
-                    style={{ originY: "top" }}
-                    className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#D1D5DB] rounded-lg shadow-md overflow-hidden z-10"
-                  >
-                    <div className="p-4">
-                      <DemoPicker onLoad={handleDemoLoad} />
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+            <button
+              onClick={() => setDemoOpen(true)}
+              aria-haspopup="dialog"
+              className="w-full h-12 rounded-lg border-2 border-[#1A2B4E] flex items-center justify-center gap-2.5 active:bg-[#EEF1F8] transition-colors"
+            >
+              <CirclePlay size={18} className="text-[#1A2B4E]" />
+              <span className="text-sm font-semibold text-[#1A2B4E]">ダミーデータで試す</span>
+            </button>
 
             <h2 className="text-[15px] font-bold text-[#1A2B4E] mt-1">インポート方法</h2>
             {[
-              { title: "ポータルにアクセス", desc: "龍谷大学ポータルサイト (kukuli) にログイン" },
+              { title: "ポータルにアクセス", desc: "龍谷大学ポータルサイトにログイン" },
               { title: "成績照会を開く", desc: "「成績照会」→「成績表印刷」からPDFをダウンロード" },
               { title: "このページで選択", desc: "ダウンロードしたPDFを上のボタンから選択" },
             ].map((s, i) => (
