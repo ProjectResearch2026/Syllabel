@@ -198,7 +198,7 @@ export default function MobileImportFlow() {
                 <div className="flex items-start gap-1.5">
                   <CircleAlert size={18} className="text-[#BA1A1A] shrink-0 mt-px" />
                   <p className="text-[13px] font-semibold text-[#93000A]">
-                    成績表を読み取れませんでした。もう一度選ぶか、デモの学生で試してください。
+                    成績表を読み取れませんでした。もう一度選ぶか、ダミーデータで試してください。
                   </p>
                 </div>
                 <p className="text-[11px] text-[#93000A]/80">{parseState.message}</p>
@@ -208,7 +208,7 @@ export default function MobileImportFlow() {
                     onClick={() => setDemoOpen(true)}
                     className="h-11 rounded bg-accent text-sm font-semibold text-fg-inverse active:bg-primary-dark transition-colors"
                   >
-                    デモの学生で試す
+                    ダミーデータで試す
                   </button>
                   <label className="h-11 rounded border-[1.5px] border-fg-primary bg-surface-primary flex items-center justify-center cursor-pointer active:bg-surface-gray transition-colors">
                     <input type="file" accept="application/pdf" className="hidden" onChange={handleFile} />
@@ -243,7 +243,7 @@ export default function MobileImportFlow() {
               className="w-full h-12 rounded-lg border-2 border-[#1A2B4E] flex items-center justify-center gap-2.5 active:bg-[#EEF1F8] transition-colors"
             >
               <CirclePlay size={18} className="text-[#1A2B4E]" />
-              <span className="text-sm font-semibold text-[#1A2B4E]">ダミーデータで試す（展示用）</span>
+              <span className="text-sm font-semibold text-[#1A2B4E]">ダミーデータで試す</span>
             </button>
 
             <h2 className="text-[15px] font-bold text-[#1A2B4E] mt-1">インポート方法</h2>

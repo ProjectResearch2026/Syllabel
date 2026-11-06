@@ -130,7 +130,7 @@ export default function PcImportPage() {
       if (profile.completedCourses.length === 0 && warnings.length > 0) {
         setImportState({
           type: "error",
-          message: "成績表を読み取れませんでした。もう一度選ぶか、デモの学生で試してください。",
+          message: "成績表を読み取れませんでした。もう一度選ぶか、ダミーデータで試してください。",
         });
         return;
       }
@@ -140,7 +140,7 @@ export default function PcImportPage() {
     } catch {
       setImportState({
         type: "error",
-        message: "PDFの読み取りに失敗しました。もう一度選ぶか、デモの学生で試してください。",
+        message: "PDFの読み取りに失敗しました。もう一度選ぶか、ダミーデータで試してください。",
       });
     }
   };
@@ -258,7 +258,7 @@ export default function PcImportPage() {
                       aria-haspopup="dialog"
                       className="text-xs text-fg-primary underline underline-offset-2"
                     >
-                      デモの学生で試す
+                      ダミーデータで試す
                     </button>
                   </div>
                 </div>
@@ -311,7 +311,7 @@ export default function PcImportPage() {
                 className="flex h-11 w-full items-center justify-center gap-2 rounded border border-fg-primary transition-colors hover:bg-surface-soft"
               >
                 <Play size={16} className="text-fg-primary" aria-hidden="true" />
-                <span className="text-sm font-semibold text-fg-primary">ダミーデータで試す（展示用）</span>
+                <span className="text-sm font-semibold text-fg-primary">ダミーデータで試す</span>
               </button>
             </div>
           </div>

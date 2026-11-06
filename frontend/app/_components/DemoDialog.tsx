@@ -50,21 +50,22 @@ export default function DemoDialog({
             exit={{ opacity: 0, scale: 0.98, y: 4 }}
             transition={{ duration: 0.16, ease: [0.25, 0.1, 0.25, 1] }}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex flex-col gap-1">
+            {/* 説明は閉じるボタンの横に置かない。スマホの幅では最後の1文字だけが次の行に落ちる */}
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between gap-3">
                 <h2 id="demo-dialog-title" className="text-lg font-bold text-fg-primary">
                   ダミーデータで試す
                 </h2>
-                <p className="text-xs text-fg-secondary">展示用のダミー学生で、成績表なしで体験できます。</p>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="閉じる"
+                  className="-my-1 grid size-8 shrink-0 place-items-center rounded-full text-fg-secondary transition-colors hover:bg-surface-soft"
+                >
+                  <X size={18} aria-hidden="true" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="閉じる"
-                className="grid size-8 shrink-0 place-items-center rounded-full text-fg-secondary transition-colors hover:bg-surface-soft"
-              >
-                <X size={18} aria-hidden="true" />
-              </button>
+              <p className="text-xs text-fg-secondary">成績表がなくても、架空の学生で試せます。</p>
             </div>
             <DemoPicker onLoad={onLoad} />
           </motion.div>
