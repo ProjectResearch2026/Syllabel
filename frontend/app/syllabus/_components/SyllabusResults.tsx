@@ -1,7 +1,6 @@
 "use client";
 
 import CompletedFilter from "./CompletedFilter";
-import { useSearchParams } from "next/navigation";
 import type { MatchedBy, SyllabusListItem } from "@/lib/syllabus-api";
 import { detailHref } from "@/lib/syllabusQuery";
 import { emptyMessage, useTaggedResults } from "@/lib/useTaggedResults";
@@ -37,8 +36,6 @@ export default function SyllabusResults({
   offset: number;
   limit: number;
 }) {
-  // 詳細へ移っても絞り込みを失わないよう、いまのクエリをリンクに畳む
-  const searchParams = useSearchParams();
   const { visible, matched, total, filtering, offset: start, hiddenCompleted } = useTaggedResults(
     results,
     targets,
@@ -91,7 +88,7 @@ export default function SyllabusResults({
               course={course}
               tags={tags}
               instructors={instructors}
-              href={detailHref(course.syllabus_code, searchParams.toString())}
+              href={detailHref(course.syllabus_code)}
               style={{ animationDelay: `${Math.min(i, 15) * 20}ms` }}
             />
           ))}

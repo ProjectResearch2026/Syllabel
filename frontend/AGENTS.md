@@ -81,7 +81,7 @@ Zustand store は次の6本で、**すべて永続化機能を意図的にオフ
 - `chat.ts` — 対話履歴(時間割のアシスタント・シラバスチャット・講義単位チャット)
 - `chatHistory.ts` — 「最近のチャット」に退避した過去の会話
 - `proposal.ts` — 時間割・条件・レポートの状態(組み立ての手順の再生は `lib/timetableBuild.ts`)
-- `syllabusUI.ts` — シラバス検索の絞り込み(タグ・区分・分野)と一覧のクエリの写し
+- `syllabusUI.ts` — シラバス検索の絞り込み(タグ・区分・分野)と一覧のクエリの写し、講義詳細の戻り先(時間割から開いたか)
 - `ai.ts` — AI シートの表示状態
 
 サーバーから取得するデータ(シラバス検索結果など)はキャッシュライブラリを入れず、サーバコンポーネントの `fetch` と `GET /api/curricula` の ETag(design.md §6.1.2)に委ねる。
@@ -198,7 +198,7 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 **対象年次(`grade`)も URL のクエリに持つ。** 選択肢は `GRADE_CHOICES`(1〜4)。`page.tsx` は `period` / `grade` を api-clean の値域(1〜7 / 1〜4)の整数のときだけ検索条件にする(値域外を渡すと 422 で一覧が落ちる)。
 
-**検索条件(キーワード・開講期など)は URL のクエリが正本。** **一覧の URL は `lib/syllabusQuery.ts` の `canonicalListParams()` の形だけにする**(知らないキー・空の値・重複・選べない値を落とし、キーの順をそろえる)。`page.tsx` はこの形の値で検索し、アドレスバーが違えば `SyllabusQueryMemory` が `history.replaceState()` で書き換える(`?q=音響&` の末尾の `&` は Next.js がサーバに渡す前に消すので、サーバのリダイレクトでは直せない)。 ヘッダー・タブバーの「シラバス」は素の `/syllabus` ではなく `listHref(listQuery)` に向ける。`listQuery` は一覧を開いているあいだ `SyllabusQueryMemory` が URL から書き写す(design.md §8)。直書きの `/syllabus` に戻すと、時間割などを経由しただけで検索語が消える。
+**検索条件(キーワード・開講期など)は URL のクエリが正本。** **一覧の URL は `lib/syllabusQuery.ts` の `canonicalListParams()` の形だけにする**(知らないキー・空の値・重複・選べない値を落とし、キーの順をそろえる)。`page.tsx` はこの形の値で検索し、アドレスバーが違えば `SyllabusQueryMemory` が `history.replaceState()` で書き換える(`?q=音響&` の末尾の `&` は Next.js がサーバに渡す前に消すので、サーバのリダイレクトでは直せない)。 ヘッダー・タブバーの「シラバス」と講義詳細の「シラバス一覧に戻る」は素の `/syllabus` ではなく `listHref(listQuery)` に向ける。`listQuery` は一覧を開いているあいだ `SyllabusQueryMemory` が URL から書き写す(design.md §8)。直書きの `/syllabus` に戻すと、時間割などを経由しただけで検索語が消える。**講義詳細の URL に戻り先を載せない**(`detailHref()` は `/syllabus/{code}` だけを返す)。時間割から開いたことは `proposalOrigin` に持ち(時間割の「講義詳細を見る」で立て、一覧を開くと下ろす)、戻るリンクは `[code]/_components/BackLink.tsx` が決める(design.md §8.1)。**一覧の講義カードのリンクは `prefetch={false}` にする**(design.md §8.2.4。画面に入ったカードごとに詳細を裏で取りに行くと、ページ送りのたびに数十本のリクエストになる)。
 
 1. `GET /api/syllabi` の検索結果
 2. `GET /api/curricula/{program}/{year}` の履修要項データ
@@ -227,7 +227,7 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 |---|---|
 | 検索結果 | `searchCourses()` が**条件に当たる全件**を返す（500件ずつ辿る。30件ずつのページ送りはしない。並びは api-clean の返すシラバスコード順で、画面に並び順の表示は出さない） |
 | 対象課程（全件ぶん） | `fetchCourseTargets()` → `GET /api/course-targets`（gzip 約4KB。ETag が効く）。**引けなければ null にしてタグを出さずに続ける** — この口の失敗で一覧を落としてはならない |
-| 担当教員名（表示中の行ぶん） | `fetchInstructorMap()` を**ブラウザから**呼ぶ（どの行が表示されるかを知っているのはブラウザだけ）。**取得は科目コードごとに1回にまとめる** — PC 用とモバイル用が同時に mount されており、まとめないと同じ詳細を2回ずつ引く |
+| 担当教員名 | 検索結果の各行の `instructors`（api-clean 0.5.0 以降）を `formatInstructors()` で整形する（`useTaggedResults()`）。**詳細を1件ずつ引かない** |
 
 **絞り込み・ページの切り出し・件数は `lib/useTaggedResults.ts` に集約し、PC とモバイルで共用する。** ページ送りは絞り込み後の並びに対して行い、`offset` は URL に残す（詳細画面から戻ったときに位置を保つため）。**絞り込みを変えたら `offset` を消す**（`lib/useFilterControls.ts`）。消さないと前の絞り込みでのページ位置が残る。**URL の `offset` は `page.tsx` で 0 以上の整数に限ってページの先頭に切り下げ、絞り込み後の件数を超えた分は `useTaggedResults()` が最後のページに丸める**（件数表示とページ送りは丸めた値を使う）。
 
@@ -243,7 +243,7 @@ SSEは `fetch` + `ReadableStream` で受信し、受信したchunkを逐次 Reac
 
 **検索ボックスの科目名は `lib/titleSearch.ts` の `matchesTitle()` で手元で照合する。** api-clean の `q` は正規化の無い `ILIKE` で、「プログラミング基礎演習1」(登録は `Ⅰ`)や「仏教の思想Ａ」(登録は半角 `A`)が0件になっていた。`searchCourses()` は条件に当たる全件を引いてから照合し、0件のときだけ教員名で引き直す。全角・半角、`Ⅰ` 由来のローマ数字、ひらがな・カタカナ、空白・中黒の違いを畳み、空白で区切った語は AND で効く。**`normalizeTitle()` と混ぜない**(あちらは突合用で backend と同じ狭い規則に保つ)。**backend の `app/agents/title_search.py` と同じ規則に保つこと**(シラバスチャットの検索ツールは backend が照合する)。
 
-**教員名は `lib/instructorName.ts` の `spellInstructorName()` で登録表記に組み立ててから引き直す。** api-clean の `instructor` は**登録された表記のままの部分一致**で、正規化を持たない(design.md §6.1 / §6.2)。教員名は全角スペース区切りで登録されているため、「山田 太郎」(半角)も「山田太郎」(区切りなし)も0件になっていた。**照合するのは api-clean であり一覧は教員名を返さない**ので、`normalizeTitle()` のように手元で正規化して突き合わせる手は使えない。入力の空白を取り除き、**先頭から1文字ずつ伸ばしながら api-clean に当たるかを確かめて**、繋げて外れたら区切り(全角 → 半角)を挟む。**姓の長さや区切りの数を決め打ちしない** — 姓の長さを1〜4文字で試していた頃は、オーガスティン　ジョナサン(姓7文字)やドラグナ　ラルカ　マリア(区切り2つ)を区切りなしで引けなかった。**組み立てるのは入力どおりの語が空振りしたときだけ**にする(姓のみ・全角区切りのフルネームは1リクエストで当たる)。**backend の `app/agents/instructor_name.py` の `spell_instructor_name()` と同じ規則に保つこと**(検索画面はこちら、シラバスチャットは backend が引くため、食い違うと「検索では出るのにチャットでは見つからない」というねじれが起きる)。
+**教員名は `lib/instructorName.ts` の `spellInstructorName()` で登録表記に組み立ててから引き直す。** api-clean の `instructor` は**登録された表記のままの部分一致**で、正規化を持たない(design.md §6.1 / §6.2)。教員名は全角スペース区切りで登録されているため、「山田 太郎」(半角)も「山田太郎」(区切りなし)も0件になる。入力の空白を取り除き、**先頭から1文字ずつ伸ばしながら api-clean に当たるかを確かめて**、繋げて外れたら区切り(全角 → 半角)を挟む。**姓の長さや区切りの数を決め打ちしない** — 姓の長さを1〜4文字で試していた頃は、オーガスティン　ジョナサン(姓7文字)やドラグナ　ラルカ　マリア(区切り2つ)を区切りなしで引けなかった。**組み立てるのは入力どおりの語が空振りしたときだけ**にする(姓のみ・全角区切りのフルネームは1リクエストで当たる)。**backend の `app/agents/instructor_name.py` の `spell_instructor_name()` と同じ規則に保つこと**(検索画面はこちら、シラバスチャットは backend が引くため、食い違うと「検索では出るのにチャットでは見つからない」というねじれが起きる)。
 
 ## PDF解析
 

@@ -3,13 +3,14 @@
  *
  * 絞り込みは URL のクエリに持っている(`app/syllabus/page.tsx` が
  * `searchParams` から読む)。詳細画面へ移ると当然クエリは消えるため、
- * **カードのリンクに `back` として畳んで持たせ、「一覧に戻る」で開き直す**。
- * 詳細画面は静的に `/syllabus` へ戻るリンクしか持てず、`router.back()` は
- * 直リンクで開かれた場合に戻り先が無いため採らない。
+ * 一覧を開いているあいだクエリをストアに書き写しておき(`SyllabusQueryMemory`)、
+ * 詳細画面の「シラバス一覧に戻る」とヘッダー・タブバーの「シラバス」をそこへ向ける。
  *
- * 時間割など別の画面を経由したときは `back` を運べないため、一覧を開いている
- * あいだクエリをストアに書き写しておき(`SyllabusQueryMemory`)、ヘッダー・
- * タブバーの「シラバス」をそこへ向ける。
+ * **詳細画面の URL には戻り先を載せない**(`/syllabus/{code}` だけにする)。戻り先を
+ * クエリに載せると、同じ講義でも開いた元ごとに URL が変わり、詳細画面がクエリを
+ * 読むために中身を前もって用意できない。`router.back()` は直リンクで開かれた場合に
+ * 戻り先が無いため採らない。ストアはメモリにだけあり、再読み込みでは消える
+ * (学生プロファイルと履修提案も同じく消えるので、戻り先だけ残しても意味が薄い)。
  */
 
 import { DAYS } from "@/lib/timetable";
@@ -17,7 +18,7 @@ import { DAYS } from "@/lib/timetable";
 /** 一覧の1ページの件数。表示だけの都合であり、取得は全件行う(§6.2)。`offset` はこの倍数 */
 export const LIST_PAGE_SIZE = 30;
 
-/** 一覧の絞り込みを表すクエリキー。`back` で往復させる対象でもある。並びは URL の並び */
+/** 一覧の絞り込みを表すクエリキー。詳細画面から戻るときに開き直す対象でもある。並びは URL の並び */
 export const LIST_QUERY_KEYS = [
   "q",
   "program",
@@ -96,53 +97,39 @@ export function pickListParams(source: URLSearchParams): URLSearchParams {
   return canonicalListParams(source);
 }
 
-/** 検索結果のカードから詳細画面へのリンク。現在の絞り込みを `back` に畳む。 */
-export function detailHref(code: string, current: URLSearchParams | string): string {
-  const source = new URLSearchParams(typeof current === "string" ? current : current.toString());
-  const back = pickListParams(source).toString();
-  const path = `/syllabus/${encodeURIComponent(code)}`;
-  return back ? `${path}?back=${encodeURIComponent(back)}` : path;
+/**
+ * 講義詳細の URL。**どこから開いても同じ形**(戻り先はストアに持つ。ファイル先頭の説明)。
+ */
+export function detailHref(code: string): string {
+  return `/syllabus/${encodeURIComponent(code)}`;
 }
 
 /**
- * 一覧へ戻るリンクの宛先。`back` が無ければ素の一覧へ。
+ * 一覧へ戻るリンクの宛先。最後に開いていた一覧の条件(`useSyllabusUIStore` の
+ * `listQuery`)を開き直す。空なら素の一覧へ。
  *
- * 詳細画面の「シラバス一覧に戻る」(`back` クエリ)のほか、ヘッダー・タブバーの
- * 「シラバス」(最後に開いていた一覧の条件。`useSyllabusUIStore` の `listQuery`)
- * もこれで組む。どちらもキーは `LIST_QUERY_KEYS` で濾し直す。
+ * 詳細画面の「シラバス一覧に戻る」とヘッダー・タブバーの「シラバス」がこれで組む。
+ * キーは `LIST_QUERY_KEYS` で濾し直す。
  */
-export function listHref(back: string | string[] | undefined): string {
-  const raw = typeof back === "string" ? back : undefined;
-  if (!raw) return "/syllabus";
-  const restored = pickListParams(new URLSearchParams(raw)).toString();
+export function listHref(listQuery: string): string {
+  if (!listQuery) return "/syllabus";
+  const restored = pickListParams(new URLSearchParams(listQuery)).toString();
   return restored ? `/syllabus?${restored}` : "/syllabus";
 }
 
 /**
- * 履修提案の時間割(`/proposal`)から開いた詳細画面であることを示す値。
- * 詳細画面の戻り先を時間割にする(design.md §8.3.4)。
- */
-const FROM_PROPOSAL = "proposal";
-
-/**
- * 履修提案の時間割の科目から詳細画面へのリンク。`from=proposal` を付け、
- * 詳細画面の「戻る」を時間割へ向ける。
+ * 詳細画面の「戻る」の宛先と文言。design.md §8.1。
  *
- * **同じタブで開く(`next/link` のクライアント遷移)。** 学生プロファイルと提案は
- * ブラウザのメモリにしか無い(永続化しない)ため、別タブで開くと取り込み前の
- * 状態になり、戻っても提案が消えている。
+ * 履修提案の時間割から開いた講義(`proposalOrigin` がその講義コード)なら時間割へ、
+ * それ以外は最後に開いていた一覧へ。`proposalOrigin` は時間割から開くときに立て
+ * (`lib/useTimetableEditing.ts`)、一覧を開くと下ろす(`SyllabusQueryMemory`)。
  */
-export function proposalDetailHref(code: string): string {
-  return `/syllabus/${encodeURIComponent(code)}?from=${FROM_PROPOSAL}`;
-}
-
-/** 詳細画面の「戻る」の宛先と文言。時間割から開いたなら時間割へ、それ以外は一覧へ。 */
-export function backLink(params: {
-  from?: string | string[];
-  back?: string | string[];
-}): { href: string; label: string } {
-  if (params.from === FROM_PROPOSAL) return { href: "/proposal", label: "時間割に戻る" };
-  return { href: listHref(params.back), label: "シラバス一覧に戻る" };
+export function backLink(
+  code: string,
+  state: { proposalOrigin: string; listQuery: string },
+): { href: string; label: string } {
+  if (state.proposalOrigin === code) return { href: "/proposal", label: "時間割に戻る" };
+  return { href: listHref(state.listQuery), label: "シラバス一覧に戻る" };
 }
 
 /**

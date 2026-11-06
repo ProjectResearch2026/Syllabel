@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { courseKey, useProposalStore } from "@/lib/proposal";
-import { proposalDetailHref, slotSearchHref } from "@/lib/syllabusQuery";
+import { detailHref, slotSearchHref } from "@/lib/syllabusQuery";
+import { useSyllabusUIStore } from "@/lib/syllabusUI";
 import { useTargetTerm } from "@/lib/targetTerm";
 import type { CourseTarget } from "@/app/_components/CourseMenu";
 
@@ -38,12 +39,20 @@ export function useTimetableEditing() {
   const open = useCallback((target: CourseTarget) => setMenu(target), []);
   const close = useCallback(() => setMenu(null), []);
 
+  const setProposalOrigin = useSyllabusUIStore((s) => s.setProposalOrigin);
+
+  // 詳細画面の「戻る」を時間割へ向ける印を立ててから開く(`backLink()`、§8.1)。
+  // **同じタブで開く(クライアント遷移)。** 学生プロファイルと提案はブラウザのメモリにしか
+  // 無い(永続化しない)ため、別タブで開くと取り込み前の状態になり、戻っても提案が消えている
   const openSyllabus = useCallback(
     (target: CourseTarget) => {
       setMenu(null);
-      if (target.entry.code) router.push(proposalDetailHref(target.entry.code));
+      const code = target.entry.code;
+      if (!code) return;
+      setProposalOrigin(code);
+      router.push(detailHref(code));
     },
-    [router],
+    [router, setProposalOrigin],
   );
 
   const replace = useCallback(

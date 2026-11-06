@@ -15,9 +15,9 @@ export default function CourseCard({
   course: SyllabusListItem;
   /** 状態 / 区分 / 履修区分のタグ一式(§8) */
   tags: CourseTagsType;
-  /** 担当教員名。一覧APIには無いためブラウザで後から補う(§6.2)。取得前・取れなければ null */
+  /** 担当教員名(一覧の `instructors` を整形したもの。§6.2)。担当者が無ければ null */
   instructors?: string | null;
-  /** 詳細画面への宛先。いまの絞り込みを `back` に畳んだものが渡る */
+  /** 詳細画面への宛先(`detailHref()`) */
   href: string;
   /** 一覧で順に現れるときの遅れ(`animationDelay`) */
   style?: React.CSSProperties;
@@ -30,6 +30,11 @@ export default function CourseCard({
   return (
     <Link
       href={href}
+      // **先読みしない**(§8.2.4)。一覧は1ページに30枚並び、画面に入ったカードごとに
+      // 詳細画面を裏で取りに行くと、ページ送りだけで入口の回数制限に届く。詳細画面は
+      // `loading.tsx` を持つ動的なページで、先読みしても内容までは取らないため、
+      // 止めても内容が出るまでの時間は変わらない
+      prefetch={false}
       style={style}
       className="group flex min-h-[172px] flex-col justify-between rounded-xl border border-card-border bg-surface-primary p-4 shadow-card transition-all hover:-translate-y-0.5 hover:border-card-border-hover hover:shadow-popover motion-safe:animate-rise-in"
     >
