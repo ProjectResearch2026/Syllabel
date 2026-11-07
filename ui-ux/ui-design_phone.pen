@@ -4503,18 +4503,6 @@
               ]
             },
             {
-              "type": "text",
-              "id": "EaMTh",
-              "name": "SecLabel_プライバシー・データ",
-              "fill": "#1A2B4E",
-              "textGrowth": "fixed-width",
-              "width": "fill_container",
-              "content": "プライバシー・データ",
-              "fontFamily": "$font-sans",
-              "fontSize": 11,
-              "fontWeight": "700"
-            },
-            {
               "type": "frame",
               "id": "nFgRG",
               "name": "Group_プライバシー",
@@ -4585,71 +4573,6 @@
                       "type": "icon",
                       "id": "vQBI4",
                       "name": "Chevron_プライバシーポリシー",
-                      "width": 16,
-                      "height": 16,
-                      "icon": "chevron-right",
-                      "library": "lucide",
-                      "fill": "#D1D5DB"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "mFVO2",
-                  "name": "Row_データの取り扱いについて",
-                  "width": "fill_container",
-                  "height": 52,
-                  "fill": "$surface-primary",
-                  "stroke": "#F3F4F6",
-                  "strokeWidth": {
-                    "bottom": 1
-                  },
-                  "strokeLinejoin": "round",
-                  "gap": 12,
-                  "padding": [
-                    0,
-                    20
-                  ],
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "frame",
-                      "id": "xoCiO",
-                      "name": "IconBox_データの取り扱いについて",
-                      "width": 30,
-                      "height": 30,
-                      "fill": "#F0F2F5",
-                      "justifyContent": "center",
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "icon",
-                          "id": "mZCxU",
-                          "name": "RowIcon_データの取り扱いについて",
-                          "width": 16,
-                          "height": 16,
-                          "icon": "database",
-                          "library": "lucide",
-                          "fill": "$fg-primary"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "text",
-                      "id": "CPaQQ",
-                      "name": "RowLabel_データの取り扱いについて",
-                      "fill": "$fg-primary",
-                      "textGrowth": "fixed-width",
-                      "width": "fill_container",
-                      "content": "データの取り扱いについて",
-                      "fontFamily": "$font-sans",
-                      "fontSize": 14,
-                      "fontWeight": "normal"
-                    },
-                    {
-                      "type": "icon",
-                      "id": "RTxz1",
-                      "name": "Chevron_データの取り扱いについて",
                       "width": 16,
                       "height": 16,
                       "icon": "chevron-right",
@@ -32614,7 +32537,7 @@
               "fill": "$fg-primary",
               "textGrowth": "fixed-width",
               "width": "fill_container",
-              "content": "プライバシーとデータの取り扱い",
+              "content": "プライバシーポリシー",
               "textAlign": "center",
               "fontFamily": "$font-sans",
               "fontSize": 22,

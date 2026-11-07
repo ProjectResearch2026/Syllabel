@@ -33,6 +33,10 @@ import { listHref } from "@/lib/syllabusQuery";
  * **単位数（取得済み・今期登録・卒業残り）はヘッダーに置く**（design.md §8.3.5）。
  * どの画面からも見え、履修提案の画面では下の帯を卒業要件枠の内訳に空けられる。
  * 値は `lib/creditSummary.tsx` の共有の集計で、ナビと同じく取り込み前は出さない。
+ *
+ * **リセットも取り込みが済むまで出さない。** 取り込み前は消すものが無い。取り込みの
+ * 「確認」の段階で読み取った成績は画面の中に持っているだけで store には入っておらず、
+ * 押しても同じ画面に戻るだけで何も消えない（やめるときは「戻る」を使う）。
  */
 
 const navItems: {
@@ -178,7 +182,7 @@ export default function Header() {
           </nav>
         )}
 
-        {/* Right area。単位数とリセット（学生アバターは設計から外れた） */}
+        {/* Right area。単位数とリセット（学生アバターは設計から外れた）。どちらも取り込み前は出さない */}
         <div className="flex shrink-0 items-center gap-4">
           {showNav && profile && (
             <div className="flex items-center gap-8">
@@ -195,13 +199,15 @@ export default function Header() {
               ))}
             </div>
           )}
-          <button
-            onClick={handleReset}
-            className="flex items-center gap-1.5 text-[13px] text-fg-secondary transition-colors hover:text-fg-primary"
-          >
-            <RotateCcw size={18} />
-            <span>リセット</span>
-          </button>
+          {profile && (
+            <button
+              onClick={handleReset}
+              className="flex items-center gap-1.5 text-[13px] text-fg-secondary transition-colors hover:text-fg-primary"
+            >
+              <RotateCcw size={18} />
+              <span>リセット</span>
+            </button>
+          )}
         </div>
       </div>
     </header>

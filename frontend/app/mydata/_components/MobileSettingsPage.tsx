@@ -7,7 +7,6 @@ import {
   FileText,
   FileUp,
   Shield,
-  Database,
   Trash2,
   ChevronDown,
   ChevronRight,
@@ -407,17 +406,11 @@ export default function MobileSettingsPage() {
           )}
         </Group>
 
-        {/* プライバシー・データ */}
-        <SectionLabel>プライバシー・データ</SectionLabel>
+        {/* プライバシーポリシー。1行だけなので見出しは付けない（見出しと行が同じ言葉になる） */}
         <Group>
           <NavRow
             icon={<Shield size={16} className={iconCls} />}
             label="プライバシーポリシー"
-            onClick={() => router.push("/privacy")}
-          />
-          <NavRow
-            icon={<Database size={16} className={iconCls} />}
-            label="データの取り扱いについて"
             onClick={() => router.push("/privacy")}
             last
           />

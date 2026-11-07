@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   User,
@@ -12,6 +13,8 @@ import {
   TriangleAlert,
   Trash2,
   Upload,
+  Shield,
+  ChevronRight,
 } from "lucide-react";
 import { COURSE_STATUS_LABEL, isUnearned, useStudentStore, type Course } from "@/lib/student";
 import { useChatStore } from "@/lib/chat";
@@ -240,6 +243,27 @@ export default function PcMyDataPage() {
             submitLabel="この学生に切り替える"
           />
         </section>
+
+        {/* プライバシーポリシー（モバイルの設定画面と同じく、リセットの上に置く）。
+            見出しをそのまま行き先の名前にし、見出しと中身で同じ言葉を重ねない */}
+        <Link
+          href="/privacy"
+          className="flex items-center justify-between gap-4 rounded-lg border border-border-primary bg-surface-primary p-6 transition-colors hover:bg-surface-gray"
+        >
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2">
+              <Shield size={18} className="text-accent" aria-hidden="true" />
+              <h2 className="text-[15px] font-bold text-fg-primary">プライバシーポリシー</h2>
+            </div>
+            <p className="text-[11px] text-fg-secondary">
+              成績表やAIに送った内容がどう扱われるかを説明しています。
+            </p>
+          </div>
+          <span className="flex shrink-0 items-center gap-0.5 text-[13px] font-semibold text-accent">
+            見る
+            <ChevronRight size={16} aria-hidden="true" />
+          </span>
+        </Link>
 
         {/* Danger zone */}
         <section className="flex flex-col gap-3.5 rounded-lg border border-[#FCA5A5] bg-[#FEF2F2] p-6">

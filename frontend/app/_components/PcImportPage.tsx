@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useCallback } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ShieldCheck,
@@ -15,6 +16,7 @@ import {
   ArrowRight,
   AlertCircle,
   Loader2,
+  ChevronRight,
 } from "lucide-react";
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import StepBar from "./StepBar";
@@ -227,6 +229,16 @@ export default function PcImportPage() {
                 </div>
               ))}
             </div>
+
+            {/* ファイルを選ぶ前にも読めるように（同意ウィンドウのリンクはPDFを選んでから出る）。
+                モバイルの取り込み画面の右上の ⓘ と同じ行き先 */}
+            <Link
+              href="/privacy"
+              className="flex items-center gap-1 text-[13px] font-semibold text-accent hover:underline"
+            >
+              プライバシーポリシーを読む
+              <ChevronRight size={14} aria-hidden="true" />
+            </Link>
           </div>
 
           {/* 右: 取り込みフォーム（ui-design_pc.pen RightPanel） */}

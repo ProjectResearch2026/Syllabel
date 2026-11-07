@@ -813,6 +813,9 @@
           "descendants": {
             "SpVJa": {
               "enabled": false
+            },
+            "HG1LD": {
+              "enabled": false
             }
           }
         },
@@ -1005,6 +1008,35 @@
                               "fontWeight": "normal"
                             }
                           ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "OhbVr",
+                      "name": "PrivacyLink",
+                      "gap": 4,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "poiVg",
+                          "name": "PrivacyLinkLabel",
+                          "fill": "$accent",
+                          "content": "プライバシーポリシーを読む",
+                          "fontFamily": "$font-sans",
+                          "fontSize": 13,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "icon",
+                          "id": "RV5If",
+                          "name": "PrivacyLinkIcon",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "chevron-right",
+                          "library": "lucide",
+                          "fill": "$accent"
                         }
                       ]
                     }
@@ -1388,6 +1420,9 @@
           "width": "fill_container",
           "descendants": {
             "SpVJa": {
+              "enabled": false
+            },
+            "HG1LD": {
               "enabled": false
             }
           }
@@ -8860,7 +8895,7 @@
                       "id": "J75QK",
                       "name": "HeroTitle",
                       "fill": "$fg-primary",
-                      "content": "プライバシーとデータの取り扱い",
+                      "content": "プライバシーポリシー",
                       "fontFamily": "$font-sans",
                       "fontSize": 26,
                       "fontWeight": "700"
@@ -9500,7 +9535,7 @@
       "name": "08_マイデータ",
       "clip": true,
       "width": 1440,
-      "height": 1700,
+      "height": 1810,
       "fill": "$surface-gray",
       "layout": "vertical",
       "children": [
@@ -10990,6 +11025,98 @@
                               "cornerRadius": 10
                             }
                           ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "LBcbf",
+                  "name": "Card_プライバシーポリシー",
+                  "width": 720,
+                  "fill": "$surface-primary",
+                  "cornerRadius": "$radius-md",
+                  "stroke": "$border-primary",
+                  "strokeWidth": 1,
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "padding": 24,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "noGMb",
+                      "name": "PPText",
+                      "layout": "vertical",
+                      "gap": 6,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "JmTPS",
+                          "name": "CH_プライバシーポリシー",
+                          "gap": 8,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "IAoCL",
+                              "name": "CIcon_プライバシーポリシー",
+                              "width": 18,
+                              "height": 18,
+                              "icon": "shield",
+                              "library": "lucide",
+                              "fill": "$accent"
+                            },
+                            {
+                              "type": "text",
+                              "id": "rZ3aW",
+                              "name": "CTitle_プライバシーポリシー",
+                              "fill": "$fg-primary",
+                              "content": "プライバシーポリシー",
+                              "fontFamily": "$font-sans",
+                              "fontSize": 15,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "ZkSBv",
+                          "name": "PPDesc",
+                          "fill": "$fg-secondary",
+                          "content": "成績表やAIに送った内容がどう扱われるかを説明しています。",
+                          "fontFamily": "$font-sans",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "rjn9W",
+                      "name": "PPOpen",
+                      "gap": 2,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "vgfyg",
+                          "name": "PPOpenLabel",
+                          "fill": "$accent",
+                          "content": "見る",
+                          "fontFamily": "$font-sans",
+                          "fontSize": 13,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "icon",
+                          "id": "w2wMq",
+                          "name": "PPOpenIcon",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "chevron-right",
+                          "library": "lucide",
+                          "fill": "$accent"
                         }
                       ]
                     }

@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 
 /**
- * プライバシーとデータの取り扱い（ui-design_pc.pen 07_プライバシー）。要件§5.6・設計§9。
+ * プライバシーポリシー（ui-design_pc.pen 07_プライバシー）。要件§5.6・設計§9。
  *
  * **実際のデータの流れ**を先に見せ、そのあとにデータの扱いを並べる。文章より経路の図のほうが早い。
  *
@@ -116,7 +116,7 @@ function MobilePrivacy() {
           <ShieldCheck size={32} className="text-fg-primary" aria-hidden="true" />
         </span>
         <h1 className="w-full text-center text-[22px] font-bold text-fg-primary">
-          プライバシーとデータの取り扱い
+          プライバシーポリシー
         </h1>
         <p className="w-full text-center text-[13px] leading-[1.7] text-fg-secondary">
           {LEAD}
@@ -175,7 +175,7 @@ function PcPrivacy() {
           <ShieldCheck size={32} className="text-fg-primary" aria-hidden="true" />
         </span>
         <h1 className="text-center text-[26px] font-bold text-fg-primary">
-          プライバシーとデータの取り扱い
+          プライバシーポリシー
         </h1>
         <p className="max-w-[560px] text-center text-sm leading-6 text-fg-secondary">
           {LEAD}

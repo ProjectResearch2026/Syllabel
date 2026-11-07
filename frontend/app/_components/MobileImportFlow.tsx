@@ -157,7 +157,7 @@ export default function MobileImportFlow() {
           )}
           <span className="text-[#1A2B4E] text-lg font-bold">成績表インポート</span>
         </div>
-        <button onClick={() => router.push("/privacy")} aria-label="プライバシーとデータの取り扱い">
+        <button onClick={() => router.push("/privacy")} aria-label="プライバシーポリシー">
           <Info size={22} className="text-[#6B7280]" />
         </button>
       </header>
