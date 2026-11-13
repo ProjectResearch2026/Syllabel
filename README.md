@@ -60,7 +60,7 @@ Python 3.12 以上が要る。
 cd backend
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -e ".[dev]"            # uv なら: uv pip install -e ".[dev]"
+pip install -e ".[dev]"            # uv なら: uv sync --extra dev(uv.lock の版で入る)
 
 python -m pytest                   # ユニットテスト。vllm・api-clean はモックする
 uvicorn app.main:app --reload      # 開発サーバ(http://localhost:8000)
