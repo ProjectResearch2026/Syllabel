@@ -25,13 +25,13 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 | 技術 | バージョン | 用途 |
 |---|---|---|
-| Next.js | 16.4.1 | Webフレームワーク(App Router) |
-| React | 19.2.9 | UIライブラリ |
-| TypeScript | ^5 | 言語 |
+| Next.js | ^16.4.6 | Webフレームワーク(App Router) |
+| React | ^19.3.1 | UIライブラリ |
+| TypeScript | ^6 | 言語 |
 | Tailwind CSS | ^4 | スタイリング |
 | Zustand | — | クライアント状態管理(永続化オフ) |
 | pdfjs-dist | — | 成績表PDFのクライアント側解析 |
-| lucide-react | ^1.23.0 | アイコン |
+| lucide-react | ^1.72.0 | アイコン |
 | react-markdown | ^10.1.0 | AI回答のMarkdown描画(+ remark-gfm / remark-breaks) |
 
 ## ディレクトリ構成
