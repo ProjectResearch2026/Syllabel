@@ -127,10 +127,12 @@ backend は起動時に履修要項 YAML をロードする。api-clean へ到�
 **frontend と backend は揃えて入れ替える。** 両者の間には API の契約があり(§6.1)、片方だけ新しくすると、呼ぶ口が無い・形が違うといった食い違いが起きる。デプロイは両方を建て直してから両方を再起動する。
 
 ```bash
-podman build -t localhost/syllabel-backend:latest ./backend
-podman build -t localhost/syllabel-frontend:latest ./frontend
+podman build --pull -t localhost/syllabel-backend:latest ./backend
+podman build --pull -t localhost/syllabel-frontend:latest ./frontend
 systemctl --user restart syllabel-backend.service syllabel-frontend.service
 ```
+
+**ベースイメージ(`python:3.14-slim`・`node:26-alpine`)は系列だけを指定し、ビルドのたびに `--pull` で取り直す。** 系列の中の修正版を取り込むためである。`--pull` を付けないと手元に残った古いイメージがそのまま使われ、作り直しても中身が新しくならない。**ライブラリの版はロックファイル(`backend/uv.lock`・`frontend/package-lock.json`)が決める**ので、取り直してもライブラリの版は変わらない。
 
 **API を足した側だけを先に入れるのは安全側である**(使われない口が増えるだけ)。逆順(呼ぶ側を先)は落ちる。判断に迷うときは backend を先に入れる。
 

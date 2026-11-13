@@ -127,7 +127,7 @@ flowchart TB
 | レイヤ | 技術 | 補足 |
 |---|---|---|
 | 言語(フロント) | TypeScript | |
-| 言語(バックエンド) | Python 3.12+ | |
+| 言語(バックエンド) | Python 3.12+ | 公開 VM のイメージは 3.14(`backend/Dockerfile`) |
 | Webフレームワーク(フロント) | Next.js(App Router) | |
 | Webフレームワーク(バックエンド) | FastAPI | |
 | ASGI サーバ | Uvicorn | |
