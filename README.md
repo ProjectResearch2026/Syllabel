@@ -109,10 +109,13 @@ npm run dev                        # http://localhost:3000/syllabel
 ```bash
 git clone https://github.com/ProjectResearch2026/syllabus_backend ../syllabus_backend
 cd ../syllabus_backend
+cp .env.sample .env                # api-clean が DB に接続するパスワードを置く(Git の管理外)
+sed -i "s/^API_DB_PASSWORD=.*/API_DB_PASSWORD=$(openssl rand -hex 24)/" .env
+chmod 600 .env
 bin/init_clean.sh --years 2026     # Postgres 起動 → スキーマ作成 → 2026年度データ投入
 ```
 
-`http://localhost:5050/docs` が開けば成功(Postgres は `localhost:5433`)。2回目以降は `docker compose -f docker-compose.clean.yml up -d` だけでよい。投入されるのは先端理工学部を含む1,512件(2026年度)で、`Y00…` の専攻科目と `G26…` の教養教育科目がどちらも入る。
+`http://localhost:5050/docs` が開けば成功(Postgres は `localhost:5433`)。2回目以降は `docker compose up -d` だけでよい。投入されるのは先端理工学部を含む1,512件(2026年度)で、`Y00…` の専攻科目と `G26…` の教養教育科目がどちらも入る。
 
 **2. backend と frontend を起動する。**
 

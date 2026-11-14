@@ -27,11 +27,15 @@ x api-clean に到達できない: $API_CLEAN_BASE_URL
 シラバスバックエンドを先に立ててください(初回のみ。docker が要ります):
 
   git clone https://github.com/ProjectResearch2026/syllabus_backend ../syllabus_backend
-  cd ../syllabus_backend && bin/init_clean.sh --years 2026
+  cd ../syllabus_backend
+  cp .env.sample .env
+  sed -i "s/^API_DB_PASSWORD=.*/API_DB_PASSWORD=\$(openssl rand -hex 24)/" .env
+  chmod 600 .env
+  bin/init_clean.sh --years 2026
 
 2回目以降は次で上がります:
 
-  cd ../syllabus_backend && docker compose -f docker-compose.clean.yml up -d
+  cd ../syllabus_backend && docker compose up -d
 
 別の宛先を使う場合は API_CLEAN_BASE_URL で指定してください。
 EOF
