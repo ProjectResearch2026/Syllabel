@@ -21,6 +21,7 @@ from pydantic_ai import Agent, ModelRetry, RunContext
 
 from app.agents import build_model, chat_model_settings
 from app.agents.course_tools import register_course_tools
+from app.timetable.special import special_sections
 from app.curricula.requirements import normalize_title
 from app.schemas.proposal import ProposedCourse
 from app.timetable.builder import BuildResult, build_timetable, check_timetable
@@ -59,7 +60,7 @@ INSTRUCTIONS = (
     "学生が、成績表にまだ載っていない科目(今履修していて成績が後で出る科目など)に合格する前提で"
     "組みたいと言ったときは、その科目名を assume_passed に渡して組み直す。"
     "成績発表待ちの科目は渡さなくても合格する前提で数える。\n"
-    "4. 時間割の説明は、build_timetable が返したレポートと【現在の時間割】に書かれた事実だけに基づく。"
+    "4. 時間割の説明は、build_timetable が返したレポートと【現在の時間割】【特別な扱いの科目】に書かれた事実だけに基づく。"
     "学生が会話で述べた事実は、レポートの値を変えずに、学生から聞いたこととして添えてよい。"
     "満たせなかった条件は、満たせなかったと理由とともに書く。満たしていない希望を満たしたと書かない。"
     "確かめることがあれば、学生が何を確かめればよいかを必ず書く(画面には出ないため)。"
@@ -74,6 +75,7 @@ INSTRUCTIONS = (
     "6. 必修の科目(不合格・履修辞退の再履修を含む)は履修できる学期に履修するものであり、"
     "不足の確保や補填として書かない。再履修の科目は再履修であることを書く。"
     "必修でない科目は、不合格・履修辞退だったものでも、自分から勧めたり再履修するか尋ねたりしない。"
+    "【特別な扱いの科目】の科目も同じで、再履修できることは聞かれたときに答える。"
     "学生が履修したいと言ったときだけ search_courses で探して include に入れる。\n"
     "7. 科目を勧めるときは search_courses で探し、その結果にある科目だけを勧める。"
     "興味・関心から探すときは topic を使う。時間割に入れるときは、その code を "
@@ -434,6 +436,7 @@ def static_sections(student: StudentContext) -> str:
             section("学生", student_lines(student)),
             section("登録できる単位", budget_lines(student)),
             section("再履修する必修", retake_lines(student)),
+            *special_sections(student, builds=True),
         ]
     )
 

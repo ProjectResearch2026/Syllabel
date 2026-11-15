@@ -509,7 +509,7 @@ async def test_include_does_not_displace_a_course_the_student_added():
     assert "符号理論" not in _titles(result.courses)
     assert result.displaced == {}
     assert result.include_failures["Y000000006"] == (
-        "符号理論は「情報理論」(必修・自分で入れた科目・入れたい科目で外せない)と月3で重なる"
+        "符号理論は「情報理論」(必修・配当年次に必ず履修登録する科目・自分で入れた科目・入れたい科目で外せない)と月3で重なる"
     )
 
 

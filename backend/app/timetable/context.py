@@ -33,6 +33,7 @@ from app.timetable.candidates import (
     taken_titles,
 )
 from app.timetable.errors import ContextError, CurriculumNotFound
+from app.timetable.special import class_grade_allows
 from app.timetable.offerings import (
     DAYS,
     Catalog,
@@ -294,18 +295,24 @@ class StudentContext:
         両方のコードが同じ教員・同じコマにある)。学期で絞らないと、1年前期にAとBが
         重なってどちらも置けない。
 
-        履修要項の学期の登録で履修できるクラスが開講年度に**ある**ときだけ True。
-        無いとき(開講学期が要項と変わった年)は、対象学期のクラスを使ってよい。
+        履修要項の学期の登録で履修できるクラス(履修登録でき、配当年次が学年を含む)が
+        開講年度に**ある**ときだけ True。無いとき(開講学期が要項と変わった年)は、
+        対象学期のクラスを使ってよい。
         """
         half = registration_half(candidate.course.term)
         if half is None or half == self.target.term:
             return False
-        return any(
-            code in self.catalog.classes
-            and self.eligibility.allows(code)
-            and registration_half(self.catalog.classes[code].term) == half
-            for code in candidate.codes
-        )
+        title = candidate.course.title
+        for code in candidate.codes:
+            offered = self.catalog.classes.get(code)
+            if (
+                offered is not None
+                and self.eligibility.allows(code)
+                and registration_half(offered.term) == half
+                and class_grade_allows(title, self.target.grade, offered.grade_min, offered.grade_max)
+            ):
+                return True
+        return False
 
     def course_by_title(self, title: str) -> MergedCourse | None:
         """履修要項の科目を科目名で引く。当該課程の設置科目を優先する。"""
@@ -394,7 +401,7 @@ async def build_student_context(
         catalog = await get_catalog(curriculum=loaded.curriculum)
     eligibility = catalog.eligibility(loaded.curriculum)
     attached = attach_offerings(
-        candidates, catalog.classes, eligibility=eligibility, term=target.term
+        candidates, catalog.classes, eligibility=eligibility, term=target.term, grade=target.grade
     )
     attached, prerequisite_results = check_prerequisites(
         attached, loaded.curriculum, profile.completed_courses, target=target

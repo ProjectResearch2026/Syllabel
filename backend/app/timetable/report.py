@@ -17,6 +17,7 @@ from app.timetable.conditions import DEFAULT_MAX_PERIODS_PER_DAY, Conditions
 from app.timetable.candidates import display_title
 from app.timetable.context import StudentContext
 from app.timetable.offerings import DAYS, WEEKDAYS
+from app.timetable.special import MUST_REGISTER_REASON
 
 
 class _CamelModel(BaseModel):
@@ -93,7 +94,9 @@ class Report(_CamelModel):
     needs_confirmation: list[str] = []
 
 
-StepKind = Literal["keep", "remove", "required", "include", "free_day", "fill", "unmet"]
+StepKind = Literal[
+    "keep", "remove", "required", "must_register", "include", "free_day", "fill", "unmet"
+]
 
 
 class Step(_CamelModel):
@@ -104,6 +107,7 @@ class Step(_CamelModel):
     | keep | 学生が入れた科目などを残した |
     | remove | 今の時間割から科目を外した(条件に反する・入れない科目) |
     | required | 必修を置いた(`note` は「必修」または「再履修」) |
+    | must_register | 配当年次に必ず履修登録する科目を置いた(`special.py`) |
     | include | 学生が入れたいと言った科目を置いた |
     | free_day | 全休の曜日を決めた(`day`、ほかに空けられた曜日は `others`) |
     | fill | 不足を埋める科目を置いた(`slot` は単位が入る要件枠、`shortfall_after` はその枠に残る不足) |
@@ -203,11 +207,18 @@ def pinned_keys(conditions: Conditions) -> set[str]:
     return {x for wanted in conditions.include for x in (wanted, normalize_title(wanted))}
 
 
+def is_must_register(course: ProposedCourse) -> bool:
+    """組み立てが、配当年次に必ず履修登録する科目として置いた科目(`special.py`)。"""
+    return course.source == "assistant" and course.reason == MUST_REGISTER_REASON
+
+
 def is_removable(course: ProposedCourse, pinned: set[str] = frozenset()) -> bool:
-    """組み立てが外してよい科目。必修・学生が自分で入れた科目・入れたい科目は外さない。"""
+    """組み立てが外してよい科目。必修・配当年次に必ず履修登録する科目・学生が自分で入れた科目・
+    入れたい科目は外さない(配当年次に必ず履修登録する科目も、学生に頼まれたときだけ外す)。"""
     return (
         course.source == "assistant"
         and not is_required(course)
+        and not is_must_register(course)
         and course.syllabus_code not in pinned
         and normalize_title(course.title) not in pinned
     )
@@ -234,6 +245,8 @@ def _who(course: ProposedCourse) -> str:
         return "自分で入れた"
     if is_required(course):
         return "必修の"
+    if is_must_register(course):
+        return "必ず履修登録する"
     return ""
 
 

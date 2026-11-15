@@ -57,7 +57,8 @@ from app.schemas.proposal import CourseSlot, ProposedCourse, course_clash, quart
 from app.timetable.candidates import Candidate, by_subtitle, display_title, key_of, student_type
 from app.timetable.conditions import Conditions
 from app.timetable.context import StudentContext, proposed_course
-from app.timetable.offerings import DAYS, WEEKDAYS, registration_half
+from app.timetable.offerings import DAYS, WEEKDAYS, OfferedClass, registration_half
+from app.timetable.special import MUST_REGISTER_REASON, class_grade_allows, must_register
 from app.timetable.report import (
     Report,
     Step,
@@ -405,6 +406,71 @@ def _place_required(plan: _Plan, rng: random.Random, exclude: _Exclude) -> None:
         plan.confirmations.append(
             f"必修だけで登録できる単位({plan.limit}単位)を超える。履修登録の上限を確かめる"
         )
+    _place_must_register(plan, rng, exclude)
+
+
+def _place_must_register(plan: _Plan, rng: random.Random, exclude: _Exclude) -> None:
+    """配当年次に必ず履修登録する科目(`special.py` の `must_register`)を置く(手順2。§7.2.5)。
+
+    必修の後に置き、必修と同じく条件(全休・避ける時限)を破ってでも置く。置くのは、対象学期が
+    履修要項の配当年次・配当学期で、成績表にその科目の行が無い学生だけ(不合格・履修辞退の
+    再履修は、必修でない科目と同じく自動では入れない)。次のときは置かず「確かめること」に載せる:
+    入れない科目に指定された・必修だけで組む・コマが重なる(必修か学生が入れた科目と)・
+    登録できる単位を超える。
+    """
+    ctx = plan.ctx
+    retakes = ctx.retakes()
+    for candidate in ctx.candidates:
+        course = candidate.course
+        if not (course.own and must_register(course.title)):
+            continue
+        if course.grade != ctx.target.grade or registration_half(course.term) != ctx.target.term:
+            continue
+        key = candidate.key
+        if key in retakes or key in plan.keys() or key in plan.blocked_keys:
+            continue
+        title = course.title
+        if exclude.matches(course) or any(
+            exclude.matches(course, o.syllabus_code) for o in candidate.classes
+        ):
+            plan.confirmations.append(
+                f"{title}は{MUST_REGISTER_REASON}。入れない科目に指定されたため入れていない。"
+                "履修登録しなくてよいか確かめる"
+            )
+            continue
+        if plan.conditions.scope == "必修のみ":
+            plan.confirmations.append(
+                f"{title}は{MUST_REGISTER_REASON}。必修ではないため、必修だけの時間割には入れていない"
+            )
+            continue
+        if plan.limit is not None and plan.total + course.credits > plan.limit:
+            plan.confirmations.append(
+                f"{title}は{MUST_REGISTER_REASON}だが、入れると登録できる単位({plan.limit}単位)を"
+                "超えるため入れていない。履修登録の上限を確かめる"
+            )
+            continue
+        classes = [
+            proposed_course(course, o, reason=MUST_REGISTER_REASON) for o in candidate.classes
+        ]
+        occupied = plan.occupied()
+        used = plan.days_used()
+        free = [c for c in classes if not plan.clashes(c, occupied)]
+        if not free:
+            best = min(classes, key=lambda c: (len(plan.clashes(c, occupied)), rng.random()))
+            others = plan.clashes(best, occupied)
+            names = "」「".join(o.title for o in others)
+            plan.confirmations.append(
+                f"{title}は{MUST_REGISTER_REASON}だが、「{names}」と{_clash_label(best, others[0])}で"
+                "重なるため入れていない。どちらを履修するか教務に確かめる"
+            )
+            continue
+        choice = min(
+            free, key=lambda c: (plan.day_violations(c), plan.new_days(c, used), rng.random())
+        )
+        if choice.syllabus_code:
+            # 必修と同じく、入れたい科目・全休の曜日のために外さない
+            plan.pinned.add(choice.syllabus_code)
+        plan.add(choice, Step(kind="must_register", course=choice))
 
 
 def _include_failure(ctx: StudentContext, wanted: str) -> str:
@@ -424,6 +490,11 @@ def _include_failure(ctx: StudentContext, wanted: str) -> str:
             return f"{title}({wanted})は{offered.term}開講で、{ctx.target.term}に登録する科目ではない"
         if not ctx.eligibility.allows(wanted):
             return f"{title}({wanted})は他課程が対象のクラスで、履修登録できない"
+        if not class_grade_allows(title, ctx.target.grade, offered.grade_min, offered.grade_max):
+            return (
+                f"{title}({wanted})は{_grades_label(offered)}が対象のクラスで、"
+                f"{ctx.target.grade}年次は履修登録できない"
+            )
     if course is None:
         return f"{title}は履修要項に無い科目で、時間割に入れられない"
     if course.type == "随意":
@@ -433,7 +504,32 @@ def _include_failure(ctx: StudentContext, wanted: str) -> str:
     result = ctx.prerequisites.get(key)
     if result is not None and result.status == "unmet":
         return f"{title}は先修条件を満たしていない"
+    offered_now = [
+        o
+        for code in ctx.loaded.syllabus_codes(course)
+        if (o := ctx.catalog.classes.get(code)) is not None
+        and ctx.eligibility.allows(code)
+        and registration_half(o.term) in (ctx.target.term, None)
+    ]
+    if offered_now and not any(
+        class_grade_allows(title, ctx.target.grade, o.grade_min, o.grade_max) for o in offered_now
+    ):
+        labels = "・".join(dict.fromkeys(_grades_label(o) for o in offered_now))
+        return (
+            f"{title}の対象学期({ctx.target.year}年度{ctx.target.term})のクラスは{labels}が対象で、"
+            f"{ctx.target.grade}年次は履修登録できない"
+        )
     return f"{title}は対象学期({ctx.target.year}年度{ctx.target.term})に履修できるクラスが無い"
+
+
+def _grades_label(offered: OfferedClass) -> str:
+    """クラスの配当年次。「3年次～4年次」「1年次」の形。"""
+    low, high = offered.grade_min, offered.grade_max
+    if low is None:
+        return "配当年次不明"
+    if high is None or high == low:
+        return f"{low}年次"
+    return f"{low}年次～{high}年次"
 
 
 def _place_includes(plan: _Plan, rng: random.Random, estimator: _Estimator) -> None:
@@ -490,7 +586,7 @@ def _place_includes(plan: _Plan, rng: random.Random, estimator: _Estimator) -> N
                 others = plan.clashes(options[0], occupied)
                 fixed = next((o for o in others if not plan.removable(o)), others[0])
                 plan.include_failures[wanted] = (
-                    f"{title}は「{fixed.title}」(必修・自分で入れた科目・入れたい科目で外せない)と"
+                    f"{title}は「{fixed.title}」(必修・配当年次に必ず履修登録する科目・自分で入れた科目・入れたい科目で外せない)と"
                     f"{_clash_label(options[0], fixed)}で重なる"
                 )
                 continue
