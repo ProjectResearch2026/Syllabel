@@ -163,6 +163,122 @@ async def test_required_courses_that_clash_are_both_left_out():
     assert any("重なる" in item for item in result.report.needs_confirmation)
 
 
+# --- 必修を履修要項の学期に置く(StudentContext.off_term) ---
+#
+# スポーツ技術学A(前期)・B(後期)と同じ形。どちらも前期・後期の両方に、同じコマ(水2)の
+# クラスがある。「後期の必修」は履修要項では後期だが、前期にしか開講されない
+_TERM_CLASSES = {
+    c.syllabus_code: c
+    for c in [
+        *fx.CLASSES.values(),
+        fx._class("S000000001", "実技A", [("水", 2)], term="前期"),
+        fx._class("S000000002", "実技B", [("水", 2)], term="前期"),
+        fx._class("S000000003", "実技A", [("水", 2)], term="後期"),
+        fx._class("S000000004", "実技B", [("水", 2)], term="後期"),
+        fx._class("S000000005", "後期の必修", [("月", 5)], term="前期"),
+    ]
+}
+
+
+def _term_loaded():
+    from app.curricula.loader import LoadedCurriculum
+    from app.curricula.merge import merge
+    from app.schemas.offering import Offering
+
+    main = fx.program(
+        "01",
+        courses=[
+            fx._major("実技A", "専門基礎科目", "必修", term="前期"),
+            fx._major("実技B", "専門基礎科目", "必修", term="後期"),
+            fx._major("後期の必修", "専門基礎科目", "必修", term="後期"),
+        ],
+    )
+    resolved = {
+        "00": fx.RESOLVED["00"],
+        "01": {
+            "実技A": ["S000000001", "S000000003"],
+            "実技B": ["S000000002", "S000000004"],
+            "後期の必修": ["S000000005"],
+        },
+    }
+    return LoadedCurriculum(
+        curriculum=merge(main, fx.liberal_arts(), [main]),
+        offerings={
+            code: Offering.model_validate(
+                {
+                    "offering_year": fx.OFFERING_YEAR,
+                    "admission_year": fx.ADMISSION_YEAR,
+                    "program_code": code,
+                    "resolved": codes,
+                }
+            )
+            for code, codes in resolved.items()
+        },
+    )
+
+
+async def _term_ctx(monkeypatch, *courses, term="前期", grade=1):
+    monkeypatch.setattr(
+        context_module, "get_curricula", lambda: {("01", fx.ADMISSION_YEAR): _term_loaded()}
+    )
+    return await _ctx(*courses, term=term, grade=grade, classes=_TERM_CLASSES)
+
+
+def _placed(result) -> dict[str, ProposedCourse]:
+    return {c.title: c for c in result.courses}
+
+
+@pytest.mark.asyncio
+async def test_required_course_is_placed_only_in_its_curriculum_term(monkeypatch):
+    """前期の登録では前期の必修だけを置く。AとBが同じコマで重なって両方外れることはない。"""
+    result = _build(await _term_ctx(monkeypatch))
+
+    placed = _placed(result)
+    assert placed["実技A"].syllabus_code == "S000000001"
+    assert "実技B" not in placed
+    assert not any("重なる" in item for item in result.report.needs_confirmation)
+
+
+@pytest.mark.asyncio
+async def test_later_term_required_course_is_placed_in_that_term(monkeypatch):
+    """後期の登録では後期の必修を置き、前期の必修は(未修得でも)後期のクラスに置かない。"""
+    result = _build(await _term_ctx(monkeypatch, term="後期"))
+
+    placed = _placed(result)
+    assert placed["実技B"].syllabus_code == "S000000004"
+    assert "実技A" not in placed
+
+
+@pytest.mark.asyncio
+async def test_retake_required_course_uses_the_other_term(monkeypatch):
+    """不合格の必修は、履修要項と違う学期のクラスでも置く。"""
+    ctx = await _term_ctx(
+        monkeypatch, fx.course("実技A"), fx.course("実技B", status="failed"), grade=2
+    )
+    result = _build(ctx)
+
+    placed = _placed(result)
+    assert placed["実技B"].syllabus_code == "S000000002"
+    assert placed["実技B"].reason == "再履修の必修"
+
+
+@pytest.mark.asyncio
+async def test_required_course_offered_only_in_another_term_is_still_placed(monkeypatch):
+    """履修要項の学期に開講が無い必修は、開講されている学期に置く(開講学期が変わった年)。"""
+    result = _build(await _term_ctx(monkeypatch))
+
+    assert _placed(result)["後期の必修"].syllabus_code == "S000000005"
+
+
+@pytest.mark.asyncio
+async def test_include_places_a_required_course_outside_its_term(monkeypatch):
+    """学生が入れたいと言った必修は、履修要項と違う学期でも入れる。"""
+    ctx = await _term_ctx(monkeypatch, fx.course("実技A"))
+    result = _build(ctx, Conditions(include=["実技B"]))
+
+    assert _placed(result)["実技B"].syllabus_code == "S000000002"
+
+
 @pytest.mark.asyncio
 async def test_required_course_breaks_free_day_when_unavoidable():
     """必修のクラスがどれも条件に合わなければ、条件を破って置き、破ったことを示す。"""

@@ -286,6 +286,27 @@ class StudentContext:
         """不合格・履修辞退のまま修得していない科目名(正規化済み)。"""
         return retake_titles(self.completed)
 
+    def off_term(self, candidate: Candidate) -> bool:
+        """その科目を、履修要項の学期(`term`)と違う対象学期に置かないか。
+
+        必修を置く手順(`builder._place_required`)が、再履修でない必修に使う。同じ授業に
+        別の学期のコードも振られている科目がある(スポーツ技術学A・Bは前期・後期とも
+        両方のコードが同じ教員・同じコマにある)。学期で絞らないと、1年前期にAとBが
+        重なってどちらも置けない。
+
+        履修要項の学期の登録で履修できるクラスが開講年度に**ある**ときだけ True。
+        無いとき(開講学期が要項と変わった年)は、対象学期のクラスを使ってよい。
+        """
+        half = registration_half(candidate.course.term)
+        if half is None or half == self.target.term:
+            return False
+        return any(
+            code in self.catalog.classes
+            and self.eligibility.allows(code)
+            and registration_half(self.catalog.classes[code].term) == half
+            for code in candidate.codes
+        )
+
     def course_by_title(self, title: str) -> MergedCourse | None:
         """履修要項の科目を科目名で引く。当該課程の設置科目を優先する。"""
         key = normalize_title(title)

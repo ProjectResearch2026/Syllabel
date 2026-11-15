@@ -11,7 +11,9 @@
    よい科目(必修・学生が入れた科目・入れたい科目以外)のうち、全休の曜日・避ける時限に
    反するものを外す
 2. **必修を置く。** 対象学期に履修できる必修は、不合格・履修辞退の再履修を含めて
-   必ず置く。条件に合うクラスを選び、どのクラスも合わなければ条件を破って置く
+   必ず置く。ただし再履修でない必修は、履修要項の学期(`term`)の登録で履修できる
+   クラスがあるなら、その学期にだけ置く(`StudentContext.off_term()`)。
+   条件に合うクラスを選び、どのクラスも合わなければ条件を破って置く
    (破ったことはレポートに出る)。必修どうしが重なったときはどちらも置かず、
    「確かめること」に載せる
 3. **入れたい科目(`include`)を置く。** コマが重なるとき・単位の上限を超えるときは、
@@ -364,6 +366,9 @@ def _place_required(plan: _Plan, rng: random.Random, exclude: _Exclude) -> None:
         if key in plan.keys() or key in plan.blocked_keys:
             continue
         retake = key in retakes
+        # 再履修でない必修は、履修要項の学期にだけ置く(`StudentContext.off_term()`)
+        if not retake and ctx.off_term(candidate):
+            continue
         note = "再履修" if retake else "必修"
         reason = "再履修の必修" if retake else "必修"
         classes = [proposed_course(candidate.course, o, reason=reason) for o in candidate.classes]
