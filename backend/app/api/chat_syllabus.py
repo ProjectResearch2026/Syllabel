@@ -23,6 +23,7 @@ from app.api.sse import sse_response
 from app.schemas.chat import ChatRequest
 from app.timetable.context import StudentContext, build_student_context
 from app.timetable.facts import format_requirements, retake_lines, section, student_lines
+from app.timetable.special import special_sections
 
 # 実機検証(2026-09-04, issue #62)で、骨格は原典どおりでも装飾部分に捏造が出た。
 # 「文書作成ソフト」→「Word」のような一般語の具体化、原典にない概念(プライバシー保護)の
@@ -34,7 +35,8 @@ _SYLLABUS_PROMPT = (
     "科目を探すときは search_courses、講義の内容を読むときは get_course を使ってください。\n"
     "\n"
     "回答は次の規則に従ってください。\n"
-    "1. ツールが返した内容だけを根拠にする。シラバスに書かれていない事項を補わない。\n"
+    "1. ツールが返した内容だけを根拠にする。シラバスに書かれていない事項を補わない。"
+    "ただし、履修要項での扱いは【特別な扱いの科目】に書かれた事実も根拠にしてよい。\n"
     "2. シラバスの語をそのまま使う。より具体的な語や製品名への言い換えをしない"
     "(例:「文書作成ソフト」を「Word」、「ネットワークストレージ」を「クラウド」と書き換えない)。\n"
     "3. シラバスにない形容や評価を付け加えない(例:「実践的な」)。\n"
@@ -79,6 +81,7 @@ def _facts(req: ChatRequest, student: StudentContext | None) -> list[str]:
                 format_requirements(student.requirements, student.assumed_passes()),
             ),
             section("再履修する必修", retake_lines(student)),
+            *special_sections(student, builds=False),
         ]
     profile = req.profile
     facts: list[str] = []

@@ -184,7 +184,8 @@ def annotate(
     if ctx is None:
         return {}
     course = ctx.course_of_code(code) or ctx.course_by_title(title)
-    registrable = ctx.eligibility.allows(code)
+    # 時間割の組み立てと同じ判定(対象課程と、クラスの配当年次が学年を含むか。§7.2.1)
+    registrable = ctx.class_allowed(code, course.title if course is not None else title)
     status = _status(ctx, title)
     out: dict[str, object] = {"registrable": registrable}
     if status is not None:
@@ -343,7 +344,7 @@ async def search_courses(
             if course_type is not None:
                 checks["course_type"] = course is not None and student_type(course) == course_type
             if only_registrable:
-                checks["only_registrable"] = ctx.eligibility.allows(code)
+                checks["only_registrable"] = ctx.class_allowed(code, offered.course_title)
             if not include_taken:
                 checks["include_taken"] = (
                     by_subtitle(offered.course_title)
@@ -373,8 +374,14 @@ async def search_courses(
     groups = sorted(grouped.values(), key=order)
     courses: list[dict] = []
     for classes in groups[offset : offset + limit]:
+        # 代表のクラス(`code`)は、学生が履修登録できるクラスを先にする。曜日の早いクラスが
+        # 他課程向け・学年の対象外だと、モデルはそのコードを入れたい科目に渡してしまう
         classes = sorted(
-            classes, key=class_order
+            classes,
+            key=lambda c: (
+                ctx is not None and not ctx.class_allowed(c.syllabus_code, c.course_title),
+                *class_order(c),
+            ),
         )
         first = classes[0]
         entry: dict[str, object] = {

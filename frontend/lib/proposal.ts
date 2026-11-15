@@ -120,6 +120,8 @@ export function stepLabel(step: TimetableStep): string | null {
       return title ? `${title}を外す${step.note ? `（${step.note}）` : ""}` : null;
     case "required":
       return title ? `${step.note === "再履修" ? "再履修" : "必修"}: ${title}` : null;
+    case "must_register":
+      return title ? `必ず履修登録: ${title}` : null;
     case "include":
       return title ? `${title}を入れる` : null;
     case "free_day":

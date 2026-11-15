@@ -125,7 +125,7 @@ export type TimetableReport = {
 
 /** 組み立ての1手。`backend/app/timetable/report.py` の `Step` */
 export type TimetableStep = {
-  kind: "keep" | "remove" | "required" | "include" | "free_day" | "fill" | "unmet";
+  kind: "keep" | "remove" | "required" | "must_register" | "include" | "free_day" | "fill" | "unmet";
   course: ProposedCourse | null;
   day: string | null;
   others: string[];

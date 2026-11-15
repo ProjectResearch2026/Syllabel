@@ -33,6 +33,7 @@ from app.timetable.candidates import (
     taken_titles,
 )
 from app.timetable.errors import ContextError, CurriculumNotFound
+from app.timetable.special import class_grade_allows
 from app.timetable.offerings import (
     DAYS,
     Catalog,
@@ -286,6 +287,63 @@ class StudentContext:
         """不合格・履修辞退のまま修得していない科目名(正規化済み)。"""
         return retake_titles(self.completed)
 
+    def class_allowed(self, code: str, title: str) -> bool:
+        """そのクラスを、この学生が対象学期の学年で履修登録できるか(対象課程と配当年次。§7.2.1)。
+
+        候補の絞り込み(`attach_offerings()`)と同じ判定で、検索のツールの `registrable` にも使う。
+        開講学期は見ない(検索は学期を問わず返す)。
+        """
+        if not self.eligibility.allows(code):
+            return False
+        offered = self.catalog.classes.get(code)
+        return offered is None or class_grade_allows(
+            title, self.target.grade, offered.grade_min, offered.grade_max
+        )
+
+    def grade_blocked_classes(self, course: MergedCourse) -> list[OfferedClass]:
+        """対象学期に登録する、履修登録できるクラスがあるのに、どれも配当年次が学年を
+        含まないとき、そのクラス。そうでなければ空(候補から消えた理由が配当年次だけのとき)。"""
+        offered = [
+            o
+            for code in self.loaded.syllabus_codes(course)
+            if (o := self.catalog.classes.get(code)) is not None
+            and self.eligibility.allows(code)
+            and registration_half(o.term) in (self.target.term, None)
+        ]
+        if any(
+            class_grade_allows(course.title, self.target.grade, o.grade_min, o.grade_max)
+            for o in offered
+        ):
+            return []
+        return offered
+
+    def off_term(self, candidate: Candidate) -> bool:
+        """その科目を、履修要項の学期(`term`)と違う対象学期に置かないか。
+
+        必修を置く手順(`builder._place_required`)が、再履修でない必修に使う。同じ授業に
+        別の学期のコードも振られている科目がある(スポーツ技術学A・Bは前期・後期とも
+        両方のコードが同じ教員・同じコマにある)。学期で絞らないと、1年前期にAとBが
+        重なってどちらも置けない。
+
+        履修要項の学期の登録で履修できるクラス(履修登録でき、配当年次が学年を含む)が
+        開講年度に**ある**ときだけ True。無いとき(開講学期が要項と変わった年)は、
+        対象学期のクラスを使ってよい。
+        """
+        half = registration_half(candidate.course.term)
+        if half is None or half == self.target.term:
+            return False
+        title = candidate.course.title
+        for code in candidate.codes:
+            offered = self.catalog.classes.get(code)
+            if (
+                offered is not None
+                and self.eligibility.allows(code)
+                and registration_half(offered.term) == half
+                and class_grade_allows(title, self.target.grade, offered.grade_min, offered.grade_max)
+            ):
+                return True
+        return False
+
     def course_by_title(self, title: str) -> MergedCourse | None:
         """履修要項の科目を科目名で引く。当該課程の設置科目を優先する。"""
         key = normalize_title(title)
@@ -373,7 +431,7 @@ async def build_student_context(
         catalog = await get_catalog(curriculum=loaded.curriculum)
     eligibility = catalog.eligibility(loaded.curriculum)
     attached = attach_offerings(
-        candidates, catalog.classes, eligibility=eligibility, term=target.term
+        candidates, catalog.classes, eligibility=eligibility, term=target.term, grade=target.grade
     )
     attached, prerequisite_results = check_prerequisites(
         attached, loaded.curriculum, profile.completed_courses, target=target

@@ -121,6 +121,16 @@ def read_slots(row: dict) -> tuple[CourseSlot, ...]:
     return tuple(slots)
 
 
+def grades_label(offered: "OfferedClass") -> str:
+    """クラスの配当年次。「3年次～4年次」「1年次」の形(シラバスの表記に合わせる)。"""
+    low, high = offered.grade_min, offered.grade_max
+    if low is None:
+        return "配当年次不明"
+    if high is None or high == low:
+        return f"{low}年次"
+    return f"{low}年次～{high}年次"
+
+
 def class_order(offered: "OfferedClass") -> tuple:
     """クラスの並び。曜日(月→土)・時限・コードの順で、曜日・時限の無いクラスは末尾。"""
     day = DAYS.index(offered.day_of_week) if offered.day_of_week in DAYS else len(DAYS)

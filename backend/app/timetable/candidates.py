@@ -14,6 +14,7 @@ from app.schemas.student import Course as StudentCourse
 from app.schemas.student import StudentProfile
 from app.timetable.errors import ContextError
 from app.timetable.offerings import Eligibility, OfferedClass, class_order, registration_half
+from app.timetable.special import class_grade_allows
 
 logger = logging.getLogger(__name__)
 
@@ -163,6 +164,7 @@ def attach_offerings(
     *,
     eligibility: Eligibility | None = None,
     term: HalfTerm | None = None,
+    grade: int | None = None,
 ) -> list[Candidate]:
     """候補にシラバスコードで開講クラスを結び付ける(§7.2)。
 
@@ -171,8 +173,11 @@ def attach_offerings(
 
     **`eligibility` を与えたときは、履修登録できないクラスを落とす**(§6.1)。
     **`term` を与えたときは、その学期の履修登録で登録するクラスだけを残す**
-    (`registration_half()`)。学期が判定できないクラスは残す。いずれかで1クラスも
-    残らない科目は候補から外す。`by_subtitle()` の科目は、サブタイトルごとに別の候補にする。
+    (`registration_half()`)。学期が判定できないクラスは残す。
+    **`grade` を与えたときは、クラスの配当年次(`grade_min`〜`grade_max`)がその学年を
+    含むクラスだけを残す**(`class_grade_allows()`)。配当年次が分からないクラスと、
+    `ignore_class_grade` の科目(`special.py`)は残す。いずれかで1クラスも残らない科目は
+    候補から外す。`by_subtitle()` の科目は、サブタイトルごとに別の候補にする。
     """
     attached: list[Candidate] = []
     for candidate in candidates:
@@ -184,6 +189,9 @@ def attach_offerings(
                 if code in index
                 and (eligibility is None or eligibility.allows(code))
                 and (term is None or registration_half(index[code].term) in (term, None))
+                and class_grade_allows(
+                    candidate.course.title, grade, index[code].grade_min, index[code].grade_max
+                )
             ),
             key=class_order,
         )
