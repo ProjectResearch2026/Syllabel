@@ -6,6 +6,7 @@ from app.curricula.requirements import RequirementsResult, normalize_title
 from app.schemas.student import Course as StudentCourse
 from app.timetable.candidates import oneline, student_type
 from app.timetable.context import StudentContext
+from app.timetable.offerings import grades_label
 
 
 def credits_label(value: float) -> str:
@@ -106,6 +107,15 @@ def retake_lines(ctx: StudentContext) -> list[str]:
     lines = []
     for title in titles:
         course = ctx.course_by_title(title)
-        if course is not None and student_type(course) == "必修":
+        if course is None or student_type(course) != "必修":
+            continue
+        blocked = ctx.grade_blocked_classes(course)
+        if blocked and not any(c.key == normalize_title(course.title) for c in ctx.candidates):
+            labels = "・".join(dict.fromkeys(grades_label(o) for o in blocked))
+            lines.append(
+                f"- {title}(対象学期のクラスは{labels}が対象で、{ctx.target.grade}年次は"
+                "履修登録できないため入らない)"
+            )
+        else:
             lines.append(f"- {title}(対象学期に履修できれば必ず入る)")
     return lines or ["なし"]

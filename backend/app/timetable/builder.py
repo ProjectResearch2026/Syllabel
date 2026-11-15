@@ -54,10 +54,17 @@ from typing import Literal
 from app.curricula.requirements import EntrySlots, entry_slot_keys, normalize_title
 from app.curricula.merge import MergedCourse
 from app.schemas.proposal import CourseSlot, ProposedCourse, course_clash, quarters_of
-from app.timetable.candidates import Candidate, by_subtitle, display_title, key_of, student_type
+from app.timetable.candidates import (
+    Candidate,
+    by_subtitle,
+    course_key,
+    display_title,
+    key_of,
+    student_type,
+)
 from app.timetable.conditions import Conditions
 from app.timetable.context import StudentContext, proposed_course
-from app.timetable.offerings import DAYS, WEEKDAYS, OfferedClass, registration_half
+from app.timetable.offerings import DAYS, WEEKDAYS, grades_label, registration_half
 from app.timetable.special import MUST_REGISTER_REASON, class_grade_allows, must_register
 from app.timetable.report import (
     Report,
@@ -346,6 +353,12 @@ def _keep(plan: _Plan, current: Sequence[ProposedCourse], mode: Mode, exclude: _
             continue
         if mode == "rebuild" and course.source != "student":
             continue
+        if course.source == "assistant" and course.reason != MUST_REGISTER_REASON:
+            # 不足を埋める手順などで入った科目でも、今の対象学期に必ず履修登録する科目なら
+            # 理由を揃える(外してよい科目の判定は理由で見る。`is_must_register()`)
+            merged = plan.ctx.course_by_title(course.title)
+            if merged is not None and _must_register_due(plan.ctx, merged):
+                course = course.model_copy(update={"reason": MUST_REGISTER_REASON})
         seen.add(key)
         plan.add(course, Step(kind="keep", course=course))
     if mode == "rebuild":
@@ -402,11 +415,39 @@ def _place_required(plan: _Plan, rng: random.Random, exclude: _Exclude) -> None:
                 f"必修の「{candidate.course.title}」が「{names}」と{where}で重なるため、"
                 "時間割に入れていない"
             )
+    candidate_keys = {c.key for c in ctx.candidates}
+    for title in sorted(retakes):
+        course = ctx.course_by_title(title)
+        if course is None or student_type(course) != "必修" or title in candidate_keys:
+            continue
+        blocked = ctx.grade_blocked_classes(course)
+        if blocked:
+            labels = "・".join(dict.fromkeys(grades_label(o) for o in blocked))
+            plan.confirmations.append(
+                f"再履修の必修の「{course.title}」は、対象学期のクラスが{labels}が対象で、"
+                f"{ctx.target.grade}年次は履修登録できないため入れていない。"
+                "どの学期・クラスで再履修するか教務に確かめる"
+            )
     if plan.limit is not None and plan.total > plan.limit:
         plan.confirmations.append(
             f"必修だけで登録できる単位({plan.limit}単位)を超える。履修登録の上限を確かめる"
         )
     _place_must_register(plan, rng, exclude)
+
+
+def _must_register_due(ctx: StudentContext, course: MergedCourse) -> bool:
+    """配当年次に必ず履修登録する科目として、この学生の対象学期に置くか(§7.2.5)。
+
+    当該課程の科目で、対象学期が履修要項の配当年次・配当学期であり、不合格・履修辞退の
+    再履修でないこと(修得済み・登録済みは候補に無い)。
+    """
+    return (
+        course.own
+        and must_register(course.title)
+        and course.grade == ctx.target.grade
+        and registration_half(course.term) == ctx.target.term
+        and normalize_title(course.title) not in ctx.retakes()
+    )
 
 
 def _place_must_register(plan: _Plan, rng: random.Random, exclude: _Exclude) -> None:
@@ -419,15 +460,12 @@ def _place_must_register(plan: _Plan, rng: random.Random, exclude: _Exclude) -> 
     登録できる単位を超える。
     """
     ctx = plan.ctx
-    retakes = ctx.retakes()
     for candidate in ctx.candidates:
         course = candidate.course
-        if not (course.own and must_register(course.title)):
-            continue
-        if course.grade != ctx.target.grade or registration_half(course.term) != ctx.target.term:
+        if not _must_register_due(ctx, course):
             continue
         key = candidate.key
-        if key in retakes or key in plan.keys() or key in plan.blocked_keys:
+        if key in plan.keys() or key in plan.blocked_keys:
             continue
         title = course.title
         if exclude.matches(course) or any(
@@ -492,7 +530,7 @@ def _include_failure(ctx: StudentContext, wanted: str) -> str:
             return f"{title}({wanted})は他課程が対象のクラスで、履修登録できない"
         if not class_grade_allows(title, ctx.target.grade, offered.grade_min, offered.grade_max):
             return (
-                f"{title}({wanted})は{_grades_label(offered)}が対象のクラスで、"
+                f"{title}({wanted})は{grades_label(offered)}が対象のクラスで、"
                 f"{ctx.target.grade}年次は履修登録できない"
             )
     if course is None:
@@ -504,17 +542,9 @@ def _include_failure(ctx: StudentContext, wanted: str) -> str:
     result = ctx.prerequisites.get(key)
     if result is not None and result.status == "unmet":
         return f"{title}は先修条件を満たしていない"
-    offered_now = [
-        o
-        for code in ctx.loaded.syllabus_codes(course)
-        if (o := ctx.catalog.classes.get(code)) is not None
-        and ctx.eligibility.allows(code)
-        and registration_half(o.term) in (ctx.target.term, None)
-    ]
-    if offered_now and not any(
-        class_grade_allows(title, ctx.target.grade, o.grade_min, o.grade_max) for o in offered_now
-    ):
-        labels = "・".join(dict.fromkeys(_grades_label(o) for o in offered_now))
+    blocked = ctx.grade_blocked_classes(course)
+    if blocked:
+        labels = "・".join(dict.fromkeys(grades_label(o) for o in blocked))
         return (
             f"{title}の対象学期({ctx.target.year}年度{ctx.target.term})のクラスは{labels}が対象で、"
             f"{ctx.target.grade}年次は履修登録できない"
@@ -522,14 +552,14 @@ def _include_failure(ctx: StudentContext, wanted: str) -> str:
     return f"{title}は対象学期({ctx.target.year}年度{ctx.target.term})に履修できるクラスが無い"
 
 
-def _grades_label(offered: OfferedClass) -> str:
-    """クラスの配当年次。「3年次～4年次」「1年次」の形。"""
-    low, high = offered.grade_min, offered.grade_max
-    if low is None:
-        return "配当年次不明"
-    if high is None or high == low:
-        return f"{low}年次"
-    return f"{low}年次～{high}年次"
+def _candidate_of_code(ctx: StudentContext, code: str) -> Candidate | None:
+    """候補から絞られたクラスのコードを、同じ科目(特別講義は同じサブタイトル)の候補に読み替える。"""
+    offered = ctx.catalog.classes.get(code)
+    course = ctx.course_of_code(code)
+    if offered is None or course is None:
+        return None
+    key = course_key(course.title, offered.subtitle)
+    return next((c for c in ctx.candidates if c.key == key), None)
 
 
 def _place_includes(plan: _Plan, rng: random.Random, estimator: _Estimator) -> None:
@@ -544,6 +574,15 @@ def _place_includes(plan: _Plan, rng: random.Random, estimator: _Estimator) -> N
             options = [
                 proposed_course(candidate.course, o, reason="希望で入れた科目")
                 for o in (offered, *(o for o in candidate.classes if o is not offered))
+            ]
+        elif (resolved := _candidate_of_code(ctx, wanted)) is not None:
+            # 学年・学期・対象課程で絞られたクラスのコード。検索の code は学年の合わないクラスの
+            # こともある。学生はクラスを選んだわけではないので、同じ科目の残ったクラスで入れる
+            candidate = resolved
+            specified = wanted
+            options = [
+                proposed_course(candidate.course, o, reason="希望で入れた科目")
+                for o in candidate.classes
             ]
         else:
             matched = [
@@ -561,6 +600,11 @@ def _place_includes(plan: _Plan, rng: random.Random, estimator: _Estimator) -> N
                 for o in candidate.classes
             ]
         if candidate.key in plan.keys():
+            # 必修などで既に別のクラスが入っている。入れたい科目は入ったとみなす
+            # (`build_failures()` はコードで照合するので、入っているクラスのコードを渡す)
+            placed = next(c for c in plan.courses if key_of(c) == candidate.key)
+            if specified is not None and placed.syllabus_code and placed.syllabus_code != specified:
+                plan.include_placed[wanted] = placed.syllabus_code
             continue
         title = display_title(options[0])
         occupied = plan.occupied()

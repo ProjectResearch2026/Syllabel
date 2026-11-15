@@ -287,6 +287,36 @@ class StudentContext:
         """不合格・履修辞退のまま修得していない科目名(正規化済み)。"""
         return retake_titles(self.completed)
 
+    def class_allowed(self, code: str, title: str) -> bool:
+        """そのクラスを、この学生が対象学期の学年で履修登録できるか(対象課程と配当年次。§7.2.1)。
+
+        候補の絞り込み(`attach_offerings()`)と同じ判定で、検索のツールの `registrable` にも使う。
+        開講学期は見ない(検索は学期を問わず返す)。
+        """
+        if not self.eligibility.allows(code):
+            return False
+        offered = self.catalog.classes.get(code)
+        return offered is None or class_grade_allows(
+            title, self.target.grade, offered.grade_min, offered.grade_max
+        )
+
+    def grade_blocked_classes(self, course: MergedCourse) -> list[OfferedClass]:
+        """対象学期に登録する、履修登録できるクラスがあるのに、どれも配当年次が学年を
+        含まないとき、そのクラス。そうでなければ空(候補から消えた理由が配当年次だけのとき)。"""
+        offered = [
+            o
+            for code in self.loaded.syllabus_codes(course)
+            if (o := self.catalog.classes.get(code)) is not None
+            and self.eligibility.allows(code)
+            and registration_half(o.term) in (self.target.term, None)
+        ]
+        if any(
+            class_grade_allows(course.title, self.target.grade, o.grade_min, o.grade_max)
+            for o in offered
+        ):
+            return []
+        return offered
+
     def off_term(self, candidate: Candidate) -> bool:
         """その科目を、履修要項の学期(`term`)と違う対象学期に置かないか。
 

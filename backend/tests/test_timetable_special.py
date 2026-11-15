@@ -29,7 +29,8 @@ def _graded(code, title, slots, term, grade_min=None, grade_max=None):
 
 
 # フレッシャーズセミナー(1年前期・火2)、理工学のすすめ(1年後期・月3。シラバスの配当年次は1年次のみ)、
-# 実験(必修・1年前期)は通常クラス(前期 金1・1〜4年次)と再履修クラス(後期 金5・3〜4年次)を持つ
+# 実験(必修・1年前期)は通常クラス(前期 金1・1〜4年次)、再履修クラス(後期 金5・3〜4年次)、
+# 後期の通常クラス(後期 金4・1〜4年次)を持つ
 _CLASSES = {
     c.syllabus_code: c
     for c in [
@@ -38,8 +39,12 @@ _CLASSES = {
         _graded("S000000002", "理工学のすすめ", [("月", 3)], "後期", 1, 1),
         _graded("S000000003", "実験", [("金", 1)], "前期", 1, 4),
         _graded("S000000004", "実験", [("金", 5)], "後期", 3, 4),
+        _graded("S000000005", "実験", [("金", 4)], "後期", 1, 4),
     ]
 }
+
+
+_WITHOUT_S5 = {k: v for k, v in _CLASSES.items() if k != "S000000005"}
 
 
 def _loaded():
@@ -58,7 +63,7 @@ def _loaded():
             "微分積分": ["Y000000001"],
             "フレッシャーズセミナー": ["S000000001"],
             "理工学のすすめ": ["S000000002"],
-            "実験": ["S000000003", "S000000004"],
+            "実験": ["S000000003", "S000000004", "S000000005"],
         },
     }
     return LoadedCurriculum(
@@ -85,12 +90,15 @@ def curricula(monkeypatch):
 
 
 async def _ctx(*courses, term="前期", grade=1, classes=None):
+    classes = _CLASSES if classes is None else classes
+    # 検索のツールは対象学部のコードだけを見る。合成のクラス(S…)も対象学部に入れる
+    catalog = dataclasses.replace(fx.catalog(classes), faculty_codes=frozenset(classes))
     return await build_student_context(
         fx.profile(*courses, grade=grade),
         "01",
         fx.ADMISSION_YEAR,
         fx.target(term, grade),
-        catalog=fx.catalog(_CLASSES if classes is None else classes),
+        catalog=catalog,
     )
 
 
@@ -229,7 +237,7 @@ async def test_must_register_course_is_not_displaced_by_an_include(monkeypatch):
 @pytest.mark.asyncio
 async def test_retake_class_for_upper_grades_is_not_offered_to_second_years():
     """3〜4年次向けの再履修クラスは、2年生の再履修者には置かない。入れたいと言われても理由を返す。"""
-    ctx = await _ctx(fx.course("実験", status="failed"), term="後期", grade=2)
+    ctx = await _ctx(fx.course("実験", status="failed"), term="後期", grade=2, classes=_WITHOUT_S5)
     result = _build(ctx)
     asked = _build(ctx, Conditions(include=["S000000004"]))
 
@@ -240,7 +248,7 @@ async def test_retake_class_for_upper_grades_is_not_offered_to_second_years():
 
 @pytest.mark.asyncio
 async def test_retake_class_for_upper_grades_is_offered_to_third_years():
-    result = _build(await _ctx(fx.course("実験", status="failed"), term="後期", grade=3))
+    result = _build(await _ctx(fx.course("実験", status="failed"), term="後期", grade=3, classes=_WITHOUT_S5))
 
     assert _placed(result)["実験"].syllabus_code == "S000000004"
 
@@ -280,6 +288,9 @@ async def test_special_lines_come_from_the_table_and_curriculum():
     # シラバスのチャットは時間割を組まないので、別の画面の機能として書く
     assert "時間割の画面の、時間割を組む機能" in chat[0]
     assert "時間割の画面の" not in builds[0]
+    # 置かない場合を、組み立ての動き(_place_must_register)と同じだけ挙げる
+    for case in ("必修や学生が入れた科目とコマが重なる", "登録できる単位を超える", "必修だけで組む"):
+        assert case in builds[0]
 
 
 def test_special_titles_exist_in_every_curriculum():
@@ -288,3 +299,80 @@ def test_special_titles_exist_in_every_curriculum():
     for (code, year), loaded in get_curricula().items():
         own = {normalize_title(c.title) for c in loaded.curriculum.courses if c.own}
         assert titles <= own, f"{code}/{year}: {titles - own}"
+
+
+@pytest.mark.asyncio
+async def test_include_of_a_class_outside_the_grade_uses_another_class_of_the_course():
+    """学年の対象外のクラスのコードを渡されても、同じ科目の学年に合うクラスで入れる。
+    必修で既に別のクラスが入っているときは、入れられなかったことにしない。"""
+    from app.agents.timetable_assistant import build_failures
+
+    ctx = await _ctx(fx.course("実験", status="failed"), term="後期", grade=2)
+    result = _build(ctx, Conditions(include=["S000000004"]))
+
+    assert _placed(result)["実験"].syllabus_code == "S000000005"
+    assert result.include_failures == {}
+    failed = build_failures(
+        [], result.courses, mode="rebuild", include=["S000000004"], exclude=[],
+        include_failures=result.include_failures, include_placed=result.include_placed,
+    )
+    assert failed == {}
+
+
+@pytest.mark.asyncio
+async def test_search_prefers_a_class_the_student_can_register_for():
+    """検索の代表のクラスは学年に合うクラスにし、学年の対象外のクラスは registrable を偽にする。"""
+    from app.agents.course_tools import search_courses
+
+    # 学年の対象外のクラス(3〜4年次)を曜日の最も早いコマに置き、並べ替えだけでは後ろに来ないようにする
+    classes = dict(_CLASSES)
+    classes["S000000004"] = _graded("S000000004", "実験", [("月", 1)], "後期", 3, 4)
+    ctx = await _ctx(fx.course("実験", status="failed"), term="後期", grade=2, classes=classes)
+    result = await search_courses(ctx, keyword="実験", include_taken=True)
+    entry = next(c for c in result["courses"] if c["title"] == "実験")
+
+    assert entry["registrable"] is True
+    assert entry["code"] in ("S000000003", "S000000005")
+    assert entry["code"] != "S000000004"
+
+    only_upper = await _ctx(
+        fx.course("実験", status="failed"), term="後期", grade=2,
+        classes={k: v for k, v in _CLASSES.items() if k not in ("S000000003", "S000000005")},
+    )
+    hidden = await search_courses(only_upper, keyword="実験", include_taken=True)
+    shown = await search_courses(only_upper, keyword="実験", include_taken=True, only_registrable=False)
+    assert all(c["title"] != "実験" for c in hidden["courses"])
+    assert next(c for c in shown["courses"] if c["title"] == "実験")["registrable"] is False
+
+
+@pytest.mark.asyncio
+async def test_retake_blocked_only_by_class_grade_is_reported():
+    """再履修の必修が配当年次だけで入らないときは、確かめることと【再履修する必修】に書く。"""
+    from app.timetable.facts import retake_lines
+
+    ctx = await _ctx(fx.course("実験", status="failed"), term="後期", grade=2, classes=_WITHOUT_S5)
+    result = _build(ctx)
+
+    assert any(
+        "再履修の必修の「実験」" in item and "3年次～4年次" in item
+        for item in result.report.needs_confirmation
+    )
+    assert any("実験" in line and "3年次～4年次が対象" in line for line in retake_lines(ctx))
+
+
+@pytest.mark.asyncio
+async def test_must_register_course_placed_by_an_older_build_is_kept_on_adjust():
+    """前の組み立てで不足を埋める科目として入った理工学のすすめも、調整で外してよい科目にしない。"""
+    from app.schemas.proposal import CourseSlot, ProposedCourse
+
+    ctx = await _ctx(fx.course("フレッシャーズセミナー"), term="後期")
+    old = ProposedCourse(
+        syllabus_code="S000000002", title="理工学のすすめ", day="月", period=3, term="後期",
+        slots=[CourseSlot(term="後期", day="月", period=3)], credits=2, category="選択",
+        reason="専門基礎科目(選択)の不足を埋める", source="assistant",
+    )
+    result = build_timetable(ctx, Conditions(), [old], mode="adjust", rng=random.Random(0))
+
+    placed = _placed(result)["理工学のすすめ"]
+    assert placed.reason == MUST_REGISTER_REASON
+    assert "理工学のすすめ" not in {e.course for e in result.report.removal_effects}
