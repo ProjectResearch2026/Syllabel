@@ -351,7 +351,7 @@ def evaluate_conditions(
     if over or conditions.max_periods_per_day != DEFAULT_MAX_PERIODS_PER_DAY:
         statuses.append(
             ConditionStatus(
-                condition=f"1日{conditions.max_periods_per_day}コマまでにする",
+                condition=_per_day_label(conditions.max_periods_per_day),
                 status="unmet" if over else "met",
                 detail=(
                     "、".join(f"{day}曜は{n}コマ" for day, n in over.items())
@@ -445,6 +445,12 @@ def _over_is_fixed(courses: Sequence[ProposedCourse], over: dict[str, int], cap:
 # 後の学期に取るのが当たり前で、書くと説明が長くなるだけである
 NO_CANDIDATE = "対象学期に履修できる候補が無い"
 LIMIT_REACHED = "登録できる単位の上限に達した"
+UNSCHEDULED_NOTE = "日程を確かめる"
+
+
+def _per_day_label(cap: int) -> str:
+    """1日のコマ数の上限の条件の名前。"""
+    return f"1日{cap}コマまでにする"
 
 
 def _required_slot_keys(ctx: StudentContext) -> set[str]:
@@ -534,7 +540,7 @@ def make_report(
     confirm: list[str] = list(confirmations)
     for course in courses:
         if not course.occupied_slots():
-            confirm.append(f"{course.title}は曜日・時限が未定(集中講義など)。日程を確かめる")
+            confirm.append(f"{course.title}は曜日・時限が未定(集中講義など)。{UNSCHEDULED_NOTE}")
         result = ctx.prerequisites.get(normalize_title(course.title))
         if result is not None and result.status == "unknown":
             confirm.append(f"{course.title}の先修条件はシステムでは判定できない。条件: {result.notes}")
@@ -617,27 +623,33 @@ def report_lines(report: Report) -> list[str]:
     return lines
 
 
-def summarize_report(report: Report, course_count: int) -> str:
+def summarize_report(report: Report, courses: Sequence[ProposedCourse]) -> str:
     """レポートから、モデルを通さずに学生へ見せる説明を作る(「希望条件なしで提案する」)。
 
-    書くのはレポートにある事実だけで、推測や評価を足さない。
+    書くのはレポートにある事実だけで、推測や評価を足さない。短く保つため、学生が読んでも
+    できることの無いこと(登録できる単位の上限、残る不足、既定の1日のコマ数を必修が超えること)
+    と、表を見れば分かること(曜日・時限が未定の科目)は書かない。
     """
-    lines = [f"時間割を組みました。{course_count}科目・{report.credits.total}単位です。", ""]
+    lines = [f"時間割を組みました。{len(courses)}科目・{report.credits.total}単位です。", ""]
     if report.free_days:
-        lines.append(f"- 授業の無い平日: {'・'.join(report.free_days)}")
-    else:
-        lines.append("- 授業の無い平日はありません")
-    unmet = [c for c in report.conditions if c.status == "unmet"]
-    for status in unmet:
-        lines.append(f"- 満たせなかった条件: {status.condition}({status.detail})")
-    for short in report.remaining_shortfall:
-        # 上限が理由の不足は、学生にできることが無いので理由(上限と入らなかった候補)を書かない
-        limited = not short.reason or short.reason.startswith(LIMIT_REACHED)
-        reason = "" if limited else f"。{short.reason}"
-        lines.append(f"- この時間割を修得しても {short.slot} が{short.shortfall}単位不足{reason}")
+        lines.append(f"- {'・'.join(f'{day}曜' for day in report.free_days)}は授業がありません。")
+    must = list(dict.fromkeys(c.title for c in courses if is_must_register(c)))
+    if must:
+        lines.append(
+            f"- {'・'.join(must)}は必修科目ではありませんが、"
+            "必ず履修登録しなければならない科目のため入れています。"
+        )
+    for status in report.conditions:
+        if status.status == "unmet" and status.condition != _per_day_label(
+            DEFAULT_MAX_PERIODS_PER_DAY
+        ):
+            lines.append(f"- 満たせなかった条件: {status.condition}({status.detail})")
     if report.retakes:
         lines.append(f"- 再履修の科目: {'、'.join(report.retakes)}")
     for item in report.needs_confirmation:
-        lines.append(f"- 確かめること: {item}")
+        if not item.endswith(UNSCHEDULED_NOTE):
+            lines.append(f"- 確かめること: {item}")
+    if len(lines) == 2:
+        lines.pop()
     lines += ["", "条件(全休・避けたい時限・入れたい科目など)があれば、書いてください。組み直します。"]
     return "\n".join(lines)

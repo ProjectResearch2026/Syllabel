@@ -18,6 +18,7 @@ from app.timetable import context as context_module
 from app.timetable.builder import build_timetable
 from app.timetable.conditions import Conditions
 from app.timetable.context import build_student_context
+from app.timetable.report import summarize_report
 from app.timetable.special import MUST_REGISTER_REASON, SPECIAL_COURSES, special_lines
 import timetable_fixtures as fx
 
@@ -129,6 +130,21 @@ async def test_must_register_course_is_placed_in_its_grade_and_term():
     assert _must_register_steps(late) == ["理工学のすすめ"]
     # 必修ではない(学生にとっての履修区分は選択のまま)
     assert _placed(early)["フレッシャーズセミナー"].category == "選択"
+
+
+@pytest.mark.asyncio
+async def test_summary_explains_must_register_course_and_stays_short():
+    """希望条件なしの説明は、必ず履修登録する科目を入れた理由を書き、上限・不足・候補を書かない。"""
+    result = _build(await _ctx())
+    message = summarize_report(result.report, result.courses)
+
+    assert message.startswith(f"時間割を組みました。{len(result.courses)}科目・")
+    assert (
+        "- フレッシャーズセミナーは必修科目ではありませんが、"
+        "必ず履修登録しなければならない科目のため入れています。"
+    ) in message
+    for word in ("登録できる単位", "不足", "候補", "コマまで"):
+        assert word not in message
 
 
 @pytest.mark.asyncio
