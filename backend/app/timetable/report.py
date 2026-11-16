@@ -444,6 +444,7 @@ def _over_is_fixed(courses: Sequence[ProposedCourse], over: dict[str, int], cap:
 # 残る不足の理由のうち、学生に伝えなくてよいもの。対象学期に取れる科目が無い枠は、
 # 後の学期に取るのが当たり前で、書くと説明が長くなるだけである
 NO_CANDIDATE = "対象学期に履修できる候補が無い"
+LIMIT_REACHED = "登録できる単位の上限に達した"
 
 
 def _required_slot_keys(ctx: StudentContext) -> set[str]:
@@ -621,9 +622,7 @@ def summarize_report(report: Report, course_count: int) -> str:
 
     書くのはレポートにある事実だけで、推測や評価を足さない。
     """
-    credits = report.credits
-    limit = f"(登録できる単位は{credits.limit}単位)" if credits.limit is not None else ""
-    lines = [f"時間割を組みました。{course_count}科目・{credits.total}単位です{limit}。", ""]
+    lines = [f"時間割を組みました。{course_count}科目・{report.credits.total}単位です。", ""]
     if report.free_days:
         lines.append(f"- 授業の無い平日: {'・'.join(report.free_days)}")
     else:
@@ -632,7 +631,9 @@ def summarize_report(report: Report, course_count: int) -> str:
     for status in unmet:
         lines.append(f"- 満たせなかった条件: {status.condition}({status.detail})")
     for short in report.remaining_shortfall:
-        reason = f"。{short.reason}" if short.reason else ""
+        # 上限が理由の不足は、学生にできることが無いので理由(上限と入らなかった候補)を書かない
+        limited = not short.reason or short.reason.startswith(LIMIT_REACHED)
+        reason = "" if limited else f"。{short.reason}"
         lines.append(f"- この時間割を修得しても {short.slot} が{short.shortfall}単位不足{reason}")
     if report.retakes:
         lines.append(f"- 再履修の科目: {'、'.join(report.retakes)}")
