@@ -444,6 +444,8 @@ def _over_is_fixed(courses: Sequence[ProposedCourse], over: dict[str, int], cap:
 # 残る不足の理由のうち、学生に伝えなくてよいもの。対象学期に取れる科目が無い枠は、
 # 後の学期に取るのが当たり前で、書くと説明が長くなるだけである
 NO_CANDIDATE = "対象学期に履修できる候補が無い"
+LIMIT_REACHED = "登録できる単位の上限に達した"
+UNSCHEDULED_NOTE = "日程を確かめる"
 
 
 def _required_slot_keys(ctx: StudentContext) -> set[str]:
@@ -533,7 +535,7 @@ def make_report(
     confirm: list[str] = list(confirmations)
     for course in courses:
         if not course.occupied_slots():
-            confirm.append(f"{course.title}は曜日・時限が未定(集中講義など)。日程を確かめる")
+            confirm.append(f"{course.title}は曜日・時限が未定(集中講義など)。{UNSCHEDULED_NOTE}")
         result = ctx.prerequisites.get(normalize_title(course.title))
         if result is not None and result.status == "unknown":
             confirm.append(f"{course.title}の先修条件はシステムでは判定できない。条件: {result.notes}")
@@ -616,27 +618,61 @@ def report_lines(report: Report) -> list[str]:
     return lines
 
 
-def summarize_report(report: Report, course_count: int) -> str:
+# レポートの文(である調)の文末 → 学生に見せる説明の文末
+_POLITE_ENDINGS = (
+    ("入れていない", "入れていません"),
+    ("確かめる", "確かめてください"),
+    ("判定できない", "判定できません"),
+    ("超える", "超えます"),
+    ("科目", "科目です"),
+)
+
+
+def _polite(text: str) -> str:
+    """レポートの「確かめること」を、説明のほかの行と同じ「です・ます」にする。"""
+    sentences = []
+    for sentence in filter(None, (part.strip() for part in text.split("。"))):
+        for plain, polite in _POLITE_ENDINGS:
+            if sentence.endswith(plain):
+                sentence = sentence[: -len(plain)] + polite
+                break
+        sentences.append(sentence)
+    return "。".join(sentences) + "。"
+
+
+def summarize_report(report: Report, courses: Sequence[ProposedCourse]) -> str:
     """レポートから、モデルを通さずに学生へ見せる説明を作る(「希望条件なしで提案する」)。
 
-    書くのはレポートにある事実だけで、推測や評価を足さない。
+    書くのはレポートにある事実だけで、推測や評価を足さない。短く保つため、学生が読んでも
+    できることの無いこと(登録できる単位の上限、残る不足、既定の1日のコマ数を必修が超えること)
+    は書かない。条件なしで組むので、既定の1日のコマ数のほかに満たせない条件は無い。
+    曜日・時限が未定の科目は、表の下の欄に入れたことと日程の確認が要ることを書く
+    (レポートの「確かめること」の同じ項目は、二度並ぶので載せない)。
     """
-    credits = report.credits
-    limit = f"(登録できる単位は{credits.limit}単位)" if credits.limit is not None else ""
-    lines = [f"時間割を組みました。{course_count}科目・{credits.total}単位です{limit}。", ""]
-    if report.free_days:
-        lines.append(f"- 授業の無い平日: {'・'.join(report.free_days)}")
-    else:
-        lines.append("- 授業の無い平日はありません")
-    unmet = [c for c in report.conditions if c.status == "unmet"]
-    for status in unmet:
-        lines.append(f"- 満たせなかった条件: {status.condition}({status.detail})")
-    for short in report.remaining_shortfall:
-        reason = f"。{short.reason}" if short.reason else ""
-        lines.append(f"- この時間割を修得しても {short.slot} が{short.shortfall}単位不足{reason}")
+    closing = "条件(全休・避けたい時限・入れたい科目など)があれば、書いてください。組み直します。"
+    lines = []
+    if report.free_days and courses:
+        lines.append(f"- {'・'.join(f'{day}曜' for day in report.free_days)}は授業がありません。")
+    must = list(dict.fromkeys(c.title for c in courses if is_must_register(c)))
+    if must:
+        lines.append(
+            f"- {'・'.join(must)}は必修科目ではありませんが、"
+            "必ず履修登録しなければならない科目のため入れています。"
+        )
+    unscheduled = list(dict.fromkeys(c.title for c in courses if not c.occupied_slots()))
+    if unscheduled:
+        lines.append(
+            f"- {'・'.join(unscheduled)}はシラバスに曜日・時限が載っていないため、"
+            "表の下の「曜日・時限未定」に入れています。日程は別途確認が必要です。"
+        )
     if report.retakes:
-        lines.append(f"- 再履修の科目: {'、'.join(report.retakes)}")
+        lines.append(f"- {'・'.join(report.retakes)}は再履修の科目です。")
     for item in report.needs_confirmation:
-        lines.append(f"- 確かめること: {item}")
-    lines += ["", "条件(全休・避けたい時限・入れたい科目など)があれば、書いてください。組み直します。"]
-    return "\n".join(lines)
+        if not item.endswith(UNSCHEDULED_NOTE):
+            lines.append(f"- {_polite(item)}")
+    head = (
+        f"時間割を組みました。{len(courses)}科目・{report.credits.total}単位です。"
+        if courses
+        else "対象学期の時間割に入れられる科目がありませんでした。"
+    )
+    return "\n".join([head, "", *lines, *([""] if lines else []), closing])

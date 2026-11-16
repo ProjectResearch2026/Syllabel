@@ -18,6 +18,7 @@ from app.timetable import context as context_module
 from app.timetable.builder import build_timetable
 from app.timetable.conditions import Conditions
 from app.timetable.context import build_student_context
+from app.timetable.report import summarize_report
 from app.timetable.special import MUST_REGISTER_REASON, SPECIAL_COURSES, special_lines
 import timetable_fixtures as fx
 
@@ -129,6 +130,56 @@ async def test_must_register_course_is_placed_in_its_grade_and_term():
     assert _must_register_steps(late) == ["理工学のすすめ"]
     # 必修ではない(学生にとっての履修区分は選択のまま)
     assert _placed(early)["フレッシャーズセミナー"].category == "選択"
+
+
+@pytest.mark.asyncio
+async def test_summary_explains_must_register_course_and_stays_short():
+    """希望条件なしの説明は、必ず履修登録する科目を入れた理由を書き、上限・不足・候補を書かない。"""
+    result = _build(await _ctx())
+    message = summarize_report(result.report, result.courses)
+
+    assert message.startswith(f"時間割を組みました。{len(result.courses)}科目・")
+    assert (
+        "- フレッシャーズセミナーは必修科目ではありませんが、"
+        "必ず履修登録しなければならない科目のため入れています。"
+    ) in message
+    for word in ("登録できる単位", "不足", "候補", "コマまで"):
+        assert word not in message
+
+    # 曜日・時限が未定の科目は、表の下の欄に入れたことと日程の確認が要ることを1行で書く
+    loose = result.courses[0].model_copy(update={"title": "集中の科目", "slots": [], "day": None, "period": None})
+    assert not loose.occupied_slots()
+    message = summarize_report(result.report, [*result.courses, loose])
+    assert (
+        "- 集中の科目はシラバスに曜日・時限が載っていないため、"
+        "表の下の「曜日・時限未定」に入れています。日程は別途確認が必要です。"
+    ) in message
+
+    # 確かめることと再履修は、ほかの行と同じ「です・ます」で書く
+    report = result.report.model_copy(
+        update={
+            "retakes": ["線形代数"],
+            "needs_confirmation": [
+                "必修の「A」が「B」と火2で重なるため、時間割に入れていない",
+                "Cは配当年次に必ず履修登録する科目。入れない科目に指定されたため入れていない。"
+                "履修登録しなくてよいか確かめる",
+                "Dの先修条件はシステムでは判定できない。条件: Eを修得していること。",
+            ],
+        }
+    )
+    message = summarize_report(report, result.courses)
+    assert "- 線形代数は再履修の科目です。" in message
+    assert "- 必修の「A」が「B」と火2で重なるため、時間割に入れていません。" in message
+    assert (
+        "- Cは配当年次に必ず履修登録する科目です。入れない科目に指定されたため入れていません。"
+        "履修登録しなくてよいか確かめてください。"
+    ) in message
+    assert "- Dの先修条件はシステムでは判定できません。条件: Eを修得していること。" in message
+
+    # 入れる科目が無いときは、0科目・全休とは書かない
+    empty = summarize_report(result.report.model_copy(update={"free_days": ["月", "火"]}), [])
+    assert empty.startswith("対象学期の時間割に入れられる科目がありませんでした。")
+    assert "授業がありません" not in empty
 
 
 @pytest.mark.asyncio

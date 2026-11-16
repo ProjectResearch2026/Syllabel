@@ -114,7 +114,7 @@ async def post_build(req: BuildRequest) -> dict:
         "report": result.report.model_dump(by_alias=True),
         "conditions": result.conditions.model_dump(by_alias=True),
         "steps": [step.model_dump(by_alias=True) for step in result.steps],
-        "message": summarize_report(result.report, len(result.courses)),
+        "message": summarize_report(result.report, result.courses),
     }
 
 

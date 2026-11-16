@@ -74,6 +74,7 @@ from app.timetable.report import (
     is_removable,
     make_report,
     pinned_keys,
+    LIMIT_REACHED,
     NO_CANDIDATE,
 )
 
@@ -961,7 +962,7 @@ def _shortfall_reasons(
         elif plan.limit is not None and all(
             plan.total + c.course.credits > plan.limit for c in reachable[key]
         ):
-            reasons[key] = "登録できる単位の上限に達した。" + _blockers(plan, reachable[key], exclude)
+            reasons[key] = f"{LIMIT_REACHED}。" + _blockers(plan, reachable[key], exclude)
         elif all(exclude.matches(c.course) for c in reachable[key]):
             reasons[key] = "入れない科目に指定された科目しか候補が無い"
         else:
