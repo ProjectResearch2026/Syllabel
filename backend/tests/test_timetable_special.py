@@ -146,6 +146,15 @@ async def test_summary_explains_must_register_course_and_stays_short():
     for word in ("登録できる単位", "不足", "候補", "コマまで"):
         assert word not in message
 
+    # 曜日・時限が未定の科目は、表の下の欄に入れたことと日程の確認が要ることを1行で書く
+    loose = result.courses[0].model_copy(update={"title": "集中の科目", "slots": [], "day": None, "period": None})
+    assert not loose.occupied_slots()
+    message = summarize_report(result.report, [*result.courses, loose])
+    assert (
+        "- 集中の科目はシラバスに曜日・時限が載っていないため、"
+        "表の下の「曜日・時限未定」に入れています。日程は別途確認が必要です。"
+    ) in message
+
 
 @pytest.mark.asyncio
 async def test_must_register_course_is_not_forced_outside_its_grade():

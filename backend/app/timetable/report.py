@@ -628,7 +628,8 @@ def summarize_report(report: Report, courses: Sequence[ProposedCourse]) -> str:
 
     書くのはレポートにある事実だけで、推測や評価を足さない。短く保つため、学生が読んでも
     できることの無いこと(登録できる単位の上限、残る不足、既定の1日のコマ数を必修が超えること)
-    と、表を見れば分かること(曜日・時限が未定の科目)は書かない。
+    は書かない。曜日・時限が未定の科目は、表の下の欄に入れたことと日程の確認が要ることを書く
+    (レポートの「確かめること」の同じ項目は、二度並ぶので載せない)。
     """
     lines = [f"時間割を組みました。{len(courses)}科目・{report.credits.total}単位です。", ""]
     if report.free_days:
@@ -638,6 +639,12 @@ def summarize_report(report: Report, courses: Sequence[ProposedCourse]) -> str:
         lines.append(
             f"- {'・'.join(must)}は必修科目ではありませんが、"
             "必ず履修登録しなければならない科目のため入れています。"
+        )
+    unscheduled = list(dict.fromkeys(c.title for c in courses if not c.occupied_slots()))
+    if unscheduled:
+        lines.append(
+            f"- {'・'.join(unscheduled)}はシラバスに曜日・時限が載っていないため、"
+            "表の下の「曜日・時限未定」に入れています。日程は別途確認が必要です。"
         )
     for status in report.conditions:
         if status.status == "unmet" and status.condition != _per_day_label(
