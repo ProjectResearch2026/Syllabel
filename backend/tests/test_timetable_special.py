@@ -155,6 +155,32 @@ async def test_summary_explains_must_register_course_and_stays_short():
         "表の下の「曜日・時限未定」に入れています。日程は別途確認が必要です。"
     ) in message
 
+    # 確かめることと再履修は、ほかの行と同じ「です・ます」で書く
+    report = result.report.model_copy(
+        update={
+            "retakes": ["線形代数"],
+            "needs_confirmation": [
+                "必修の「A」が「B」と火2で重なるため、時間割に入れていない",
+                "Cは配当年次に必ず履修登録する科目。入れない科目に指定されたため入れていない。"
+                "履修登録しなくてよいか確かめる",
+                "Dの先修条件はシステムでは判定できない。条件: Eを修得していること。",
+            ],
+        }
+    )
+    message = summarize_report(report, result.courses)
+    assert "- 線形代数は再履修の科目です。" in message
+    assert "- 必修の「A」が「B」と火2で重なるため、時間割に入れていません。" in message
+    assert (
+        "- Cは配当年次に必ず履修登録する科目です。入れない科目に指定されたため入れていません。"
+        "履修登録しなくてよいか確かめてください。"
+    ) in message
+    assert "- Dの先修条件はシステムでは判定できません。条件: Eを修得していること。" in message
+
+    # 入れる科目が無いときは、0科目・全休とは書かない
+    empty = summarize_report(result.report.model_copy(update={"free_days": ["月", "火"]}), [])
+    assert empty.startswith("対象学期の時間割に入れられる科目がありませんでした。")
+    assert "授業がありません" not in empty
+
 
 @pytest.mark.asyncio
 async def test_must_register_course_is_not_forced_outside_its_grade():

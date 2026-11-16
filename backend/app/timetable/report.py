@@ -351,7 +351,7 @@ def evaluate_conditions(
     if over or conditions.max_periods_per_day != DEFAULT_MAX_PERIODS_PER_DAY:
         statuses.append(
             ConditionStatus(
-                condition=_per_day_label(conditions.max_periods_per_day),
+                condition=f"1日{conditions.max_periods_per_day}コマまでにする",
                 status="unmet" if over else "met",
                 detail=(
                     "、".join(f"{day}曜は{n}コマ" for day, n in over.items())
@@ -446,11 +446,6 @@ def _over_is_fixed(courses: Sequence[ProposedCourse], over: dict[str, int], cap:
 NO_CANDIDATE = "対象学期に履修できる候補が無い"
 LIMIT_REACHED = "登録できる単位の上限に達した"
 UNSCHEDULED_NOTE = "日程を確かめる"
-
-
-def _per_day_label(cap: int) -> str:
-    """1日のコマ数の上限の条件の名前。"""
-    return f"1日{cap}コマまでにする"
 
 
 def _required_slot_keys(ctx: StudentContext) -> set[str]:
@@ -623,16 +618,40 @@ def report_lines(report: Report) -> list[str]:
     return lines
 
 
+# レポートの文(である調)の文末 → 学生に見せる説明の文末
+_POLITE_ENDINGS = (
+    ("入れていない", "入れていません"),
+    ("確かめる", "確かめてください"),
+    ("判定できない", "判定できません"),
+    ("超える", "超えます"),
+    ("科目", "科目です"),
+)
+
+
+def _polite(text: str) -> str:
+    """レポートの「確かめること」を、説明のほかの行と同じ「です・ます」にする。"""
+    sentences = []
+    for sentence in filter(None, (part.strip() for part in text.split("。"))):
+        for plain, polite in _POLITE_ENDINGS:
+            if sentence.endswith(plain):
+                sentence = sentence[: -len(plain)] + polite
+                break
+        sentences.append(sentence)
+    return "。".join(sentences) + "。"
+
+
 def summarize_report(report: Report, courses: Sequence[ProposedCourse]) -> str:
     """レポートから、モデルを通さずに学生へ見せる説明を作る(「希望条件なしで提案する」)。
 
     書くのはレポートにある事実だけで、推測や評価を足さない。短く保つため、学生が読んでも
     できることの無いこと(登録できる単位の上限、残る不足、既定の1日のコマ数を必修が超えること)
-    は書かない。曜日・時限が未定の科目は、表の下の欄に入れたことと日程の確認が要ることを書く
+    は書かない。条件なしで組むので、既定の1日のコマ数のほかに満たせない条件は無い。
+    曜日・時限が未定の科目は、表の下の欄に入れたことと日程の確認が要ることを書く
     (レポートの「確かめること」の同じ項目は、二度並ぶので載せない)。
     """
-    lines = [f"時間割を組みました。{len(courses)}科目・{report.credits.total}単位です。", ""]
-    if report.free_days:
+    closing = "条件(全休・避けたい時限・入れたい科目など)があれば、書いてください。組み直します。"
+    lines = []
+    if report.free_days and courses:
         lines.append(f"- {'・'.join(f'{day}曜' for day in report.free_days)}は授業がありません。")
     must = list(dict.fromkeys(c.title for c in courses if is_must_register(c)))
     if must:
@@ -646,17 +665,14 @@ def summarize_report(report: Report, courses: Sequence[ProposedCourse]) -> str:
             f"- {'・'.join(unscheduled)}はシラバスに曜日・時限が載っていないため、"
             "表の下の「曜日・時限未定」に入れています。日程は別途確認が必要です。"
         )
-    for status in report.conditions:
-        if status.status == "unmet" and status.condition != _per_day_label(
-            DEFAULT_MAX_PERIODS_PER_DAY
-        ):
-            lines.append(f"- 満たせなかった条件: {status.condition}({status.detail})")
     if report.retakes:
-        lines.append(f"- 再履修の科目: {'、'.join(report.retakes)}")
+        lines.append(f"- {'・'.join(report.retakes)}は再履修の科目です。")
     for item in report.needs_confirmation:
         if not item.endswith(UNSCHEDULED_NOTE):
-            lines.append(f"- 確かめること: {item}")
-    if len(lines) == 2:
-        lines.pop()
-    lines += ["", "条件(全休・避けたい時限・入れたい科目など)があれば、書いてください。組み直します。"]
-    return "\n".join(lines)
+            lines.append(f"- {_polite(item)}")
+    head = (
+        f"時間割を組みました。{len(courses)}科目・{report.credits.total}単位です。"
+        if courses
+        else "対象学期の時間割に入れられる科目がありませんでした。"
+    )
+    return "\n".join([head, "", *lines, *([""] if lines else []), closing])
